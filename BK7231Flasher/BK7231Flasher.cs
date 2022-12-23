@@ -20,6 +20,7 @@ namespace BK7231Flasher
     {
         bool bDebugUART;
         SerialPort serial;
+        string serialName;
         ILogListener logger;
         BKType chipType = BKType.BK7231N;
 
@@ -45,10 +46,37 @@ namespace BK7231Flasher
         {
             logger.addLog(s, Color.Green);
         }
-        public BK7231Flasher(ILogListener logger, SerialPort serial)
+        void addWarning(string s)
+        {
+            logger.addLog(s, Color.Orange);
+        }
+        bool openPort()
+        {
+            try
+            {
+                serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
+                serial.Open();
+            }
+            catch(Exception ex)
+            {
+                addError("Serial port open exception: " + ex.ToString() + Environment.NewLine);
+                return true;
+            }
+            return false;
+        }
+        public void closePort()
+        {
+            if (serial != null)
+            {
+                serial.Close();
+                serial.Dispose();
+            }
+        }
+        public BK7231Flasher(ILogListener logger, string serialName, BKType bkType)
         {
             this.logger = logger;
-            this.serial = serial;
+            this.serialName = serialName;
+            this.chipType = bkType;
 
             crc32_table = new uint[256];
             for (uint i = 0; i < 256; i++)
@@ -278,7 +306,7 @@ namespace BK7231Flasher
                         return true;
                     }
                 }
-                addError("Getting bus failed, will try again - " + tr + "/" + maxTries + "!" + Environment.NewLine);
+                addWarning("Getting bus failed, will try again - " + tr + "/" + maxTries + "!" + Environment.NewLine);
             }
             return false;
         }
@@ -290,21 +318,30 @@ namespace BK7231Flasher
         {
             return "0x" + i.ToString("X2");
         }
-        public void doRead()
+        public void doRead(int startSector = 0x000, int sectors = 10)
         {
             try
             {
-                doReadInternal();
+                doReadInternal(startSector, sectors);
             }
             catch(Exception ex)
             {
-                addError("Exception caught: " + ex.ToString());
+                addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
-        void doReadInternal() { 
+        void doReadInternal(int startSector = 0x000, int sectors = 10)
+        {
+            logger.setProgress(0, sectors);
             addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
             addLog("Now is: " +DateTime.Now.ToLongDateString() + " "+  DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
-            addLog("Using serial port: "+serial.PortName+ "." + Environment.NewLine);
+
+            addLog("Going to open port: "+serialName+ "." + Environment.NewLine);
+            if (openPort())
+            {
+                addError("Failed to open serial port!" + Environment.NewLine);
+                return;
+            }
+            addSuccess("Serial port open!" + Environment.NewLine);
             if (getBus() == false)
             {
                 addError("Failed to get bus!" + Environment.NewLine);
@@ -315,9 +352,8 @@ namespace BK7231Flasher
             addLog("Flasher mode: " + chipType +  Environment.NewLine);
             MemoryStream ms;
             ms = new MemoryStream();
-            int startSector = 0x000;
+            
             int step = 4096;
-            int sectors = 10;
             // 4K page align
             startSector = (int)(startSector & 0xfffff000);
             addLog("Going to start reading at offset " + formatHex(startSector) + "..." + Environment.NewLine);
@@ -331,6 +367,7 @@ namespace BK7231Flasher
                     addError("Failed! ");
                     return;
                 }
+                logger.setProgress(i + 1, sectors);
                 addLog("Ok! ");
             }
             int total = step * sectors;
