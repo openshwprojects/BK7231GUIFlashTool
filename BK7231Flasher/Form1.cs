@@ -14,8 +14,9 @@ namespace BK7231Flasher
 {
     public partial class Form1 : Form, ILogListener
     {
+        string firmwaresPath = "firmwares/";
         public static Form1 Singleton;
-        SerialPort serial;
+      
         public Form1()
         {
             Singleton = this;
@@ -77,10 +78,27 @@ namespace BK7231Flasher
             scanForCOMPorts();
             setButtonReadLabel(label_startRead);
 
+            comboBoxChipType.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
+
             comboBoxChipType.Items.Add(BKType.BK7231T);
             comboBoxChipType.Items.Add(BKType.BK7231N);
 
             comboBoxChipType.SelectedIndex = 0;
+            
+            try
+            {
+                if (false==Directory.Exists(firmwaresPath))
+                {
+                    Directory.CreateDirectory(firmwaresPath);
+                }
+            }
+            catch(Exception ex)
+            {
+
+            }
+            refreshType();
+            refreshFirmwaresList();
         }
         public static void AppendText(RichTextBox box, string text, Color color)
         {
@@ -173,9 +191,53 @@ namespace BK7231Flasher
                 sectors = (0x200000-startSector) / 0x1000;
             }
             flasher.doRead(startSector, sectors);
+            flasher.saveReadResult();
             worker = null;
             setButtonReadLabel(label_startRead);
             clearUp();
+        }
+        public bool checkFirmwareForCurType(string s)
+        {
+            if (curType == BKType.BK7231N)
+            {
+                if (s.StartsWith("OpenBK7231N_QIO_"))
+                {
+                    return true;
+                }
+            }
+            if (curType == BKType.BK7231T)
+            {
+                if (s.StartsWith("OpenBK7231T_UA_"))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        public void refreshFirmwaresList()
+        {
+            string[] files = Directory.GetFiles(firmwaresPath);
+            comboBoxFirmware.Items.Clear();
+            for(int i = 0; i < files.Length; i++)
+            {
+                string fname = files[i];
+                fname = Path.GetFileName(fname);
+                if (checkFirmwareForCurType(fname) == false)
+                {
+                    continue;
+                }
+                comboBoxFirmware.Items.Add(fname);
+            }
+            labelMatchingFirmwares.Text = "" + files.Length + " total bins, " + comboBoxFirmware.Items.Count + " matching.";
+            if (comboBoxFirmware.Items.Count>0)
+            {
+                comboBoxFirmware.SelectedIndex = 0;
+            }
+        }
+        private void comboBoxChipType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            refreshType();
+            refreshFirmwaresList();
         }
     }
 }

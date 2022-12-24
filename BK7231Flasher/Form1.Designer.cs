@@ -35,17 +35,21 @@
             this.label2 = new System.Windows.Forms.Label();
             this.comboBoxChipType = new System.Windows.Forms.ComboBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.comboBox1 = new System.Windows.Forms.ComboBox();
+            this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
-            this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.button1 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.label4 = new System.Windows.Forms.Label();
-            this.button3 = new System.Windows.Forms.Button();
-            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.comboBoxBaudRate = new System.Windows.Forms.ComboBox();
+            this.label5 = new System.Windows.Forms.Label();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
+            this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.button3 = new System.Windows.Forms.Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.button2 = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
+            this.labelMatchingFirmwares = new System.Windows.Forms.Label();
+            this.button4 = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -102,6 +106,7 @@
             this.comboBoxChipType.Name = "comboBoxChipType";
             this.comboBoxChipType.Size = new System.Drawing.Size(133, 21);
             this.comboBoxChipType.TabIndex = 6;
+            this.comboBoxChipType.SelectedIndexChanged += new System.EventHandler(this.comboBoxChipType_SelectedIndexChanged);
             // 
             // label3
             // 
@@ -112,13 +117,13 @@
             this.label3.TabIndex = 7;
             this.label3.Text = "Select firmware:";
             // 
-            // comboBox1
+            // comboBoxFirmware
             // 
-            this.comboBox1.FormattingEnabled = true;
-            this.comboBox1.Location = new System.Drawing.Point(108, 60);
-            this.comboBox1.Name = "comboBox1";
-            this.comboBox1.Size = new System.Drawing.Size(133, 21);
-            this.comboBox1.TabIndex = 8;
+            this.comboBoxFirmware.FormattingEnabled = true;
+            this.comboBoxFirmware.Location = new System.Drawing.Point(108, 60);
+            this.comboBoxFirmware.Name = "comboBoxFirmware";
+            this.comboBoxFirmware.Size = new System.Drawing.Size(215, 21);
+            this.comboBoxFirmware.TabIndex = 8;
             // 
             // tabControl1
             // 
@@ -133,9 +138,13 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.button4);
+            this.tabPage1.Controls.Add(this.labelMatchingFirmwares);
+            this.tabPage1.Controls.Add(this.comboBoxBaudRate);
+            this.tabPage1.Controls.Add(this.label5);
             this.tabPage1.Controls.Add(this.progressBar1);
             this.tabPage1.Controls.Add(this.buttonRead);
-            this.tabPage1.Controls.Add(this.comboBox1);
+            this.tabPage1.Controls.Add(this.comboBoxFirmware);
             this.tabPage1.Controls.Add(this.textBoxLog);
             this.tabPage1.Controls.Add(this.label3);
             this.tabPage1.Controls.Add(this.comboBoxUART);
@@ -149,6 +158,30 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // comboBoxBaudRate
+            // 
+            this.comboBoxBaudRate.FormattingEnabled = true;
+            this.comboBoxBaudRate.Location = new System.Drawing.Point(108, 88);
+            this.comboBoxBaudRate.Name = "comboBoxBaudRate";
+            this.comboBoxBaudRate.Size = new System.Drawing.Size(133, 21);
+            this.comboBoxBaudRate.TabIndex = 11;
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(8, 91);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(74, 13);
+            this.label5.TabIndex = 10;
+            this.label5.Text = "Set baud rate:";
+            // 
+            // progressBar1
+            // 
+            this.progressBar1.Location = new System.Drawing.Point(3, 139);
+            this.progressBar1.Name = "progressBar1";
+            this.progressBar1.Size = new System.Drawing.Size(598, 23);
+            this.progressBar1.TabIndex = 9;
             // 
             // tabPage2
             // 
@@ -166,39 +199,13 @@
             this.tabPage2.Text = "tabPage2";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // button1
+            // textBox2
             // 
-            this.button1.Location = new System.Drawing.Point(9, 23);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 0;
-            this.button1.Text = "Prev Page";
-            this.button1.UseVisualStyleBackColor = true;
-            // 
-            // button2
-            // 
-            this.button2.Location = new System.Drawing.Point(394, 22);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(75, 23);
-            this.button2.TabIndex = 1;
-            this.button2.Text = "Next Page";
-            this.button2.UseVisualStyleBackColor = true;
-            // 
-            // textBox1
-            // 
-            this.textBox1.Location = new System.Drawing.Point(171, 25);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(100, 20);
-            this.textBox1.TabIndex = 2;
-            // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(90, 28);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(75, 13);
-            this.label4.TabIndex = 3;
-            this.label4.Text = "Page address:";
+            this.textBox2.Location = new System.Drawing.Point(9, 99);
+            this.textBox2.Multiline = true;
+            this.textBox2.Name = "textBox2";
+            this.textBox2.Size = new System.Drawing.Size(592, 319);
+            this.textBox2.TabIndex = 5;
             // 
             // button3
             // 
@@ -209,20 +216,57 @@
             this.button3.Text = "Read";
             this.button3.UseVisualStyleBackColor = true;
             // 
-            // textBox2
+            // label4
             // 
-            this.textBox2.Location = new System.Drawing.Point(9, 99);
-            this.textBox2.Multiline = true;
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(592, 319);
-            this.textBox2.TabIndex = 5;
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(90, 28);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(75, 13);
+            this.label4.TabIndex = 3;
+            this.label4.Text = "Page address:";
             // 
-            // progressBar1
+            // textBox1
             // 
-            this.progressBar1.Location = new System.Drawing.Point(3, 139);
-            this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(598, 23);
-            this.progressBar1.TabIndex = 9;
+            this.textBox1.Location = new System.Drawing.Point(171, 25);
+            this.textBox1.Name = "textBox1";
+            this.textBox1.Size = new System.Drawing.Size(100, 20);
+            this.textBox1.TabIndex = 2;
+            // 
+            // button2
+            // 
+            this.button2.Location = new System.Drawing.Point(394, 22);
+            this.button2.Name = "button2";
+            this.button2.Size = new System.Drawing.Size(75, 23);
+            this.button2.TabIndex = 1;
+            this.button2.Text = "Next Page";
+            this.button2.UseVisualStyleBackColor = true;
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(9, 23);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.TabIndex = 0;
+            this.button1.Text = "Prev Page";
+            this.button1.UseVisualStyleBackColor = true;
+            // 
+            // labelMatchingFirmwares
+            // 
+            this.labelMatchingFirmwares.AutoSize = true;
+            this.labelMatchingFirmwares.Location = new System.Drawing.Point(329, 63);
+            this.labelMatchingFirmwares.Name = "labelMatchingFirmwares";
+            this.labelMatchingFirmwares.Size = new System.Drawing.Size(121, 13);
+            this.labelMatchingFirmwares.TabIndex = 12;
+            this.labelMatchingFirmwares.Text = "X matching bins, Y total.";
+            // 
+            // button4
+            // 
+            this.button4.Location = new System.Drawing.Point(456, 58);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(145, 23);
+            this.button4.TabIndex = 13;
+            this.button4.Text = "Download latest from Web";
+            this.button4.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
@@ -250,7 +294,7 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.ComboBox comboBoxChipType;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.ComboBox comboBox1;
+        private System.Windows.Forms.ComboBox comboBoxFirmware;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.TabPage tabPage2;
@@ -261,6 +305,10 @@
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.ProgressBar progressBar1;
+        private System.Windows.Forms.ComboBox comboBoxBaudRate;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Label labelMatchingFirmwares;
     }
 }
 

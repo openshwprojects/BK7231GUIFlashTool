@@ -23,6 +23,8 @@ namespace BK7231Flasher
         string serialName;
         ILogListener logger;
         BKType chipType = BKType.BK7231N;
+        MemoryStream ms;
+        int baudrate = 921600;
 
         uint[] crc32_table;
         uint crc32_ver2(uint crc, byte[] buffer)
@@ -101,6 +103,7 @@ namespace BK7231Flasher
             LinkCheck = 0,
             FlashRead4K = 0x09,
             CheckCRC = 0x10,
+            SetBaudRate = 0x0f,
         }
         byte[] BuildCmd_LinkCheck()
         {
@@ -111,6 +114,23 @@ namespace BK7231Flasher
             ret[3] = 0x01; // len
             ret[4] = (byte)CommandCode.LinkCheck;
             return ret;
+        }
+        
+        byte[] BuildCmd_SetBaudRate(int baudrate, int delay_ms)
+        {
+            int length = 1 + (4 + 1);
+            byte[] buf = new byte[10];
+            buf[0] = 0x01;
+            buf[1] = 0xe0;
+            buf[2] = 0xfc;
+            buf[3] = (byte)length;
+            buf[4] = (byte)CommandCode.SetBaudRate;
+            buf[5] = (byte)(baudrate & 0xff);
+            buf[6] = (byte)((baudrate >> 8) & 0xff);
+            buf[7] = (byte)((baudrate >> 16) & 0xff);
+            buf[8] = (byte)((baudrate >> 24) & 0xff);
+            buf[9] = (byte)(delay_ms & 0xff);
+            return buf;
         }
         byte[] BuildCmd_CheckCRC(int startAddr, int endAddr)
         {
@@ -153,6 +173,10 @@ namespace BK7231Flasher
         {
             return (3 + 3 + 1 + 4);
         }
+        int CalcRxLength_SetBaudRate()
+        {
+            return (3 + 3 + 1 + 4 + 1);
+        }
         int CalcRxLength_LinkCheck()
         {
             return (3 + 3 + 1 + 1 + 0);
@@ -184,7 +208,12 @@ namespace BK7231Flasher
             consumePending();
             int realRead = 0;
             serial.ReadTimeout = 10;
-            serial.Write(txbuf, 0, txbuf.Length);
+            if(txbuf != null)
+            {
+                serial.Write(txbuf, 0, txbuf.Length);
+            }
+            if (rxLen == 0)
+                return null;
             var timer = new Stopwatch();
             timer.Start();
             if (rxLen > 0)
@@ -284,6 +313,18 @@ namespace BK7231Flasher
             return false;
         }
 
+        bool CheckRespond_SetBaudRate(byte[] buf, int baudrate, int delay_ms)
+        {
+            byte[] cBuf = new byte[] { 0x04, 0x0e, 0x05, 0x01, 0xe0, 0xfc, (byte)(CommandCode.SetBaudRate), 0, 0, 0, 0, 0 };
+            cBuf[2] = 3 + 1 + 4 + 1;
+            cBuf[7] = (byte)(baudrate & 0xff);
+            cBuf[8] = (byte)((baudrate >> 8) & 0xff);
+            cBuf[9] = (byte)((baudrate >> 16) & 0xff);
+            cBuf[10] = (byte)((baudrate >> 24) & 0xff);
+            cBuf[11] = (byte)(delay_ms & 0xff);
+
+            return cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf);
+        }
         bool CheckRespond_LinkCheck(byte[] buf)
         {
             byte[] cBuf = new byte[] { 0x04, 0x0e, 0x05, 0x01, 0xe0, 0xfc, (byte)(CommandCode.LinkCheck) + 1, 0x00 };
@@ -329,6 +370,25 @@ namespace BK7231Flasher
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
+        public bool saveReadResult(string fileName)
+        {
+            if(ms == null)
+            {
+                return false;
+            }
+            File.WriteAllBytes(fileName, ms.ToArray());
+            return true;
+        }
+        public void saveReadResult()
+        {
+            string fileName = MiscUtils.formatDateNowFileName("readResult", "bin");
+            saveReadResult(fileName);
+        }
+        bool setBaudRateIfNeeded()
+        {
+            bool bOk = setBaudrate(baudrate, 20);
+            return bOk;
+        }
         void doReadInternal(int startSector = 0x000, int sectors = 10)
         {
             logger.setProgress(0, sectors);
@@ -348,9 +408,15 @@ namespace BK7231Flasher
                 return;
             }
             Thread.Sleep(100);
+            addSuccess("Going to set baud rate setting (" + baudrate+")!" + Environment.NewLine);
+            if (setBaudRateIfNeeded() == false)
+            {
+                addError("Failed to set baud rate!" + Environment.NewLine);
+                return;
+            }
+            Thread.Sleep(100);
 
             addLog("Flasher mode: " + chipType +  Environment.NewLine);
-            MemoryStream ms;
             ms = new MemoryStream();
             
             int step = 4096;
@@ -441,6 +507,22 @@ namespace BK7231Flasher
             if (rxbuf != null)
             {
                 if (CheckRespond_LinkCheck(rxbuf))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        bool setBaudrate(int baudrate, int delay_ms)
+        {
+            byte[] txbuf = BuildCmd_SetBaudRate(baudrate, delay_ms);
+            Start_Cmd(txbuf,0, 0.5f);
+            Thread.Sleep(delay_ms/2);
+            serial.BaudRate = baudrate;
+            byte[] rxbuf = Start_Cmd(null, CalcRxLength_SetBaudRate(), 0.5f);
+            if (rxbuf != null)
+            {
+                if (CheckRespond_SetBaudRate(rxbuf, baudrate, delay_ms))
                 {
                     return true;
                 }
