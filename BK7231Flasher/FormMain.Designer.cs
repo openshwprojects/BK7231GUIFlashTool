@@ -38,6 +38,8 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonDownloadLatest = new System.Windows.Forms.Button();
+            this.labelMatchingFirmwares = new System.Windows.Forms.Label();
             this.comboBoxBaudRate = new System.Windows.Forms.ComboBox();
             this.label5 = new System.Windows.Forms.Label();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
@@ -48,8 +50,7 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.button2 = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
-            this.labelMatchingFirmwares = new System.Windows.Forms.Label();
-            this.buttonDownloadLatest = new System.Windows.Forms.Button();
+            this.buttonTestReadWrite = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -124,6 +125,8 @@
             this.comboBoxFirmware.Name = "comboBoxFirmware";
             this.comboBoxFirmware.Size = new System.Drawing.Size(215, 21);
             this.comboBoxFirmware.TabIndex = 8;
+            this.comboBoxFirmware.SelectedIndexChanged += new System.EventHandler(this.comboBoxFirmware_SelectedIndexChanged);
+            this.comboBoxFirmware.Click += new System.EventHandler(this.comboBoxFirmware_Click);
             // 
             // tabControl1
             // 
@@ -138,6 +141,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonTestReadWrite);
             this.tabPage1.Controls.Add(this.buttonDownloadLatest);
             this.tabPage1.Controls.Add(this.labelMatchingFirmwares);
             this.tabPage1.Controls.Add(this.comboBoxBaudRate);
@@ -158,6 +162,25 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonDownloadLatest
+            // 
+            this.buttonDownloadLatest.Location = new System.Drawing.Point(456, 58);
+            this.buttonDownloadLatest.Name = "buttonDownloadLatest";
+            this.buttonDownloadLatest.Size = new System.Drawing.Size(145, 23);
+            this.buttonDownloadLatest.TabIndex = 13;
+            this.buttonDownloadLatest.Text = "Download latest from Web";
+            this.buttonDownloadLatest.UseVisualStyleBackColor = true;
+            this.buttonDownloadLatest.Click += new System.EventHandler(this.buttonDownloadLatest_Click);
+            // 
+            // labelMatchingFirmwares
+            // 
+            this.labelMatchingFirmwares.AutoSize = true;
+            this.labelMatchingFirmwares.Location = new System.Drawing.Point(329, 63);
+            this.labelMatchingFirmwares.Name = "labelMatchingFirmwares";
+            this.labelMatchingFirmwares.Size = new System.Drawing.Size(121, 13);
+            this.labelMatchingFirmwares.TabIndex = 12;
+            this.labelMatchingFirmwares.Text = "X matching bins, Y total.";
             // 
             // comboBoxBaudRate
             // 
@@ -250,32 +273,23 @@
             this.button1.Text = "Prev Page";
             this.button1.UseVisualStyleBackColor = true;
             // 
-            // labelMatchingFirmwares
+            // buttonTestReadWrite
             // 
-            this.labelMatchingFirmwares.AutoSize = true;
-            this.labelMatchingFirmwares.Location = new System.Drawing.Point(329, 63);
-            this.labelMatchingFirmwares.Name = "labelMatchingFirmwares";
-            this.labelMatchingFirmwares.Size = new System.Drawing.Size(121, 13);
-            this.labelMatchingFirmwares.TabIndex = 12;
-            this.labelMatchingFirmwares.Text = "X matching bins, Y total.";
+            this.buttonTestReadWrite.Location = new System.Drawing.Point(281, 110);
+            this.buttonTestReadWrite.Name = "buttonTestReadWrite";
+            this.buttonTestReadWrite.Size = new System.Drawing.Size(127, 23);
+            this.buttonTestReadWrite.TabIndex = 14;
+            this.buttonTestReadWrite.Text = "Test Read/Write";
+            this.buttonTestReadWrite.UseVisualStyleBackColor = true;
+            this.buttonTestReadWrite.Click += new System.EventHandler(this.buttonTestReadWrite_Click);
             // 
-            // buttonDownloadLatest
-            // 
-            this.buttonDownloadLatest.Location = new System.Drawing.Point(456, 58);
-            this.buttonDownloadLatest.Name = "buttonDownloadLatest";
-            this.buttonDownloadLatest.Size = new System.Drawing.Size(145, 23);
-            this.buttonDownloadLatest.TabIndex = 13;
-            this.buttonDownloadLatest.Text = "Download latest from Web";
-            this.buttonDownloadLatest.UseVisualStyleBackColor = true;
-            this.buttonDownloadLatest.Click += new System.EventHandler(this.buttonDownloadLatest_Click);
-            // 
-            // Form1
+            // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(617, 450);
             this.Controls.Add(this.tabControl1);
-            this.Name = "Form1";
+            this.Name = "FormMain";
             this.Text = "d";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.tabControl1.ResumeLayout(false);
@@ -310,6 +324,7 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Button buttonDownloadLatest;
         private System.Windows.Forms.Label labelMatchingFirmwares;
+        private System.Windows.Forms.Button buttonTestReadWrite;
     }
 }
 

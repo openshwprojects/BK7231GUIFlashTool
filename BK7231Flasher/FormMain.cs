@@ -24,6 +24,10 @@ namespace BK7231Flasher
             InitializeComponent();
 
         }
+        public string getFirmwareDir()
+        {
+            return firmwaresPath;
+        }
         string[] allPorts;
 
         void setPorts(string [] newPorts)
@@ -107,6 +111,11 @@ namespace BK7231Flasher
             }
             refreshType();
             refreshFirmwaresList();
+
+            if (false)
+            {
+                downloadLatestFor(BKType.BK7231N);
+            }
         }
         int getBaudRateFromGUI()
         {
@@ -121,15 +130,6 @@ namespace BK7231Flasher
             }
             return r;
         }
-        public static void AppendText(RichTextBox box, string text, Color color)
-        {
-            box.SelectionStart = box.TextLength;
-            box.SelectionLength = 0;
-
-            box.SelectionColor = color;
-            box.AppendText(text);
-            box.SelectionColor = box.ForeColor;
-        }
         public void setProgress(int cur, int max)
         {
             Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
@@ -142,7 +142,7 @@ namespace BK7231Flasher
         {
             Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
                 // Running on the UI thread
-                AppendText(Singleton.textBoxLog, s, col);
+                RichTextUtil.AppendText(Singleton.textBoxLog, s, col);
             });
         }
         public void setButtonReadLabel(string s)
@@ -168,35 +168,40 @@ namespace BK7231Flasher
         {
             curType = (BKType)Enum.Parse(typeof(BKType), comboBoxChipType.SelectedItem.ToString(), true);
         }
-        private void buttonRead_Click(object sender, EventArgs e)
+        bool doGenericOperationPreparations()
         {
-            if(worker != null)
+            if (worker != null)
             {
                 var res = MessageBox.Show("Do you want to interrupt flashing?", "Stop?", MessageBoxButtons.YesNo);
-                if(res == DialogResult.Yes)
+                if (res == DialogResult.Yes)
                 {
                     worker.Abort();
                     worker = null;
                     setButtonReadLabel(label_startRead);
                 }
-                return;
+                return false;
             }
             refreshType();
             chosenBaudRate = getBaudRateFromGUI();
-            if(chosenBaudRate <= 0)
+            if (chosenBaudRate <= 0)
             {
                 MessageBox.Show("Please enter a correct number for a baud rate.");
-                return;
+                return false;
             }
             serialName = getSelectedSerialName();
             if (serialName.Length <= 0)
             {
                 MessageBox.Show("Please choose a correct serial port or connect one if not present.");
-                return;
+                return false;
             }
-            setButtonReadLabel(label_stopRead);
-            worker = new Thread(new ThreadStart(readThread));
-            worker.Start();
+            return true;
+        }
+        void downloadLatestFor(BKType type)
+        {
+            FormDownloader fd = new FormDownloader(this, type);
+            fd.ShowDialog();
+            refreshType();
+            refreshFirmwaresList();
         }
         void clearUp()
         {
@@ -228,21 +233,24 @@ namespace BK7231Flasher
             setButtonReadLabel(label_startRead);
             clearUp();
         }
+        public static string getFirmwarePrefix(BKType t)
+        {
+            if (t == BKType.BK7231N)
+            {
+                return ("OpenBK7231N_QIO_");
+            }
+            if (t == BKType.BK7231T)
+            {
+                return ("OpenBK7231T_UA_");
+            }
+            return "Error_Firmware";
+        }
         public bool checkFirmwareForCurType(string s)
         {
-            if (curType == BKType.BK7231N)
+            string prefix = getFirmwarePrefix(curType);
+            if (s.StartsWith(prefix))
             {
-                if (s.StartsWith("OpenBK7231N_QIO_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.BK7231T)
-            {
-                if (s.StartsWith("OpenBK7231T_UA_"))
-                {
-                    return true;
-                }
+                return true;
             }
             return false;
         }
@@ -274,12 +282,50 @@ namespace BK7231Flasher
 
         private void buttonDownloadLatest_Click(object sender, EventArgs e)
         {
+            refreshType();
             var res = MessageBox.Show("Do you want to automatically download latest release from WWW?", 
-                "Stop?", MessageBoxButtons.YesNo);
+                "Download?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
-
+                downloadLatestFor(curType);
             }
+        }
+
+        private void comboBoxFirmware_SelectedIndexChanged(object sender, EventArgs e)
+        {
+        }
+
+        private void comboBoxFirmware_Click(object sender, EventArgs e)
+        {
+            refreshType();
+            if (comboBoxFirmware.Items.Count == 0)
+            {
+                var res = MessageBox.Show("No firmwares yet. Do you want to download one automatically?",
+                    "Download?", MessageBoxButtons.YesNo);
+                if (res == DialogResult.Yes)
+                {
+                    downloadLatestFor(curType);
+                }
+            }
+        }
+
+        void startWorkerThread(ThreadStart ts)
+        {
+            worker = new Thread(ts);
+            worker.Start();
+        }
+        private void buttonRead_Click(object sender, EventArgs e)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            setButtonReadLabel(label_stopRead);
+            startWorkerThread(readThread);
+        }
+        private void buttonTestReadWrite_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
