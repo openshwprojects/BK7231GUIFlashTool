@@ -74,11 +74,12 @@ namespace BK7231Flasher
                 serial.Dispose();
             }
         }
-        public BK7231Flasher(ILogListener logger, string serialName, BKType bkType)
+        public BK7231Flasher(ILogListener logger, string serialName, BKType bkType, int baudrate = 921600)
         {
             this.logger = logger;
             this.serialName = serialName;
             this.chipType = bkType;
+            this.baudrate = baudrate;
 
             crc32_table = new uint[256];
             for (uint i = 0; i < 256; i++)

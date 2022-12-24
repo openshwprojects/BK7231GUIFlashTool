@@ -1,6 +1,6 @@
 ﻿namespace BK7231Flasher
 {
-    partial class Form1
+    partial class FormMain
     {
         /// <summary>
         /// Required designer variable.
@@ -49,7 +49,7 @@
             this.button2 = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
             this.labelMatchingFirmwares = new System.Windows.Forms.Label();
-            this.button4 = new System.Windows.Forms.Button();
+            this.buttonDownloadLatest = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -138,7 +138,7 @@
             // 
             // tabPage1
             // 
-            this.tabPage1.Controls.Add(this.button4);
+            this.tabPage1.Controls.Add(this.buttonDownloadLatest);
             this.tabPage1.Controls.Add(this.labelMatchingFirmwares);
             this.tabPage1.Controls.Add(this.comboBoxBaudRate);
             this.tabPage1.Controls.Add(this.label5);
@@ -259,14 +259,15 @@
             this.labelMatchingFirmwares.TabIndex = 12;
             this.labelMatchingFirmwares.Text = "X matching bins, Y total.";
             // 
-            // button4
+            // buttonDownloadLatest
             // 
-            this.button4.Location = new System.Drawing.Point(456, 58);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(145, 23);
-            this.button4.TabIndex = 13;
-            this.button4.Text = "Download latest from Web";
-            this.button4.UseVisualStyleBackColor = true;
+            this.buttonDownloadLatest.Location = new System.Drawing.Point(456, 58);
+            this.buttonDownloadLatest.Name = "buttonDownloadLatest";
+            this.buttonDownloadLatest.Size = new System.Drawing.Size(145, 23);
+            this.buttonDownloadLatest.TabIndex = 13;
+            this.buttonDownloadLatest.Text = "Download latest from Web";
+            this.buttonDownloadLatest.UseVisualStyleBackColor = true;
+            this.buttonDownloadLatest.Click += new System.EventHandler(this.buttonDownloadLatest_Click);
             // 
             // Form1
             // 
@@ -307,7 +308,7 @@
         private System.Windows.Forms.ProgressBar progressBar1;
         private System.Windows.Forms.ComboBox comboBoxBaudRate;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Button buttonDownloadLatest;
         private System.Windows.Forms.Label labelMatchingFirmwares;
     }
 }

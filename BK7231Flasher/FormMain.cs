@@ -12,12 +12,13 @@ using System.Windows.Forms;
 
 namespace BK7231Flasher
 {
-    public partial class Form1 : Form, ILogListener
+    public partial class FormMain : Form, ILogListener
     {
         string firmwaresPath = "firmwares/";
-        public static Form1 Singleton;
-      
-        public Form1()
+        public static FormMain Singleton;
+        int chosenBaudRate;
+
+        public FormMain()
         {
             Singleton = this;
             InitializeComponent();
@@ -80,12 +81,19 @@ namespace BK7231Flasher
 
             comboBoxChipType.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
 
             comboBoxChipType.Items.Add(BKType.BK7231T);
             comboBoxChipType.Items.Add(BKType.BK7231N);
 
             comboBoxChipType.SelectedIndex = 0;
-            
+
+            comboBoxBaudRate.Items.Add(115200);
+            comboBoxBaudRate.Items.Add(921600);
+            comboBoxBaudRate.Items.Add(1500000);
+
+            comboBoxBaudRate.SelectedIndex = 1;
+
             try
             {
                 if (false==Directory.Exists(firmwaresPath))
@@ -99,6 +107,19 @@ namespace BK7231Flasher
             }
             refreshType();
             refreshFirmwaresList();
+        }
+        int getBaudRateFromGUI()
+        {
+            int r = 0;
+            try
+            {
+                r = int.Parse(comboBoxBaudRate.Text);
+            }
+            catch(Exception ex)
+            {
+                return 0;
+            }
+            return r;
         }
         public static void AppendText(RichTextBox box, string text, Color color)
         {
@@ -161,7 +182,18 @@ namespace BK7231Flasher
                 return;
             }
             refreshType();
+            chosenBaudRate = getBaudRateFromGUI();
+            if(chosenBaudRate <= 0)
+            {
+                MessageBox.Show("Please enter a correct number for a baud rate.");
+                return;
+            }
             serialName = getSelectedSerialName();
+            if (serialName.Length <= 0)
+            {
+                MessageBox.Show("Please choose a correct serial port or connect one if not present.");
+                return;
+            }
             setButtonReadLabel(label_stopRead);
             worker = new Thread(new ThreadStart(readThread));
             worker.Start();
@@ -177,7 +209,7 @@ namespace BK7231Flasher
         void readThread()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType);
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
             int startSector;
             int sectors;
             if(curType == BKType.BK7231N)
@@ -238,6 +270,16 @@ namespace BK7231Flasher
         {
             refreshType();
             refreshFirmwaresList();
+        }
+
+        private void buttonDownloadLatest_Click(object sender, EventArgs e)
+        {
+            var res = MessageBox.Show("Do you want to automatically download latest release from WWW?", 
+                "Stop?", MessageBoxButtons.YesNo);
+            if (res == DialogResult.Yes)
+            {
+
+            }
         }
     }
 }
