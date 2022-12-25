@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.buttonRead = new System.Windows.Forms.Button();
             this.textBoxLog = new System.Windows.Forms.RichTextBox();
             this.comboBoxUART = new System.Windows.Forms.ComboBox();
@@ -53,6 +54,10 @@
             this.button1 = new System.Windows.Forms.Button();
             this.buttonTestWrite = new System.Windows.Forms.Button();
             this.buttonDoBackupAndFlashNew = new System.Windows.Forms.Button();
+            this.checkBoxShowAdvanced = new System.Windows.Forms.CheckBox();
+            this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.buttonStop = new System.Windows.Forms.Button();
+            this.buttonClearLog = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -70,9 +75,10 @@
             // 
             // textBoxLog
             // 
-            this.textBoxLog.Location = new System.Drawing.Point(3, 184);
+            this.textBoxLog.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.textBoxLog.Location = new System.Drawing.Point(3, 185);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(598, 232);
+            this.textBoxLog.Size = new System.Drawing.Size(604, 296);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -138,11 +144,14 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(617, 450);
+            this.tabControl1.Size = new System.Drawing.Size(618, 510);
             this.tabControl1.TabIndex = 9;
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonClearLog);
+            this.tabPage1.Controls.Add(this.buttonStop);
+            this.tabPage1.Controls.Add(this.checkBoxShowAdvanced);
             this.tabPage1.Controls.Add(this.buttonDoBackupAndFlashNew);
             this.tabPage1.Controls.Add(this.buttonTestWrite);
             this.tabPage1.Controls.Add(this.buttonTestReadWrite);
@@ -162,7 +171,7 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(609, 424);
+            this.tabPage1.Size = new System.Drawing.Size(610, 484);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -215,9 +224,9 @@
             // 
             // progressBar1
             // 
-            this.progressBar1.Location = new System.Drawing.Point(3, 155);
+            this.progressBar1.Location = new System.Drawing.Point(8, 156);
             this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(598, 23);
+            this.progressBar1.Size = new System.Drawing.Size(595, 23);
             this.progressBar1.TabIndex = 9;
             // 
             // tabPage2
@@ -307,11 +316,46 @@
             this.buttonDoBackupAndFlashNew.UseVisualStyleBackColor = true;
             this.buttonDoBackupAndFlashNew.Click += new System.EventHandler(this.button4_Click);
             // 
+            // checkBoxShowAdvanced
+            // 
+            this.checkBoxShowAdvanced.AutoSize = true;
+            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(462, 10);
+            this.checkBoxShowAdvanced.Name = "checkBoxShowAdvanced";
+            this.checkBoxShowAdvanced.Size = new System.Drawing.Size(141, 17);
+            this.checkBoxShowAdvanced.TabIndex = 17;
+            this.checkBoxShowAdvanced.Text = "Show advanced options";
+            this.checkBoxShowAdvanced.UseVisualStyleBackColor = true;
+            // 
+            // timer100ms
+            // 
+            this.timer100ms.Enabled = true;
+            this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
+            // 
+            // buttonStop
+            // 
+            this.buttonStop.Location = new System.Drawing.Point(380, 127);
+            this.buttonStop.Name = "buttonStop";
+            this.buttonStop.Size = new System.Drawing.Size(108, 23);
+            this.buttonStop.TabIndex = 18;
+            this.buttonStop.Text = "Stop current operation";
+            this.buttonStop.UseVisualStyleBackColor = true;
+            this.buttonStop.Click += new System.EventHandler(this.buttonStop_Click);
+            // 
+            // buttonClearLog
+            // 
+            this.buttonClearLog.Location = new System.Drawing.Point(495, 127);
+            this.buttonClearLog.Name = "buttonClearLog";
+            this.buttonClearLog.Size = new System.Drawing.Size(106, 23);
+            this.buttonClearLog.TabIndex = 19;
+            this.buttonClearLog.Text = "Clear log";
+            this.buttonClearLog.UseVisualStyleBackColor = true;
+            this.buttonClearLog.Click += new System.EventHandler(this.buttonClearLog_Click);
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(617, 450);
+            this.ClientSize = new System.Drawing.Size(618, 510);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
             this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
@@ -352,6 +396,10 @@
         private System.Windows.Forms.Button buttonTestReadWrite;
         private System.Windows.Forms.Button buttonTestWrite;
         private System.Windows.Forms.Button buttonDoBackupAndFlashNew;
+        private System.Windows.Forms.CheckBox checkBoxShowAdvanced;
+        private System.Windows.Forms.Timer timer100ms;
+        private System.Windows.Forms.Button buttonStop;
+        private System.Windows.Forms.Button buttonClearLog;
     }
 }
 

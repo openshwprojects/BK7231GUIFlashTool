@@ -17,6 +17,7 @@ namespace BK7231Flasher
         string firmwaresPath = "firmwares/";
         public static FormMain Singleton;
         int chosenBaudRate;
+        string chosenSourceFile;
 
         public FormMain()
         {
@@ -81,7 +82,8 @@ namespace BK7231Flasher
         private void Form1_Load(object sender, EventArgs e)
         {
             scanForCOMPorts();
-            setButtonReadLabel(label_startRead);
+            //setButtonReadLabel(label_startRead);
+            setButtonStates(true);
 
             comboBoxChipType.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -145,13 +147,13 @@ namespace BK7231Flasher
                 RichTextUtil.AppendText(Singleton.textBoxLog, s, col);
             });
         }
-        public void setButtonReadLabel(string s)
-        {
-            Singleton.buttonRead.Invoke((MethodInvoker)delegate {
-                // Running on the UI thread
-                Singleton.buttonRead.Text = s;
-            });
-        }
+        //public void setButtonReadLabel(string s)
+        //{
+        //    Singleton.buttonRead.Invoke((MethodInvoker)delegate {
+        //        // Running on the UI thread
+        //        Singleton.buttonRead.Text = s;
+        //    });
+        //}
         Thread worker;
         string getSelectedSerialName()
         {
@@ -168,7 +170,7 @@ namespace BK7231Flasher
         {
             curType = (BKType)Enum.Parse(typeof(BKType), comboBoxChipType.SelectedItem.ToString(), true);
         }
-        bool doGenericOperationPreparations()
+        bool interruptIfRequired()
         {
             if (worker != null)
             {
@@ -177,8 +179,17 @@ namespace BK7231Flasher
                 {
                     worker.Abort();
                     worker = null;
-                    setButtonReadLabel(label_startRead);
+                    //setButtonReadLabel(label_startRead);
+                    setButtonStates(true);
                 }
+                return false;
+            }
+            return true;
+        }
+        bool doGenericOperationPreparations()
+        {
+            if (interruptIfRequired() == false)
+            {
                 return false;
             }
             refreshType();
@@ -211,7 +222,7 @@ namespace BK7231Flasher
                 flasher = null;
             }
         }
-
+        
         void testWrite()
         {
             clearUp();
@@ -231,6 +242,7 @@ namespace BK7231Flasher
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
+            setButtonStates(true);
         }
         void testReadWrite()
         {
@@ -244,28 +256,51 @@ namespace BK7231Flasher
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
+            setButtonStates(true);
+        }
+        void doBackupAndFlashNew()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            int startSector = getBackupStartSectorForCurrentPlatform();
+            int sectors = getBackupSectorCountForCurrentPlatform();
+            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+        int getBackupStartSectorForCurrentPlatform()
+        {
+            int startSector;
+            if (curType == BKType.BK7231N)
+            {
+                startSector = 0;
+            }
+            else
+            {
+                startSector = 0x11000;
+            }
+            return startSector;
+        }
+        int getBackupSectorCountForCurrentPlatform()
+        {
+            int sectors;
+            sectors = (0x200000 - getBackupStartSectorForCurrentPlatform()) / 0x1000;
+            return sectors;
         }
         void readThread()
         {
             clearUp();
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
-            int startSector;
-            int sectors;
-            if(curType == BKType.BK7231N)
-            {
-                startSector = 0;
-                sectors = 0x200000 / 0x1000;
-            }
-            else
-            {
-                startSector = 0x11000;
-                sectors = (0x200000-startSector) / 0x1000;
-            }
+            int startSector = getBackupStartSectorForCurrentPlatform();
+            int sectors = getBackupSectorCountForCurrentPlatform();
             flasher.doRead(startSector, sectors);
             flasher.saveReadResult();
             worker = null;
-            setButtonReadLabel(label_startRead);
+            //setButtonReadLabel(label_startRead);
             clearUp();
+            setButtonStates(true);
         }
         public static string getFirmwarePrefix(BKType t)
         {
@@ -327,6 +362,14 @@ namespace BK7231Flasher
 
         private void comboBoxFirmware_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if(comboBoxFirmware.SelectedItem != null)
+            {
+                chosenSourceFile = Path.Combine(firmwaresPath,comboBoxFirmware.SelectedItem.ToString());
+            }
+            else
+            {
+                chosenSourceFile = "";
+            }
         }
 
         private void comboBoxFirmware_Click(object sender, EventArgs e)
@@ -345,6 +388,7 @@ namespace BK7231Flasher
 
         void startWorkerThread(ThreadStart ts)
         {
+            setButtonStates(false);
             worker = new Thread(ts);
             worker.Start();
         }
@@ -354,7 +398,7 @@ namespace BK7231Flasher
             {
                 return;
             }
-            setButtonReadLabel(label_stopRead);
+           // setButtonReadLabel(label_stopRead);
             startWorkerThread(readThread);
         }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
@@ -363,7 +407,7 @@ namespace BK7231Flasher
             {
                 return;
             }
-            setButtonReadLabel(label_stopRead);
+            //setButtonReadLabel(label_stopRead);
             startWorkerThread(testReadWrite);
         }
 
@@ -373,13 +417,43 @@ namespace BK7231Flasher
             {
                 return;
             }
-            setButtonReadLabel(label_stopRead);
+            //setButtonReadLabel(label_stopRead);
             startWorkerThread(testWrite);
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            //setButtonReadLabel(label_stopRead);
+            startWorkerThread(doBackupAndFlashNew);
+        }
 
+        private void timer100ms_Tick(object sender, EventArgs e)
+        {
+            scanForCOMPorts();
+        }
+        void setButtonStates(bool b)
+        {
+            Singleton.buttonRead.Invoke((MethodInvoker)delegate {
+                // Running on the UI thread
+                buttonRead.Enabled = b;
+                buttonTestReadWrite.Enabled = b;
+                buttonTestWrite.Enabled = b;
+                buttonDoBackupAndFlashNew.Enabled = b;
+                buttonStop.Enabled = !b;
+            });
+        }
+        private void buttonStop_Click(object sender, EventArgs e)
+        {
+            interruptIfRequired();
+        }
+
+        private void buttonClearLog_Click(object sender, EventArgs e)
+        {
+            textBoxLog.Text = "";
         }
     }
 }

@@ -525,6 +525,18 @@ namespace BK7231Flasher
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
+        
+        public void doReadAndWrite(int startSector, int sectors, string sourceFileName)
+        {
+            try
+            {
+                doReadAndWriteInternal(startSector, sectors, sourceFileName);
+            }
+            catch (Exception ex)
+            {
+                addError("Exception caught: " + ex.ToString() + Environment.NewLine);
+            }
+        }
         public void doRead(int startSector = 0x000, int sectors = 10)
         {
             try
@@ -548,10 +560,10 @@ namespace BK7231Flasher
             addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
             return true;
         }
-        public void saveReadResult()
+        public bool saveReadResult()
         {
-            string fileName = MiscUtils.formatDateNowFileName("readResult", "bin");
-            saveReadResult(fileName);
+            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+"", "bin");
+            return saveReadResult(fileName);
         }
         bool setBaudRateIfNeeded()
         {
@@ -615,6 +627,35 @@ namespace BK7231Flasher
             addLog("All selected sectors erased!" + Environment.NewLine);
             return true;
         }
+        bool writeChunk(int startSector, byte [] data)
+        {
+            data = MiscUtils.padArray(data, 0x1000);
+            int sectors = data.Length / 0x1000;
+            if (doEraseInternal(startSector, sectors) == false)
+            {
+                return false;
+            }
+            for (int sec = 0; sec < sectors; sec++)
+            {
+                int sectorSize = 0x1000;
+                int secAddr = startSector + sectorSize * sec;
+                // 4K write
+                bool bOk = writeSector4K(secAddr, data, sectorSize * sec);
+                //bool bOk = writeSector(secAddr, data, sectorSize * sec, 0x1000);
+                addLog("Writing sector " + secAddr + "...");
+                if (bOk == false)
+                {
+                    addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                    return false;
+                }
+                addLog(" ok! ");
+            }
+            if (false == checkCRC(startSector, sectors, data))
+            {
+                return false;
+            }
+            return true;
+        }
         bool doTestReadWriteInternal(int startSector = 0x11000, int sectors = 10)
         {
             logger.setProgress(0, sectors);
@@ -652,32 +693,10 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (doEraseInternal(startSector, sectors) == false)
+            if (writeChunk(startSector, data) == false)
             {
                 return false;
             }
-            for (int sec = 0; sec < sectors; sec++)
-            {
-                int sectorSize = 0x1000;
-                int secAddr = startSector + sectorSize * sec;
-                // 4K write
-                bool bOk = writeSector4K(secAddr, data, sectorSize*sec);
-                //bool bOk = writeSector(secAddr, data, sectorSize * sec, 0x1000);
-                addLog("Writing sector " + secAddr + "...");
-                if (bOk == false)
-                {
-                    addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
-                    return false;
-                }
-                addLog(" ok! ");
-            }
-            if (false==checkCRC(startSector, sectors, data))
-            {
-                return false;
-            }
-
-
-
             MemoryStream toCheck2 = readChunk(startSector, sectors);
             byte[] toCheck2Array = toCheck2.ToArray();
             if (ByteArrayCompare(toCheck2Array, data) == false)
@@ -789,6 +808,48 @@ namespace BK7231Flasher
             addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
             return true;
         }
+        
+        bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName)
+        {
+            logger.setProgress(0, sectors);
+            addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
+            if (doGenericSetup() == false)
+            {
+                return false;
+            }
+            ms = readChunk(startSector, sectors);
+            if (ms == null)
+            {
+                return false;
+            }
+            if (saveReadResult()==false)
+            {
+                return false;
+            }
+            byte[] data;
+            addLog("Reading file " + sourceFileName +"..." + Environment.NewLine);
+            data = File.ReadAllBytes(sourceFileName);
+            if(data == null)
+            {
+                addError("Failed to open " + sourceFileName + "..." + Environment.NewLine);
+                return false;
+            }
+            addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
+            addLog("Preparing to write data file to chip - resetting bus and baud..." + Environment.NewLine);
+            // it must be redone
+            if (doGetBusAndSetBaudRate() == false)
+            {
+                return false;
+            }
+            if (writeChunk(startSector, data) == false)
+            {
+                addError("Writing file data to chip failed." + Environment.NewLine);
+                return false;
+            }
+            addSuccess("Writing file data to chip successs." + Environment.NewLine);
+            //File.WriteAllBytes("lastRead.bin", ms.ToArray());
+            return true;
+        }
         void doReadInternal(int startSector = 0x000, int sectors = 10)
         {
             logger.setProgress(0, sectors);
@@ -802,7 +863,7 @@ namespace BK7231Flasher
             {
                 return;
             }
-            File.WriteAllBytes("lastRead.bin", ms.ToArray());
+            //File.WriteAllBytes("lastRead.bin", ms.ToArray());
         }
         bool readSectorTo(int addr, MemoryStream tg)
         {
@@ -933,6 +994,10 @@ namespace BK7231Flasher
         {
             byte[] txbuf = BuildCmd_SetBaudRate(baudrate, delay_ms);
             Start_Cmd(txbuf,0, 0.5f);
+            while (serial.BytesToWrite > 0)
+            {
+
+            }
             Thread.Sleep(delay_ms/2);
             serial.BaudRate = baudrate;
             byte[] rxbuf = Start_Cmd(null, CalcRxLength_SetBaudRate(), 0.5f);
