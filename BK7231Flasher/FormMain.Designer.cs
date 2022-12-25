@@ -38,6 +38,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonTestReadWrite = new System.Windows.Forms.Button();
             this.buttonDownloadLatest = new System.Windows.Forms.Button();
             this.labelMatchingFirmwares = new System.Windows.Forms.Label();
             this.comboBoxBaudRate = new System.Windows.Forms.ComboBox();
@@ -50,7 +51,8 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.button2 = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
-            this.buttonTestReadWrite = new System.Windows.Forms.Button();
+            this.buttonTestWrite = new System.Windows.Forms.Button();
+            this.buttonDoBackupAndFlashNew = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -58,19 +60,19 @@
             // 
             // buttonRead
             // 
-            this.buttonRead.Location = new System.Drawing.Point(414, 110);
+            this.buttonRead.Location = new System.Drawing.Point(193, 126);
             this.buttonRead.Name = "buttonRead";
-            this.buttonRead.Size = new System.Drawing.Size(187, 23);
+            this.buttonRead.Size = new System.Drawing.Size(180, 23);
             this.buttonRead.TabIndex = 1;
-            this.buttonRead.Text = "Start Read";
+            this.buttonRead.Text = "Do firmware backup (read) only";
             this.buttonRead.UseVisualStyleBackColor = true;
             this.buttonRead.Click += new System.EventHandler(this.buttonRead_Click);
             // 
             // textBoxLog
             // 
-            this.textBoxLog.Location = new System.Drawing.Point(3, 168);
+            this.textBoxLog.Location = new System.Drawing.Point(3, 184);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(598, 248);
+            this.textBoxLog.Size = new System.Drawing.Size(598, 232);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -141,6 +143,8 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonDoBackupAndFlashNew);
+            this.tabPage1.Controls.Add(this.buttonTestWrite);
             this.tabPage1.Controls.Add(this.buttonTestReadWrite);
             this.tabPage1.Controls.Add(this.buttonDownloadLatest);
             this.tabPage1.Controls.Add(this.labelMatchingFirmwares);
@@ -162,6 +166,16 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonTestReadWrite
+            // 
+            this.buttonTestReadWrite.Location = new System.Drawing.Point(468, 97);
+            this.buttonTestReadWrite.Name = "buttonTestReadWrite";
+            this.buttonTestReadWrite.Size = new System.Drawing.Size(133, 23);
+            this.buttonTestReadWrite.TabIndex = 14;
+            this.buttonTestReadWrite.Text = "Test read/write pattern";
+            this.buttonTestReadWrite.UseVisualStyleBackColor = true;
+            this.buttonTestReadWrite.Click += new System.EventHandler(this.buttonTestReadWrite_Click);
             // 
             // buttonDownloadLatest
             // 
@@ -201,7 +215,7 @@
             // 
             // progressBar1
             // 
-            this.progressBar1.Location = new System.Drawing.Point(3, 139);
+            this.progressBar1.Location = new System.Drawing.Point(3, 155);
             this.progressBar1.Name = "progressBar1";
             this.progressBar1.Size = new System.Drawing.Size(598, 23);
             this.progressBar1.TabIndex = 9;
@@ -273,15 +287,25 @@
             this.button1.Text = "Prev Page";
             this.button1.UseVisualStyleBackColor = true;
             // 
-            // buttonTestReadWrite
+            // buttonTestWrite
             // 
-            this.buttonTestReadWrite.Location = new System.Drawing.Point(281, 110);
-            this.buttonTestReadWrite.Name = "buttonTestReadWrite";
-            this.buttonTestReadWrite.Size = new System.Drawing.Size(127, 23);
-            this.buttonTestReadWrite.TabIndex = 14;
-            this.buttonTestReadWrite.Text = "Test Read/Write";
-            this.buttonTestReadWrite.UseVisualStyleBackColor = true;
-            this.buttonTestReadWrite.Click += new System.EventHandler(this.buttonTestReadWrite_Click);
+            this.buttonTestWrite.Location = new System.Drawing.Point(347, 97);
+            this.buttonTestWrite.Name = "buttonTestWrite";
+            this.buttonTestWrite.Size = new System.Drawing.Size(115, 23);
+            this.buttonTestWrite.TabIndex = 15;
+            this.buttonTestWrite.Text = "Test write pattern";
+            this.buttonTestWrite.UseVisualStyleBackColor = true;
+            this.buttonTestWrite.Click += new System.EventHandler(this.buttonTestWrite_Click);
+            // 
+            // buttonDoBackupAndFlashNew
+            // 
+            this.buttonDoBackupAndFlashNew.Location = new System.Drawing.Point(11, 126);
+            this.buttonDoBackupAndFlashNew.Name = "buttonDoBackupAndFlashNew";
+            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(176, 23);
+            this.buttonDoBackupAndFlashNew.TabIndex = 16;
+            this.buttonDoBackupAndFlashNew.Text = "Do backup and flash new firmware";
+            this.buttonDoBackupAndFlashNew.UseVisualStyleBackColor = true;
+            this.buttonDoBackupAndFlashNew.Click += new System.EventHandler(this.button4_Click);
             // 
             // FormMain
             // 
@@ -290,7 +314,8 @@
             this.ClientSize = new System.Drawing.Size(617, 450);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
-            this.Text = "d";
+            this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
+    "31N ";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
@@ -325,6 +350,8 @@
         private System.Windows.Forms.Button buttonDownloadLatest;
         private System.Windows.Forms.Label labelMatchingFirmwares;
         private System.Windows.Forms.Button buttonTestReadWrite;
+        private System.Windows.Forms.Button buttonTestWrite;
+        private System.Windows.Forms.Button buttonDoBackupAndFlashNew;
     }
 }
 

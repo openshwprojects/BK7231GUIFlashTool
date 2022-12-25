@@ -18,6 +18,8 @@ namespace BK7231Flasher
     }
     public class BK7231Flasher
     {
+        public static Random rand = new Random(Guid.NewGuid().GetHashCode());
+
         bool bDebugUART;
         SerialPort serial;
         string serialName;
@@ -107,7 +109,8 @@ namespace BK7231Flasher
             SetBaudRate = 0x0f,
             FlashErase4K = 0x0b,
             FlashErase = 0x0f,
-
+            FlashWrite4K = 0x07,
+            FlashWrite = 0x06,
         }
         byte[] BuildCmd_LinkCheck()
         {
@@ -191,6 +194,44 @@ namespace BK7231Flasher
             buf[11] = (byte)((endAddr >> 16) & 0xff);
             buf[12] = (byte)((endAddr >> 24) & 0xff);
             return buf;
+        }
+        byte[] BuildCmd_FlashWrite4K(int addr, byte [] data, int startOfs)
+        {
+            int length = 1 + (4 + 4 * 1024);
+            byte[] ret = new byte[12+4*1024];
+            ret[0] = 0x01;
+            ret[1] = 0xe0;
+            ret[2] = 0xfc;
+            ret[3] = 0xff;
+            ret[4] = 0xf4;
+            ret[5] = (byte)(length & 0xff);
+            ret[6] = (byte)((length >> 8) & 0xff);
+            ret[7] = (byte)CommandCode.FlashWrite4K;
+            ret[8] = (byte)(addr & 0xff);
+            ret[9] = (byte)((addr >> 8) & 0xff);
+            ret[10] = (byte)((addr >> 16) & 0xff);
+            ret[11] = (byte)((addr >> 24) & 0xff);
+            Array.Copy(data, startOfs, ret, 12, 4096);
+            return ret;
+        }
+        byte[] BuildCmd_FlashWrite(int addr, byte[] data, int startOfs, int writeLen)
+        {
+            int length = 1 + (4 + writeLen);
+            byte[] ret = new byte[12 + writeLen];
+            ret[0] = 0x01;
+            ret[1] = 0xe0;
+            ret[2] = 0xfc;
+            ret[3] = 0xff;
+            ret[4] = 0xf4;
+            ret[5] = (byte)(length & 0xff);
+            ret[6] = (byte)((length >> 8) & 0xff);
+            ret[7] = (byte)CommandCode.FlashWrite;
+            ret[8] = (byte)(addr & 0xff);
+            ret[9] = (byte)((addr >> 8) & 0xff);
+            ret[10] = (byte)((addr >> 16) & 0xff);
+            ret[11] = (byte)((addr >> 24) & 0xff);
+            Array.Copy(data, startOfs, ret, 12, writeLen);
+            return ret;
         }
         byte[] BuildCmd_FlashRead4K(int addr)
         {
@@ -349,6 +390,50 @@ namespace BK7231Flasher
             addLog("CheckRespond_CheckCRC: ERROR" + Environment.NewLine);
             return 0;
         }
+
+        bool CheckRespond_FlashWrite(byte[] buf, int addr)
+        {
+            byte[] cBuf = new byte[] {
+                0x04, 0x0e, 0xff, 0x01, 0xe0, 0xfc, 0xf4, (1 + 1 + (4 + 1)) & 0xff,
+                ((1 + 1 + (4 + 1)) >> 8) & 0xff, (byte)CommandCode.FlashWrite};
+            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
+            {
+                int r = buf[14];
+                r = (r << 8) + buf[13];
+                r = (r << 8) + buf[12];
+                r = (r << 8) + buf[11];
+                if (r != addr)
+                {
+                    addError("CheckRespond_FlashWrite: returned address didnt match?" + Environment.NewLine);
+                    return false;
+                }
+                return true;
+            }
+            addError("CheckRespond_FlashWrite: bad value returned?" + Environment.NewLine);
+            return false;
+        }
+        bool CheckRespond_FlashWrite4K(byte[] buf, int addr)
+        {
+            byte[] cBuf = new byte[] { 0x04, 0x0e, 0xff, 0x01, 0xe0, 0xfc, 0xf4, (1 + 1 + (4)) & 0xff,
+               0, (byte)CommandCode.FlashWrite4K};
+            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
+            {
+                int r = buf[14];
+                r = (r << 8) + buf[13];
+                r = (r << 8) + buf[12];
+                r = (r << 8) + buf[11];
+                if(r != addr)
+                {
+                    addError("CheckRespond_FlashWrite4K: returned address didnt match?" + Environment.NewLine);
+                    return false;
+                }
+                byte val = buf[10];
+                // addLog("CheckRespond_FlashRead4K: OK");
+                return true;
+            }
+            addError("CheckRespond_FlashWrite4K: bad value returned?" + Environment.NewLine);
+            return false;
+        }
         bool CheckRespond_FlashRead4K(byte[] buf, int addr)
         {
             byte[] cBuf = new byte[] { 0x04, 0x0e, 0xff, 0x01, 0xe0, 0xfc, 0xf4, (1 + 1 + (4 + 4 * 1024)) & 0xff,
@@ -418,6 +503,17 @@ namespace BK7231Flasher
         {
             return "0x" + i.ToString("X2");
         }
+        public void doWrite(int startSector, byte [] data)
+        {
+            try
+            {
+                doWriteInternal(startSector, data);
+            }
+            catch (Exception ex)
+            {
+                addError("Exception caught: " + ex.ToString() + Environment.NewLine);
+            }
+        }
         public void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
             try
@@ -444,9 +540,12 @@ namespace BK7231Flasher
         {
             if(ms == null)
             {
+                addError("There was no result to save."+Environment.NewLine);
                 return false;
             }
-            File.WriteAllBytes(fileName, ms.ToArray());
+            byte[] dat = ms.ToArray();
+            File.WriteAllBytes(fileName, dat);
+            addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
             return true;
         }
         public void saveReadResult()
@@ -459,18 +558,9 @@ namespace BK7231Flasher
             bool bOk = setBaudrate(baudrate, 20);
             return bOk;
         }
-        
-        bool doGenericSetup()
+
+        bool doGetBusAndSetBaudRate()
         {
-            addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
-            addLog("Flasher mode: " + chipType + Environment.NewLine);
-            addLog("Going to open port: " + serialName + "." + Environment.NewLine);
-            if (openPort())
-            {
-                addError("Failed to open serial port!" + Environment.NewLine);
-                return false;
-            }
-            addSuccess("Serial port open!" + Environment.NewLine);
             if (getBus() == false)
             {
                 addError("Failed to get bus!" + Environment.NewLine);
@@ -484,7 +574,45 @@ namespace BK7231Flasher
                 return false;
             }
             Thread.Sleep(100);
-
+            return true;
+        }
+        
+        bool doGenericSetup()
+        {
+            addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
+            addLog("Flasher mode: " + chipType + Environment.NewLine);
+            addLog("Going to open port: " + serialName + "." + Environment.NewLine);
+            if (openPort())
+            {
+                addError("Failed to open serial port!" + Environment.NewLine);
+                return false;
+            }
+            addSuccess("Serial port open!" + Environment.NewLine);
+            if (doGetBusAndSetBaudRate() == false)
+            {
+                return false;
+            }
+            return true;
+        }
+        bool doEraseInternal(int startSector, int sectors)
+        {
+            addLog("Going to do erase, start " + startSector +", sec count " + sectors +"!" + Environment.NewLine);
+            for (int sec = 0; sec < sectors; sec++)
+            {
+                int sectorSize = 0x1000;
+                int secAddr = startSector + sectorSize * sec;
+                // 4K erase
+                bool bOk = eraseSector(secAddr, 0x20);
+                addLog("Erasing sector " + secAddr + "...");
+                if (bOk == false)
+                {
+                    addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
+                    return false;
+                }
+                addLog(" ok! ");
+            }
+            addLog(Environment.NewLine);
+            addLog("All selected sectors erased!" + Environment.NewLine);
             return true;
         }
         bool doTestReadWriteInternal(int startSector = 0x11000, int sectors = 10)
@@ -495,7 +623,81 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            for(int sec = 0; sec < sectors; sec++)
+            if (doEraseInternal(startSector, sectors) == false)
+            {
+                return false;
+            }
+            MemoryStream toCheck = readChunk(startSector, sectors);
+            if (toCheck == null)
+            {
+                addError("Read failed?" + Environment.NewLine);
+                return false;
+            }
+            if (isFullOf(toCheck.ToArray(), 0xff)==false)
+            {
+                addError("Erase verify error? Flash was not full of 0xFF!" + Environment.NewLine);
+                return false;
+            }
+            addSuccess("After erase, flash was full of 0xff" + Environment.NewLine);
+            byte[] data = new byte[sectors * 0x1000];
+            rand.NextBytes(data);
+            for(int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)(i % 256);
+            }
+            // NOTE: it must be done again, i checked many times,
+            // if i do an erase, and then read, then next write fails.
+            // it must be write dirrectly after erase
+            if (doGetBusAndSetBaudRate() == false)
+            {
+                return false;
+            }
+            if (doEraseInternal(startSector, sectors) == false)
+            {
+                return false;
+            }
+            for (int sec = 0; sec < sectors; sec++)
+            {
+                int sectorSize = 0x1000;
+                int secAddr = startSector + sectorSize * sec;
+                // 4K write
+                bool bOk = writeSector4K(secAddr, data, sectorSize*sec);
+                //bool bOk = writeSector(secAddr, data, sectorSize * sec, 0x1000);
+                addLog("Writing sector " + secAddr + "...");
+                if (bOk == false)
+                {
+                    addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                    return false;
+                }
+                addLog(" ok! ");
+            }
+            if (false==checkCRC(startSector, sectors, data))
+            {
+                return false;
+            }
+
+
+
+            MemoryStream toCheck2 = readChunk(startSector, sectors);
+            byte[] toCheck2Array = toCheck2.ToArray();
+            if (ByteArrayCompare(toCheck2Array, data) == false)
+            {
+                addError("Failed! Loaded data was different than the written one?!" + Environment.NewLine);
+                return false;
+            }
+            addSuccess("Check passed! Loaded data was the same as written!");
+            return true;
+        }
+        bool doWriteInternal(int startSector, byte []data)
+        {
+            int sectors = data.Length/0x1000;
+            logger.setProgress(0, sectors);
+            addLog(Environment.NewLine + "Starting write test!" + Environment.NewLine);
+            if (doGenericSetup() == false)
+            {
+                return false;
+            }
+            for (int sec = 0; sec < sectors; sec++)
             {
                 int sectorSize = 0x1000;
                 int secAddr = startSector + sectorSize * sec;
@@ -511,14 +713,27 @@ namespace BK7231Flasher
 
             }
             addLog(Environment.NewLine);
-            addLog("All selected sectors erased!"+Environment.NewLine);
-            MemoryStream toCheck = readChunk(startSector, sectors);
-            if (isFullOf(toCheck.ToArray(), 0xff)==false)
+            addLog("All selected sectors erased!" + Environment.NewLine);
+            for (int sec = 0; sec < sectors; sec++)
             {
-                addError("Erase verify error? Flash was not full of 0xFF!" + Environment.NewLine);
+                int sectorSize = 0x1000;
+                int secAddr = startSector + sectorSize * sec;
+                // 4K write
+                bool bOk = writeSector4K(secAddr, data, sectorSize * sec);
+                //bool bOk = writeSector(secAddr, data, sectorSize * sec, 0x1000);
+                addLog("Writing sector " + secAddr + "...");
+                if (bOk == false)
+                {
+                    addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                    return false;
+                }
+                addLog(" ok! ");
+            }
+            if (false == checkCRC(startSector, sectors, data))
+            {
                 return false;
             }
-            addSuccess("After erase, flash was full of 0xff" + Environment.NewLine);
+            addSuccess("Write success!");
             return true;
         }
         bool isFullOf(byte [] dat, byte c)
@@ -551,27 +766,28 @@ namespace BK7231Flasher
                 logger.setProgress(i + 1, sectors);
                 addLog("Ok! ");
             }
-            int total = step * sectors;
-            addSuccess("All read!" + Environment.NewLine);
-            addLog("Loaded total " + formatHex(total) + " bytes " + Environment.NewLine);
-            int last = startSector + total;
-            if (chipType == BKType.BK7231N)
+            if (false==checkCRC(startSector, sectors, tempResult.ToArray()))
             {
-                last = last - 1;
+                return null;
             }
+            addSuccess("All read!" + Environment.NewLine);
+            addLog("Loaded total " + formatHex(sectors* step) + " bytes " + Environment.NewLine);
+            return tempResult;
+        }
+        bool checkCRC(int startSector, int total, byte [] array)
+        {
+            int last = startSector + total * 0x1000;
             uint bk_crc = calcCRC(startSector, last);
-            uint our_crc = crc32_ver2(0xffffffff, tempResult.ToArray());
+            uint our_crc = crc32_ver2(0xffffffff, array);
             if (bk_crc != our_crc)
             {
                 addError("CRC mismatch!" + Environment.NewLine);
                 addError("Send by BK " + formatHex(bk_crc) + ", our CRC " + formatHex(our_crc) + Environment.NewLine);
                 addError("Maybe you have wrong chip type set?" + Environment.NewLine);
+                return false;
             }
-            else
-            {
-                addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
-            }
-            return tempResult;
+            addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
+            return true;
         }
         void doReadInternal(int startSector = 0x000, int sectors = 10)
         {
@@ -599,9 +815,49 @@ namespace BK7231Flasher
             }
             return false;
         }
+        int CalcRxLength_FlashWrite4K()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (4 + 0)));
+        }
+        int CalcRxLength_FlashWrite()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (4 + 1)));
+        }
         int CalcRxLength_FlashRead4K()
         {
             return (3 + 3 + 3 + (1 + 1 + (4 + 4 * 1024)));
+        }
+        bool writeSector4K(int addr, byte [] data, int first)
+        {
+            //addLog("Starting read sector for " + addr + Environment.NewLine);
+            byte[] txbuf = BuildCmd_FlashWrite4K(addr, data, first);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashWrite4K());
+            if (rxbuf != null)
+            {
+                //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
+                if (CheckRespond_FlashWrite4K(rxbuf, addr))
+                {
+                    return true;
+                }
+            }
+            //addLog("Failed!" + Environment.NewLine);
+            return false;
+        }
+        bool writeSector(int addr, byte[] data, int first, int dataSize)
+        {
+            //addLog("Starting read sector for " + addr + Environment.NewLine);
+            byte[] txbuf = BuildCmd_FlashWrite(addr, data, first, dataSize);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashWrite(), 5);
+            if (rxbuf != null)
+            {
+                //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
+                if (CheckRespond_FlashWrite(rxbuf, addr))
+                {
+                    return true;
+                }
+            }
+            //addLog("Failed!" + Environment.NewLine);
+            return false;
         }
         byte[] readSector(int addr)
         {
@@ -621,6 +877,10 @@ namespace BK7231Flasher
         }
         uint calcCRC(int start, int end)
         {
+            if (chipType == BKType.BK7231N)
+            {
+                end = end - 1;
+            }
             byte[] txbuf = BuildCmd_CheckCRC(start, end);
             byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_CheckCRC(), 5.0f);
             if (rxbuf != null)

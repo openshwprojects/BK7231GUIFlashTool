@@ -211,14 +211,34 @@ namespace BK7231Flasher
                 flasher = null;
             }
         }
-        
+
+        void testWrite()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            int startSector;
+            int sectors;
+            sectors = 5;
+            startSector = 0x11000;
+            byte[] dat = new byte[sectors * 0x1000];
+            int baseVal = BK7231Flasher.rand.Next();
+            for(int i = 0; i < dat.Length; i++)
+            {
+                int useVal = baseVal + i;
+                dat[i] = (byte)(useVal % 256);
+            }
+            flasher.doWrite(startSector, dat);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+        }
         void testReadWrite()
         {
             clearUp();
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
             int startSector;
             int sectors;
-            sectors = 1;
+            sectors = 2;
             startSector = 0x11000;
             flasher.doTestReadWrite(startSector, sectors);
             worker = null;
@@ -345,6 +365,21 @@ namespace BK7231Flasher
             }
             setButtonReadLabel(label_stopRead);
             startWorkerThread(testReadWrite);
+        }
+
+        private void buttonTestWrite_Click(object sender, EventArgs e)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            setButtonReadLabel(label_stopRead);
+            startWorkerThread(testWrite);
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
