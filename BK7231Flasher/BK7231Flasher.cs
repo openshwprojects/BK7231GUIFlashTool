@@ -105,6 +105,9 @@ namespace BK7231Flasher
             FlashRead4K = 0x09,
             CheckCRC = 0x10,
             SetBaudRate = 0x0f,
+            FlashErase4K = 0x0b,
+            FlashErase = 0x0f,
+
         }
         byte[] BuildCmd_LinkCheck()
         {
@@ -116,7 +119,44 @@ namespace BK7231Flasher
             ret[4] = (byte)CommandCode.LinkCheck;
             return ret;
         }
-        
+
+        byte[] BuildCmd_EraseSector4K(int addr, int szcmd)
+        {
+            int length = 1 + (4 );
+            byte[] buf = new byte[12];
+            buf[0] = 0x01;
+            buf[1] = 0xe0;
+            buf[2] = 0xfc;
+            buf[3] = 0xff;
+            buf[4] = 0xf4;
+            buf[5] = (byte)length;
+            buf[6] = 0;
+            buf[7] = (byte)CommandCode.FlashErase4K;
+            buf[8] = (byte)(addr & 0xff);
+            buf[9] = (byte)((addr >> 8) & 0xff);
+            buf[10] = (byte)((addr >> 16) & 0xff);
+            buf[11] = (byte)((addr >> 24) & 0xff);
+            return buf;
+        }
+        byte[] BuildCmd_FlashErase(int addr, int szcmd)
+        {
+            int length = 1 + (4+1);
+            byte[] buf = new byte[13];
+            buf[0] = 0x01;
+            buf[1] = 0xe0;
+            buf[2] = 0xfc;
+            buf[3] = 0xff;
+            buf[4] = 0xf4;
+            buf[5] = (byte)length;
+            buf[6] = 0;
+            buf[7] = (byte)CommandCode.FlashErase;
+            buf[8] = (byte)(szcmd);
+            buf[9] = (byte)(addr & 0xff);
+            buf[10] = (byte)((addr >> 8) & 0xff);
+            buf[11] = (byte)((addr >> 16) & 0xff);
+            buf[12] = (byte)((addr >> 24) & 0xff);
+            return buf;
+        }
         byte[] BuildCmd_SetBaudRate(int baudrate, int delay_ms)
         {
             int length = 1 + (4 + 1);
@@ -181,6 +221,14 @@ namespace BK7231Flasher
         int CalcRxLength_LinkCheck()
         {
             return (3 + 3 + 1 + 1 + 0);
+        }
+        int CalcRxLength_EraseSector4K()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (4 + 0)));
+        }
+        int CalcRxLength_FlashErase()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (1 + 4)));
         }
         void consumeSerial(float timeout)
         {
@@ -326,6 +374,16 @@ namespace BK7231Flasher
 
             return cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf);
         }
+        bool CheckRespond_EraseSector4K(byte[] buf)
+        {
+            byte[] cBuf = new byte[] { 0x04, 0x0e, 0xff, 0x01, 0xe0, 0xfc, 0xf4, 0x06, 0x00, (byte)(CommandCode.FlashErase4K)  };
+            return cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length);
+        }
+        bool CheckRespond_FlashErase(byte[] buf, int szcmd)
+        {
+            byte[] cBuf = new byte[] { 0x04, 0x0e, 0xff, 0x01, 0xe0, 0xfc, 0xf4, 1 + 1 + (1 + 4), 0x00, (byte)(CommandCode.FlashErase)  };
+            return cBuf.Length <= buf.Length && szcmd == buf[11] && ByteArrayCompare(cBuf, buf, cBuf.Length);
+        }
         bool CheckRespond_LinkCheck(byte[] buf)
         {
             byte[] cBuf = new byte[] { 0x04, 0x0e, 0x05, 0x01, 0xe0, 0xfc, (byte)(CommandCode.LinkCheck) + 1, 0x00 };
@@ -360,6 +418,17 @@ namespace BK7231Flasher
         {
             return "0x" + i.ToString("X2");
         }
+        public void doTestReadWrite(int startSector = 0x000, int sectors = 10)
+        {
+            try
+            {
+                doTestReadWriteInternal(startSector, sectors);
+            }
+            catch (Exception ex)
+            {
+                addError("Exception caught: " + ex.ToString() + Environment.NewLine);
+            }
+        }
         public void doRead(int startSector = 0x000, int sectors = 10)
         {
             try
@@ -390,36 +459,81 @@ namespace BK7231Flasher
             bool bOk = setBaudrate(baudrate, 20);
             return bOk;
         }
-        void doReadInternal(int startSector = 0x000, int sectors = 10)
+        
+        bool doGenericSetup()
         {
-            logger.setProgress(0, sectors);
-            addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
-            addLog("Now is: " +DateTime.Now.ToLongDateString() + " "+  DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
-
-            addLog("Going to open port: "+serialName+ "." + Environment.NewLine);
+            addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
+            addLog("Flasher mode: " + chipType + Environment.NewLine);
+            addLog("Going to open port: " + serialName + "." + Environment.NewLine);
             if (openPort())
             {
                 addError("Failed to open serial port!" + Environment.NewLine);
-                return;
+                return false;
             }
             addSuccess("Serial port open!" + Environment.NewLine);
             if (getBus() == false)
             {
                 addError("Failed to get bus!" + Environment.NewLine);
-                return;
+                return false;
             }
             Thread.Sleep(100);
-            addSuccess("Going to set baud rate setting (" + baudrate+")!" + Environment.NewLine);
+            addSuccess("Going to set baud rate setting (" + baudrate + ")!" + Environment.NewLine);
             if (setBaudRateIfNeeded() == false)
             {
                 addError("Failed to set baud rate!" + Environment.NewLine);
-                return;
+                return false;
             }
             Thread.Sleep(100);
 
-            addLog("Flasher mode: " + chipType +  Environment.NewLine);
-            ms = new MemoryStream();
-            
+            return true;
+        }
+        bool doTestReadWriteInternal(int startSector = 0x11000, int sectors = 10)
+        {
+            logger.setProgress(0, sectors);
+            addLog(Environment.NewLine + "Starting read-write test!" + Environment.NewLine);
+            if (doGenericSetup() == false)
+            {
+                return false;
+            }
+            for(int sec = 0; sec < sectors; sec++)
+            {
+                int sectorSize = 0x1000;
+                int secAddr = startSector + sectorSize * sec;
+                // 4K erase
+                bool bOk = eraseSector(secAddr, 0x20);
+                addLog("Erasing sector " + secAddr + "...");
+                if (bOk == false)
+                {
+                    addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
+                    return false;
+                }
+                addLog(" ok! ");
+
+            }
+            addLog(Environment.NewLine);
+            addLog("All selected sectors erased!"+Environment.NewLine);
+            MemoryStream toCheck = readChunk(startSector, sectors);
+            if (isFullOf(toCheck.ToArray(), 0xff)==false)
+            {
+                addError("Erase verify error? Flash was not full of 0xFF!" + Environment.NewLine);
+                return false;
+            }
+            addSuccess("After erase, flash was full of 0xff" + Environment.NewLine);
+            return true;
+        }
+        bool isFullOf(byte [] dat, byte c)
+        {
+            for(int i = 0; i < dat.Length; i++)
+            {
+                if (dat[i] != c)
+                    return false;
+            }
+            return true;
+        }
+        MemoryStream readChunk(int startSector, int sectors)
+        {
+            MemoryStream tempResult = new MemoryStream();
+
             int step = 4096;
             // 4K page align
             startSector = (int)(startSector & 0xfffff000);
@@ -428,11 +542,11 @@ namespace BK7231Flasher
             {
                 int addr = startSector + step * i;
                 addLog("Reading " + formatHex(addr) + "... ");
-                bool bOk = readSectorTo(addr, ms);
+                bool bOk = readSectorTo(addr, tempResult);
                 if (bOk == false)
                 {
                     addError("Failed! ");
-                    return;
+                    return null;
                 }
                 logger.setProgress(i + 1, sectors);
                 addLog("Ok! ");
@@ -441,13 +555,13 @@ namespace BK7231Flasher
             addSuccess("All read!" + Environment.NewLine);
             addLog("Loaded total " + formatHex(total) + " bytes " + Environment.NewLine);
             int last = startSector + total;
-            if(chipType == BKType.BK7231N)
+            if (chipType == BKType.BK7231N)
             {
                 last = last - 1;
             }
             uint bk_crc = calcCRC(startSector, last);
-            uint our_crc = crc32_ver2(0xffffffff, ms.ToArray());
-            if(bk_crc != our_crc)
+            uint our_crc = crc32_ver2(0xffffffff, tempResult.ToArray());
+            if (bk_crc != our_crc)
             {
                 addError("CRC mismatch!" + Environment.NewLine);
                 addError("Send by BK " + formatHex(bk_crc) + ", our CRC " + formatHex(our_crc) + Environment.NewLine);
@@ -456,6 +570,21 @@ namespace BK7231Flasher
             else
             {
                 addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
+            }
+            return tempResult;
+        }
+        void doReadInternal(int startSector = 0x000, int sectors = 10)
+        {
+            logger.setProgress(0, sectors);
+            addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
+            if (doGenericSetup() == false)
+            {
+                return;
+            }
+            ms = readChunk(startSector, sectors);
+            if (ms == null)
+            {
+                return;
             }
             File.WriteAllBytes("lastRead.bin", ms.ToArray());
         }
@@ -508,6 +637,32 @@ namespace BK7231Flasher
             if (rxbuf != null)
             {
                 if (CheckRespond_LinkCheck(rxbuf))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        bool eraseSector4K(int addr)
+        {
+            byte[] txbuf = BuildCmd_EraseSector4K(addr, 0);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_EraseSector4K(), 1.0f);
+            if (rxbuf != null)
+            {
+                if (CheckRespond_EraseSector4K(rxbuf))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        bool eraseSector(int addr, int szcmd)
+        {
+            byte[] txbuf = BuildCmd_FlashErase(addr, szcmd);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashErase(), 1.0f);
+            if (rxbuf != null)
+            {
+                if (CheckRespond_FlashErase(rxbuf, szcmd))
                 {
                     return true;
                 }

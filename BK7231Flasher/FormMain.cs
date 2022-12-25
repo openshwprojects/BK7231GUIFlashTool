@@ -211,6 +211,20 @@ namespace BK7231Flasher
                 flasher = null;
             }
         }
+        
+        void testReadWrite()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            int startSector;
+            int sectors;
+            sectors = 1;
+            startSector = 0x11000;
+            flasher.doTestReadWrite(startSector, sectors);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+        }
         void readThread()
         {
             clearUp();
@@ -325,7 +339,12 @@ namespace BK7231Flasher
         }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
         {
-
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            setButtonReadLabel(label_stopRead);
+            startWorkerThread(testReadWrite);
         }
     }
 }
