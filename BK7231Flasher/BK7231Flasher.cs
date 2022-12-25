@@ -573,19 +573,38 @@ namespace BK7231Flasher
 
         bool doGetBusAndSetBaudRate()
         {
+            logger.setState("Getting bus...", Color.Transparent);
             if (getBus() == false)
             {
                 addError("Failed to get bus!" + Environment.NewLine);
+                logger.setState("Failed to get bus!", Color.Red);
                 return false;
             }
-            Thread.Sleep(100);
-            addSuccess("Going to set baud rate setting (" + baudrate + ")!" + Environment.NewLine);
-            if (setBaudRateIfNeeded() == false)
+            Thread.Sleep(50);
+            int attempt = 0;
+            int maxAttempts = 0;
+            while (true)
             {
-                addError("Failed to set baud rate!" + Environment.NewLine);
-                return false;
+                addSuccess("Going to set baud rate setting (" + baudrate + ")!" + Environment.NewLine);
+                logger.setState("Setting baud rate...", Color.Transparent);
+                if (setBaudRateIfNeeded() == false)
+                {
+                    addError("Failed to set baud rate!" + Environment.NewLine);
+                    logger.setState("Failed to set baud rate!", Color.Red);
+                    if (attempt >= maxAttempts)
+                    {
+                        return false;
+                    }
+                    Thread.Sleep(50);
+                }
+                else
+                {
+                    break;
+                }
+
+                attempt++;
             }
-            Thread.Sleep(100);
+            Thread.Sleep(50);
             return true;
         }
         
@@ -596,6 +615,7 @@ namespace BK7231Flasher
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
             if (openPort())
             {
+                logger.setState("Open serial failed!", Color.Red);
                 addError("Failed to open serial port!" + Environment.NewLine);
                 return false;
             }
@@ -608,6 +628,8 @@ namespace BK7231Flasher
         }
         bool doEraseInternal(int startSector, int sectors)
         {
+            logger.setProgress(0, sectors);
+            logger.setState("Erasing...", Color.Transparent);
             addLog("Going to do erase, start " + startSector +", sec count " + sectors +"!" + Environment.NewLine);
             for (int sec = 0; sec < sectors; sec++)
             {
@@ -618,10 +640,12 @@ namespace BK7231Flasher
                 addLog("Erasing sector " + secAddr + "...");
                 if (bOk == false)
                 {
+                    logger.setState("Erase failed.", Color.Red);
                     addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
                     return false;
                 }
                 addLog(" ok! ");
+                logger.setProgress(sec+1, sectors);
             }
             addLog(Environment.NewLine);
             addLog("All selected sectors erased!" + Environment.NewLine);
@@ -629,8 +653,10 @@ namespace BK7231Flasher
         }
         bool writeChunk(int startSector, byte [] data)
         {
+            logger.setState("Writing...", Color.Transparent);
             data = MiscUtils.padArray(data, 0x1000);
             int sectors = data.Length / 0x1000;
+            logger.setProgress(0, sectors);
             if (doEraseInternal(startSector, sectors) == false)
             {
                 return false;
@@ -648,17 +674,18 @@ namespace BK7231Flasher
                     addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
                     return false;
                 }
+                logger.setProgress(sec + 1, sectors);
                 addLog(" ok! ");
             }
             if (false == checkCRC(startSector, sectors, data))
             {
                 return false;
             }
+            logger.setState("Write success!", Color.Green);
             return true;
         }
         bool doTestReadWriteInternal(int startSector = 0x11000, int sectors = 10)
         {
-            logger.setProgress(0, sectors);
             addLog(Environment.NewLine + "Starting read-write test!" + Environment.NewLine);
             if (doGenericSetup() == false)
             {
@@ -725,6 +752,7 @@ namespace BK7231Flasher
                 addLog("Erasing sector " + secAddr + "...");
                 if (bOk == false)
                 {
+                    logger.setState("Erase sector failed!", Color.Red);
                     addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
                     return false;
                 }
@@ -743,6 +771,7 @@ namespace BK7231Flasher
                 addLog("Writing sector " + secAddr + "...");
                 if (bOk == false)
                 {
+                    logger.setState("Write sector failed!", Color.Red);
                     addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
                     return false;
                 }
@@ -766,6 +795,8 @@ namespace BK7231Flasher
         }
         MemoryStream readChunk(int startSector, int sectors)
         {
+            logger.setState("Reading...", Color.Transparent);
+            logger.setProgress(0, sectors);
             MemoryStream tempResult = new MemoryStream();
 
             int step = 4096;
@@ -779,6 +810,7 @@ namespace BK7231Flasher
                 bool bOk = readSectorTo(addr, tempResult);
                 if (bOk == false)
                 {
+                    logger.setState("Reading failed.", Color.Red);
                     addError("Failed! ");
                     return null;
                 }
@@ -789,6 +821,7 @@ namespace BK7231Flasher
             {
                 return null;
             }
+            logger.setState("Reading success!", Color.Green);
             addSuccess("All read!" + Environment.NewLine);
             addLog("Loaded total " + formatHex(sectors* step) + " bytes " + Environment.NewLine);
             return tempResult;

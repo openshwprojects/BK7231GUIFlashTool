@@ -77,8 +77,8 @@ namespace BK7231Flasher
             string[] newPorts = SerialPort.GetPortNames();
             setPorts(newPorts);
         }
-        string label_startRead = "Start Read Flash (Full backup)";
-        string label_stopRead = "Stop Read Flash";
+       // string label_startRead = "Start Read Flash (Full backup)";
+///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
             scanForCOMPorts();
@@ -140,6 +140,13 @@ namespace BK7231Flasher
                 progressBar1.Value = cur;
             });
         }
+        public void setState(string s, Color col)
+        {
+            Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
+                Singleton.labelState.Text = s;
+                Singleton.labelState.BackColor = col;
+            });
+        }
         public void addLog(string s, Color col)
         {
             Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
@@ -181,6 +188,7 @@ namespace BK7231Flasher
                     worker = null;
                     //setButtonReadLabel(label_startRead);
                     setButtonStates(true);
+                    setState("Interrupted by user.", Color.Yellow);
                 }
                 return false;
             }

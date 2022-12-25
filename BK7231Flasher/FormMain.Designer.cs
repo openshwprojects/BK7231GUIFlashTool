@@ -58,6 +58,9 @@
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
             this.buttonStop = new System.Windows.Forms.Button();
             this.buttonClearLog = new System.Windows.Forms.Button();
+            this.button4 = new System.Windows.Forms.Button();
+            this.label6 = new System.Windows.Forms.Label();
+            this.labelState = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -78,7 +81,7 @@
             this.textBoxLog.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.textBoxLog.Location = new System.Drawing.Point(3, 185);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(604, 296);
+            this.textBoxLog.Size = new System.Drawing.Size(777, 296);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -144,11 +147,14 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(618, 510);
+            this.tabControl1.Size = new System.Drawing.Size(791, 510);
             this.tabControl1.TabIndex = 9;
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.labelState);
+            this.tabPage1.Controls.Add(this.label6);
+            this.tabPage1.Controls.Add(this.button4);
             this.tabPage1.Controls.Add(this.buttonClearLog);
             this.tabPage1.Controls.Add(this.buttonStop);
             this.tabPage1.Controls.Add(this.checkBoxShowAdvanced);
@@ -171,14 +177,14 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(610, 484);
+            this.tabPage1.Size = new System.Drawing.Size(783, 484);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
             // buttonTestReadWrite
             // 
-            this.buttonTestReadWrite.Location = new System.Drawing.Point(468, 97);
+            this.buttonTestReadWrite.Location = new System.Drawing.Point(642, 97);
             this.buttonTestReadWrite.Name = "buttonTestReadWrite";
             this.buttonTestReadWrite.Size = new System.Drawing.Size(133, 23);
             this.buttonTestReadWrite.TabIndex = 14;
@@ -226,7 +232,7 @@
             // 
             this.progressBar1.Location = new System.Drawing.Point(8, 156);
             this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(595, 23);
+            this.progressBar1.Size = new System.Drawing.Size(767, 23);
             this.progressBar1.TabIndex = 9;
             // 
             // tabPage2
@@ -298,9 +304,9 @@
             // 
             // buttonTestWrite
             // 
-            this.buttonTestWrite.Location = new System.Drawing.Point(347, 97);
+            this.buttonTestWrite.Location = new System.Drawing.Point(642, 68);
             this.buttonTestWrite.Name = "buttonTestWrite";
-            this.buttonTestWrite.Size = new System.Drawing.Size(115, 23);
+            this.buttonTestWrite.Size = new System.Drawing.Size(133, 23);
             this.buttonTestWrite.TabIndex = 15;
             this.buttonTestWrite.Text = "Test write pattern";
             this.buttonTestWrite.UseVisualStyleBackColor = true;
@@ -319,7 +325,7 @@
             // checkBoxShowAdvanced
             // 
             this.checkBoxShowAdvanced.AutoSize = true;
-            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(462, 10);
+            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(634, 8);
             this.checkBoxShowAdvanced.Name = "checkBoxShowAdvanced";
             this.checkBoxShowAdvanced.Size = new System.Drawing.Size(141, 17);
             this.checkBoxShowAdvanced.TabIndex = 17;
@@ -333,9 +339,9 @@
             // 
             // buttonStop
             // 
-            this.buttonStop.Location = new System.Drawing.Point(380, 127);
+            this.buttonStop.Location = new System.Drawing.Point(565, 127);
             this.buttonStop.Name = "buttonStop";
-            this.buttonStop.Size = new System.Drawing.Size(108, 23);
+            this.buttonStop.Size = new System.Drawing.Size(98, 23);
             this.buttonStop.TabIndex = 18;
             this.buttonStop.Text = "Stop current operation";
             this.buttonStop.UseVisualStyleBackColor = true;
@@ -343,7 +349,7 @@
             // 
             // buttonClearLog
             // 
-            this.buttonClearLog.Location = new System.Drawing.Point(495, 127);
+            this.buttonClearLog.Location = new System.Drawing.Point(669, 127);
             this.buttonClearLog.Name = "buttonClearLog";
             this.buttonClearLog.Size = new System.Drawing.Size(106, 23);
             this.buttonClearLog.TabIndex = 19;
@@ -351,11 +357,39 @@
             this.buttonClearLog.UseVisualStyleBackColor = true;
             this.buttonClearLog.Click += new System.EventHandler(this.buttonClearLog_Click);
             // 
+            // button4
+            // 
+            this.button4.Location = new System.Drawing.Point(379, 126);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(180, 23);
+            this.button4.TabIndex = 20;
+            this.button4.Text = "Do firmware write (no backup!)";
+            this.button4.UseVisualStyleBackColor = true;
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(248, 36);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(336, 13);
+            this.label6.TabIndex = 21;
+            this.label6.Text = "BK7231T is WB3S, WB2S, WB2L, etc. BK7231N is CB2S, CB3S, etc";
+            // 
+            // labelState
+            // 
+            this.labelState.AutoSize = true;
+            this.labelState.Font = new System.Drawing.Font("Microsoft Sans Serif", 17F);
+            this.labelState.Location = new System.Drawing.Point(246, 88);
+            this.labelState.Name = "labelState";
+            this.labelState.Size = new System.Drawing.Size(174, 29);
+            this.labelState.TabIndex = 22;
+            this.labelState.Text = "Doing nothing..";
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(618, 510);
+            this.ClientSize = new System.Drawing.Size(791, 510);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
             this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
@@ -400,6 +434,9 @@
         private System.Windows.Forms.Timer timer100ms;
         private System.Windows.Forms.Button buttonStop;
         private System.Windows.Forms.Button buttonClearLog;
+        private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Label labelState;
     }
 }
 
