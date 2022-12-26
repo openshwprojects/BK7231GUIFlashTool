@@ -111,6 +111,7 @@ namespace BK7231Flasher
             FlashErase = 0x0f,
             FlashWrite4K = 0x07,
             FlashWrite = 0x06,
+            FlashGetMID = 0x0e,
         }
         byte[] BuildCmd_LinkCheck()
         {
@@ -194,6 +195,25 @@ namespace BK7231Flasher
             buf[11] = (byte)((endAddr >> 16) & 0xff);
             buf[12] = (byte)((endAddr >> 24) & 0xff);
             return buf;
+        }
+        
+        byte[] BuildCmd_FlashGetMID(int addr)
+        {
+            int length = 1 + (4);
+            byte[] ret = new byte[12];
+            ret[0] = 0x01;
+            ret[1] = 0xe0;
+            ret[2] = 0xfc;
+            ret[3] = 0xff;
+            ret[4] = 0xf4;
+            ret[5] = (byte)(length & 0xff);
+            ret[6] = (byte)((length >> 8) & 0xff);
+            ret[7] = (byte)CommandCode.FlashGetMID;
+            ret[8] = (byte)(addr & 0xff);
+            ret[9] = (byte)((addr >> 8) & 0xff);
+            ret[10] = (byte)((addr >> 16) & 0xff);
+            ret[11] = (byte)((addr >> 24) & 0xff);
+            return ret;
         }
         byte[] BuildCmd_FlashWrite4K(int addr, byte [] data, int startOfs)
         {
@@ -410,6 +430,21 @@ namespace BK7231Flasher
                 return true;
             }
             addError("CheckRespond_FlashWrite: bad value returned?" + Environment.NewLine);
+            return false;
+        }
+        bool CheckRespond_FlashGetMID(byte[] buf)
+        {
+            byte[] cBuf = new byte[] { 0x04,0x0e,0xff,0x01,0xe0,0xfc,0xf4,(1+4)&0xff,
+                    ((1+4)>>8)&0xff,(byte)CommandCode.FlashGetMID};
+            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
+            {
+            }
+            // FIX BootROM Bug
+            cBuf[7] += 1;
+            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
+            {
+            }
+            addError("CheckRespond_FlashGetMID: bad value returned?" + Environment.NewLine);
             return false;
         }
         bool CheckRespond_FlashWrite4K(byte[] buf, int addr)
@@ -920,6 +955,23 @@ namespace BK7231Flasher
         int CalcRxLength_FlashRead4K()
         {
             return (3 + 3 + 3 + (1 + 1 + (4 + 4 * 1024)));
+        }
+        int CalcRxLength_FlashGetID()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (4)));
+        }
+        byte [] GetFlashMID()
+        {
+            //addLog("Starting read sector for " + addr + Environment.NewLine);
+            byte[] txbuf = BuildCmd_FlashGetMID(0x9f);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashGetID());
+            if (rxbuf != null)
+            {
+                //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
+                return CheckRespond_FlashGetMID(rxbuf);
+            }
+            //addLog("Failed!" + Environment.NewLine);
+            return null;
         }
         bool writeSector4K(int addr, byte [] data, int first)
         {

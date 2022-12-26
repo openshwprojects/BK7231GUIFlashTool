@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BK7231Flasher.cs" />
+    <Compile Include="BKFlashList.cs" />
     <Compile Include="FormDownloader.cs">
       <SubType>Form</SubType>
     </Compile>
