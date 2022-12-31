@@ -6,15 +6,59 @@ namespace BK7231Flasher
 {
     public class BKFlash
     {
-        public BKFlash(int mid, string icName, string manufacturer, int size, int sr,
-            int unprot, int prot, int mask, int sb, int len, byte [] cwdRd, byte[] cwdWr)
-        {
+        public int mid;
+        public string icName;
+        public string manufacturer;
+        public int size;
+        public int sr;
+        public int unprot;
+        public int prot;
+        public int mask;
+        public int sb;
+        public int len;
+        public byte[] cwdRd;
+        public byte[] cwdWr;
 
+        public BKFlash(int mid, string icName, string manufacturer, int size, int sr,
+            int unprot, int prot, int mask, int sb, int len, byte[] cwdRd, byte[] cwdWr)
+        {
+            this.mid = mid;
+            this.icName = icName;
+            this.manufacturer = manufacturer;
+            this.size = size;
+            this.sr = sr;
+            this.unprot = unprot;
+            this.prot = prot;
+            this.mask = mask;
+            this.sb = sb;
+            this.len = len;
+            this.cwdRd = cwdRd;
+            this.cwdWr = cwdWr;
         }
+        public override string ToString()
+        {
+            return string.Format("mid: {0:X}, icName: {1}, manufacturer: {2}, size: {3:X}, sr: {4:X}, unprot: {5:X}, prot: {6:X}, mask: {7:X}, sb: {8:X}, len: {9:X}, cwdRd: {10}, cwdWr: {11}",
+                mid, icName, manufacturer, size, sr, unprot, prot, mask, sb, len, BitConverter.ToString(cwdRd), BitConverter.ToString(cwdWr));
+        }
+
+
+
     }
+
     public class BKFlashList
     {
-        static BKFlashList Singleton;
+        private static BKFlashList _sing;
+        public static BKFlashList Singleton
+        {
+            get
+            {
+                if(_sing == null)
+                {
+                    _sing = new BKFlashList();
+                }
+                return _sing;
+            }
+        }
 
         List<BKFlash> flashes = new List<BKFlash>();
 
@@ -61,10 +105,19 @@ namespace BK7231Flasher
         {
             flashes.Add(flash);
         }
+        public BKFlash findFlashForMID(int mid)
+        {
+            foreach(var f in flashes)
+            {
+                if(f.mid == mid)
+                {
+                    return f;
+                }
+            }
+            return null;
+        }
         public BKFlashList()
         {
-            Singleton = this;
-
             addFlash(new BKFlash(FLASH_ID_XTX_25F08B, "PN25F08B", "xtx", 8 * 1024 * 1024, 1, 0x00, 0x07, BFD(0x0f, 2, 4), 2, 4, new byte[] { 0x05, 0xff, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_XTX_25F04B, "PN25F04B", "xtx", 4 * 1024 * 1024, 1, 0x00, 0x07, BFD(0x0f, 2, 4), 2, 4, new byte[] { 0x05, 0xff, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_GD_25D40, "GD25D40", "GD", 4 * 1024 * 1024, 1, 0x00, 0x07, BFD(0x0f, 2, 3), 2, 3, new byte[] { 0x05, 0xff, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));

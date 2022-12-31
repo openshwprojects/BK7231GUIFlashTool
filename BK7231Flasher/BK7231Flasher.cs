@@ -432,20 +432,22 @@ namespace BK7231Flasher
             addError("CheckRespond_FlashWrite: bad value returned?" + Environment.NewLine);
             return false;
         }
-        bool CheckRespond_FlashGetMID(byte[] buf)
+        int CheckRespond_FlashGetMID(byte[] buf)
         {
             byte[] cBuf = new byte[] { 0x04,0x0e,0xff,0x01,0xe0,0xfc,0xf4,(1+4)&0xff,
                     ((1+4)>>8)&0xff,(byte)CommandCode.FlashGetMID};
             if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
             {
+                return BitConverter.ToInt32(buf, 11) >> 8;
             }
             // FIX BootROM Bug
             cBuf[7] += 1;
             if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
             {
+                return BitConverter.ToInt32(buf, 11) >> 8;
             }
             addError("CheckRespond_FlashGetMID: bad value returned?" + Environment.NewLine);
-            return false;
+            return 0;
         }
         bool CheckRespond_FlashWrite4K(byte[] buf, int addr)
         {
@@ -659,6 +661,10 @@ namespace BK7231Flasher
             {
                 return false;
             }
+            if (doUnprotect())
+            {
+                return false;
+            }
             return true;
         }
         bool doEraseInternal(int startSector, int sectors)
@@ -684,6 +690,29 @@ namespace BK7231Flasher
             }
             addLog(Environment.NewLine);
             addLog("All selected sectors erased!" + Environment.NewLine);
+            return true;
+        }
+        int deviceMID;
+        BKFlash flashDef;
+        bool doUnprotect()
+        {
+            addLog("Will try to read device flash MID (for unprotect N):" + Environment.NewLine);
+            deviceMID = GetFlashMID();
+            if (deviceMID == 0)
+            {
+                addError("Failed to read device MID!" + Environment.NewLine);
+                return false;
+            }
+            addSuccess("Flash MID loaded: " + deviceMID.ToString("X2") + Environment.NewLine);
+            addLog("Will now search for Flash def in out database..." + Environment.NewLine);
+            flashDef = BKFlashList.Singleton.findFlashForMID(deviceMID);
+            if(flashDef == null)
+            {
+                addError("Failed to find flash def for device MID!" + Environment.NewLine);
+                return false;
+            }
+            addSuccess("Flash def found! For: " + deviceMID.ToString("X2") + Environment.NewLine);
+            addSuccess("Flash information: " + flashDef.ToString() + Environment.NewLine);
             return true;
         }
         bool writeChunk(int startSector, byte [] data)
@@ -960,7 +989,7 @@ namespace BK7231Flasher
         {
             return (3 + 3 + 3 + (1 + 1 + (4)));
         }
-        byte [] GetFlashMID()
+        int GetFlashMID()
         {
             //addLog("Starting read sector for " + addr + Environment.NewLine);
             byte[] txbuf = BuildCmd_FlashGetMID(0x9f);
@@ -971,7 +1000,7 @@ namespace BK7231Flasher
                 return CheckRespond_FlashGetMID(rxbuf);
             }
             //addLog("Failed!" + Environment.NewLine);
-            return null;
+            return 0;
         }
         bool writeSector4K(int addr, byte [] data, int first)
         {
