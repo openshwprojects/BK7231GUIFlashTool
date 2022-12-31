@@ -9,36 +9,36 @@ namespace BK7231Flasher
         public int mid;
         public string icName;
         public string manufacturer;
-        public int size;
-        public int sr;
-        public int unprot;
-        public int prot;
-        public int mask;
+        public int szMem;
+        public int szSR;
+        public int cwUnp;
+        public int cwEnp;
+        public int cwMsk;
         public int sb;
-        public int len;
+        public int lb;
         public byte[] cwdRd;
         public byte[] cwdWr;
 
-        public BKFlash(int mid, string icName, string manufacturer, int size, int sr,
-            int unprot, int prot, int mask, int sb, int len, byte[] cwdRd, byte[] cwdWr)
+        public BKFlash(int mid, string icName, string manufacturer, int szMem, int szSR,
+            int cwUnp, int cwEnp, int cwMsk, int sb, int lb, byte[] cwdRd, byte[] cwdWr)
         {
             this.mid = mid;
             this.icName = icName;
             this.manufacturer = manufacturer;
-            this.size = size;
-            this.sr = sr;
-            this.unprot = unprot;
-            this.prot = prot;
-            this.mask = mask;
+            this.szMem = szMem;
+            this.szSR = szSR;
+            this.cwUnp = cwUnp;
+            this.cwEnp = cwEnp;
+            this.cwMsk = cwMsk;
             this.sb = sb;
-            this.len = len;
+            this.lb = lb;
             this.cwdRd = cwdRd;
             this.cwdWr = cwdWr;
         }
         public override string ToString()
         {
-            return string.Format("mid: {0:X}, icName: {1}, manufacturer: {2}, size: {3:X}, sr: {4:X}, unprot: {5:X}, prot: {6:X}, mask: {7:X}, sb: {8:X}, len: {9:X}, cwdRd: {10}, cwdWr: {11}",
-                mid, icName, manufacturer, size, sr, unprot, prot, mask, sb, len, BitConverter.ToString(cwdRd), BitConverter.ToString(cwdWr));
+            return string.Format("mid: {0:X}, icName: {1}, manufacturer: {2}, szMem: {3:X}, szSR: {4:X}, cwUnp: {5:X}, cwEnp: {6:X}, cwMsk: {7:X}, sb: {8:X}, lb: {9:X}, cwdRd: {10}, cwdWr: {11}",
+                mid, icName, manufacturer, szMem, szSR, cwUnp, cwEnp, cwMsk, sb, lb, BitConverter.ToString(cwdRd), BitConverter.ToString(cwdWr));
         }
 
 
@@ -93,11 +93,11 @@ namespace BK7231Flasher
         public static int FLASH_ID_GD_25WQ16E=0x001565c8;
         public static int FLASH_ID_TH25Q_16HB = 0x001560eb;
         public static int FLASH_ID_NA = 0x001640c8;
-        static int BFD(int v, int bs, int bl)
+        public static int BFD(int v, int bs, int bl)
         {
             return (v & ((1 << (bl)) - 1)) << (bs);
         }
-        static int BIT(int v)
+        public static int BIT(int v)
         {
             return 0x1 << v;
         }
