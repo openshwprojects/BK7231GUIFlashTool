@@ -604,7 +604,7 @@ namespace BK7231Flasher
         }
         bool getBus()
         {
-            int maxTries = 10;
+            int maxTries = 100;
             int loops = 1000;
             bool bOk = false;
             addLog("Getting bus... (now, please do reboot by CEN or by power off/on)" + Environment.NewLine);
@@ -620,6 +620,10 @@ namespace BK7231Flasher
                     }
                 }
                 addWarning("Getting bus failed, will try again - " + tr + "/" + maxTries + "!" + Environment.NewLine);
+                if(tr % 10 == 9)
+                {
+                    addWarning("Reminder: you should do a device reboot now (do power off/on of the device, but don't disconnect UART or do a CEN short to ground for 0.25sec)" + Environment.NewLine);
+                }
             }
             return false;
         }
@@ -684,7 +688,7 @@ namespace BK7231Flasher
                 return false;
             }
             byte[] dat = ms.ToArray();
-            File.WriteAllBytes(fileName, dat);
+            File.WriteAllBytes("backups/"+fileName, dat);
             addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
             return true;
         }
@@ -806,7 +810,7 @@ namespace BK7231Flasher
                 return false;
             }
             addSuccess("Flash def found! For: " + deviceMID.ToString("X2") + Environment.NewLine);
-            addSuccess("Flash information: " + flashInfo.ToString() + Environment.NewLine);
+            addLog("Flash information: " + flashInfo.ToString() + Environment.NewLine);
             if (setProtectState(true))
             {
                 return false;
@@ -882,6 +886,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
+            logger.setState("Writing...", Color.Transparent);
             for (int sec = 0; sec < sectors; sec++)
             {
                 int sectorSize = 0x1000;
@@ -892,6 +897,7 @@ namespace BK7231Flasher
                 addLog("Writing sector " + secAddr + "...");
                 if (bOk == false)
                 {
+                    logger.setState("Writing error!", Color.Red);
                     addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
                     return false;
                 }
@@ -900,6 +906,7 @@ namespace BK7231Flasher
             }
             if (false == checkCRC(startSector, sectors, data))
             {
+                logger.setState("Bad CRC!", Color.Red);
                 return false;
             }
             logger.setState("Write success!", Color.Green);
@@ -1045,6 +1052,7 @@ namespace BK7231Flasher
                 logger.setProgress(i + 1, sectors);
                 addLog("Ok! ");
             }
+            addLog(Environment.NewLine + "Basic read operation finished, but now it's time to verify..." + Environment.NewLine);
             if (false==checkCRC(startSector, sectors, tempResult.ToArray()))
             {
                 return null;
@@ -1056,11 +1064,14 @@ namespace BK7231Flasher
         }
         bool checkCRC(int startSector, int total, byte [] array)
         {
+            logger.setState("Doing CRC verification...", Color.Transparent);
+            addLog("Starting CRC check for " + total + " sectors, starting at offset " + startSector.ToString("X2") + Environment.NewLine);
             int last = startSector + total * 0x1000;
             uint bk_crc = calcCRC(startSector, last);
             uint our_crc = crc32_ver2(0xffffffff, array);
             if (bk_crc != our_crc)
             {
+                logger.setState("CRC mismatch!", Color.Red);
                 addError("CRC mismatch!" + Environment.NewLine);
                 addError("Send by BK " + formatHex(bk_crc) + ", our CRC " + formatHex(our_crc) + Environment.NewLine);
                 addError("Maybe you have wrong chip type set?" + Environment.NewLine);

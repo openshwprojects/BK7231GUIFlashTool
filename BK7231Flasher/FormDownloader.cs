@@ -39,11 +39,12 @@ namespace BK7231Flasher
             worker = new Thread(new ThreadStart(downloadThread));
             worker.Start();
         }
-        public void setState(string ss)
+        public void setState(string ss, Color c)
         {
             Singleton.progressBar1.Invoke((MethodInvoker)delegate {
                 // Running on the UI thread
                 labelState.Text = ss;
+                labelState.BackColor = c;
             });
         }
         public void setProgress(int cur, int max)
@@ -56,7 +57,7 @@ namespace BK7231Flasher
         }
         void downloadThread()
         {
-            setState("Downloading main Releases page...");
+            setState("Downloading main Releases page...", Color.Transparent);
             Thread.Sleep(200);
             addLog("Target platform: " + bkType);
             ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
@@ -76,7 +77,7 @@ namespace BK7231Flasher
             string contents = webClient.DownloadString(list_url);
             if (contents.Length <= 1)
             {
-                setState("Failed to download HTML page, receiver empty buffer?!");
+                setState("Failed to download HTML page, receiver empty buffer?!", Color.Red);
                 addError("Failed to download HTML page, receiver empty buffer?!");
                 return;
             }
@@ -87,11 +88,11 @@ namespace BK7231Flasher
             int ofs = contents.IndexOf(pfx);
             if(ofs == -1)
             {
-                setState("Failed to find binary link!");
+                setState("Failed to find binary link!", Color.Red);
                 addError("Failed to find binary link in "+list_url+"!");
                 return;
             }
-            setState("Searching downloaded page...");
+            setState("Searching downloaded page...", Color.Transparent);
             Thread.Sleep(200);
             string firmware_binary_url = pickQuotedString(contents,ofs);
             addLog("Found link: " + firmware_binary_url + "!");
@@ -103,11 +104,11 @@ namespace BK7231Flasher
             if (File.Exists(tg))
             {
                 addSuccess("Downloaded and saved "+tg+"!");
-                setState("Download ready! You can close this dialog now.");
+                setState("Download ready! You can close this dialog now.", Color.Green);
             }
             else
             {
-                setState("Failed to download!");
+                setState("Failed to download!", Color.Red);
                 addError("Failed to download!");
             }
         }

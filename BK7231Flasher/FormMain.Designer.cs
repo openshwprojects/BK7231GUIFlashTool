@@ -39,6 +39,14 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.labelState = new System.Windows.Forms.Label();
+            this.label6 = new System.Windows.Forms.Label();
+            this.buttonWriteOnly = new System.Windows.Forms.Button();
+            this.buttonClearLog = new System.Windows.Forms.Button();
+            this.buttonStop = new System.Windows.Forms.Button();
+            this.checkBoxShowAdvanced = new System.Windows.Forms.CheckBox();
+            this.buttonDoBackupAndFlashNew = new System.Windows.Forms.Button();
+            this.buttonTestWrite = new System.Windows.Forms.Button();
             this.buttonTestReadWrite = new System.Windows.Forms.Button();
             this.buttonDownloadLatest = new System.Windows.Forms.Button();
             this.labelMatchingFirmwares = new System.Windows.Forms.Label();
@@ -52,18 +60,32 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.button2 = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
-            this.buttonTestWrite = new System.Windows.Forms.Button();
-            this.buttonDoBackupAndFlashNew = new System.Windows.Forms.Button();
-            this.checkBoxShowAdvanced = new System.Windows.Forms.CheckBox();
+            this.tabPage3 = new System.Windows.Forms.TabPage();
+            this.linkLabel1 = new System.Windows.Forms.LinkLabel();
+            this.label12 = new System.Windows.Forms.Label();
+            this.linkLabelSPIFlasher = new System.Windows.Forms.LinkLabel();
+            this.label11 = new System.Windows.Forms.Label();
+            this.linkLabelForumDevicesSectio = new System.Windows.Forms.LinkLabel();
+            this.linkLabelDevicesDB = new System.Windows.Forms.LinkLabel();
+            this.linkLabelForum = new System.Windows.Forms.LinkLabel();
+            this.label10 = new System.Windows.Forms.Label();
+            this.label9 = new System.Windows.Forms.Label();
+            this.label8 = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.linkLabelOpenBeken = new System.Windows.Forms.LinkLabel();
+            this.tabPage4 = new System.Windows.Forms.TabPage();
+            this.label15 = new System.Windows.Forms.Label();
+            this.linkLabel3 = new System.Windows.Forms.LinkLabel();
+            this.label14 = new System.Windows.Forms.Label();
+            this.linkLabel2 = new System.Windows.Forms.LinkLabel();
+            this.label13 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonStop = new System.Windows.Forms.Button();
-            this.buttonClearLog = new System.Windows.Forms.Button();
-            this.button4 = new System.Windows.Forms.Button();
-            this.label6 = new System.Windows.Forms.Label();
-            this.labelState = new System.Windows.Forms.Label();
+            this.buttonOpenBackupsDir = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
+            this.tabPage3.SuspendLayout();
+            this.tabPage4.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonRead
@@ -92,6 +114,7 @@
             this.comboBoxUART.Name = "comboBoxUART";
             this.comboBoxUART.Size = new System.Drawing.Size(133, 21);
             this.comboBoxUART.TabIndex = 3;
+            this.comboBoxUART.SelectedIndexChanged += new System.EventHandler(this.comboBoxUART_SelectedIndexChanged);
             // 
             // label1
             // 
@@ -143,6 +166,8 @@
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.Controls.Add(this.tabPage3);
+            this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
@@ -152,9 +177,10 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonOpenBackupsDir);
             this.tabPage1.Controls.Add(this.labelState);
             this.tabPage1.Controls.Add(this.label6);
-            this.tabPage1.Controls.Add(this.button4);
+            this.tabPage1.Controls.Add(this.buttonWriteOnly);
             this.tabPage1.Controls.Add(this.buttonClearLog);
             this.tabPage1.Controls.Add(this.buttonStop);
             this.tabPage1.Controls.Add(this.checkBoxShowAdvanced);
@@ -179,8 +205,87 @@
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage1.Size = new System.Drawing.Size(783, 484);
             this.tabPage1.TabIndex = 0;
-            this.tabPage1.Text = "tabPage1";
+            this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // labelState
+            // 
+            this.labelState.AutoSize = true;
+            this.labelState.Font = new System.Drawing.Font("Microsoft Sans Serif", 17F);
+            this.labelState.Location = new System.Drawing.Point(246, 88);
+            this.labelState.Name = "labelState";
+            this.labelState.Size = new System.Drawing.Size(174, 29);
+            this.labelState.TabIndex = 22;
+            this.labelState.Text = "Doing nothing..";
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(248, 36);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(336, 13);
+            this.label6.TabIndex = 21;
+            this.label6.Text = "BK7231T is WB3S, WB2S, WB2L, etc. BK7231N is CB2S, CB3S, etc";
+            // 
+            // buttonWriteOnly
+            // 
+            this.buttonWriteOnly.Location = new System.Drawing.Point(379, 126);
+            this.buttonWriteOnly.Name = "buttonWriteOnly";
+            this.buttonWriteOnly.Size = new System.Drawing.Size(180, 23);
+            this.buttonWriteOnly.TabIndex = 20;
+            this.buttonWriteOnly.Text = "Do firmware write (no backup!)";
+            this.buttonWriteOnly.UseVisualStyleBackColor = true;
+            // 
+            // buttonClearLog
+            // 
+            this.buttonClearLog.Location = new System.Drawing.Point(669, 127);
+            this.buttonClearLog.Name = "buttonClearLog";
+            this.buttonClearLog.Size = new System.Drawing.Size(106, 23);
+            this.buttonClearLog.TabIndex = 19;
+            this.buttonClearLog.Text = "Clear log";
+            this.buttonClearLog.UseVisualStyleBackColor = true;
+            this.buttonClearLog.Click += new System.EventHandler(this.buttonClearLog_Click);
+            // 
+            // buttonStop
+            // 
+            this.buttonStop.Location = new System.Drawing.Point(565, 127);
+            this.buttonStop.Name = "buttonStop";
+            this.buttonStop.Size = new System.Drawing.Size(98, 23);
+            this.buttonStop.TabIndex = 18;
+            this.buttonStop.Text = "Stop current operation";
+            this.buttonStop.UseVisualStyleBackColor = true;
+            this.buttonStop.Click += new System.EventHandler(this.buttonStop_Click);
+            // 
+            // checkBoxShowAdvanced
+            // 
+            this.checkBoxShowAdvanced.AutoSize = true;
+            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(634, 8);
+            this.checkBoxShowAdvanced.Name = "checkBoxShowAdvanced";
+            this.checkBoxShowAdvanced.Size = new System.Drawing.Size(141, 17);
+            this.checkBoxShowAdvanced.TabIndex = 17;
+            this.checkBoxShowAdvanced.Text = "Show advanced options";
+            this.checkBoxShowAdvanced.UseVisualStyleBackColor = true;
+            this.checkBoxShowAdvanced.CheckedChanged += new System.EventHandler(this.checkBoxShowAdvanced_CheckedChanged);
+            // 
+            // buttonDoBackupAndFlashNew
+            // 
+            this.buttonDoBackupAndFlashNew.Location = new System.Drawing.Point(11, 126);
+            this.buttonDoBackupAndFlashNew.Name = "buttonDoBackupAndFlashNew";
+            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(176, 23);
+            this.buttonDoBackupAndFlashNew.TabIndex = 16;
+            this.buttonDoBackupAndFlashNew.Text = "Do backup and flash new firmware";
+            this.buttonDoBackupAndFlashNew.UseVisualStyleBackColor = true;
+            this.buttonDoBackupAndFlashNew.Click += new System.EventHandler(this.button4_Click);
+            // 
+            // buttonTestWrite
+            // 
+            this.buttonTestWrite.Location = new System.Drawing.Point(642, 68);
+            this.buttonTestWrite.Name = "buttonTestWrite";
+            this.buttonTestWrite.Size = new System.Drawing.Size(133, 23);
+            this.buttonTestWrite.TabIndex = 15;
+            this.buttonTestWrite.Text = "Test write pattern";
+            this.buttonTestWrite.UseVisualStyleBackColor = true;
+            this.buttonTestWrite.Click += new System.EventHandler(this.buttonTestWrite_Click);
             // 
             // buttonTestReadWrite
             // 
@@ -218,6 +323,7 @@
             this.comboBoxBaudRate.Name = "comboBoxBaudRate";
             this.comboBoxBaudRate.Size = new System.Drawing.Size(133, 21);
             this.comboBoxBaudRate.TabIndex = 11;
+            this.comboBoxBaudRate.SelectedIndexChanged += new System.EventHandler(this.comboBoxBaudRate_SelectedIndexChanged);
             // 
             // label5
             // 
@@ -246,9 +352,9 @@
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(609, 424);
+            this.tabPage2.Size = new System.Drawing.Size(783, 484);
             this.tabPage2.TabIndex = 1;
-            this.tabPage2.Text = "tabPage2";
+            this.tabPage2.Text = "Page Tool";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
             // textBox2
@@ -302,88 +408,216 @@
             this.button1.Text = "Prev Page";
             this.button1.UseVisualStyleBackColor = true;
             // 
-            // buttonTestWrite
+            // tabPage3
             // 
-            this.buttonTestWrite.Location = new System.Drawing.Point(642, 68);
-            this.buttonTestWrite.Name = "buttonTestWrite";
-            this.buttonTestWrite.Size = new System.Drawing.Size(133, 23);
-            this.buttonTestWrite.TabIndex = 15;
-            this.buttonTestWrite.Text = "Test write pattern";
-            this.buttonTestWrite.UseVisualStyleBackColor = true;
-            this.buttonTestWrite.Click += new System.EventHandler(this.buttonTestWrite_Click);
+            this.tabPage3.Controls.Add(this.linkLabel1);
+            this.tabPage3.Controls.Add(this.label12);
+            this.tabPage3.Controls.Add(this.linkLabelSPIFlasher);
+            this.tabPage3.Controls.Add(this.label11);
+            this.tabPage3.Controls.Add(this.linkLabelForumDevicesSectio);
+            this.tabPage3.Controls.Add(this.linkLabelDevicesDB);
+            this.tabPage3.Controls.Add(this.linkLabelForum);
+            this.tabPage3.Controls.Add(this.label10);
+            this.tabPage3.Controls.Add(this.label9);
+            this.tabPage3.Controls.Add(this.label8);
+            this.tabPage3.Controls.Add(this.label7);
+            this.tabPage3.Controls.Add(this.linkLabelOpenBeken);
+            this.tabPage3.Location = new System.Drawing.Point(4, 22);
+            this.tabPage3.Name = "tabPage3";
+            this.tabPage3.Size = new System.Drawing.Size(783, 484);
+            this.tabPage3.TabIndex = 2;
+            this.tabPage3.Text = "Documentation/Tutorials";
+            this.tabPage3.UseVisualStyleBackColor = true;
             // 
-            // buttonDoBackupAndFlashNew
+            // linkLabel1
             // 
-            this.buttonDoBackupAndFlashNew.Location = new System.Drawing.Point(11, 126);
-            this.buttonDoBackupAndFlashNew.Name = "buttonDoBackupAndFlashNew";
-            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(176, 23);
-            this.buttonDoBackupAndFlashNew.TabIndex = 16;
-            this.buttonDoBackupAndFlashNew.Text = "Do backup and flash new firmware";
-            this.buttonDoBackupAndFlashNew.UseVisualStyleBackColor = true;
-            this.buttonDoBackupAndFlashNew.Click += new System.EventHandler(this.button4_Click);
+            this.linkLabel1.AutoSize = true;
+            this.linkLabel1.Location = new System.Drawing.Point(231, 130);
+            this.linkLabel1.Name = "linkLabel1";
+            this.linkLabel1.Size = new System.Drawing.Size(246, 13);
+            this.linkLabel1.TabIndex = 11;
+            this.linkLabel1.TabStop = true;
+            this.linkLabel1.Text = "https://github.com/openshwprojects/obkSimulator";
             // 
-            // checkBoxShowAdvanced
+            // label12
             // 
-            this.checkBoxShowAdvanced.AutoSize = true;
-            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(634, 8);
-            this.checkBoxShowAdvanced.Name = "checkBoxShowAdvanced";
-            this.checkBoxShowAdvanced.Size = new System.Drawing.Size(141, 17);
-            this.checkBoxShowAdvanced.TabIndex = 17;
-            this.checkBoxShowAdvanced.Text = "Show advanced options";
-            this.checkBoxShowAdvanced.UseVisualStyleBackColor = true;
+            this.label12.AutoSize = true;
+            this.label12.Location = new System.Drawing.Point(9, 130);
+            this.label12.Name = "label12";
+            this.label12.Size = new System.Drawing.Size(143, 13);
+            this.label12.TabIndex = 10;
+            this.label12.Text = "OpenBK Windows Simulator:";
+            // 
+            // linkLabelSPIFlasher
+            // 
+            this.linkLabelSPIFlasher.AutoSize = true;
+            this.linkLabelSPIFlasher.Location = new System.Drawing.Point(231, 106);
+            this.linkLabelSPIFlasher.Name = "linkLabelSPIFlasher";
+            this.linkLabelSPIFlasher.Size = new System.Drawing.Size(286, 13);
+            this.linkLabelSPIFlasher.TabIndex = 9;
+            this.linkLabelSPIFlasher.TabStop = true;
+            this.linkLabelSPIFlasher.Text = "https://github.com/openshwprojects/BK7231_SPI_Flasher";
+            // 
+            // label11
+            // 
+            this.label11.AutoSize = true;
+            this.label11.Location = new System.Drawing.Point(9, 106);
+            this.label11.Name = "label11";
+            this.label11.Size = new System.Drawing.Size(201, 13);
+            this.label11.TabIndex = 8;
+            this.label11.Text = "Our SPI BK7231 flasher (recovery mode):";
+            // 
+            // linkLabelForumDevicesSectio
+            // 
+            this.linkLabelForumDevicesSectio.AutoSize = true;
+            this.linkLabelForumDevicesSectio.Location = new System.Drawing.Point(231, 82);
+            this.linkLabelForumDevicesSectio.Name = "linkLabelForumDevicesSectio";
+            this.linkLabelForumDevicesSectio.Size = new System.Drawing.Size(251, 13);
+            this.linkLabelForumDevicesSectio.TabIndex = 7;
+            this.linkLabelForumDevicesSectio.TabStop = true;
+            this.linkLabelForumDevicesSectio.Text = "https://www.elektroda.com/rtvforum/forum507.html";
+            // 
+            // linkLabelDevicesDB
+            // 
+            this.linkLabelDevicesDB.AutoSize = true;
+            this.linkLabelDevicesDB.Location = new System.Drawing.Point(230, 57);
+            this.linkLabelDevicesDB.Name = "linkLabelDevicesDB";
+            this.linkLabelDevicesDB.Size = new System.Drawing.Size(274, 13);
+            this.linkLabelDevicesDB.TabIndex = 6;
+            this.linkLabelDevicesDB.TabStop = true;
+            this.linkLabelDevicesDB.Text = "https://openbekeniot.github.io/webapp/devicesList.html";
+            // 
+            // linkLabelForum
+            // 
+            this.linkLabelForum.AutoSize = true;
+            this.linkLabelForum.Location = new System.Drawing.Point(230, 34);
+            this.linkLabelForum.Name = "linkLabelForum";
+            this.linkLabelForum.Size = new System.Drawing.Size(142, 13);
+            this.linkLabelForum.TabIndex = 5;
+            this.linkLabelForum.TabStop = true;
+            this.linkLabelForum.Text = "https://www.elektroda.com/";
+            // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Location = new System.Drawing.Point(9, 82);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(216, 13);
+            this.label10.TabIndex = 4;
+            this.label10.Text = "Devices forum (submit new teardowns here):";
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(9, 57);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(150, 13);
+            this.label9.TabIndex = 3;
+            this.label9.Text = "Devices Templates/database:";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(9, 34);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(144, 13);
+            this.label8.TabIndex = 2;
+            this.label8.Text = "Our forum (ask here for help):";
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(9, 12);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(151, 13);
+            this.label7.TabIndex = 1;
+            this.label7.Text = "Our repository (for developers):";
+            // 
+            // linkLabelOpenBeken
+            // 
+            this.linkLabelOpenBeken.AutoSize = true;
+            this.linkLabelOpenBeken.Location = new System.Drawing.Point(230, 12);
+            this.linkLabelOpenBeken.Name = "linkLabelOpenBeken";
+            this.linkLabelOpenBeken.Size = new System.Drawing.Size(281, 13);
+            this.linkLabelOpenBeken.TabIndex = 0;
+            this.linkLabelOpenBeken.TabStop = true;
+            this.linkLabelOpenBeken.Text = "https://github.com/openshwprojects/OpenBK7231T_App";
+            // 
+            // tabPage4
+            // 
+            this.tabPage4.Controls.Add(this.label15);
+            this.tabPage4.Controls.Add(this.linkLabel3);
+            this.tabPage4.Controls.Add(this.label14);
+            this.tabPage4.Controls.Add(this.linkLabel2);
+            this.tabPage4.Controls.Add(this.label13);
+            this.tabPage4.Location = new System.Drawing.Point(4, 22);
+            this.tabPage4.Name = "tabPage4";
+            this.tabPage4.Size = new System.Drawing.Size(783, 484);
+            this.tabPage4.TabIndex = 3;
+            this.tabPage4.Text = "Help contact";
+            this.tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // label15
+            // 
+            this.label15.AutoSize = true;
+            this.label15.Location = new System.Drawing.Point(20, 67);
+            this.label15.Name = "label15";
+            this.label15.Size = new System.Drawing.Size(274, 13);
+            this.label15.TabIndex = 9;
+            this.label15.Text = "We will guide you step by step with device configuration!";
+            // 
+            // linkLabel3
+            // 
+            this.linkLabel3.AutoSize = true;
+            this.linkLabel3.Location = new System.Drawing.Point(282, 40);
+            this.linkLabel3.Name = "linkLabel3";
+            this.linkLabel3.Size = new System.Drawing.Size(318, 13);
+            this.linkLabel3.TabIndex = 8;
+            this.linkLabel3.TabStop = true;
+            this.linkLabel3.Text = "https://www.elektroda.com/rtvforum/forum390.html?tylko_dzial=1";
+            // 
+            // label14
+            // 
+            this.label14.AutoSize = true;
+            this.label14.Location = new System.Drawing.Point(20, 40);
+            this.label14.Name = "label14";
+            this.label14.Size = new System.Drawing.Size(256, 13);
+            this.label14.TabIndex = 7;
+            this.label14.Text = "The preferred section for quick IoT questions is here:";
+            // 
+            // linkLabel2
+            // 
+            this.linkLabel2.AutoSize = true;
+            this.linkLabel2.Location = new System.Drawing.Point(198, 14);
+            this.linkLabel2.Name = "linkLabel2";
+            this.linkLabel2.Size = new System.Drawing.Size(142, 13);
+            this.linkLabel2.TabIndex = 6;
+            this.linkLabel2.TabStop = true;
+            this.linkLabel2.Text = "https://www.elektroda.com/";
+            // 
+            // label13
+            // 
+            this.label13.AutoSize = true;
+            this.label13.Location = new System.Drawing.Point(20, 14);
+            this.label13.Name = "label13";
+            this.label13.Size = new System.Drawing.Size(172, 13);
+            this.label13.TabIndex = 0;
+            this.label13.Text = "Please ask questions on our forum:";
             // 
             // timer100ms
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonStop
+            // buttonOpenBackupsDir
             // 
-            this.buttonStop.Location = new System.Drawing.Point(565, 127);
-            this.buttonStop.Name = "buttonStop";
-            this.buttonStop.Size = new System.Drawing.Size(98, 23);
-            this.buttonStop.TabIndex = 18;
-            this.buttonStop.Text = "Stop current operation";
-            this.buttonStop.UseVisualStyleBackColor = true;
-            this.buttonStop.Click += new System.EventHandler(this.buttonStop_Click);
-            // 
-            // buttonClearLog
-            // 
-            this.buttonClearLog.Location = new System.Drawing.Point(669, 127);
-            this.buttonClearLog.Name = "buttonClearLog";
-            this.buttonClearLog.Size = new System.Drawing.Size(106, 23);
-            this.buttonClearLog.TabIndex = 19;
-            this.buttonClearLog.Text = "Clear log";
-            this.buttonClearLog.UseVisualStyleBackColor = true;
-            this.buttonClearLog.Click += new System.EventHandler(this.buttonClearLog_Click);
-            // 
-            // button4
-            // 
-            this.button4.Location = new System.Drawing.Point(379, 126);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(180, 23);
-            this.button4.TabIndex = 20;
-            this.button4.Text = "Do firmware write (no backup!)";
-            this.button4.UseVisualStyleBackColor = true;
-            // 
-            // label6
-            // 
-            this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(248, 36);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(336, 13);
-            this.label6.TabIndex = 21;
-            this.label6.Text = "BK7231T is WB3S, WB2S, WB2L, etc. BK7231N is CB2S, CB3S, etc";
-            // 
-            // labelState
-            // 
-            this.labelState.AutoSize = true;
-            this.labelState.Font = new System.Drawing.Font("Microsoft Sans Serif", 17F);
-            this.labelState.Location = new System.Drawing.Point(246, 88);
-            this.labelState.Name = "labelState";
-            this.labelState.Size = new System.Drawing.Size(174, 29);
-            this.labelState.TabIndex = 22;
-            this.labelState.Text = "Doing nothing..";
+            this.buttonOpenBackupsDir.Location = new System.Drawing.Point(508, 97);
+            this.buttonOpenBackupsDir.Name = "buttonOpenBackupsDir";
+            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(132, 23);
+            this.buttonOpenBackupsDir.TabIndex = 23;
+            this.buttonOpenBackupsDir.Text = "Open backups dir";
+            this.buttonOpenBackupsDir.UseVisualStyleBackColor = true;
+            this.buttonOpenBackupsDir.Click += new System.EventHandler(this.buttonOpenBackupsDir_Click);
             // 
             // FormMain
             // 
@@ -400,6 +634,10 @@
             this.tabPage1.PerformLayout();
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
+            this.tabPage3.ResumeLayout(false);
+            this.tabPage3.PerformLayout();
+            this.tabPage4.ResumeLayout(false);
+            this.tabPage4.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -434,9 +672,29 @@
         private System.Windows.Forms.Timer timer100ms;
         private System.Windows.Forms.Button buttonStop;
         private System.Windows.Forms.Button buttonClearLog;
-        private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Button buttonWriteOnly;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label labelState;
+        private System.Windows.Forms.TabPage tabPage3;
+        private System.Windows.Forms.TabPage tabPage4;
+        private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.LinkLabel linkLabelOpenBeken;
+        private System.Windows.Forms.LinkLabel linkLabelForumDevicesSectio;
+        private System.Windows.Forms.LinkLabel linkLabelDevicesDB;
+        private System.Windows.Forms.LinkLabel linkLabelForum;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.LinkLabel linkLabelSPIFlasher;
+        private System.Windows.Forms.Label label11;
+        private System.Windows.Forms.LinkLabel linkLabel1;
+        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.Label label15;
+        private System.Windows.Forms.LinkLabel linkLabel3;
+        private System.Windows.Forms.Label label14;
+        private System.Windows.Forms.LinkLabel linkLabel2;
+        private System.Windows.Forms.Label label13;
+        private System.Windows.Forms.Button buttonOpenBackupsDir;
     }
 }
 

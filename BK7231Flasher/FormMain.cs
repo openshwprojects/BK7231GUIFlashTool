@@ -81,10 +81,20 @@ namespace BK7231Flasher
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
+            if (Directory.Exists("backups") == false)
+            {
+                Directory.CreateDirectory("backups");
+            }
+
+            settings = MySettings.CreateAndLoad("settings.cfg");
+            // do not overwrite user settings with default
+            bWithinSettingSet = true;
+
             scanForCOMPorts();
             //setButtonReadLabel(label_startRead);
             setButtonStates(true);
 
+            checkBoxShowAdvanced.Checked = true;
             comboBoxChipType.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -118,6 +128,63 @@ namespace BK7231Flasher
             {
                 downloadLatestFor(BKType.BK7231N);
             }
+            // allow overwrite old settings with new
+            bWithinSettingSet = false;
+            applySettings();
+        }
+        MySettings settings;
+        void applySettings()
+        {
+            if (settings.HasKey("BaudRate"))
+            {
+                setComboBoxValueByContent(comboBoxBaudRate, settings.FindKeyValue("BaudRate"));
+            }
+            if (settings.HasKey("Platform"))
+            {
+                setComboBoxValueByContent(comboBoxChipType, settings.FindKeyValue("Platform"));
+            }
+            if (settings.HasKey("Port"))
+            {
+                setComboBoxValueByContent(comboBoxUART, settings.FindKeyValue("Port"));
+            }
+            if (settings.HasKey("bAdvanced"))
+            {
+               checkBoxShowAdvanced.Checked = settings.FindKeyValueBool("bAdvanced");
+            }
+        }
+        public void setComboBoxValueByContent(ComboBox comboBox, string itemToSet)
+        {
+            int index = -1;
+            for (int i = 0; i < comboBox.Items.Count; i++)
+            {
+                if (comboBox.Items[i].ToString() == itemToSet)
+                {
+                    index = i;
+                    break;
+                }
+            }
+            if(index != -1)
+            {
+                comboBox.SelectedIndex = index;
+            }
+        }
+        void setSettingsKeyAndSave(string key, object value)
+        {
+            if (value == null)
+                return;
+            setSettingsKeyAndSave(key, value.ToString());
+        }
+        bool bWithinSettingSet;
+        void setSettingsKeyAndSave(string key, string value)
+        {
+            if (bWithinSettingSet)
+            {
+                return;
+            }
+            bWithinSettingSet = true;
+            settings.SetKeyValue(key, value);
+            settings.Save("settings.cfg");
+            bWithinSettingSet = false;
         }
         int getBaudRateFromGUI()
         {
@@ -293,9 +360,15 @@ namespace BK7231Flasher
         }
         int getBackupSectorCountForCurrentPlatform()
         {
+#if false
             int sectors;
             sectors = (0x200000 - getBackupStartSectorForCurrentPlatform()) / 0x1000;
             return sectors;
+#else
+            int sectors;
+            sectors = (0x200000) / 0x1000;
+            return sectors;
+#endif
         }
         void readThread()
         {
@@ -355,6 +428,7 @@ namespace BK7231Flasher
         {
             refreshType();
             refreshFirmwaresList();
+            setSettingsKeyAndSave("Platform", comboBoxChipType.SelectedItem);
         }
 
         private void buttonDownloadLatest_Click(object sender, EventArgs e)
@@ -451,6 +525,7 @@ namespace BK7231Flasher
                 buttonTestReadWrite.Enabled = b;
                 buttonTestWrite.Enabled = b;
                 buttonDoBackupAndFlashNew.Enabled = b;
+                buttonWriteOnly.Enabled = b;
                 buttonStop.Enabled = !b;
             });
         }
@@ -462,6 +537,42 @@ namespace BK7231Flasher
         private void buttonClearLog_Click(object sender, EventArgs e)
         {
             textBoxLog.Text = "";
+        }
+
+        private void comboBoxUART_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("Port", comboBoxUART.SelectedItem);
+        }
+
+        private void comboBoxBaudRate_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("BaudRate", comboBoxBaudRate.SelectedItem);
+        }
+
+        private void checkBoxShowAdvanced_CheckedChanged(object sender, EventArgs e)
+        {
+            showAdvancedOptions(checkBoxShowAdvanced.Checked);
+            setSettingsKeyAndSave("bAdvanced", checkBoxShowAdvanced.Checked); 
+        }
+
+        private void showAdvancedOptions(bool b)
+        {
+            buttonTestReadWrite.Visible = b;
+            buttonTestWrite.Visible = b;
+        }
+
+        private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // opens the folder in explorer
+                string path = Path.Combine(Directory.GetCurrentDirectory(), "backups");
+                Process.Start("explorer.exe", path);
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Failed, no firmwares loaded yet!");
+            }
         }
     }
 }
