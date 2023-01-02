@@ -56,3 +56,8 @@ No command line and no strange arguments required.
 # CRC Mismatch?
 CRCs are calculated correctly for both N and T. If you get CRC mismatch, you are most likely selecting a wrong chip type.
 ![image](https://user-images.githubusercontent.com/85486843/210281290-31d037f5-61c1-403b-a9c5-891fbda75914.png)
+
+# Other problems?
+You can also try changing the baudrate for flashing. Remember - sometimes higher baud rate might worker better than lower one!
+
+If you still need help, you can ask on our forums: https://www.elektroda.com/
