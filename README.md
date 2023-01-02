@@ -1,4 +1,4 @@
-# BK7231GUIFlashTool
+# BK7231 GUI Flash Tool
 
 BK7231 GUI Flash Tool a simple Windows Application that allows you to flash new firmware to BK7231T/BK7231N devices without having computer and programming knowledge.
 Futhermore, it automatically creates an original firmware backup, so you can submit the original firmware dump for futher analysis (NOTE: it may contain SSID if paired).
