@@ -406,8 +406,20 @@ namespace BK7231Flasher
         }
         public void refreshFirmwaresList()
         {
-            string[] files = Directory.GetFiles(firmwaresPath);
             comboBoxFirmware.Items.Clear();
+            if (Directory.Exists(firmwaresPath) == false)
+            {
+                return;
+            }
+            string[] files;
+            try
+            {
+                files = Directory.GetFiles(firmwaresPath);
+            }
+            catch(Exception ex)
+            {
+                return;
+            }
             for(int i = 0; i < files.Length; i++)
             {
                 string fname = files[i];
@@ -423,6 +435,28 @@ namespace BK7231Flasher
             {
                 comboBoxFirmware.SelectedIndex = 0;
             }
+        }
+        public void clearFirmwaresList()
+        {
+            if (Directory.Exists(firmwaresPath) == false)
+            {
+                return;
+            }
+            string[] files;
+            try
+            {
+                files = Directory.GetFiles(firmwaresPath);
+            }
+            catch (Exception ex)
+            {
+                return;
+            }
+            for (int i = 0; i < files.Length; i++)
+            {
+                string fname = files[i];
+                File.Delete(fname);
+            }
+            refreshFirmwaresList();
         }
         private void comboBoxChipType_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -573,6 +607,11 @@ namespace BK7231Flasher
             {
                 MessageBox.Show("Failed, no firmwares loaded yet!");
             }
+        }
+
+        private void buttonClearOldFirmware_Click(object sender, EventArgs e)
+        {
+            clearFirmwaresList();
         }
     }
 }
