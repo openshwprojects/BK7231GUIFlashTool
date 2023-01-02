@@ -57,6 +57,12 @@ No command line and no strange arguments required.
 CRCs are calculated correctly for both N and T. If you get CRC mismatch, you are most likely selecting a wrong chip type.
 ![image](https://user-images.githubusercontent.com/85486843/210281290-31d037f5-61c1-403b-a9c5-891fbda75914.png)
 
+# Can't auto download firmware?
+Firmware download will not work on systems without newer TLS version required by Github. You can always manually download release from here:
+https://github.com/openshwprojects/OpenBK7231T_App
+and put into firmwares bin, then restart flasher.
+
+
 # Other problems?
 You can also try changing the baudrate for flashing. Remember - sometimes higher baud rate might worker better than lower one!
 
