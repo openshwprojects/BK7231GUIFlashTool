@@ -94,7 +94,6 @@ namespace BK7231Flasher
             //setButtonReadLabel(label_startRead);
             setButtonStates(true);
 
-            checkBoxShowAdvanced.Checked = true;
             comboBoxChipType.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -131,6 +130,7 @@ namespace BK7231Flasher
             // allow overwrite old settings with new
             bWithinSettingSet = false;
             applySettings();
+            refreshAdvancedOptions();
         }
         MySettings settings;
         void applySettings()
@@ -585,8 +585,12 @@ namespace BK7231Flasher
 
         private void checkBoxShowAdvanced_CheckedChanged(object sender, EventArgs e)
         {
-            showAdvancedOptions(checkBoxShowAdvanced.Checked);
+            refreshAdvancedOptions();
             setSettingsKeyAndSave("bAdvanced", checkBoxShowAdvanced.Checked); 
+        }
+        void refreshAdvancedOptions()
+        {
+            showAdvancedOptions(checkBoxShowAdvanced.Checked);
         }
 
         private void showAdvancedOptions(bool b)

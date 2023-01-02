@@ -57,11 +57,29 @@ namespace BK7231Flasher
         }
         void downloadThread()
         {
+            try
+            {
+                doDownloadInternal();
+            }
+            catch (Exception ex)
+            {
+                setState("Exception!", Color.Red);
+                setState(ex.ToString(), Color.Red);
+                addLog("It's possible that your system does not support Secure Protocol needed by github.", Color.Red);
+                addLog("Sorry, exception occured.", Color.Red);
+                addLog("Please manually download firmware from here:", Color.Red);
+                addLog(list_url, Color.Red);
+                string pfx = FormMain.getFirmwarePrefix(bkType);
+                addLog("Please choose the file with prefix "+pfx, Color.Red);
+                addLog("Please put this in 'firmwares' dir in dir where the flasher exe is and restart flasher",Color.Red);
+            }
+        }
+        void doDownloadInternal() { 
             setState("Downloading main Releases page...", Color.Transparent);
             Thread.Sleep(200);
             addLog("Target platform: " + bkType);
             ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12 | SecurityProtocolType.Ssl3;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
             WebClient webClient = new WebClient();
             webClient.DownloadProgressChanged += (s, e) =>
             {
@@ -71,7 +89,7 @@ namespace BK7231Flasher
             {
             };
             ServicePointManager.Expect100Continue = true;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12 | SecurityProtocolType.Ssl3;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
             webClient.Headers.Add("user-agent", "request");
             addLog("Will request page: " + list_url);
             string contents = webClient.DownloadString(list_url);
