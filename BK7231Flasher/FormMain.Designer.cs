@@ -54,7 +54,7 @@
             this.comboBoxBaudRate = new System.Windows.Forms.ComboBox();
             this.label5 = new System.Windows.Forms.Label();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
-            this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.tabPagePageTool = new System.Windows.Forms.TabPage();
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.button3 = new System.Windows.Forms.Button();
             this.label4 = new System.Windows.Forms.Label();
@@ -84,7 +84,7 @@
             this.buttonClearOldFirmware = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
-            this.tabPage2.SuspendLayout();
+            this.tabPagePageTool.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.tabPage4.SuspendLayout();
             this.SuspendLayout();
@@ -166,7 +166,7 @@
             // tabControl1
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
-            this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.Controls.Add(this.tabPagePageTool);
             this.tabControl1.Controls.Add(this.tabPage3);
             this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -353,21 +353,21 @@
             this.progressBar1.Size = new System.Drawing.Size(782, 23);
             this.progressBar1.TabIndex = 9;
             // 
-            // tabPage2
+            // tabPagePageTool
             // 
-            this.tabPage2.Controls.Add(this.textBox2);
-            this.tabPage2.Controls.Add(this.button3);
-            this.tabPage2.Controls.Add(this.label4);
-            this.tabPage2.Controls.Add(this.textBox1);
-            this.tabPage2.Controls.Add(this.button2);
-            this.tabPage2.Controls.Add(this.button1);
-            this.tabPage2.Location = new System.Drawing.Point(4, 22);
-            this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(783, 484);
-            this.tabPage2.TabIndex = 1;
-            this.tabPage2.Text = "Page Tool";
-            this.tabPage2.UseVisualStyleBackColor = true;
+            this.tabPagePageTool.Controls.Add(this.textBox2);
+            this.tabPagePageTool.Controls.Add(this.button3);
+            this.tabPagePageTool.Controls.Add(this.label4);
+            this.tabPagePageTool.Controls.Add(this.textBox1);
+            this.tabPagePageTool.Controls.Add(this.button2);
+            this.tabPagePageTool.Controls.Add(this.button1);
+            this.tabPagePageTool.Location = new System.Drawing.Point(4, 22);
+            this.tabPagePageTool.Name = "tabPagePageTool";
+            this.tabPagePageTool.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPagePageTool.Size = new System.Drawing.Size(798, 484);
+            this.tabPagePageTool.TabIndex = 1;
+            this.tabPagePageTool.Text = "Page Tool";
+            this.tabPagePageTool.UseVisualStyleBackColor = true;
             // 
             // textBox2
             // 
@@ -644,8 +644,8 @@
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             this.tabPage1.PerformLayout();
-            this.tabPage2.ResumeLayout(false);
-            this.tabPage2.PerformLayout();
+            this.tabPagePageTool.ResumeLayout(false);
+            this.tabPagePageTool.PerformLayout();
             this.tabPage3.ResumeLayout(false);
             this.tabPage3.PerformLayout();
             this.tabPage4.ResumeLayout(false);
@@ -665,7 +665,7 @@
         private System.Windows.Forms.ComboBox comboBoxFirmware;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
-        private System.Windows.Forms.TabPage tabPage2;
+        private System.Windows.Forms.TabPage tabPagePageTool;
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.Label label4;

@@ -81,6 +81,7 @@ namespace BK7231Flasher
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
+            tabControl1.TabPages.Remove(tabPagePageTool);
             if (Directory.Exists("backups") == false)
             {
                 Directory.CreateDirectory("backups");
