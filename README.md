@@ -52,6 +52,7 @@ No command line and no strange arguments required.
 
 ![image](https://user-images.githubusercontent.com/85486843/210281504-b592db7d-9e6e-47f9-81fc-3619a2f00204.png)
 
+15. Firmware access point show appear now. Connect to it and enter 192.168.4.1 configuration page.
 
 # CRC Mismatch?
 CRCs are calculated correctly for both N and T. If you get CRC mismatch, you are most likely selecting a wrong chip type.
