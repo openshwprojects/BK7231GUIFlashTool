@@ -340,7 +340,19 @@ namespace BK7231Flasher
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
-            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile);
+            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile,false);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+        void doOnlyFlashNew()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            int startSector = getBackupStartSectorForCurrentPlatform();
+            int sectors = getBackupSectorCountForCurrentPlatform();
+            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile,true);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
@@ -617,6 +629,16 @@ namespace BK7231Flasher
         private void buttonClearOldFirmware_Click(object sender, EventArgs e)
         {
             clearFirmwaresList();
+        }
+
+        private void buttonWriteOnly_Click(object sender, EventArgs e)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            //setButtonReadLabel(label_stopRead);
+            startWorkerThread(doOnlyFlashNew);
         }
     }
 }

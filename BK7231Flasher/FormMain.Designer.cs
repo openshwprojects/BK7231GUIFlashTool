@@ -259,6 +259,7 @@
             this.buttonWriteOnly.TabIndex = 20;
             this.buttonWriteOnly.Text = "Do firmware write (no backup!)";
             this.buttonWriteOnly.UseVisualStyleBackColor = true;
+            this.buttonWriteOnly.Click += new System.EventHandler(this.buttonWriteOnly_Click);
             // 
             // buttonClearLog
             // 

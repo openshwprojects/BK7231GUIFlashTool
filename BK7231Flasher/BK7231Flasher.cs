@@ -658,11 +658,11 @@ namespace BK7231Flasher
             }
         }
         
-        public void doReadAndWrite(int startSector, int sectors, string sourceFileName)
+        public void doReadAndWrite(int startSector, int sectors, string sourceFileName, bool bSkipWrite)
         {
             try
             {
-                doReadAndWriteInternal(startSector, sectors, sourceFileName);
+                doReadAndWriteInternal(startSector, sectors, sourceFileName, bSkipWrite);
             }
             catch (Exception ex)
             {
@@ -1081,22 +1081,32 @@ namespace BK7231Flasher
             return true;
         }
         
-        bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName)
+        bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, bool bSkipWrite)
         {
             logger.setProgress(0, sectors);
-            addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
+            if(bSkipWrite)
+            {
+                addLog(Environment.NewLine + "Starting flash new (no backup)!" + Environment.NewLine);
+            }
+            else
+            {
+                addLog(Environment.NewLine + "Starting read backup and flash new!" + Environment.NewLine);
+            }
             if (doGenericSetup() == false)
             {
                 return false;
             }
-            ms = readChunk(startSector, sectors);
-            if (ms == null)
+            if(bSkipWrite == false)
             {
-                return false;
-            }
-            if (saveReadResult()==false)
-            {
-                return false;
+                ms = readChunk(startSector, sectors);
+                if (ms == null)
+                {
+                    return false;
+                }
+                if (saveReadResult() == false)
+                {
+                    return false;
+                }
             }
             byte[] data;
             addLog("Reading file " + sourceFileName +"..." + Environment.NewLine);
