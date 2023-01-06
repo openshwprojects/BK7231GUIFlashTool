@@ -1,22 +1,44 @@
-# BK7231GUIFlashTool
+# BK7231 GUI Flash Tool
 
-BK7231 GUI Flash Tool a simple Windows Application that allows you to flash new firmware to BK7231T/BK7231N devices without having computer and programming knowledge.
-Futhermore, it automatically creates an original firmware backup, so you can submit the original firmware dump for futher analysis (NOTE: it may contain SSID if paired).
+BK7231 GUI Flash Tool a simple Windows application that allows you to flash the OpenBK firmware to Beken chipset (BK7231T or BK7231N) based devices without having extensive programming knowledge.
 
-# Short usage instruction
+Futhermore, it automatically creates an original firmware backup, so you can submit the original firmware dump for futher analysis  
+❗ NOTE: The flash dump may contain your SSID if the device was paired at the time of the backup
 
-Connect UART to USB converter to Beken TXD1/RXD1, start flasher tool, select N or T platform, click "Download latest from web" to get firmware binary, click "Do backup and flash new", reset/repower Beken, tool will do both read and flash in one row. Done!
+# Compiling and Running on Linux
+
+It should be possible to compile and run this tool on Linux by using [Mono](https://www.mono-project.com/). Mono is an open-source implementation of the .NET Framework which is also sponsored by Microsoft.
+
+Please note that if you're opting to run this tool under Linux, it is **highly** recommended for you to install Mono using your distro's package manager.
+
+Once it's installed, you can compile this software by executing `xbuild` on the project directory. To execute the program, you can simply execute the following command:
+
+`mono BK7231Flasher/bin/debug/BK7231Flasher.exe`
+
+# Brief usage instructions
+
+1. Connect UART to USB converter to Beken TXD1/RXD1
+2. Start flasher tool
+3. Select N or T platform
+4. Click "Download latest from web" to get firmware binary
+5. Click "Do backup and flash new"
+6. Reset/repower Beken
+7. Tool will do both read and flash in one row. 
+8. Done!
 
 No command line and no strange arguments required.
 
-# Detailed usage instruction
+# Detailed usage instructions
 
 1. Download and unpack executable from Releases tab on the right
 2. Prepare flashing circuit for BK7231 (both T and N)
-2.1 get USB to UART converter with 3.3V voltage signals
-2.2 connecte RX to TXD1 of Beken, TX to RXD1 of Beken
-2.3 you may also need to solder a wire to CEN signal, more about that later
-2.4 of course, you also need to power device from some reliable power supply, Beken runs on 3.3V, do not try hacking devices connected to mains!
+
+    - Get a USB to UART bridge with 3.3V voltage signals
+    - Connect the Bridge RX to Module TXD1, and Bridge TX to Module RXD1
+    - If necessary, solder a wire to the CEN pad (check whether you need this *here*)
+    - Power the device from either the bridge or an external power source. Most Beken based modules require 3.3v.  
+      ⚠️ **NEVER try hacking devices while connected to mains power!** 
+
 3. Open our flasher:
 
 ![image](https://user-images.githubusercontent.com/85486843/210281085-6141160b-df6d-486c-b574-ef784f5cbd56.png)
@@ -31,8 +53,9 @@ No command line and no strange arguments required.
 8. Close download window
 9. Click "Backup and flash new"
 10. When the log window is waiting for "Getting bus", do a device reboot. You can do this in two ways, choose one:
-  Option A: short CEN to GND for 0.25s (it is tricky to get this right, requires precise timing)
-  Option B: power off and on device (of course, it should not be connected to mains, use your own safe 3.3V power supply that can supply enough current)
+
+    - **Option A:** short CEN to GND for 0.25s (it is tricky to get this right, requires precise timing)
+    - **Option B:** power off and on device (of course, it should not be connected to mains, use your own safe 3.3V power supply that can supply enough current)
   
 ![image](https://user-images.githubusercontent.com/85486843/210281194-27decf09-723e-41f7-8b47-6fe2b6bb4857.png)
 
@@ -52,6 +75,8 @@ No command line and no strange arguments required.
 
 ![image](https://user-images.githubusercontent.com/85486843/210281504-b592db7d-9e6e-47f9-81fc-3619a2f00204.png)
 
+15. Firmware access point show appear now. Connect to it and enter 192.168.4.1 configuration page.
+16. Remember that saved firmware backup is in the "backups" dir
 
 # CRC Mismatch?
 CRCs are calculated correctly for both N and T. If you get CRC mismatch, you are most likely selecting a wrong chip type.
