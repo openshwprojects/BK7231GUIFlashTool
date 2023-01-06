@@ -5,6 +5,16 @@ BK7231 GUI Flash Tool a simple Windows application that allows you to flash the 
 Futhermore, it automatically creates an original firmware backup, so you can submit the original firmware dump for futher analysis  
 ❗ NOTE: The flash dump may contain your SSID if the device was paired at the time of the backup
 
+# Compiling and Running on Linux
+
+It should be possible to compile and run this tool on Linux by using [Mono](https://www.mono-project.com/). Mono is an open-source implementation of the .NET Framework which is also sponsored by Microsoft.
+
+Please note that if you're opting to run this tool under Linux, it is **highly** recommended for you to install Mono using your distro's package manager.
+
+Once it's installed, you can compile this software by executing `xbuild` on the project directory. To execute the program, you can simply execute the following command:
+
+`mono BK7231Flasher/bin/debug/BK7231Flasher.exe`
+
 # Brief usage instructions
 
 1. Connect UART to USB converter to Beken TXD1/RXD1
