@@ -39,6 +39,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonClearOldFirmware = new System.Windows.Forms.Button();
             this.buttonOpenBackupsDir = new System.Windows.Forms.Button();
             this.labelState = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
@@ -81,7 +82,6 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonClearOldFirmware = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -101,7 +101,9 @@
             // 
             // textBoxLog
             // 
-            this.textBoxLog.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.textBoxLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.textBoxLog.Location = new System.Drawing.Point(3, 185);
             this.textBoxLog.Name = "textBoxLog";
             this.textBoxLog.Size = new System.Drawing.Size(792, 296);
@@ -209,6 +211,16 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonClearOldFirmware
+            // 
+            this.buttonClearOldFirmware.Location = new System.Drawing.Point(607, 58);
+            this.buttonClearOldFirmware.Name = "buttonClearOldFirmware";
+            this.buttonClearOldFirmware.Size = new System.Drawing.Size(67, 23);
+            this.buttonClearOldFirmware.TabIndex = 24;
+            this.buttonClearOldFirmware.Text = "Clear old";
+            this.buttonClearOldFirmware.UseVisualStyleBackColor = true;
+            this.buttonClearOldFirmware.Click += new System.EventHandler(this.buttonClearOldFirmware_Click);
             // 
             // buttonOpenBackupsDir
             // 
@@ -436,7 +448,7 @@
             this.tabPage3.Controls.Add(this.linkLabelOpenBeken);
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(783, 484);
+            this.tabPage3.Size = new System.Drawing.Size(798, 484);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Documentation/Tutorials";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -564,7 +576,7 @@
             this.tabPage4.Controls.Add(this.label13);
             this.tabPage4.Location = new System.Drawing.Point(4, 22);
             this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(783, 484);
+            this.tabPage4.Size = new System.Drawing.Size(798, 484);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "Help contact";
             this.tabPage4.UseVisualStyleBackColor = true;
@@ -620,16 +632,6 @@
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
-            // buttonClearOldFirmware
-            // 
-            this.buttonClearOldFirmware.Location = new System.Drawing.Point(607, 58);
-            this.buttonClearOldFirmware.Name = "buttonClearOldFirmware";
-            this.buttonClearOldFirmware.Size = new System.Drawing.Size(67, 23);
-            this.buttonClearOldFirmware.TabIndex = 24;
-            this.buttonClearOldFirmware.Text = "Clear old";
-            this.buttonClearOldFirmware.UseVisualStyleBackColor = true;
-            this.buttonClearOldFirmware.Click += new System.EventHandler(this.buttonClearOldFirmware_Click);
             // 
             // FormMain
             // 
