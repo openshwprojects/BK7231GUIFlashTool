@@ -415,7 +415,22 @@ namespace BK7231Flasher
                 }
                 if (rxLen > 10)
                 {
-                    addLog("failed with serial.BytesToRead " + serial.BytesToRead + "" + Environment.NewLine);
+                    addLog("failed with serial.BytesToRead " + serial.BytesToRead + " (expected " + rxLen+")" + Environment.NewLine);
+                    try
+                    {
+                        string s = "";
+                        int loaded = serial.BytesToRead;
+                        for(int k = 0; k < loaded && k < 16; k++)
+                        {
+                            byte dataByte = (byte) serial.ReadByte();
+                            s += dataByte.ToString("X2");
+                        }
+                        addLog("The beginning of buffer in UART contains " + s + " data." + Environment.NewLine);
+                    }
+                    catch(Exception ex)
+                    {
+
+                    }
                 }
                 return null;
             }
@@ -1292,7 +1307,7 @@ namespace BK7231Flasher
         {
             //addLog("Starting read sector for " + addr + Environment.NewLine);
             byte[] txbuf = BuildCmd_FlashRead4K(addr);
-            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashRead4K(), 5);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashRead4K(), 15);
             if (rxbuf != null)
             {
                 //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
