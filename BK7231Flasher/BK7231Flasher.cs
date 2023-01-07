@@ -59,6 +59,23 @@ namespace BK7231Flasher
             try
             {
                 serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
+            }
+            catch (Exception ex)
+            {
+                addError("Serial port create exception: " + ex.ToString() + Environment.NewLine);
+                return true;
+            }
+            try
+            {
+                serial.ReadBufferSize = 4096 * 2;
+                serial.ReadBufferSize = 3000000;
+            }
+            catch (Exception ex)
+            {
+                addWarning("Setting serial port buffer size exception: " + ex.ToString() + Environment.NewLine);
+            }
+            try
+            {
                 serial.Open();
             }
             catch(Exception ex)
