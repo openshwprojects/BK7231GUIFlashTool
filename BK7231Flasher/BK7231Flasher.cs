@@ -27,6 +27,7 @@ namespace BK7231Flasher
         BKType chipType = BKType.BK7231N;
         MemoryStream ms;
         int baudrate = 921600;
+        int SECTOR_SIZE = 0x1000;
 
         uint[] crc32_table;
         uint crc32_ver2(uint crc, byte[] buffer)
@@ -804,8 +805,7 @@ namespace BK7231Flasher
             addLog("Going to do erase, start " + startSector +", sec count " + sectors +"!" + Environment.NewLine);
             for (int sec = 0; sec < sectors; sec++)
             {
-                int sectorSize = 0x1000;
-                int secAddr = startSector + sectorSize * sec;
+                int secAddr = startSector + SECTOR_SIZE * sec;
                 // 4K erase
                 bool bOk = eraseSector(secAddr, 0x20);
                 addLog("Erasing sector " + secAddr + "...");
@@ -911,8 +911,8 @@ namespace BK7231Flasher
         bool writeChunk(int startSector, byte [] data)
         {
             logger.setState("Writing...", Color.Transparent);
-            data = MiscUtils.padArray(data, 0x1000);
-            int sectors = data.Length / 0x1000;
+            data = MiscUtils.padArray(data, SECTOR_SIZE);
+            int sectors = data.Length / SECTOR_SIZE;
             logger.setProgress(0, sectors);
             if (doEraseInternal(startSector, sectors) == false)
             {
@@ -921,11 +921,10 @@ namespace BK7231Flasher
             logger.setState("Writing...", Color.Transparent);
             for (int sec = 0; sec < sectors; sec++)
             {
-                int sectorSize = 0x1000;
-                int secAddr = startSector + sectorSize * sec;
+                int secAddr = startSector + SECTOR_SIZE * sec;
                 // 4K write
-                bool bOk = writeSector4K(secAddr, data, sectorSize * sec);
-                //bool bOk = writeSector(secAddr, data, sectorSize * sec, 0x1000);
+                bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
+                //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
                 addLog("Writing sector " + secAddr + "...");
                 if (bOk == false)
                 {
@@ -967,7 +966,7 @@ namespace BK7231Flasher
                 return false;
             }
             addSuccess("After erase, flash was full of 0xff" + Environment.NewLine);
-            byte[] data = new byte[sectors * 0x1000];
+            byte[] data = new byte[sectors * SECTOR_SIZE];
             rand.NextBytes(data);
             for(int i = 0; i < data.Length; i++)
             {
@@ -1003,7 +1002,7 @@ namespace BK7231Flasher
         }
         bool doWriteInternal(int startSector, byte []data)
         {
-            int sectors = data.Length/0x1000;
+            int sectors = data.Length/ SECTOR_SIZE;
             logger.setProgress(0, sectors);
             addLog(Environment.NewLine + "Starting write test!" + Environment.NewLine);
             if (doGenericSetup() == false)
@@ -1012,8 +1011,7 @@ namespace BK7231Flasher
             }
             for (int sec = 0; sec < sectors; sec++)
             {
-                int sectorSize = 0x1000;
-                int secAddr = startSector + sectorSize * sec;
+                int secAddr = startSector + SECTOR_SIZE * sec;
                 // 4K erase
                 bool bOk = eraseSector(secAddr, 0x20);
                 addLog("Erasing sector " + secAddr + "...");
@@ -1030,11 +1028,10 @@ namespace BK7231Flasher
             addLog("All selected sectors erased!" + Environment.NewLine);
             for (int sec = 0; sec < sectors; sec++)
             {
-                int sectorSize = 0x1000;
-                int secAddr = startSector + sectorSize * sec;
+                int secAddr = startSector + SECTOR_SIZE * sec;
                 // 4K write
-                bool bOk = writeSector4K(secAddr, data, sectorSize * sec);
-                //bool bOk = writeSector(secAddr, data, sectorSize * sec, 0x1000);
+                bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
+                //bool bOk = writeSector(secAddr, data, SECTOR_SIZE * sec, SECTOR_SIZE);
                 addLog("Writing sector " + secAddr + "...");
                 if (bOk == false)
                 {
@@ -1098,7 +1095,7 @@ namespace BK7231Flasher
         {
             logger.setState("Doing CRC verification...", Color.Transparent);
             addLog("Starting CRC check for " + total + " sectors, starting at offset " + startSector.ToString("X2") + Environment.NewLine);
-            int last = startSector + total * 0x1000;
+            int last = startSector + total * SECTOR_SIZE;
             uint bk_crc = calcCRC(startSector, last);
             uint our_crc = crc32_ver2(0xffffffff, array);
             if (bk_crc != our_crc)
