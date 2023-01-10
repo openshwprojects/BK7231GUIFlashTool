@@ -734,7 +734,7 @@ namespace BK7231Flasher
         }
         bool setBaudRateIfNeeded()
         {
-            bool bOk = setBaudrate(baudrate, 20);
+            bool bOk = setBaudrate(baudrate, 200);
             return bOk;
         }
 
