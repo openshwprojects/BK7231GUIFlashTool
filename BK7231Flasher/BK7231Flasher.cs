@@ -30,7 +30,8 @@ namespace BK7231Flasher
         public static int SECTOR_SIZE = 0x1000;
         public static int FLASH_SIZE = 0x200000;
         public static int BOOTLOADER_SIZE = 0x11000;
-
+        public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
+        
         uint[] crc32_table;
         uint crc32_ver2(uint crc, byte[] buffer)
         {
@@ -729,7 +730,7 @@ namespace BK7231Flasher
         }
         public bool saveReadResult()
         {
-            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+"", "bin");
+            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+ "_QIO", "bin");
             return saveReadResult(fileName);
         }
         bool setBaudRateIfNeeded()
@@ -929,7 +930,7 @@ namespace BK7231Flasher
                 // 4K write
                 bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                 //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
-                addLog("Writing sector " + secAddr + "...");
+                addLog("Writing sector " + formatHex(secAddr) + "...");
                 if (bOk == false)
                 {
                     logger.setState("Writing error!", Color.Red);
@@ -1018,7 +1019,7 @@ namespace BK7231Flasher
                 int secAddr = startSector + SECTOR_SIZE * sec;
                 // 4K erase
                 bool bOk = eraseSector(secAddr, 0x20);
-                addLog("Erasing sector " + secAddr + "...");
+                addLog("Erasing sector " + formatHex(secAddr) + "...");
                 if (bOk == false)
                 {
                     logger.setState("Erase sector failed!", Color.Red);
@@ -1075,6 +1076,8 @@ namespace BK7231Flasher
             {
                 int addr = startSector + step * i;
                 addLog("Reading " + formatHex(addr) + "... ");
+                // BK7231T does not allow bootloader read, but we can use a wrap-around hack
+                addr += FLASH_SIZE;
                 bool bOk = readSectorTo(addr, tempResult);
                 if (bOk == false)
                 {
@@ -1131,7 +1134,8 @@ namespace BK7231Flasher
             }
             if(bSkipWrite == false)
             {
-                ms = readChunk(startSector, sectors);
+                //ms = readChunk(startSector, sectors);
+                ms = readChunk(0, TOTAL_SECTORS);
                 if (ms == null)
                 {
                     return false;
