@@ -306,8 +306,8 @@ namespace BK7231Flasher
             int startSector;
             int sectors;
             sectors = 5;
-            startSector = 0x11000;
-            byte[] dat = new byte[sectors * 0x1000];
+            startSector = BK7231Flasher.BOOTLOADER_SIZE;
+            byte[] dat = new byte[sectors * BK7231Flasher.SECTOR_SIZE];
             int baseVal = BK7231Flasher.rand.Next();
             for(int i = 0; i < dat.Length; i++)
             {
@@ -327,7 +327,7 @@ namespace BK7231Flasher
             int startSector;
             int sectors;
             sectors = 2;
-            startSector = 0x11000;
+            startSector = BK7231Flasher.BOOTLOADER_SIZE;
             flasher.doTestReadWrite(startSector, sectors);
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -367,7 +367,7 @@ namespace BK7231Flasher
             }
             else
             {
-                startSector = 0x11000;
+                startSector = BK7231Flasher.BOOTLOADER_SIZE;
             }
             return startSector;
         }
@@ -375,11 +375,11 @@ namespace BK7231Flasher
         {
 #if false
             int sectors;
-            sectors = (0x200000 - getBackupStartSectorForCurrentPlatform()) / 0x1000;
+            sectors = (BK7231Flasher.FLASH_SIZE - getBackupStartSectorForCurrentPlatform()) / BK7231Flasher.SECTOR_SIZE;
             return sectors;
 #else
             int sectors;
-            sectors = (0x200000) / 0x1000;
+            sectors = (BK7231Flasher.FLASH_SIZE) / BK7231Flasher.SECTOR_SIZE;
             return sectors;
 #endif
         }
