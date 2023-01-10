@@ -132,6 +132,23 @@ namespace BK7231Flasher
             bWithinSettingSet = false;
             applySettings();
             refreshAdvancedOptions();
+
+            //foreach(var c in this.Controls)
+            //{
+            //    if(c is LinkLabel)
+            //    {
+            //        LinkLabel ll = c as LinkLabel;
+            //        ll.LinkClicked += genericLinkClicked;
+            //    }
+            //    if(c is TabControl)
+            //    {
+            //        TabControl tc = c as TabControl;
+            //        foreach(TabPage tp in tc.TabPages)
+            //        {
+            //            tp.
+            //        }
+            //    }
+            //}
         }
         MySettings settings;
         void applySettings()
@@ -639,6 +656,12 @@ namespace BK7231Flasher
             }
             //setButtonReadLabel(label_stopRead);
             startWorkerThread(doOnlyFlashNew);
+        }
+
+        private void genericLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            LinkLabel ll = sender as LinkLabel;
+            System.Diagnostics.Process.Start(ll.Text);
         }
     }
 }

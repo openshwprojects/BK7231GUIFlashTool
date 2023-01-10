@@ -463,6 +463,7 @@
             this.linkLabel1.TabIndex = 11;
             this.linkLabel1.TabStop = true;
             this.linkLabel1.Text = "https://github.com/openshwprojects/obkSimulator";
+            this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // label12
             // 
@@ -482,6 +483,7 @@
             this.linkLabelSPIFlasher.TabIndex = 9;
             this.linkLabelSPIFlasher.TabStop = true;
             this.linkLabelSPIFlasher.Text = "https://github.com/openshwprojects/BK7231_SPI_Flasher";
+            this.linkLabelSPIFlasher.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // label11
             // 
@@ -501,6 +503,7 @@
             this.linkLabelForumDevicesSectio.TabIndex = 7;
             this.linkLabelForumDevicesSectio.TabStop = true;
             this.linkLabelForumDevicesSectio.Text = "https://www.elektroda.com/rtvforum/forum507.html";
+            this.linkLabelForumDevicesSectio.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // linkLabelDevicesDB
             // 
@@ -511,6 +514,7 @@
             this.linkLabelDevicesDB.TabIndex = 6;
             this.linkLabelDevicesDB.TabStop = true;
             this.linkLabelDevicesDB.Text = "https://openbekeniot.github.io/webapp/devicesList.html";
+            this.linkLabelDevicesDB.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // linkLabelForum
             // 
@@ -521,6 +525,7 @@
             this.linkLabelForum.TabIndex = 5;
             this.linkLabelForum.TabStop = true;
             this.linkLabelForum.Text = "https://www.elektroda.com/";
+            this.linkLabelForum.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // label10
             // 
@@ -567,6 +572,7 @@
             this.linkLabelOpenBeken.TabIndex = 0;
             this.linkLabelOpenBeken.TabStop = true;
             this.linkLabelOpenBeken.Text = "https://github.com/openshwprojects/OpenBK7231T_App";
+            this.linkLabelOpenBeken.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // tabPage4
             // 
@@ -600,6 +606,7 @@
             this.linkLabel3.TabIndex = 8;
             this.linkLabel3.TabStop = true;
             this.linkLabel3.Text = "https://www.elektroda.com/rtvforum/forum390.html?tylko_dzial=1";
+            this.linkLabel3.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // label14
             // 
@@ -619,6 +626,7 @@
             this.linkLabel2.TabIndex = 6;
             this.linkLabel2.TabStop = true;
             this.linkLabel2.Text = "https://www.elektroda.com/";
+            this.linkLabel2.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
             // 
             // label13
             // 
