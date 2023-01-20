@@ -35,8 +35,8 @@ No command line and no strange arguments required.
 
     - Get a USB to UART bridge with 3.3V voltage signals
     - Connect the Bridge RX to Module TXD1, and Bridge TX to Module RXD1
-    - If necessary, solder a wire to the CEN pad (check whether you need this *here*)
-    - Power the device from either the bridge or an external power source. Most Beken based modules require 3.3v.  
+    - If necessary, solder a wire to the CEN pad (if you want to RESET through shorting CEN to ground)
+    - Power the device from either the bridge or an external power source. All Beken based modules require 3.3v.  
       ⚠️ **NEVER try hacking devices while connected to mains power!** 
 
 3. Open our flasher:
@@ -52,7 +52,7 @@ No command line and no strange arguments required.
 
 8. Close download window
 9. Click "Backup and flash new"
-10. When the log window is waiting for "Getting bus", do a device reboot. You can do this in two ways, choose one:
+10. When the log window is waiting for "Getting bus", do a device reboot/reset. You can do this in two ways, choose one:
 
     - **Option A:** short CEN to GND for 0.25s (it is tricky to get this right, requires precise timing)
     - **Option B:** power off and on device (of course, it should not be connected to mains, use your own safe 3.3V power supply that can supply enough current)
