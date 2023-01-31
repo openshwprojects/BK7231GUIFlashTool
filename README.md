@@ -5,6 +5,8 @@ BK7231 GUI Flash Tool a simple Windows application that allows you to flash the 
 Futhermore, it automatically creates an original firmware backup, so you can submit the original firmware dump for futher analysis  
 ❗ NOTE: The flash dump may contain your SSID and pass if the device was paired at the time of the backup
 
+[See also Russian guide for this tool and BK7231N.](https://www.v-elite.ru/t34)
+
 # Compiling and Running on Linux
 
 It should be possible to compile and run this tool on Linux by using [Mono](https://www.mono-project.com/). Mono is an open-source implementation of the .NET Framework which is also sponsored by Microsoft.
