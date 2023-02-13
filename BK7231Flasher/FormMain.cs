@@ -400,6 +400,19 @@ namespace BK7231Flasher
             return sectors;
 #endif
         }
+        
+        void eraseAll()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
+            int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
+            flasher.doErase(startOfs, sectors);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
         void readThread()
         {
             clearUp();
@@ -627,6 +640,7 @@ namespace BK7231Flasher
         {
             buttonTestReadWrite.Visible = b;
             buttonTestWrite.Visible = b;
+            buttonEraseAll.Visible = b;
         }
 
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
@@ -662,6 +676,22 @@ namespace BK7231Flasher
         {
             LinkLabel ll = sender as LinkLabel;
             System.Diagnostics.Process.Start(ll.Text);
+        }
+
+        private void buttonEraseAll_Click(object sender, EventArgs e)
+        {
+            var res = MessageBox.Show("This will remove everything, including configuration of OBK and MAC address and RF partition. "+
+                "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
+                "Do it if you have RF issues. Flash OBK after doing erase. This option might require lower bauds. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
+            if (res == DialogResult.Yes)
+            {
+                if (doGenericOperationPreparations() == false)
+                {
+                    return;
+                }
+                //setButtonReadLabel(label_stopRead);
+                startWorkerThread(eraseAll);
+            }
         }
     }
 }

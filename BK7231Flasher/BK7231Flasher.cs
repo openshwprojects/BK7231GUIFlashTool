@@ -705,6 +705,28 @@ namespace BK7231Flasher
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
+        
+        public bool doErase(int startSector = 0x000, int sectors = 10)
+        {
+            try
+            {
+                logger.setProgress(0, sectors);
+                addLog("Erase started with ofs " + startSector + " and len in sectors " + sectors);
+                if (doGenericSetup() == false)
+                {
+                    return false;
+                }
+                if (doEraseInternal(startSector, sectors) == false)
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                addError("Exception caught: " + ex.ToString() + Environment.NewLine);
+            }
+            return true;
+        }
         public void doRead(int startSector = 0x000, int sectors = 10)
         {
             try

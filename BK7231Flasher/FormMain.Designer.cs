@@ -82,6 +82,7 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.buttonEraseAll = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -106,7 +107,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.textBoxLog.Location = new System.Drawing.Point(3, 185);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(792, 296);
+            this.textBoxLog.Size = new System.Drawing.Size(835, 296);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -175,11 +176,12 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(806, 510);
+            this.tabControl1.Size = new System.Drawing.Size(849, 510);
             this.tabControl1.TabIndex = 9;
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonEraseAll);
             this.tabPage1.Controls.Add(this.buttonClearOldFirmware);
             this.tabPage1.Controls.Add(this.buttonOpenBackupsDir);
             this.tabPage1.Controls.Add(this.labelState);
@@ -207,7 +209,7 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(798, 484);
+            this.tabPage1.Size = new System.Drawing.Size(841, 484);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -263,7 +265,7 @@
             // 
             // buttonClearLog
             // 
-            this.buttonClearLog.Location = new System.Drawing.Point(669, 127);
+            this.buttonClearLog.Location = new System.Drawing.Point(712, 126);
             this.buttonClearLog.Name = "buttonClearLog";
             this.buttonClearLog.Size = new System.Drawing.Size(121, 23);
             this.buttonClearLog.TabIndex = 19;
@@ -275,7 +277,7 @@
             // 
             this.buttonStop.Location = new System.Drawing.Point(565, 127);
             this.buttonStop.Name = "buttonStop";
-            this.buttonStop.Size = new System.Drawing.Size(98, 23);
+            this.buttonStop.Size = new System.Drawing.Size(141, 23);
             this.buttonStop.TabIndex = 18;
             this.buttonStop.Text = "Stop current operation";
             this.buttonStop.UseVisualStyleBackColor = true;
@@ -304,7 +306,7 @@
             // 
             // buttonTestWrite
             // 
-            this.buttonTestWrite.Location = new System.Drawing.Point(690, 68);
+            this.buttonTestWrite.Location = new System.Drawing.Point(733, 68);
             this.buttonTestWrite.Name = "buttonTestWrite";
             this.buttonTestWrite.Size = new System.Drawing.Size(100, 23);
             this.buttonTestWrite.TabIndex = 15;
@@ -314,9 +316,9 @@
             // 
             // buttonTestReadWrite
             // 
-            this.buttonTestReadWrite.Location = new System.Drawing.Point(669, 98);
+            this.buttonTestReadWrite.Location = new System.Drawing.Point(733, 97);
             this.buttonTestReadWrite.Name = "buttonTestReadWrite";
-            this.buttonTestReadWrite.Size = new System.Drawing.Size(121, 23);
+            this.buttonTestReadWrite.Size = new System.Drawing.Size(100, 23);
             this.buttonTestReadWrite.TabIndex = 14;
             this.buttonTestReadWrite.Text = "Test read/write pattern";
             this.buttonTestReadWrite.UseVisualStyleBackColor = true;
@@ -363,7 +365,7 @@
             // 
             this.progressBar1.Location = new System.Drawing.Point(8, 156);
             this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(782, 23);
+            this.progressBar1.Size = new System.Drawing.Size(827, 23);
             this.progressBar1.TabIndex = 9;
             // 
             // tabPagePageTool
@@ -642,11 +644,21 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
+            // buttonEraseAll
+            // 
+            this.buttonEraseAll.Location = new System.Drawing.Point(646, 97);
+            this.buttonEraseAll.Name = "buttonEraseAll";
+            this.buttonEraseAll.Size = new System.Drawing.Size(81, 23);
+            this.buttonEraseAll.TabIndex = 25;
+            this.buttonEraseAll.Text = "Erase all";
+            this.buttonEraseAll.UseVisualStyleBackColor = true;
+            this.buttonEraseAll.Click += new System.EventHandler(this.buttonEraseAll_Click);
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(806, 510);
+            this.ClientSize = new System.Drawing.Size(849, 510);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
             this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
@@ -719,6 +731,7 @@
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.Button buttonOpenBackupsDir;
         private System.Windows.Forms.Button buttonClearOldFirmware;
+        private System.Windows.Forms.Button buttonEraseAll;
     }
 }
 
