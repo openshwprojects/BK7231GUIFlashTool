@@ -83,6 +83,7 @@
             this.label13 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
             this.buttonEraseAll = new System.Windows.Forms.Button();
+            this.buttonRestoreRF = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -181,6 +182,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonRestoreRF);
             this.tabPage1.Controls.Add(this.buttonEraseAll);
             this.tabPage1.Controls.Add(this.buttonClearOldFirmware);
             this.tabPage1.Controls.Add(this.buttonOpenBackupsDir);
@@ -654,6 +656,16 @@
             this.buttonEraseAll.UseVisualStyleBackColor = true;
             this.buttonEraseAll.Click += new System.EventHandler(this.buttonEraseAll_Click);
             // 
+            // buttonRestoreRF
+            // 
+            this.buttonRestoreRF.Location = new System.Drawing.Point(733, 39);
+            this.buttonRestoreRF.Name = "buttonRestoreRF";
+            this.buttonRestoreRF.Size = new System.Drawing.Size(100, 23);
+            this.buttonRestoreRF.TabIndex = 26;
+            this.buttonRestoreRF.Text = "Restore RF part";
+            this.buttonRestoreRF.UseVisualStyleBackColor = true;
+            this.buttonRestoreRF.Click += new System.EventHandler(this.buttonRestoreRF_Click);
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -732,6 +744,7 @@
         private System.Windows.Forms.Button buttonOpenBackupsDir;
         private System.Windows.Forms.Button buttonClearOldFirmware;
         private System.Windows.Forms.Button buttonEraseAll;
+        private System.Windows.Forms.Button buttonRestoreRF;
     }
 }
 

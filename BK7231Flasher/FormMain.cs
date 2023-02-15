@@ -400,7 +400,29 @@ namespace BK7231Flasher
             return sectors;
 #endif
         }
-        
+        int getRFOffset()
+        {
+            if (curType == BKType.BK7231T)
+            {
+                return 0x1e0000;
+            }
+            else
+            {
+                return 0x1d0000;
+            }
+        }
+        void restoreRF()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            int startOfs = getRFOffset();
+            byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
+            flasher.doWrite(startOfs, data);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
         void eraseAll()
         {
             clearUp();
@@ -641,8 +663,9 @@ namespace BK7231Flasher
             buttonTestReadWrite.Visible = b;
             buttonTestWrite.Visible = b;
             buttonEraseAll.Visible = b;
+            buttonRestoreRF.Visible = b;
         }
-
+        
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
         {
             try
@@ -691,6 +714,22 @@ namespace BK7231Flasher
                 }
                 //setButtonReadLabel(label_stopRead);
                 startWorkerThread(eraseAll);
+            }
+        }
+
+        private void buttonRestoreRF_Click(object sender, EventArgs e)
+        {
+            var res = MessageBox.Show("This will overwrite RF partition with new one with random MAC. " +
+                "This can be used to fix strange issue where your device works in AP but don't want to connect to your WiFi. " +
+                "It can also fix issue where you have 00 00 00 MAC. You must have CORRECT PLATFORM selected first (T or N), because offsets are different.", "WARNING! NUKE RF?", MessageBoxButtons.YesNo);
+            if (res == DialogResult.Yes)
+            {
+                if (doGenericOperationPreparations() == false)
+                {
+                    return;
+                }
+                //setButtonReadLabel(label_stopRead);
+                startWorkerThread(restoreRF);
             }
         }
     }
