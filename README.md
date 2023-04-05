@@ -7,6 +7,8 @@ Futhermore, it automatically creates an original firmware backup, so you can sub
 
 [See also Russian guide for this tool and BK7231N.](https://www.v-elite.ru/t34)
 
+# [Youtube Tutorial for example usage - CB2S flashing](https://youtu.be/YQdR7r6lXRY?list=PLzbXEc2ebpH0CZDbczAXT94BuSGrd_GoM)
+
 # Compiling and Running on Linux
 
 It should be possible to compile and run this tool on Linux by using [Mono](https://www.mono-project.com/). Mono is an open-source implementation of the .NET Framework which is also sponsored by Microsoft.
