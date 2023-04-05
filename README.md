@@ -8,6 +8,7 @@ Futhermore, it automatically creates an original firmware backup, so you can sub
 [See also Russian guide for this tool and BK7231N.](https://www.v-elite.ru/t34)
 
 # [Youtube Tutorial for example usage - CB2S flashing](https://youtu.be/YQdR7r6lXRY?list=PLzbXEc2ebpH0CZDbczAXT94BuSGrd_GoM)
+See also the secondary example: [WB3S flashing](https://youtu.be/-a5hV1y5aIU?list=PLzbXEc2ebpH0CZDbczAXT94BuSGrd_GoM)
 
 # Compiling and Running on Linux
 
