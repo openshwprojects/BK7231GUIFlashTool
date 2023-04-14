@@ -39,6 +39,8 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonRestoreRF = new System.Windows.Forms.Button();
+            this.buttonEraseAll = new System.Windows.Forms.Button();
             this.buttonClearOldFirmware = new System.Windows.Forms.Button();
             this.buttonOpenBackupsDir = new System.Windows.Forms.Button();
             this.labelState = new System.Windows.Forms.Label();
@@ -82,8 +84,7 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonEraseAll = new System.Windows.Forms.Button();
-            this.buttonRestoreRF = new System.Windows.Forms.Button();
+            this.checkBoxAllowBackup = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -93,9 +94,9 @@
             // 
             // buttonRead
             // 
-            this.buttonRead.Location = new System.Drawing.Point(193, 126);
+            this.buttonRead.Location = new System.Drawing.Point(169, 126);
             this.buttonRead.Name = "buttonRead";
-            this.buttonRead.Size = new System.Drawing.Size(180, 23);
+            this.buttonRead.Size = new System.Drawing.Size(164, 23);
             this.buttonRead.TabIndex = 1;
             this.buttonRead.Text = "Do firmware backup (read) only";
             this.buttonRead.UseVisualStyleBackColor = true;
@@ -108,7 +109,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.textBoxLog.Location = new System.Drawing.Point(3, 185);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(835, 296);
+            this.textBoxLog.Size = new System.Drawing.Size(893, 296);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -162,7 +163,7 @@
             this.comboBoxFirmware.FormattingEnabled = true;
             this.comboBoxFirmware.Location = new System.Drawing.Point(108, 60);
             this.comboBoxFirmware.Name = "comboBoxFirmware";
-            this.comboBoxFirmware.Size = new System.Drawing.Size(215, 21);
+            this.comboBoxFirmware.Size = new System.Drawing.Size(261, 21);
             this.comboBoxFirmware.TabIndex = 8;
             this.comboBoxFirmware.SelectedIndexChanged += new System.EventHandler(this.comboBoxFirmware_SelectedIndexChanged);
             this.comboBoxFirmware.Click += new System.EventHandler(this.comboBoxFirmware_Click);
@@ -177,11 +178,12 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(849, 510);
+            this.tabControl1.Size = new System.Drawing.Size(907, 510);
             this.tabControl1.TabIndex = 9;
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.checkBoxAllowBackup);
             this.tabPage1.Controls.Add(this.buttonRestoreRF);
             this.tabPage1.Controls.Add(this.buttonEraseAll);
             this.tabPage1.Controls.Add(this.buttonClearOldFirmware);
@@ -211,14 +213,34 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(841, 484);
+            this.tabPage1.Size = new System.Drawing.Size(899, 484);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
+            // buttonRestoreRF
+            // 
+            this.buttonRestoreRF.Location = new System.Drawing.Point(791, 39);
+            this.buttonRestoreRF.Name = "buttonRestoreRF";
+            this.buttonRestoreRF.Size = new System.Drawing.Size(100, 23);
+            this.buttonRestoreRF.TabIndex = 26;
+            this.buttonRestoreRF.Text = "Restore RF part";
+            this.buttonRestoreRF.UseVisualStyleBackColor = true;
+            this.buttonRestoreRF.Click += new System.EventHandler(this.buttonRestoreRF_Click);
+            // 
+            // buttonEraseAll
+            // 
+            this.buttonEraseAll.Location = new System.Drawing.Point(658, 126);
+            this.buttonEraseAll.Name = "buttonEraseAll";
+            this.buttonEraseAll.Size = new System.Drawing.Size(62, 23);
+            this.buttonEraseAll.TabIndex = 25;
+            this.buttonEraseAll.Text = "Erase all";
+            this.buttonEraseAll.UseVisualStyleBackColor = true;
+            this.buttonEraseAll.Click += new System.EventHandler(this.buttonEraseAll_Click);
+            // 
             // buttonClearOldFirmware
             // 
-            this.buttonClearOldFirmware.Location = new System.Drawing.Point(607, 58);
+            this.buttonClearOldFirmware.Location = new System.Drawing.Point(653, 58);
             this.buttonClearOldFirmware.Name = "buttonClearOldFirmware";
             this.buttonClearOldFirmware.Size = new System.Drawing.Size(67, 23);
             this.buttonClearOldFirmware.TabIndex = 24;
@@ -228,9 +250,9 @@
             // 
             // buttonOpenBackupsDir
             // 
-            this.buttonOpenBackupsDir.Location = new System.Drawing.Point(508, 97);
+            this.buttonOpenBackupsDir.Location = new System.Drawing.Point(525, 97);
             this.buttonOpenBackupsDir.Name = "buttonOpenBackupsDir";
-            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(132, 23);
+            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(127, 23);
             this.buttonOpenBackupsDir.TabIndex = 23;
             this.buttonOpenBackupsDir.Text = "Open backups dir";
             this.buttonOpenBackupsDir.UseVisualStyleBackColor = true;
@@ -257,7 +279,7 @@
             // 
             // buttonWriteOnly
             // 
-            this.buttonWriteOnly.Location = new System.Drawing.Point(379, 126);
+            this.buttonWriteOnly.Location = new System.Drawing.Point(339, 126);
             this.buttonWriteOnly.Name = "buttonWriteOnly";
             this.buttonWriteOnly.Size = new System.Drawing.Size(180, 23);
             this.buttonWriteOnly.TabIndex = 20;
@@ -267,9 +289,9 @@
             // 
             // buttonClearLog
             // 
-            this.buttonClearLog.Location = new System.Drawing.Point(712, 126);
+            this.buttonClearLog.Location = new System.Drawing.Point(791, 126);
             this.buttonClearLog.Name = "buttonClearLog";
-            this.buttonClearLog.Size = new System.Drawing.Size(121, 23);
+            this.buttonClearLog.Size = new System.Drawing.Size(100, 23);
             this.buttonClearLog.TabIndex = 19;
             this.buttonClearLog.Text = "Clear log";
             this.buttonClearLog.UseVisualStyleBackColor = true;
@@ -277,9 +299,9 @@
             // 
             // buttonStop
             // 
-            this.buttonStop.Location = new System.Drawing.Point(565, 127);
+            this.buttonStop.Location = new System.Drawing.Point(525, 127);
             this.buttonStop.Name = "buttonStop";
-            this.buttonStop.Size = new System.Drawing.Size(141, 23);
+            this.buttonStop.Size = new System.Drawing.Size(127, 23);
             this.buttonStop.TabIndex = 18;
             this.buttonStop.Text = "Stop current operation";
             this.buttonStop.UseVisualStyleBackColor = true;
@@ -288,7 +310,7 @@
             // checkBoxShowAdvanced
             // 
             this.checkBoxShowAdvanced.AutoSize = true;
-            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(634, 8);
+            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(612, 8);
             this.checkBoxShowAdvanced.Name = "checkBoxShowAdvanced";
             this.checkBoxShowAdvanced.Size = new System.Drawing.Size(141, 17);
             this.checkBoxShowAdvanced.TabIndex = 17;
@@ -300,7 +322,7 @@
             // 
             this.buttonDoBackupAndFlashNew.Location = new System.Drawing.Point(11, 126);
             this.buttonDoBackupAndFlashNew.Name = "buttonDoBackupAndFlashNew";
-            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(176, 23);
+            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(152, 23);
             this.buttonDoBackupAndFlashNew.TabIndex = 16;
             this.buttonDoBackupAndFlashNew.Text = "Do backup and flash new firmware";
             this.buttonDoBackupAndFlashNew.UseVisualStyleBackColor = true;
@@ -308,7 +330,7 @@
             // 
             // buttonTestWrite
             // 
-            this.buttonTestWrite.Location = new System.Drawing.Point(733, 68);
+            this.buttonTestWrite.Location = new System.Drawing.Point(791, 68);
             this.buttonTestWrite.Name = "buttonTestWrite";
             this.buttonTestWrite.Size = new System.Drawing.Size(100, 23);
             this.buttonTestWrite.TabIndex = 15;
@@ -318,7 +340,7 @@
             // 
             // buttonTestReadWrite
             // 
-            this.buttonTestReadWrite.Location = new System.Drawing.Point(733, 97);
+            this.buttonTestReadWrite.Location = new System.Drawing.Point(791, 97);
             this.buttonTestReadWrite.Name = "buttonTestReadWrite";
             this.buttonTestReadWrite.Size = new System.Drawing.Size(100, 23);
             this.buttonTestReadWrite.TabIndex = 14;
@@ -328,7 +350,7 @@
             // 
             // buttonDownloadLatest
             // 
-            this.buttonDownloadLatest.Location = new System.Drawing.Point(456, 58);
+            this.buttonDownloadLatest.Location = new System.Drawing.Point(502, 58);
             this.buttonDownloadLatest.Name = "buttonDownloadLatest";
             this.buttonDownloadLatest.Size = new System.Drawing.Size(145, 23);
             this.buttonDownloadLatest.TabIndex = 13;
@@ -339,7 +361,7 @@
             // labelMatchingFirmwares
             // 
             this.labelMatchingFirmwares.AutoSize = true;
-            this.labelMatchingFirmwares.Location = new System.Drawing.Point(329, 63);
+            this.labelMatchingFirmwares.Location = new System.Drawing.Point(375, 63);
             this.labelMatchingFirmwares.Name = "labelMatchingFirmwares";
             this.labelMatchingFirmwares.Size = new System.Drawing.Size(121, 13);
             this.labelMatchingFirmwares.TabIndex = 12;
@@ -367,7 +389,7 @@
             // 
             this.progressBar1.Location = new System.Drawing.Point(8, 156);
             this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(827, 23);
+            this.progressBar1.Size = new System.Drawing.Size(883, 23);
             this.progressBar1.TabIndex = 9;
             // 
             // tabPagePageTool
@@ -381,7 +403,7 @@
             this.tabPagePageTool.Location = new System.Drawing.Point(4, 22);
             this.tabPagePageTool.Name = "tabPagePageTool";
             this.tabPagePageTool.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPagePageTool.Size = new System.Drawing.Size(798, 484);
+            this.tabPagePageTool.Size = new System.Drawing.Size(841, 484);
             this.tabPagePageTool.TabIndex = 1;
             this.tabPagePageTool.Text = "Page Tool";
             this.tabPagePageTool.UseVisualStyleBackColor = true;
@@ -453,7 +475,7 @@
             this.tabPage3.Controls.Add(this.linkLabelOpenBeken);
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(798, 484);
+            this.tabPage3.Size = new System.Drawing.Size(841, 484);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Documentation/Tutorials";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -587,7 +609,7 @@
             this.tabPage4.Controls.Add(this.label13);
             this.tabPage4.Location = new System.Drawing.Point(4, 22);
             this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(798, 484);
+            this.tabPage4.Size = new System.Drawing.Size(841, 484);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "Help contact";
             this.tabPage4.UseVisualStyleBackColor = true;
@@ -646,31 +668,22 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonEraseAll
+            // checkBoxAllowBackup
             // 
-            this.buttonEraseAll.Location = new System.Drawing.Point(646, 97);
-            this.buttonEraseAll.Name = "buttonEraseAll";
-            this.buttonEraseAll.Size = new System.Drawing.Size(81, 23);
-            this.buttonEraseAll.TabIndex = 25;
-            this.buttonEraseAll.Text = "Erase all";
-            this.buttonEraseAll.UseVisualStyleBackColor = true;
-            this.buttonEraseAll.Click += new System.EventHandler(this.buttonEraseAll_Click);
-            // 
-            // buttonRestoreRF
-            // 
-            this.buttonRestoreRF.Location = new System.Drawing.Point(733, 39);
-            this.buttonRestoreRF.Name = "buttonRestoreRF";
-            this.buttonRestoreRF.Size = new System.Drawing.Size(100, 23);
-            this.buttonRestoreRF.TabIndex = 26;
-            this.buttonRestoreRF.Text = "Restore RF part";
-            this.buttonRestoreRF.UseVisualStyleBackColor = true;
-            this.buttonRestoreRF.Click += new System.EventHandler(this.buttonRestoreRF_Click);
+            this.checkBoxAllowBackup.AutoSize = true;
+            this.checkBoxAllowBackup.Location = new System.Drawing.Point(760, 8);
+            this.checkBoxAllowBackup.Name = "checkBoxAllowBackup";
+            this.checkBoxAllowBackup.Size = new System.Drawing.Size(125, 17);
+            this.checkBoxAllowBackup.TabIndex = 27;
+            this.checkBoxAllowBackup.Text = "Allow backup restore";
+            this.checkBoxAllowBackup.UseVisualStyleBackColor = true;
+            this.checkBoxAllowBackup.CheckedChanged += new System.EventHandler(this.checkBoxAllowBackup_CheckedChanged);
             // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(849, 510);
+            this.ClientSize = new System.Drawing.Size(907, 510);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
             this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
@@ -745,6 +758,7 @@
         private System.Windows.Forms.Button buttonClearOldFirmware;
         private System.Windows.Forms.Button buttonEraseAll;
         private System.Windows.Forms.Button buttonRestoreRF;
+        private System.Windows.Forms.CheckBox checkBoxAllowBackup;
     }
 }
 

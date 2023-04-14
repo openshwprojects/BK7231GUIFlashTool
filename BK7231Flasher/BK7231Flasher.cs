@@ -1176,6 +1176,15 @@ namespace BK7231Flasher
                 return false;
             }
             addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
+            if(sourceFileName.Contains("_QIO_") && this.chipType == BKType.BK7231T && startSector == BK7231Flasher.BOOTLOADER_SIZE)
+            {
+                // very hacky, but skip bootloader
+                int length = data.Length - startSector; 
+                byte[] newData = new byte[length];
+                Array.Copy(data, startSector, newData, 0, length); 
+                data = newData;
+                addWarning("Using BK7231T hack to write QIO - just skip bootloader" + Environment.NewLine);
+            }
             addLog("Preparing to write data file to chip - resetting bus and baud..." + Environment.NewLine);
             // it must be redone
             if (doGetBusAndSetBaudRate() == false)

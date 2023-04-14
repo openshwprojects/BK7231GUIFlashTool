@@ -77,14 +77,15 @@ namespace BK7231Flasher
             string[] newPorts = SerialPort.GetPortNames();
             setPorts(newPorts);
         }
+        string backupsPath = "backups";
        // string label_startRead = "Start Read Flash (Full backup)";
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
             tabControl1.TabPages.Remove(tabPagePageTool);
-            if (Directory.Exists("backups") == false)
+            if (Directory.Exists(backupsPath) == false)
             {
-                Directory.CreateDirectory("backups");
+                Directory.CreateDirectory(backupsPath);
             }
 
             settings = MySettings.CreateAndLoad("settings.cfg");
@@ -168,6 +169,10 @@ namespace BK7231Flasher
             if (settings.HasKey("bAdvanced"))
             {
                checkBoxShowAdvanced.Checked = settings.FindKeyValueBool("bAdvanced");
+            }
+            if (settings.HasKey("bAllowBackupRestore"))
+            {
+                checkBoxAllowBackup.Checked = settings.FindKeyValueBool("bAllowBackupRestore");
             }
         }
         public void setComboBoxValueByContent(ComboBox comboBox, string itemToSet)
@@ -462,30 +467,48 @@ namespace BK7231Flasher
         }
         public bool checkFirmwareForCurType(string s)
         {
-            string prefix = getFirmwarePrefix(curType);
+            if (s.StartsWith("readResult_"))
+            {
+                s = s.Substring("readResult_".Length);
+                s = "Open" + s;
+            }
+            if (curType == BKType.BK7231N)
+            {
+                if (s.StartsWith("OpenBK7231N_QIO_"))
+                {
+                    return true;
+                }
+            }
+            if (curType == BKType.BK7231T)
+            {
+                if (s.StartsWith("OpenBK7231T_UA_"))
+                {
+                    return true;
+                }
+                if (s.StartsWith("OpenBK7231T_QIO_"))
+                {
+                    return true;
+                }
+            }
+            /*string prefix = getFirmwarePrefix(curType);
             if (s.StartsWith(prefix))
             {
                 return true;
-            }
+            }*/
             return false;
         }
-        public void refreshFirmwaresList()
+        public int addToFirmaresList(string dir)
         {
-            comboBoxFirmware.Items.Clear();
-            if (Directory.Exists(firmwaresPath) == false)
-            {
-                return;
-            }
             string[] files;
             try
             {
-                files = Directory.GetFiles(firmwaresPath);
+                files = Directory.GetFiles(dir);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return;
+                return 0;
             }
-            for(int i = 0; i < files.Length; i++)
+            for (int i = 0; i < files.Length; i++)
             {
                 string fname = files[i];
                 fname = Path.GetFileName(fname);
@@ -495,7 +518,22 @@ namespace BK7231Flasher
                 }
                 comboBoxFirmware.Items.Add(fname);
             }
-            labelMatchingFirmwares.Text = "" + files.Length + " total bins, " + comboBoxFirmware.Items.Count + " matching.";
+            return files.Length;
+        }
+        public void refreshFirmwaresList()
+        {
+            comboBoxFirmware.Items.Clear();
+            if (Directory.Exists(firmwaresPath) == false)
+            {
+                return;
+            }
+            int found = 0;
+            found += addToFirmaresList(firmwaresPath);
+            if (checkBoxAllowBackup.Checked && checkBoxShowAdvanced.Checked)
+            {
+                found += addToFirmaresList(backupsPath);
+            }
+            labelMatchingFirmwares.Text = "" + found + " total bins, " + comboBoxFirmware.Items.Count + " matching.";
             if (comboBoxFirmware.Items.Count>0)
             {
                 comboBoxFirmware.SelectedIndex = 0;
@@ -546,6 +584,11 @@ namespace BK7231Flasher
             if(comboBoxFirmware.SelectedItem != null)
             {
                 chosenSourceFile = Path.Combine(firmwaresPath,comboBoxFirmware.SelectedItem.ToString());
+                // kinda hacky, but we are 100% sure that there are no backups in firmwares, so should be ok
+                if(File.Exists(chosenSourceFile) == false)
+                {
+                    chosenSourceFile = Path.Combine(backupsPath, comboBoxFirmware.SelectedItem.ToString());
+                }
             }
             else
             {
@@ -664,6 +707,7 @@ namespace BK7231Flasher
             buttonTestWrite.Visible = b;
             buttonEraseAll.Visible = b;
             buttonRestoreRF.Visible = b;
+            checkBoxAllowBackup.Visible = b;
         }
         
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
@@ -671,7 +715,7 @@ namespace BK7231Flasher
             try
             {
                 // opens the folder in explorer
-                string path = Path.Combine(Directory.GetCurrentDirectory(), "backups");
+                string path = Path.Combine(Directory.GetCurrentDirectory(), backupsPath);
                 Process.Start("explorer.exe", path);
             }
             catch(Exception ex)
@@ -731,6 +775,12 @@ namespace BK7231Flasher
                 //setButtonReadLabel(label_stopRead);
                 startWorkerThread(restoreRF);
             }
+        }
+
+        private void checkBoxAllowBackup_CheckedChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("bAllowBackupRestore", checkBoxAllowBackup.Checked);
+            refreshFirmwaresList();
         }
     }
 }
