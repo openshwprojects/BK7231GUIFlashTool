@@ -444,7 +444,8 @@ namespace BK7231Flasher
         {
             clearUp();
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
-            int startSector = getBackupStartSectorForCurrentPlatform();
+            // thanks to wrap around hack, we can read from start correctly
+            int startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
             flasher.doRead(startSector, sectors);
             flasher.saveReadResult();

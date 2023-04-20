@@ -39,6 +39,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.checkBoxAllowBackup = new System.Windows.Forms.CheckBox();
             this.buttonRestoreRF = new System.Windows.Forms.Button();
             this.buttonEraseAll = new System.Windows.Forms.Button();
             this.buttonClearOldFirmware = new System.Windows.Forms.Button();
@@ -84,7 +85,6 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.checkBoxAllowBackup = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -217,6 +217,17 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxAllowBackup
+            // 
+            this.checkBoxAllowBackup.AutoSize = true;
+            this.checkBoxAllowBackup.Location = new System.Drawing.Point(760, 8);
+            this.checkBoxAllowBackup.Name = "checkBoxAllowBackup";
+            this.checkBoxAllowBackup.Size = new System.Drawing.Size(125, 17);
+            this.checkBoxAllowBackup.TabIndex = 27;
+            this.checkBoxAllowBackup.Text = "Allow backup restore";
+            this.checkBoxAllowBackup.UseVisualStyleBackColor = true;
+            this.checkBoxAllowBackup.CheckedChanged += new System.EventHandler(this.checkBoxAllowBackup_CheckedChanged);
             // 
             // buttonRestoreRF
             // 
@@ -403,7 +414,7 @@
             this.tabPagePageTool.Location = new System.Drawing.Point(4, 22);
             this.tabPagePageTool.Name = "tabPagePageTool";
             this.tabPagePageTool.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPagePageTool.Size = new System.Drawing.Size(841, 484);
+            this.tabPagePageTool.Size = new System.Drawing.Size(899, 484);
             this.tabPagePageTool.TabIndex = 1;
             this.tabPagePageTool.Text = "Page Tool";
             this.tabPagePageTool.UseVisualStyleBackColor = true;
@@ -475,7 +486,7 @@
             this.tabPage3.Controls.Add(this.linkLabelOpenBeken);
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(841, 484);
+            this.tabPage3.Size = new System.Drawing.Size(899, 484);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Documentation/Tutorials";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -609,7 +620,7 @@
             this.tabPage4.Controls.Add(this.label13);
             this.tabPage4.Location = new System.Drawing.Point(4, 22);
             this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(841, 484);
+            this.tabPage4.Size = new System.Drawing.Size(899, 484);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "Help contact";
             this.tabPage4.UseVisualStyleBackColor = true;
@@ -668,17 +679,6 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // checkBoxAllowBackup
-            // 
-            this.checkBoxAllowBackup.AutoSize = true;
-            this.checkBoxAllowBackup.Location = new System.Drawing.Point(760, 8);
-            this.checkBoxAllowBackup.Name = "checkBoxAllowBackup";
-            this.checkBoxAllowBackup.Size = new System.Drawing.Size(125, 17);
-            this.checkBoxAllowBackup.TabIndex = 27;
-            this.checkBoxAllowBackup.Text = "Allow backup restore";
-            this.checkBoxAllowBackup.UseVisualStyleBackColor = true;
-            this.checkBoxAllowBackup.CheckedChanged += new System.EventHandler(this.checkBoxAllowBackup_CheckedChanged);
-            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -687,7 +687,7 @@
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
             this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
-    "31N ";
+    "31N  - Elektroda.com";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
