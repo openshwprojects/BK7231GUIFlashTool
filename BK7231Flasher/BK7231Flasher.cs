@@ -32,16 +32,6 @@ namespace BK7231Flasher
         public static int BOOTLOADER_SIZE = 0x11000;
         public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
         
-        uint[] crc32_table;
-        uint crc32_ver2(uint crc, byte[] buffer)
-        {
-            for (uint i = 0; i < buffer.Length; i++)
-            {
-                uint c = buffer[i];
-                crc = (crc >> 8) ^ crc32_table[(crc ^ c) & 0xff];
-            }
-            return crc;
-        }
         void addLog(string s)
         {
             logger.addLog(s, Color.Black);
@@ -104,23 +94,6 @@ namespace BK7231Flasher
             this.chipType = bkType;
             this.baudrate = baudrate;
 
-            crc32_table = new uint[256];
-            for (uint i = 0; i < 256; i++)
-            {
-                uint c = i;
-                for (int j = 0; j < 8; j++)
-                {
-                    if ((c & 1) != 0)
-                    {
-                        c = (0xEDB88320 ^ (c >> 1));
-                    }
-                    else
-                    {
-                        c = c >> 1;
-                    }
-                }
-                crc32_table[i] = c;
-            }
         }
         enum CommandCode
         {
@@ -1126,7 +1099,7 @@ namespace BK7231Flasher
             addLog("Starting CRC check for " + total + " sectors, starting at offset " + startSector.ToString("X2") + Environment.NewLine);
             int last = startSector + total * SECTOR_SIZE;
             uint bk_crc = calcCRC(startSector, last);
-            uint our_crc = crc32_ver2(0xffffffff, array);
+            uint our_crc = CRC.crc32_ver2(0xffffffff, array);
             if (bk_crc != our_crc)
             {
                 logger.setState("CRC mismatch!", Color.Red);
