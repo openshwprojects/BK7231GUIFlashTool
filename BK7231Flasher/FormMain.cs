@@ -82,6 +82,10 @@ namespace BK7231Flasher
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
+            var t = new TuyaConfig();
+            t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
+            t.extractKeys();
+
             tabControl1.TabPages.Remove(tabPagePageTool);
             if (Directory.Exists(backupsPath) == false)
             {
@@ -782,6 +786,37 @@ namespace BK7231Flasher
         {
             setSettingsKeyAndSave("bAllowBackupRestore", checkBoxAllowBackup.Checked);
             refreshFirmwaresList();
+        }
+
+        private void tabPage2_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+        }
+
+        private void tabPage2_DragDrop(object sender, DragEventArgs e)
+        {
+            textBox3.Text = "";
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            foreach (string file in files)
+            {
+                // Do something with the dropped file(s)
+                TuyaConfig tc = new TuyaConfig();
+                if (tc.fromFile(file) == false)
+                {
+                    if (tc.extractKeys() == false)
+                    {
+                        textBox3.Text = tc.getKeysAsJSON();
+                    }
+                }
+            }
+        }
+
+        private void linkLabel4_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://openbekeniot.github.io/webapp/templateImporter.html");
         }
     }
 }

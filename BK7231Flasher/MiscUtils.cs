@@ -39,7 +39,7 @@ namespace BK7231Flasher
         }
         public static int findFirst(byte[] dat, byte needle, int start)
         {
-            for (int i = 0; start < dat.Length; i++)
+            for (int i = start; i < dat.Length; i++)
             {
                 if (dat[i] == needle)
                 {

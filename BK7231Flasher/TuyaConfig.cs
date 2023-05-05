@@ -19,7 +19,8 @@ namespace BK7231Flasher
 
         MemoryStream decrypted;
         byte[] descryptedRaw;
-        Dictionary<string, string> parms = new Dictionary<string, string>();
+        // Dictionary<string, string> parms = new Dictionary<string, string>();
+        List<KeyValue> parms = new List<KeyValue>();
 
         public bool fromFile(string fname)
         {
@@ -112,7 +113,24 @@ namespace BK7231Flasher
                 }
             }
             descryptedRaw = decrypted.ToArray();
+            File.WriteAllBytes("lastRawDecryptedStrings.bin", descryptedRaw);
             return false;
+        }
+        public string getKeysAsJSON()
+        {
+            string r = "{" + Environment.NewLine;
+            for (int i = 0; i < parms.Count; i++)
+            {
+                var p = parms[i];
+                r += "\t\""+p.Key + "\":\"" + p.Value + "\"";
+                if (i != parms.Count-1)
+                {
+                    r += ",";
+                }
+                r += Environment.NewLine;
+            }
+            r += "}" + Environment.NewLine;
+            return r;
         }
         public bool extractKeys() { 
             int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
@@ -134,7 +152,11 @@ namespace BK7231Flasher
                 string []kp = pairs[i].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
                 string skey = kp[0];
                 string svalue = kp[1];
-                parms.Add(skey, svalue);
+                skey = skey.Trim(new char[] { '"' });
+                svalue = svalue.Trim(new char[] { '"' });
+                //parms.Add(skey, svalue);
+                KeyValue kv = new KeyValue(skey, svalue);
+                parms.Add(kv);
             }
             return false;
         }

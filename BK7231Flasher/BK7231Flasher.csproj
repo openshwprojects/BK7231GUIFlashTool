@@ -53,6 +53,12 @@
     <Compile Include="FormDownloader.Designer.cs">
       <DependentUpon>FormDownloader.cs</DependentUpon>
     </Compile>
+    <Compile Include="FormExtractedConfig.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormExtractedConfig.Designer.cs">
+      <DependentUpon>FormExtractedConfig.cs</DependentUpon>
+    </Compile>
     <Compile Include="FormMain.cs">
       <SubType>Form</SubType>
     </Compile>
