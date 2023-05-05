@@ -8,9 +8,10 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>BK7231Flasher</RootNamespace>
     <AssemblyName>BK7231Flasher</AssemblyName>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,6 +46,7 @@
   <ItemGroup>
     <Compile Include="BK7231Flasher.cs" />
     <Compile Include="BKFlashList.cs" />
+    <Compile Include="CRC.cs" />
     <Compile Include="FormDownloader.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -62,6 +64,7 @@
     <Compile Include="MySettings.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TuyaConfig.cs" />
     <Compile Include="RFPartitionUtil.cs" />
     <Compile Include="RichTextUtil.cs" />
     <Compile Include="SecurityProtocolTypeExtensions.cs" />
@@ -79,7 +82,9 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="app.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
