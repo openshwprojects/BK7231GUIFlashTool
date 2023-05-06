@@ -15,5 +15,16 @@ namespace BK7231Flasher
         {
             InitializeComponent();
         }
+
+        internal void showConfig(TuyaConfig tc)
+        {
+              textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+              textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
+        }
+
+        private void FormExtractedConfig_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

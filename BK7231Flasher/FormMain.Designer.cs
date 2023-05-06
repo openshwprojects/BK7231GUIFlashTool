@@ -85,12 +85,14 @@
             this.label14 = new System.Windows.Forms.Label();
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
-            this.timer100ms = new System.Windows.Forms.Timer(this.components);
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.label16 = new System.Windows.Forms.Label();
-            this.textBox3 = new System.Windows.Forms.TextBox();
-            this.linkLabel4 = new System.Windows.Forms.LinkLabel();
             this.label17 = new System.Windows.Forms.Label();
+            this.linkLabel4 = new System.Windows.Forms.LinkLabel();
+            this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
+            this.label16 = new System.Windows.Forms.Label();
+            this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.textBoxTuyaCFGText = new System.Windows.Forms.TextBox();
+            this.label18 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -682,17 +684,14 @@
             this.label13.TabIndex = 0;
             this.label13.Text = "Please ask questions on our forum:";
             // 
-            // timer100ms
-            // 
-            this.timer100ms.Enabled = true;
-            this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
             // tabPage2
             // 
             this.tabPage2.AllowDrop = true;
+            this.tabPage2.Controls.Add(this.label18);
+            this.tabPage2.Controls.Add(this.textBoxTuyaCFGText);
             this.tabPage2.Controls.Add(this.label17);
             this.tabPage2.Controls.Add(this.linkLabel4);
-            this.tabPage2.Controls.Add(this.textBox3);
+            this.tabPage2.Controls.Add(this.textBoxTuyaCFGJSON);
             this.tabPage2.Controls.Add(this.label16);
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
@@ -703,22 +702,14 @@
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
             // 
-            // label16
+            // label17
             // 
-            this.label16.AutoSize = true;
-            this.label16.Location = new System.Drawing.Point(9, 4);
-            this.label16.Name = "label16";
-            this.label16.Size = new System.Drawing.Size(761, 26);
-            this.label16.TabIndex = 0;
-            this.label16.Text = resources.GetString("label16.Text");
-            // 
-            // textBox3
-            // 
-            this.textBox3.Location = new System.Drawing.Point(12, 78);
-            this.textBox3.Multiline = true;
-            this.textBox3.Name = "textBox3";
-            this.textBox3.Size = new System.Drawing.Size(330, 398);
-            this.textBox3.TabIndex = 1;
+            this.label17.AutoSize = true;
+            this.label17.Location = new System.Drawing.Point(8, 62);
+            this.label17.Name = "label17";
+            this.label17.Size = new System.Drawing.Size(67, 13);
+            this.label17.TabIndex = 8;
+            this.label17.Text = "JSON format";
             // 
             // linkLabel4
             // 
@@ -731,14 +722,44 @@
             this.linkLabel4.Text = "OBK Template Converter";
             this.linkLabel4.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel4_LinkClicked);
             // 
-            // label17
+            // textBoxTuyaCFGJSON
             // 
-            this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(8, 62);
-            this.label17.Name = "label17";
-            this.label17.Size = new System.Drawing.Size(67, 13);
-            this.label17.TabIndex = 8;
-            this.label17.Text = "JSON format";
+            this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(12, 78);
+            this.textBoxTuyaCFGJSON.Multiline = true;
+            this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
+            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 398);
+            this.textBoxTuyaCFGJSON.TabIndex = 1;
+            // 
+            // label16
+            // 
+            this.label16.AutoSize = true;
+            this.label16.Location = new System.Drawing.Point(9, 4);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(761, 26);
+            this.label16.TabIndex = 0;
+            this.label16.Text = resources.GetString("label16.Text");
+            // 
+            // timer100ms
+            // 
+            this.timer100ms.Enabled = true;
+            this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
+            // 
+            // textBoxTuyaCFGText
+            // 
+            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(348, 78);
+            this.textBoxTuyaCFGText.Multiline = true;
+            this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
+            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 398);
+            this.textBoxTuyaCFGText.TabIndex = 9;
+            // 
+            // label18
+            // 
+            this.label18.AutoSize = true;
+            this.label18.Location = new System.Drawing.Point(351, 62);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(82, 13);
+            this.label18.TabIndex = 10;
+            this.label18.Text = "Text description";
             // 
             // FormMain
             // 
@@ -824,9 +845,11 @@
         private System.Windows.Forms.CheckBox checkBoxAllowBackup;
         private System.Windows.Forms.TabPage tabPage2;
         private System.Windows.Forms.Label label16;
-        private System.Windows.Forms.TextBox textBox3;
+        private System.Windows.Forms.TextBox textBoxTuyaCFGJSON;
         private System.Windows.Forms.Label label17;
         private System.Windows.Forms.LinkLabel linkLabel4;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.TextBox textBoxTuyaCFGText;
     }
 }
 

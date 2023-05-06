@@ -3,9 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace BK7231Flasher
 {
+    public class TuyaKeysText
+    {
+        public string textDescription;
+    }
     public class TuyaConfig
     {
         // thanks to kmnh/bk7231 tools for figuring out this format
@@ -115,6 +120,98 @@ namespace BK7231Flasher
             descryptedRaw = decrypted.ToArray();
             File.WriteAllBytes("lastRawDecryptedStrings.bin", descryptedRaw);
             return false;
+        }
+        public string getKeysHumanReadable()
+        {
+            string desc = "";
+            for (int i = 0; i < parms.Count; i++)
+            {
+                var p = parms[i];
+                string key = p.Key;
+                string value = p.Value;
+                if (Regex.IsMatch(key, "^led\\d+_pin$"))
+                {
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- LED (channel " + number + ") on P" + value + Environment.NewLine;
+                }
+                else if (Regex.IsMatch(key, "^rl\\d+_pin$"))
+                {
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- Relay (channel " + number + ") on P" + value + Environment.NewLine;
+                }
+                else if (Regex.IsMatch(key, "^bt\\d+_pin$"))
+                {
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                }
+                else if(Regex.IsMatch(key, "^door\\d+_magt_pin$"))
+                {
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- Door Sensor (channel " + number + ") on P" + value + Environment.NewLine;
+                }
+                else if(Regex.IsMatch(key, "^onoff\\d+$"))
+                {
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- TglChannelToggle (channel " + number + ") on P" + value + Environment.NewLine;
+                }
+                else if (key == "netled_pin")
+                {
+                    desc += "- WiFi LED on P" + value + Environment.NewLine;
+                }
+                else if(key == "ele_pin")
+                {
+                    desc += "- BL0937 ELE on P" + value + Environment.NewLine;
+                }
+                else if (key == "vi_pin")
+                {
+                    desc += "- BL0937 VI on P" + value + Environment.NewLine;
+                }
+                else if (key == "sel_pin_pin")
+                {
+                    desc += "- BL0937 SEL on P" + value + Environment.NewLine;
+                }
+                else if (key == "r_pin")
+                {
+                    desc += "- LED Red (Channel 1) on P" + value + Environment.NewLine;
+                }
+                else if (key == "g_pin")
+                {
+                    desc += "- LED Green (Channel 2) on P" + value + Environment.NewLine;
+                }
+                else if (key == "b_pin")
+                {
+                    desc += "- LED Blue (Channel 3) on P" + value + Environment.NewLine;
+                }
+                else if (key == "c_pin")
+                {
+                    desc += "- LED Cool (Channel 4) on P" + value + Environment.NewLine;
+                }
+                else if (key == "w_pin")
+                {
+                    desc += "- LED Warm (Channel 5) on P" + value + Environment.NewLine;
+                }
+                else if (key == "ctrl_pin")
+                {
+                    desc += "- Control Pin (TODO) on P" + value + Environment.NewLine;
+                }
+                else if (key == "total_bt_pin")
+                {
+                    desc += "- Pair/Toggle All Pin on P" + value + Environment.NewLine;
+                }
+                else
+                {
+
+                }
+            }
+            if (desc.Length > 0)
+            {
+                desc = "Device configuration, as extracted from Tuya: " + Environment.NewLine + desc;
+            }
+            else
+            {
+                desc = "Sorry, no meaningful data found. This device may be TuyaMCU or a custom one with no Tuya config data." + Environment.NewLine;
+            }
+            return desc;
         }
         public string getKeysAsJSON()
         {

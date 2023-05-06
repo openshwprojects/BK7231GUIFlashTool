@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="BK7231Flasher.cs" />
     <Compile Include="BKFlashList.cs" />
+    <Compile Include="ConfigBase.cs" />
     <Compile Include="CRC.cs" />
     <Compile Include="FormDownloader.cs">
       <SubType>Form</SubType>
@@ -68,6 +69,7 @@
     <Compile Include="ILogListener.cs" />
     <Compile Include="MiscUtils.cs" />
     <Compile Include="MySettings.cs" />
+    <Compile Include="OBKConfig.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TuyaConfig.cs" />
@@ -76,6 +78,9 @@
     <Compile Include="SecurityProtocolTypeExtensions.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormExtractedConfig.resx">
+      <DependentUpon>FormExtractedConfig.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormMain.resx">
       <DependentUpon>FormMain.cs</DependentUpon>

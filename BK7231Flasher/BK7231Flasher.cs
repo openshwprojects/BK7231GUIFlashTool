@@ -711,7 +711,7 @@ namespace BK7231Flasher
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
-        public bool saveReadResult(string fileName)
+        bool saveReadResult(string fileName)
         {
             if(ms == null)
             {
@@ -719,8 +719,10 @@ namespace BK7231Flasher
                 return false;
             }
             byte[] dat = ms.ToArray();
-            File.WriteAllBytes("backups/"+fileName, dat);
+            string fullPath = "backups/" + fileName;
+            File.WriteAllBytes(fullPath, dat);
             addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
+            logger.onReadResultQIOSaved(dat, fullPath);
             return true;
         }
         public bool saveReadResult()

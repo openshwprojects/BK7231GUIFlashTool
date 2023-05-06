@@ -82,9 +82,9 @@ namespace BK7231Flasher
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
-            var t = new TuyaConfig();
-            t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
-            t.extractKeys();
+          //  var t = new TuyaConfig();
+          //  t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
+           //// t.extractKeys();
 
             tabControl1.TabPages.Remove(tabPagePageTool);
             if (Directory.Exists(backupsPath) == false)
@@ -502,6 +502,32 @@ namespace BK7231Flasher
             }*/
             return false;
         }
+        public void onReadResultQIOSaved(byte[] dat, string fullPath)
+        {
+            TuyaConfig tc = new TuyaConfig();
+            addLog("Backup 2MB created, now will attempt to extract Tuya config.", Color.Gray);
+            if (tc.fromBytes(dat) == false)
+            {
+                if (tc.extractKeys() == false)
+                {
+                    Singleton.buttonRead.Invoke((MethodInvoker)delegate {
+                        // Running on the UI thread
+                        FormExtractedConfig fo = new FormExtractedConfig();
+                        fo.showConfig(tc);
+                        fo.Show();
+                    });
+                    addLog("Tuya config extracted and shown.", Color.Green);
+                }
+                else
+                {
+                    addLog("Sorry, failed to extract keys from Tuya Config in backup binary.", Color.Yellow);
+                }
+            }
+            else
+            {
+                addLog("Sorry, failed to find Tuya Config in backup binary.", Color.Yellow);
+            }
+        }
         public int addToFirmaresList(string dir)
         {
             string[] files;
@@ -798,7 +824,8 @@ namespace BK7231Flasher
 
         private void tabPage2_DragDrop(object sender, DragEventArgs e)
         {
-            textBox3.Text = "";
+            textBoxTuyaCFGJSON.Text = "";
+            textBoxTuyaCFGText.Text = "";
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
@@ -808,7 +835,8 @@ namespace BK7231Flasher
                 {
                     if (tc.extractKeys() == false)
                     {
-                        textBox3.Text = tc.getKeysAsJSON();
+                        textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+                        textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
                     }
                 }
             }
