@@ -2,7 +2,8 @@
 
 BK7231 GUI Flash Tool a simple Windows application that allows you to flash the OpenBK firmware to Beken chipset (BK7231T or BK7231N) based devices without having extensive programming knowledge.
 
-Futhermore, it automatically creates an original firmware backup, so you can submit the original firmware dump for futher analysis  
+Futhermore, it automatically creates an original firmware backup, and uses it to extract GPIO configuration that you can later import in OBK Web Application (Import Tab).
+
 ❗ NOTE: The flash dump may contain your SSID and pass if the device was paired at the time of the backup
 
 [See also Russian guide for this tool and BK7231N.](https://www.v-elite.ru/t34)
