@@ -77,6 +77,8 @@ namespace BK7231Flasher
 
             byte[] key = null;
 
+            decrypted = new MemoryStream();
+            BinaryWriter bw = new BinaryWriter(decrypted);
             byte[] first = myDecrypt(data, needle, 0, Encoding.ASCII.GetBytes(KEY_MASTER));
             using (BinaryReader br = new BinaryReader(new MemoryStream(first)))
             {
@@ -92,9 +94,8 @@ namespace BK7231Flasher
                     return true;
                 }
                 key = makeSecondaryKey(key);
+                bw.Write(first, 8, first.Length - 8);
             }
-            decrypted = new MemoryStream();
-            BinaryWriter bw = new BinaryWriter(decrypted);
             for (int blockIndex = 1; blockIndex < 500; blockIndex++)
             {
                 byte[] next = myDecrypt(data, needle, blockIndex, key);
@@ -134,6 +135,12 @@ namespace BK7231Flasher
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- LED (channel " + number + ") on P" + value + Environment.NewLine;
                 }
+                else if (Regex.IsMatch(key, "^netled\\d+_pin$"))
+                {
+                    // some devices have netled1_pin, some have netled_pin
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- WiFi LED on P" + value + Environment.NewLine;
+                }
                 else if (Regex.IsMatch(key, "^rl\\d+_pin$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
@@ -156,6 +163,7 @@ namespace BK7231Flasher
                 }
                 else if (key == "netled_pin")
                 {
+                    // some devices have netled1_pin, some have netled_pin
                     desc += "- WiFi LED on P" + value + Environment.NewLine;
                 }
                 else if(key == "ele_pin")
@@ -203,6 +211,55 @@ namespace BK7231Flasher
 
                 }
             }
+            // LED
+            string iicscl = getKeyValue("iicscl");
+            string iicsda = getKeyValue("iicsda");
+            if (iicscl.Length > 0 && iicsda.Length > 0)
+            {
+                string iicr = getKeyValue("iicr");
+                string iicg = getKeyValue("iicg");
+                string iicb = getKeyValue("iicb");
+                string iicc = getKeyValue("iicc");
+                string iicw = getKeyValue("iicw");
+                string map = "" + iicr + " " + iicg + " " + iicb + " " + iicc + " " + iicw;
+                string ledType = "Unknown";
+                string ehccur = getKeyValue("ehccur");
+                string dccur = getKeyValue("dccur");
+                string cjwcur = getKeyValue("cjwcur");
+                string _2235ccur = getKeyValue("2235ccur");
+                string _2335ccur = getKeyValue("2335ccur");
+                // use current (color/cw) setting
+                if (ehccur.Length>0)
+                {
+                    ledType = "SM2135";
+                }
+                else if (dccur.Length > 0)
+                {
+                    ledType = "BP5758D_";
+                }
+                else if (cjwcur.Length > 0)
+                {
+                    ledType = "BP1658CJ_";
+                }
+                else if (_2235ccur.Length > 0)
+                {
+                    ledType = "SM2235";
+                }
+                else if (_2335ccur.Length > 0)
+                {
+                    // fallback
+                    ledType = "SM2235";
+                }
+                else
+                {
+
+                }
+                string dat_name = ledType + "DAT";
+                string clk_name = ledType + "CLK";
+                desc += "- " + dat_name + " on P" + iicsda + Environment.NewLine;
+                desc += "- " + clk_name + " on P" + iicscl + Environment.NewLine;
+                desc += "- LED remap is " + map + Environment.NewLine;
+            }
             if (desc.Length > 0)
             {
                 desc = "Device configuration, as extracted from Tuya: " + Environment.NewLine + desc;
@@ -212,6 +269,17 @@ namespace BK7231Flasher
                 desc = "Sorry, no meaningful data found. This device may be TuyaMCU or a custom one with no Tuya config data." + Environment.NewLine;
             }
             return desc;
+        }
+        public string getKeyValue(string key)
+        {
+            for (int i = 0; i < parms.Count; i++)
+            {
+                if (parms[i].Key == key)
+                {
+                    return parms[i].Value;
+                }
+            }
+            return "";
         }
         public string getKeysAsJSON()
         {
@@ -242,7 +310,25 @@ namespace BK7231Flasher
             }
             int first_at = keys_at + 5;
             byte[] str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
-            string asciiString = Encoding.ASCII.GetString(str);
+            string asciiString;
+            // There is still some kind of Tuya paging here,
+            // let's skip it in a quick and dirty way
+#if false
+            str = MiscUtils.stripBinary(str);
+            asciiString = Encoding.ASCII.GetString(str);
+#else
+            asciiString = "";
+            for(int i = 0; i < str.Length; i++)
+            {
+                byte b = str[i];
+                if (b < 32)
+                    continue;
+                if (b > 127)
+                    continue;
+                char ch = (char)b;
+                asciiString += ch;
+            }
+#endif
             string[] pairs = asciiString.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             for(int i = 0; i < pairs.Length; i++)
             {

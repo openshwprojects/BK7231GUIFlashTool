@@ -66,5 +66,10 @@ namespace BK7231Flasher
             }
             return -1;
         }
+
+        internal static byte[] stripBinary(byte[] str)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
