@@ -75,7 +75,7 @@ namespace BK7231Flasher
             }
         }
 
-        internal void loadFrom(string fname, BKType type)
+        internal bool loadFrom(string fname, BKType type)
         {
             int offset = OBKFlashLayout.getConfigLocation(type);
             using (FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read))
@@ -83,8 +83,8 @@ namespace BK7231Flasher
                 stream.Seek(offset, SeekOrigin.Begin);
                 int bytesRead = stream.Read(this.raw, 0, this.raw.Length);
             }
+            return isValid();
         }
-
         public byte buttonHoldRepeat
         {
             get
@@ -403,7 +403,33 @@ namespace BK7231Flasher
             // default value is 10, which means 1000ms
             this.buttonLongPress = CFG_DEFAULT_BTN_LONG;
         }
-        
+
+        public bool isValid()
+        {
+            byte crc = 0;
+            if (raw[0] != (byte)'C')
+            {
+                return false;
+            }
+            if (raw[1] != (byte)'F')
+            {
+                return false;
+            }
+            if (raw[2] != (byte)'G')
+            {
+                return false;
+            }
+            if(version > 100)
+            {
+                return false;
+            }
+            crc = CRC.Tiny_CRC8(raw, 4, raw.Length - 4);
+            if(raw[3] != crc)
+            {
+                return false;
+            }
+            return true;
+        }
         public void saveConfig()
         {
             byte crc = 0;

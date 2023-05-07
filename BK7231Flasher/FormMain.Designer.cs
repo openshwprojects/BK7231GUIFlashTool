@@ -40,6 +40,8 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonChangeOBKSettings = new System.Windows.Forms.Button();
+            this.checkBoxAutoOBKConfig = new System.Windows.Forms.CheckBox();
             this.checkBoxAllowBackup = new System.Windows.Forms.CheckBox();
             this.buttonRestoreRF = new System.Windows.Forms.Button();
             this.buttonEraseAll = new System.Windows.Forms.Button();
@@ -86,15 +88,13 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.label18 = new System.Windows.Forms.Label();
+            this.textBoxTuyaCFGText = new System.Windows.Forms.TextBox();
             this.label17 = new System.Windows.Forms.Label();
             this.linkLabel4 = new System.Windows.Forms.LinkLabel();
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.textBoxTuyaCFGText = new System.Windows.Forms.TextBox();
-            this.label18 = new System.Windows.Forms.Label();
-            this.checkBoxAutoOBKConfig = new System.Windows.Forms.CheckBox();
-            this.buttonChangeOBKSettings = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -231,6 +231,26 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonChangeOBKSettings
+            // 
+            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(242, 152);
+            this.buttonChangeOBKSettings.Name = "buttonChangeOBKSettings";
+            this.buttonChangeOBKSettings.Size = new System.Drawing.Size(196, 23);
+            this.buttonChangeOBKSettings.TabIndex = 29;
+            this.buttonChangeOBKSettings.Text = "Change OBK settings for flash write";
+            this.buttonChangeOBKSettings.UseVisualStyleBackColor = true;
+            this.buttonChangeOBKSettings.Click += new System.EventHandler(this.buttonChangeOBKSettings_Click);
+            // 
+            // checkBoxAutoOBKConfig
+            // 
+            this.checkBoxAutoOBKConfig.AutoSize = true;
+            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(11, 156);
+            this.checkBoxAutoOBKConfig.Name = "checkBoxAutoOBKConfig";
+            this.checkBoxAutoOBKConfig.Size = new System.Drawing.Size(225, 17);
+            this.checkBoxAutoOBKConfig.TabIndex = 28;
+            this.checkBoxAutoOBKConfig.Text = "Automatically configure OBK on flash write";
+            this.checkBoxAutoOBKConfig.UseVisualStyleBackColor = true;
             // 
             // checkBoxAllowBackup
             // 
@@ -706,6 +726,23 @@
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
             // 
+            // label18
+            // 
+            this.label18.AutoSize = true;
+            this.label18.Location = new System.Drawing.Point(351, 62);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(82, 13);
+            this.label18.TabIndex = 10;
+            this.label18.Text = "Text description";
+            // 
+            // textBoxTuyaCFGText
+            // 
+            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(348, 78);
+            this.textBoxTuyaCFGText.Multiline = true;
+            this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
+            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 398);
+            this.textBoxTuyaCFGText.TabIndex = 9;
+            // 
             // label17
             // 
             this.label17.AutoSize = true;
@@ -747,43 +784,6 @@
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
-            // textBoxTuyaCFGText
-            // 
-            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(348, 78);
-            this.textBoxTuyaCFGText.Multiline = true;
-            this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
-            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 398);
-            this.textBoxTuyaCFGText.TabIndex = 9;
-            // 
-            // label18
-            // 
-            this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(351, 62);
-            this.label18.Name = "label18";
-            this.label18.Size = new System.Drawing.Size(82, 13);
-            this.label18.TabIndex = 10;
-            this.label18.Text = "Text description";
-            // 
-            // checkBoxAutoOBKConfig
-            // 
-            this.checkBoxAutoOBKConfig.AutoSize = true;
-            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(11, 156);
-            this.checkBoxAutoOBKConfig.Name = "checkBoxAutoOBKConfig";
-            this.checkBoxAutoOBKConfig.Size = new System.Drawing.Size(225, 17);
-            this.checkBoxAutoOBKConfig.TabIndex = 28;
-            this.checkBoxAutoOBKConfig.Text = "Automatically configure OBK on flash write";
-            this.checkBoxAutoOBKConfig.UseVisualStyleBackColor = true;
-            // 
-            // buttonChangeOBKSettings
-            // 
-            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(242, 152);
-            this.buttonChangeOBKSettings.Name = "buttonChangeOBKSettings";
-            this.buttonChangeOBKSettings.Size = new System.Drawing.Size(196, 23);
-            this.buttonChangeOBKSettings.TabIndex = 29;
-            this.buttonChangeOBKSettings.Text = "Change OBK settings for flash write";
-            this.buttonChangeOBKSettings.UseVisualStyleBackColor = true;
-            this.buttonChangeOBKSettings.Click += new System.EventHandler(this.buttonChangeOBKSettings_Click);
             // 
             // FormMain
             // 
