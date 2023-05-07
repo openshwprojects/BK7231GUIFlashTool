@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -7,9 +8,16 @@ namespace BK7231Flasher
 {
     class OBKConfig : ConfigBase
     {
+        static byte DEFAULT_BOOT_SUCCESS_TIME = 5;
         static int OBK_CONFIG_VERSION = 4;
         static int MAX_GPIO = 32;
         static int MAX_CHANNELS = 64;
+
+        // unit is 0.1s
+        static byte CFG_DEFAULT_BTN_SHORT = 3;
+        static byte CFG_DEFAULT_BTN_LONG = 10;
+        static byte CFG_DEFAULT_BTN_REPEAT = 5;
+
 
         public int version
         {
@@ -44,7 +52,70 @@ namespace BK7231Flasher
                 writeByte(0x00000597, value);
             }
         }
+        public byte buttonShortPress
+        {
+            get
+            {
+                return readByte(0x000004B8);
+            }
+            set
+            {
+                writeByte(0x000004B8, value);
+            }
+        }
+        public byte buttonLongPress
+        {
+            get
+            {
+                return readByte(0x000004B9);
+            }
+            set
+            {
+                writeByte(0x000004B9, value);
+            }
+        }
 
+        internal void loadFrom(string fname, BKType type)
+        {
+            int offset = OBKFlashLayout.getConfigLocation(type);
+            using (FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read))
+            {
+                stream.Seek(offset, SeekOrigin.Begin);
+                int bytesRead = stream.Read(this.raw, 0, this.raw.Length);
+            }
+        }
+
+        public byte buttonHoldRepeat
+        {
+            get
+            {
+                return readByte(0x000004BA);
+            }
+            set
+            {
+                writeByte(0x000004BA, value);
+            }
+        }
+
+        public bool hasFlag(int flag)
+        {
+            if (flag >= 32)
+            {
+                flag -= 32;
+                return BIT.CHECK(this.genericFlags2, flag);
+            }
+            return BIT.CHECK(this.genericFlags, flag);
+        }
+        public void setFlag(int flag, bool b)
+        {
+            if (flag >= 32)
+            {
+                flag -= 32;
+                this.genericFlags2 = BIT.SET_TO2(this.genericFlags2, flag, b);
+                return;
+            }
+            this.genericFlags = BIT.SET_TO2(this.genericFlags, flag, b);
+        }
         public int genericFlags2
         {
             get
@@ -315,12 +386,31 @@ namespace BK7231Flasher
         }
 
 
+        public void setDefaults()
+        {
+            this.version = OBK_CONFIG_VERSION;
+            this.mqtt_port = 1883;
+            this.timeRequiredToMarkBootSuccessfull = DEFAULT_BOOT_SUCCESS_TIME;
+            this.ping_host = "192.168.0.1";
+            this.mqtt_userName = "homeassistant";
+            this.webappRoot = "https://openbekeniot.github.io/webapp/";
+            this.mqtt_group = "bekens";
+            this.ntpServer = "217.147.223.78";
+            // default value is 5, which means 500ms
+            this.buttonHoldRepeat = CFG_DEFAULT_BTN_REPEAT;
+            // default value is 3, which means 300ms
+            this.buttonShortPress = CFG_DEFAULT_BTN_SHORT;
+            // default value is 10, which means 1000ms
+            this.buttonLongPress = CFG_DEFAULT_BTN_LONG;
+        }
+        
         public void saveConfig()
         {
             byte crc = 0;
             raw[0] = (byte)'C';
             raw[1] = (byte)'F';
             raw[2] = (byte)'G';
+            crc = CRC.Tiny_CRC8(raw, 4, raw.Length - 4);
             raw[3] = (byte)crc;
         }
     }

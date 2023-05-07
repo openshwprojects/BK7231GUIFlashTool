@@ -93,6 +93,8 @@
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
             this.textBoxTuyaCFGText = new System.Windows.Forms.TextBox();
             this.label18 = new System.Windows.Forms.Label();
+            this.checkBoxAutoOBKConfig = new System.Windows.Forms.CheckBox();
+            this.buttonChangeOBKSettings = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -116,9 +118,9 @@
             this.textBoxLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxLog.Location = new System.Drawing.Point(3, 185);
+            this.textBoxLog.Location = new System.Drawing.Point(3, 211);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(893, 296);
+            this.textBoxLog.Size = new System.Drawing.Size(893, 270);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -193,6 +195,8 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonChangeOBKSettings);
+            this.tabPage1.Controls.Add(this.checkBoxAutoOBKConfig);
             this.tabPage1.Controls.Add(this.checkBoxAllowBackup);
             this.tabPage1.Controls.Add(this.buttonRestoreRF);
             this.tabPage1.Controls.Add(this.buttonEraseAll);
@@ -408,7 +412,7 @@
             // 
             // progressBar1
             // 
-            this.progressBar1.Location = new System.Drawing.Point(8, 156);
+            this.progressBar1.Location = new System.Drawing.Point(6, 182);
             this.progressBar1.Name = "progressBar1";
             this.progressBar1.Size = new System.Drawing.Size(883, 23);
             this.progressBar1.TabIndex = 9;
@@ -697,7 +701,7 @@
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Size = new System.Drawing.Size(899, 484);
             this.tabPage2.TabIndex = 4;
-            this.tabPage2.Text = "Extract Config from binary";
+            this.tabPage2.Text = "Extract Config from Tuya binary";
             this.tabPage2.UseVisualStyleBackColor = true;
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
@@ -760,6 +764,26 @@
             this.label18.Size = new System.Drawing.Size(82, 13);
             this.label18.TabIndex = 10;
             this.label18.Text = "Text description";
+            // 
+            // checkBoxAutoOBKConfig
+            // 
+            this.checkBoxAutoOBKConfig.AutoSize = true;
+            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(11, 156);
+            this.checkBoxAutoOBKConfig.Name = "checkBoxAutoOBKConfig";
+            this.checkBoxAutoOBKConfig.Size = new System.Drawing.Size(225, 17);
+            this.checkBoxAutoOBKConfig.TabIndex = 28;
+            this.checkBoxAutoOBKConfig.Text = "Automatically configure OBK on flash write";
+            this.checkBoxAutoOBKConfig.UseVisualStyleBackColor = true;
+            // 
+            // buttonChangeOBKSettings
+            // 
+            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(242, 152);
+            this.buttonChangeOBKSettings.Name = "buttonChangeOBKSettings";
+            this.buttonChangeOBKSettings.Size = new System.Drawing.Size(196, 23);
+            this.buttonChangeOBKSettings.TabIndex = 29;
+            this.buttonChangeOBKSettings.Text = "Change OBK settings for flash write";
+            this.buttonChangeOBKSettings.UseVisualStyleBackColor = true;
+            this.buttonChangeOBKSettings.Click += new System.EventHandler(this.buttonChangeOBKSettings_Click);
             // 
             // FormMain
             // 
@@ -850,6 +874,8 @@
         private System.Windows.Forms.LinkLabel linkLabel4;
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.TextBox textBoxTuyaCFGText;
+        private System.Windows.Forms.Button buttonChangeOBKSettings;
+        private System.Windows.Forms.CheckBox checkBoxAutoOBKConfig;
     }
 }
 

@@ -28,6 +28,29 @@ namespace BK7231Flasher
                 crc32_table[i] = c;
             }
         }
+        public static byte Tiny_CRC8(byte[] data, int start, int length)
+        {
+            byte crc = 0x00;
+            byte extract;
+            byte sum;
+            int i;
+            byte tempI;
+
+            for (i = 0; i < length; i++)
+            {
+                extract = data[start+i];
+                for (tempI = 8; tempI != 0; tempI--)
+                {
+                    sum = (byte)((crc ^ extract) & 0x01);
+                    crc >>= 1;
+                    if (sum != 0)
+                        crc ^= 0x8C;
+                    extract >>= 1;
+                }
+            }
+            return crc;
+        }
+
         public static uint crc32_ver2(uint crc, byte[] buffer)
         {
             return crc32_ver2(crc,buffer,buffer.Length);

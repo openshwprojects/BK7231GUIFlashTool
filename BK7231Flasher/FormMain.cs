@@ -504,28 +504,35 @@ namespace BK7231Flasher
         }
         public void onReadResultQIOSaved(byte[] dat, string fullPath)
         {
-            TuyaConfig tc = new TuyaConfig();
             addLog("Backup 2MB created, now will attempt to extract Tuya config.", Color.Gray);
-            if (tc.fromBytes(dat) == false)
+            try
             {
-                if (tc.extractKeys() == false)
+                TuyaConfig tc = new TuyaConfig();
+                if (tc.fromBytes(dat) == false)
                 {
-                    Singleton.buttonRead.Invoke((MethodInvoker)delegate {
-                        // Running on the UI thread
-                        FormExtractedConfig fo = new FormExtractedConfig();
-                        fo.showConfig(tc);
-                        fo.Show();
-                    });
-                    addLog("Tuya config extracted and shown.", Color.Green);
+                    if (tc.extractKeys() == false)
+                    {
+                        Singleton.buttonRead.Invoke((MethodInvoker)delegate {
+                            // Running on the UI thread
+                            FormExtractedConfig fo = new FormExtractedConfig();
+                            fo.showConfig(tc);
+                            fo.Show();
+                        });
+                        addLog("Tuya config extracted and shown.", Color.Green);
+                    }
+                    else
+                    {
+                        addLog("Sorry, failed to extract keys from Tuya Config in backup binary.", Color.Yellow);
+                    }
                 }
                 else
                 {
-                    addLog("Sorry, failed to extract keys from Tuya Config in backup binary.", Color.Yellow);
+                    addLog("Sorry, failed to find Tuya Config in backup binary.", Color.Yellow);
                 }
             }
-            else
+            catch(Exception ex)
             {
-                addLog("Sorry, failed to find Tuya Config in backup binary.", Color.Yellow);
+                addLog("Sorry, failed to find Tuya Config in backup binary due to an unknown exception " + ex.ToString()+"", Color.Yellow);
             }
         }
         public int addToFirmaresList(string dir)
@@ -829,15 +836,22 @@ namespace BK7231Flasher
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
-                // Do something with the dropped file(s)
-                TuyaConfig tc = new TuyaConfig();
-                if (tc.fromFile(file) == false)
+                try
                 {
-                    if (tc.extractKeys() == false)
+                    // Do something with the dropped file(s)
+                    TuyaConfig tc = new TuyaConfig();
+                    if (tc.fromFile(file) == false)
                     {
-                        textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
-                        textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
+                        if (tc.extractKeys() == false)
+                        {
+                            textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+                            textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
+                        }
                     }
+                }
+                catch(Exception ex)
+                {
+                    textBoxTuyaCFGText.Text = "Sorry, exception occured: " + ex.ToString();
                 }
             }
         }
@@ -845,6 +859,15 @@ namespace BK7231Flasher
         private void linkLabel4_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             System.Diagnostics.Process.Start("https://openbekeniot.github.io/webapp/templateImporter.html");
+        }
+        FormOBKConfig formObkCfg;
+        private void buttonChangeOBKSettings_Click(object sender, EventArgs e)
+        {
+            if (formObkCfg == null)
+            {
+                formObkCfg = new FormOBKConfig(this);
+            }
+            formObkCfg.Show();
         }
     }
 }

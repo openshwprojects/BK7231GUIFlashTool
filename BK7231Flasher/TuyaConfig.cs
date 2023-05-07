@@ -223,13 +223,15 @@ namespace BK7231Flasher
                 string iicw = getKeyValue("iicw");
                 string map = "" + iicr + " " + iicg + " " + iicb + " " + iicc + " " + iicw;
                 string ledType = "Unknown";
+                string iicccur = getKeyValue("iicccur");
+                string wampere = getKeyValue("wampere");
                 string ehccur = getKeyValue("ehccur");
                 string dccur = getKeyValue("dccur");
                 string cjwcur = getKeyValue("cjwcur");
                 string _2235ccur = getKeyValue("2235ccur");
                 string _2335ccur = getKeyValue("2335ccur");
                 // use current (color/cw) setting
-                if (ehccur.Length>0)
+                if (ehccur.Length>0 || wampere.Length > 0 || iicccur.Length > 0)
                 {
                     ledType = "SM2135";
                 }
