@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormOBKConfig));
             this.label1 = new System.Windows.Forms.Label();
             this.textBoxWiFiSSID = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -59,17 +60,15 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(13, 13);
+            this.label1.Location = new System.Drawing.Point(5, 13);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(423, 26);
+            this.label1.Size = new System.Drawing.Size(500, 143);
             this.label1.TabIndex = 0;
-            this.label1.Text = "This tool can automatically configure OBK on the first flashing operation of the " +
-    "device.\r\nPlease first change options here, and then use \"Do firmware backup and " +
-    "write\" to apply.";
+            this.label1.Text = resources.GetString("label1.Text");
             // 
             // textBoxWiFiSSID
             // 
-            this.textBoxWiFiSSID.Location = new System.Drawing.Point(78, 60);
+            this.textBoxWiFiSSID.Location = new System.Drawing.Point(79, 175);
             this.textBoxWiFiSSID.Name = "textBoxWiFiSSID";
             this.textBoxWiFiSSID.Size = new System.Drawing.Size(304, 20);
             this.textBoxWiFiSSID.TabIndex = 1;
@@ -77,7 +76,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(13, 63);
+            this.label2.Location = new System.Drawing.Point(14, 178);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(59, 13);
             this.label2.TabIndex = 2;
@@ -86,7 +85,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(13, 89);
+            this.label3.Location = new System.Drawing.Point(14, 204);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(56, 13);
             this.label3.TabIndex = 3;
@@ -94,7 +93,7 @@
             // 
             // textBoxWiFiPass
             // 
-            this.textBoxWiFiPass.Location = new System.Drawing.Point(78, 86);
+            this.textBoxWiFiPass.Location = new System.Drawing.Point(79, 201);
             this.textBoxWiFiPass.Name = "textBoxWiFiPass";
             this.textBoxWiFiPass.Size = new System.Drawing.Size(304, 20);
             this.textBoxWiFiPass.TabIndex = 4;
@@ -112,7 +111,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(13, 139);
+            this.label4.Location = new System.Drawing.Point(14, 254);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(64, 13);
             this.label4.TabIndex = 6;
@@ -121,7 +120,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(305, 139);
+            this.label5.Location = new System.Drawing.Point(306, 254);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(29, 13);
             this.label5.TabIndex = 7;
@@ -129,14 +128,14 @@
             // 
             // textBoxMQTTHost
             // 
-            this.textBoxMQTTHost.Location = new System.Drawing.Point(78, 136);
+            this.textBoxMQTTHost.Location = new System.Drawing.Point(79, 251);
             this.textBoxMQTTHost.Name = "textBoxMQTTHost";
             this.textBoxMQTTHost.Size = new System.Drawing.Size(221, 20);
             this.textBoxMQTTHost.TabIndex = 8;
             // 
             // textBoxMQTTPort
             // 
-            this.textBoxMQTTPort.Location = new System.Drawing.Point(340, 136);
+            this.textBoxMQTTPort.Location = new System.Drawing.Point(341, 251);
             this.textBoxMQTTPort.Name = "textBoxMQTTPort";
             this.textBoxMQTTPort.Size = new System.Drawing.Size(42, 20);
             this.textBoxMQTTPort.TabIndex = 9;
@@ -144,7 +143,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(12, 170);
+            this.label6.Location = new System.Drawing.Point(13, 285);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(62, 13);
             this.label6.TabIndex = 10;
@@ -152,7 +151,7 @@
             // 
             // textBoxMQTTTopic
             // 
-            this.textBoxMQTTTopic.Location = new System.Drawing.Point(78, 167);
+            this.textBoxMQTTTopic.Location = new System.Drawing.Point(79, 282);
             this.textBoxMQTTTopic.Name = "textBoxMQTTTopic";
             this.textBoxMQTTTopic.Size = new System.Drawing.Size(109, 20);
             this.textBoxMQTTTopic.TabIndex = 11;
@@ -160,7 +159,7 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(193, 170);
+            this.label7.Location = new System.Drawing.Point(194, 285);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(65, 13);
             this.label7.TabIndex = 12;
@@ -168,7 +167,7 @@
             // 
             // textBoxMQTTGroup
             // 
-            this.textBoxMQTTGroup.Location = new System.Drawing.Point(264, 167);
+            this.textBoxMQTTGroup.Location = new System.Drawing.Point(265, 282);
             this.textBoxMQTTGroup.Name = "textBoxMQTTGroup";
             this.textBoxMQTTGroup.Size = new System.Drawing.Size(118, 20);
             this.textBoxMQTTGroup.TabIndex = 13;
@@ -176,7 +175,7 @@
             // label8
             // 
             this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(13, 202);
+            this.label8.Location = new System.Drawing.Point(14, 317);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(32, 13);
             this.label8.TabIndex = 14;
@@ -184,7 +183,7 @@
             // 
             // textBoxMQTTUser
             // 
-            this.textBoxMQTTUser.Location = new System.Drawing.Point(78, 199);
+            this.textBoxMQTTUser.Location = new System.Drawing.Point(79, 314);
             this.textBoxMQTTUser.Name = "textBoxMQTTUser";
             this.textBoxMQTTUser.Size = new System.Drawing.Size(304, 20);
             this.textBoxMQTTUser.TabIndex = 15;
@@ -192,7 +191,7 @@
             // label9
             // 
             this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(12, 227);
+            this.label9.Location = new System.Drawing.Point(13, 342);
             this.label9.Name = "label9";
             this.label9.Size = new System.Drawing.Size(56, 13);
             this.label9.TabIndex = 16;
@@ -200,7 +199,7 @@
             // 
             // textBoxMQTTPass
             // 
-            this.textBoxMQTTPass.Location = new System.Drawing.Point(78, 225);
+            this.textBoxMQTTPass.Location = new System.Drawing.Point(79, 340);
             this.textBoxMQTTPass.Name = "textBoxMQTTPass";
             this.textBoxMQTTPass.Size = new System.Drawing.Size(304, 20);
             this.textBoxMQTTPass.TabIndex = 17;
@@ -235,6 +234,7 @@
             this.listViewGPIO.UseCompatibleStateImageBehavior = false;
             this.listViewGPIO.View = System.Windows.Forms.View.Details;
             this.listViewGPIO.MouseClick += new System.Windows.Forms.MouseEventHandler(this.listView1_MouseClick);
+            this.listViewGPIO.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.listViewGPIO_MouseDoubleClick);
             // 
             // columnHeader1
             // 
@@ -281,6 +281,7 @@
             this.Controls.Add(this.label1);
             this.Name = "FormOBKConfig";
             this.Text = "FormOBKConfig";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FormOBKConfig_FormClosing);
             this.Load += new System.EventHandler(this.FormOBKConfig_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.FormOBKConfig_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.FormOBKConfig_DragEnter);

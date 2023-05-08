@@ -43,15 +43,24 @@ namespace BK7231Flasher
             {
                 ListViewItem it = listViewGPIO.Items[i];
                 it.SubItems[0].Text = "P" + i;
-                it.SubItems[1].Text = OBKRoles.names[cfg.getPinRole(i)];
+                int role = cfg.getPinRole(i);
+                it.SubItems[1].Text = OBKRoles.names[role];
                 it.SubItems[2].Text = "" + cfg.getPinChannel(i);
                 it.SubItems[3].Text = "" + cfg.getPinChannel2(i);
+                if(role == 0)
+                {
+                    it.ForeColor = Color.Gray;
+                }
+                else
+                {
+                    it.ForeColor = Color.Black;
+                }
             }
         }
         private void FormOBKConfig_Load(object sender, EventArgs e)
         {
             fp = new FormPin();
-             cfg = new OBKConfig() ;
+            cfg = new OBKConfig() ;
             this.textBoxWiFiSSID.DataBindings.Add(new Binding("Text", cfg, "wifi_ssid"));
             this.textBoxWiFiPass.DataBindings.Add(new Binding("Text", cfg, "wifi_pass"));
             this.textBoxMQTTPort.DataBindings.Add(new Binding("Text", cfg, "mqtt_port"));
@@ -133,13 +142,28 @@ namespace BK7231Flasher
                 {
                     type = BKType.BK7231T;
                 }
-                cfg.loadFrom(fname, type);
+                bool bOk = cfg.loadFrom(fname, type);
+                if(bOk == false)
+                {
+                    TuyaConfig tc = new TuyaConfig();
+                    if (!tc.fromFile(fname))
+                    {
+                        if (!tc.extractKeys())
+                        {
+                            tc.getKeysHumanReadable(cfg);
+                        }
+                    }
+                }
                 refreshBinding();
                 refreshPins();
             }
         }
 
         private void listView1_MouseClick(object sender, MouseEventArgs e)
+        {
+        }
+
+        private void listViewGPIO_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             ListView listView = (ListView)sender;
             ListViewItem clickedItem = listView.HitTest(e.Location).Item;
@@ -152,6 +176,12 @@ namespace BK7231Flasher
                 fp.ShowDialog();
                 refreshPins();
             }
+        }
+
+        private void FormOBKConfig_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            this.Hide();
+            e.Cancel = true; // this cancels the close event.
         }
     }
 }

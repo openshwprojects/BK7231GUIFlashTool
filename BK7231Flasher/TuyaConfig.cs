@@ -122,7 +122,7 @@ namespace BK7231Flasher
             File.WriteAllBytes("lastRawDecryptedStrings.bin", descryptedRaw);
             return false;
         }
-        public string getKeysHumanReadable()
+        public string getKeysHumanReadable(OBKConfig tg = null)
         {
             string desc = "";
             for (int i = 0; i < parms.Count; i++)
@@ -134,69 +134,139 @@ namespace BK7231Flasher
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- LED (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.LED);
+                        tg.setPinChannel(value, number);
+                    }
                 }
                 else if (Regex.IsMatch(key, "^netled\\d+_pin$"))
                 {
                     // some devices have netled1_pin, some have netled_pin
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- WiFi LED on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.WifiLED_n);
+                    }
                 }
                 else if (Regex.IsMatch(key, "^rl\\d+_pin$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- Relay (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Rel);
+                        tg.setPinChannel(value, number);
+                    }
                 }
                 else if (Regex.IsMatch(key, "^bt\\d+_pin$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Btn);
+                        tg.setPinChannel(value, number);
+                    }
                 }
                 else if(Regex.IsMatch(key, "^door\\d+_magt_pin$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- Door Sensor (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.dInput);
+                        tg.setPinChannel(value, number);
+                    }
                 }
                 else if(Regex.IsMatch(key, "^onoff\\d+$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
                     desc += "- TglChannelToggle (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.TglChanOnTgl);
+                        tg.setPinChannel(value, number);
+                    }
                 }
                 else if (key == "netled_pin")
                 {
                     // some devices have netled1_pin, some have netled_pin
                     desc += "- WiFi LED on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.WifiLED_n);
+                    }
                 }
                 else if(key == "ele_pin")
                 {
                     desc += "- BL0937 ELE on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.BL0937CF1);
+                    }
                 }
                 else if (key == "vi_pin")
                 {
                     desc += "- BL0937 VI on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.BL0937CF);
+                    }
                 }
                 else if (key == "sel_pin_pin")
                 {
                     desc += "- BL0937 SEL on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.BL0937SEL);
+                    }
                 }
                 else if (key == "r_pin")
                 {
                     desc += "- LED Red (Channel 1) on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.PWM);
+                        tg.setPinChannel(value, 0);
+                    }
                 }
                 else if (key == "g_pin")
                 {
                     desc += "- LED Green (Channel 2) on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.PWM);
+                        tg.setPinChannel(value, 1);
+                    }
                 }
                 else if (key == "b_pin")
                 {
                     desc += "- LED Blue (Channel 3) on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.PWM);
+                        tg.setPinChannel(value, 2);
+                    }
                 }
                 else if (key == "c_pin")
                 {
                     desc += "- LED Cool (Channel 4) on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.PWM);
+                        tg.setPinChannel(value, 3);
+                    }
                 }
                 else if (key == "w_pin")
                 {
                     desc += "- LED Warm (Channel 5) on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.PWM);
+                        tg.setPinChannel(value, 4);
+                    }
                 }
                 else if (key == "ctrl_pin")
                 {
@@ -205,6 +275,10 @@ namespace BK7231Flasher
                 else if (key == "total_bt_pin")
                 {
                     desc += "- Pair/Toggle All Pin on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Btn_Tgl_All);
+                    }
                 }
                 else
                 {

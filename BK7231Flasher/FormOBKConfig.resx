@@ -117,6 +117,20 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="label1.Text" xml:space="preserve">
+    <value>This tool can automatically configure OBK on the first flashing operation of the device.
+USAGE:
+- you can drag and drop OBK device binary 2MB (or only config downloaded from Web App Flash tab) 
+  in order to inspect it's config content
+- you can also drag and drop Tuya device 2MB binary here to import GPIO settings (if possible), this will 
+   overwrite GPIOs but won't change WiFi/SSID/etc
+- a "Read device" operation in flasher will automatically update this tab content with loaded settings
+- a "Write device" operation will automatically flash this OBK config (if it's enabled)
+- so, if you want to flash a Tuya device, for example 2 gang switch, you need to: first enter WiFi/pass/etc
+   data here (optional), then do Read backup and write, and it will automatically apply Tuya config to OBK
+
+</value>
+  </data>
   <metadata name="timer1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
   </metadata>

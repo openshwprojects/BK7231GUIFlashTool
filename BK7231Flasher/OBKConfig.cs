@@ -6,7 +6,7 @@ using System.Text;
 
 namespace BK7231Flasher
 {
-    class OBKConfig : ConfigBase
+    public class OBKConfig : ConfigBase
     {
         static byte DEFAULT_BOOT_SUCCESS_TIME = 5;
         static int OBK_CONFIG_VERSION = 4;
@@ -19,6 +19,13 @@ namespace BK7231Flasher
         static byte CFG_DEFAULT_BTN_REPEAT = 5;
 
 
+        public void zeroMemory()
+        {
+            for(int i = 0; i < raw.Length; i++)
+            {
+                raw[i] = 0;
+            }
+        }
         public int version
         {
             get
@@ -74,7 +81,6 @@ namespace BK7231Flasher
                 writeByte(0x000004B9, value);
             }
         }
-
         internal bool loadFrom(string fname, BKType type)
         {
             int offset = OBKFlashLayout.getConfigLocation(type);
@@ -83,7 +89,12 @@ namespace BK7231Flasher
                 stream.Seek(offset, SeekOrigin.Begin);
                 int bytesRead = stream.Read(this.raw, 0, this.raw.Length);
             }
-            return isValid();
+            if (isValid())
+            {
+                return true;
+            }
+            zeroMemory();
+            return false;
         }
         public byte buttonHoldRepeat
         {
@@ -287,6 +298,28 @@ namespace BK7231Flasher
                 return 0;
             return readByte(0x033E + index);
         }
+        public void setPinChannel(string index, int nc)
+        {
+            int idx;
+            if (!int.TryParse(index, out idx))
+            {
+                return;
+            }
+            setPinChannel(idx, (byte)nc);
+        }
+        public void setPinRole(string index, PinRole nr)
+        {
+            int idx;
+            if(!int.TryParse(index, out idx))
+            {
+                return;
+            }
+            setPinRole(idx, nr);
+        }
+        public void setPinRole(int index, PinRole nr)
+        {
+            setPinRole(index, (byte)nr);
+        }
         public void setPinRole(int index, byte nr)
         {
             if (index > MAX_GPIO)
@@ -423,12 +456,21 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            crc = CRC.Tiny_CRC8(raw, 4, raw.Length - 4);
+            int useLen = getLenForVersion(version);
+            crc = CRC.Tiny_CRC8(raw, 4, useLen - 4);
             if(raw[3] != crc)
             {
                 return false;
             }
             return true;
+        }
+        static int getLenForVersion(int v)
+        {
+            if(v <= 3)
+            {
+                return 2016;
+            }
+            return 3584;
         }
         public void saveConfig()
         {

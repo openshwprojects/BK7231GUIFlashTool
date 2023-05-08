@@ -5,7 +5,7 @@ using System.Text;
 
 namespace BK7231Flasher
 {
-    class ConfigBase
+    public class ConfigBase
     {
         protected byte[] raw = new byte[3584];
 

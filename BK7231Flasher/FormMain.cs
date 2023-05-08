@@ -82,9 +82,23 @@ namespace BK7231Flasher
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
-          //  var t = new TuyaConfig();
-          //  t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
-           //// t.extractKeys();
+
+
+            unchecked
+            {
+                byte[] data1 = { 0x01, 0x02, 0x03 };
+                byte crc1 = CRC.Tiny_CRC8(data1, 0, 3);
+                byte[] data2 = { (byte)0xF1, (byte)0xF2, (byte)0xF3 };
+                byte crc2 = CRC.Tiny_CRC8(data2, 0, 3);
+
+                Console.Write("test");
+
+            }
+
+
+            //  var t = new TuyaConfig();
+            //  t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
+            //// t.extractKeys();
 
             tabControl1.TabPages.Remove(tabPagePageTool);
             if (Directory.Exists(backupsPath) == false)
