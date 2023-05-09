@@ -95,6 +95,7 @@
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.checkBoxAutoReadTuya = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -195,6 +196,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.checkBoxAutoReadTuya);
             this.tabPage1.Controls.Add(this.buttonChangeOBKSettings);
             this.tabPage1.Controls.Add(this.checkBoxAutoOBKConfig);
             this.tabPage1.Controls.Add(this.checkBoxAllowBackup);
@@ -234,7 +236,7 @@
             // 
             // buttonChangeOBKSettings
             // 
-            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(242, 152);
+            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(470, 153);
             this.buttonChangeOBKSettings.Name = "buttonChangeOBKSettings";
             this.buttonChangeOBKSettings.Size = new System.Drawing.Size(196, 23);
             this.buttonChangeOBKSettings.TabIndex = 29;
@@ -245,7 +247,7 @@
             // checkBoxAutoOBKConfig
             // 
             this.checkBoxAutoOBKConfig.AutoSize = true;
-            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(11, 156);
+            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(239, 155);
             this.checkBoxAutoOBKConfig.Name = "checkBoxAutoOBKConfig";
             this.checkBoxAutoOBKConfig.Size = new System.Drawing.Size(225, 17);
             this.checkBoxAutoOBKConfig.TabIndex = 28;
@@ -785,6 +787,18 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
+            // checkBoxAutoReadTuya
+            // 
+            this.checkBoxAutoReadTuya.AutoSize = true;
+            this.checkBoxAutoReadTuya.Checked = true;
+            this.checkBoxAutoReadTuya.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxAutoReadTuya.Location = new System.Drawing.Point(11, 155);
+            this.checkBoxAutoReadTuya.Name = "checkBoxAutoReadTuya";
+            this.checkBoxAutoReadTuya.Size = new System.Drawing.Size(222, 17);
+            this.checkBoxAutoReadTuya.TabIndex = 30;
+            this.checkBoxAutoReadTuya.Text = "Automatically extract Tuya Config on read";
+            this.checkBoxAutoReadTuya.UseVisualStyleBackColor = true;
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -876,6 +890,7 @@
         private System.Windows.Forms.TextBox textBoxTuyaCFGText;
         private System.Windows.Forms.Button buttonChangeOBKSettings;
         private System.Windows.Forms.CheckBox checkBoxAutoOBKConfig;
+        private System.Windows.Forms.CheckBox checkBoxAutoReadTuya;
     }
 }
 

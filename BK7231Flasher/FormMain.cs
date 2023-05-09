@@ -83,8 +83,7 @@ namespace BK7231Flasher
         private void Form1_Load(object sender, EventArgs e)
         {
 
-
-            unchecked
+#if false
             {
                 byte[] data1 = { 0x01, 0x02, 0x03 };
                 byte crc1 = CRC.Tiny_CRC8(data1, 0, 3);
@@ -94,6 +93,7 @@ namespace BK7231Flasher
                 Console.Write("test");
 
             }
+#endif
 
 
             //  var t = new TuyaConfig();
@@ -104,6 +104,11 @@ namespace BK7231Flasher
             if (Directory.Exists(backupsPath) == false)
             {
                 Directory.CreateDirectory(backupsPath);
+            }
+
+            if (formObkCfg == null)
+            {
+                formObkCfg = new FormOBKConfig(this);
             }
 
             settings = MySettings.CreateAndLoad("settings.cfg");
@@ -518,35 +523,45 @@ namespace BK7231Flasher
         }
         public void onReadResultQIOSaved(byte[] dat, string fullPath)
         {
-            addLog("Backup 2MB created, now will attempt to extract Tuya config.", Color.Gray);
-            try
+            if(checkBoxAutoReadTuya.Checked == false)
             {
-                TuyaConfig tc = new TuyaConfig();
-                if (tc.fromBytes(dat) == false)
+                addLog("Backup 2MB created, but Tuya config reading is disabled on GUI, skipping extraction."+Environment.NewLine, Color.Gray);
+            }
+            else
+            {
+                addLog("Backup 2MB created, now will attempt to extract Tuya config." + Environment.NewLine, Color.Gray);
+                try
                 {
-                    if (tc.extractKeys() == false)
+                    TuyaConfig tc = new TuyaConfig();
+                    if (tc.fromBytes(dat) == false)
                     {
-                        Singleton.buttonRead.Invoke((MethodInvoker)delegate {
-                            // Running on the UI thread
-                            FormExtractedConfig fo = new FormExtractedConfig();
-                            fo.showConfig(tc);
-                            fo.Show();
-                        });
-                        addLog("Tuya config extracted and shown.", Color.Green);
+                        if (tc.extractKeys() == false)
+                        {
+                            Singleton.buttonRead.Invoke((MethodInvoker)delegate {
+                                // Running on the UI thread
+                                FormExtractedConfig fo = new FormExtractedConfig();
+                                fo.showConfig(tc);
+                                fo.Show();
+                            });
+                            // also pass to new config window
+                            formObkCfg.loadFromTuyaConfig(tc);
+
+                            addLog("Tuya config extracted and shown." + Environment.NewLine, Color.Green);
+                        }
+                        else
+                        {
+                            addLog("Sorry, failed to extract keys from Tuya Config in backup binary." + Environment.NewLine, Color.DarkOrange);
+                        }
                     }
                     else
                     {
-                        addLog("Sorry, failed to extract keys from Tuya Config in backup binary.", Color.Yellow);
+                        addLog("Sorry, failed to find Tuya Config in backup binary." + Environment.NewLine, Color.DarkOrange);
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    addLog("Sorry, failed to find Tuya Config in backup binary.", Color.Yellow);
+                    addLog("Sorry, failed to find Tuya Config in backup binary due to an unknown exception " + ex.ToString() + "" + Environment.NewLine, Color.DarkRed);
                 }
-            }
-            catch(Exception ex)
-            {
-                addLog("Sorry, failed to find Tuya Config in backup binary due to an unknown exception " + ex.ToString()+"", Color.Yellow);
             }
         }
         public int addToFirmaresList(string dir)
@@ -877,10 +892,6 @@ namespace BK7231Flasher
         FormOBKConfig formObkCfg;
         private void buttonChangeOBKSettings_Click(object sender, EventArgs e)
         {
-            if (formObkCfg == null)
-            {
-                formObkCfg = new FormOBKConfig(this);
-            }
             formObkCfg.Show();
         }
     }

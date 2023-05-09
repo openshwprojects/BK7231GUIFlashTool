@@ -619,6 +619,10 @@ namespace BK7231Flasher
             addLog("Getting bus... (now, please do reboot by CEN or by power off/on)" + Environment.NewLine);
             for (int tr = 0; tr < maxTries && !bOk; tr++)
             {
+                if(tr % 10 == 0)
+                {
+                    serial.WriteLine("reboot");
+                }
                 for (int l = 0; l < loops && !bOk; l++)
                 {
                     bOk = linkCheck();

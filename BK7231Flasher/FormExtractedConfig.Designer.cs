@@ -103,7 +103,7 @@
             this.Controls.Add(this.textBoxTuyaCFGJSON);
             this.Controls.Add(this.label1);
             this.Name = "FormExtractedConfig";
-            this.Text = "FormExtractedConfig";
+            this.Text = "Tuya Config Quick Viewer - see original Tuya user_param_key device configuration";
             this.Load += new System.EventHandler(this.FormExtractedConfig_Load);
             this.ResumeLayout(false);
             this.PerformLayout();

@@ -131,6 +131,10 @@ namespace BK7231Flasher
             }
         }
 
+        internal void loadFromTuyaConfig(TuyaConfig tc)
+        {
+            tc.getKeysHumanReadable(cfg);
+        }
         private void FormOBKConfig_DragDrop(object sender, DragEventArgs e)
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -183,5 +187,6 @@ namespace BK7231Flasher
             this.Hide();
             e.Cancel = true; // this cancels the close event.
         }
+
     }
 }
