@@ -385,7 +385,7 @@ namespace BK7231Flasher
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
-            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile,false);
+            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.ReadAndWrite);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
@@ -397,7 +397,17 @@ namespace BK7231Flasher
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
-            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile,true);
+            flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+        void doOnlyFlashOBKConfig()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            flasher.doReadAndWrite(0, 0, "", WriteMode.OnlyOBKConfig);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
@@ -428,22 +438,11 @@ namespace BK7231Flasher
             return sectors;
 #endif
         }
-        int getRFOffset()
-        {
-            if (curType == BKType.BK7231T)
-            {
-                return 0x1e0000;
-            }
-            else
-            {
-                return 0x1d0000;
-            }
-        }
         void restoreRF()
         {
             clearUp();
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
-            int startOfs = getRFOffset();
+            int startOfs = RFPartitionUtil.getRFOffset(curType);
             byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
             flasher.doWrite(startOfs, data);
             worker = null;
@@ -472,6 +471,21 @@ namespace BK7231Flasher
             int sectors = getBackupSectorCountForCurrentPlatform();
             flasher.doRead(startSector, sectors);
             flasher.saveReadResult();
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+        void doOnlyReadOBKConfig()
+        {
+            clearUp();
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            // thanks to wrap around hack, we can read from start correctly
+            int startSector = OBKFlashLayout.getConfigLocation(curType);
+            int sectors = 1;
+            flasher.doRead(startSector, sectors);
+            byte [] res = flasher.getReadResult();
+            formObkCfg.tryToLoadOBKConfig(res, curType, false);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
@@ -521,9 +535,38 @@ namespace BK7231Flasher
             }*/
             return false;
         }
+        public OBKConfig getConfig()
+        {
+              return formObkCfg.getCFG();
+        }
+        public OBKConfig getConfigToWrite()
+        {
+            if (checkBoxAutoOBKConfig.Checked)
+            {
+                return formObkCfg.getCFG();
+            }
+            return null;
+        }
         public void onReadResultQIOSaved(byte[] dat, string fullPath)
         {
-            if(checkBoxAutoReadTuya.Checked == false)
+            if (checkBoxReadOBKConfig.Checked)
+            {
+                addLog("Backup 2MB created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
+                if(formObkCfg.tryToLoadOBKConfig(dat, curType))
+                {
+                    addLog("OBK config not found." + Environment.NewLine, Color.DarkRed);
+                }
+                else
+                {
+                    addLog("OBK config extracted." + Environment.NewLine, Color.Green);
+                }
+            }
+            else
+            {
+                addLog("Backup 2MB created, but OBK config reading is disabled on GUI, skipping extraction." + Environment.NewLine, Color.Gray);
+            }
+
+            if (checkBoxAutoReadTuya.Checked == false)
             {
                 addLog("Backup 2MB created, but Tuya config reading is disabled on GUI, skipping extraction."+Environment.NewLine, Color.Gray);
             }
@@ -537,16 +580,29 @@ namespace BK7231Flasher
                     {
                         if (tc.extractKeys() == false)
                         {
+                            byte[] mac = RFPartitionUtil.getMACFromQio(dat, curType);
                             Singleton.buttonRead.Invoke((MethodInvoker)delegate {
                                 // Running on the UI thread
                                 FormExtractedConfig fo = new FormExtractedConfig();
                                 fo.showConfig(tc);
+                                fo.showMAC(mac);
                                 fo.Show();
                             });
                             // also pass to new config window
                             formObkCfg.loadFromTuyaConfig(tc);
+                            formObkCfg.onMACLoaded(mac,curType);
 
                             addLog("Tuya config extracted and shown." + Environment.NewLine, Color.Green);
+                            string macStr = "";
+                            for(int k = 0; k < 6; k++)
+                            {
+                                if(k!= 0)
+                                {
+                                    macStr += ":";
+                                }
+                                macStr += mac[k].ToString("X2");
+                            }
+                            addLog("MAC seems to be " + macStr + Environment.NewLine, Color.Green);
                         }
                         else
                         {
@@ -714,6 +770,7 @@ namespace BK7231Flasher
 
         private void button4_Click(object sender, EventArgs e)
         {
+            showObkConfigFormIfPossible();
             if (doGenericOperationPreparations() == false)
             {
                 return;
@@ -798,6 +855,7 @@ namespace BK7231Flasher
 
         private void buttonWriteOnly_Click(object sender, EventArgs e)
         {
+            showObkConfigFormIfPossible();
             if (doGenericOperationPreparations() == false)
             {
                 return;
@@ -893,6 +951,33 @@ namespace BK7231Flasher
         private void buttonChangeOBKSettings_Click(object sender, EventArgs e)
         {
             formObkCfg.Show();
+        }
+        void showObkConfigFormIfPossible()
+        {
+            if (formObkCfg.Visible)
+            {
+                formObkCfg.saveBinding();
+            }
+        }
+        private void buttonWriteOBKConfig_Click(object sender, EventArgs e)
+        {
+            showObkConfigFormIfPossible();
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            //setButtonReadLabel(label_stopRead);
+            startWorkerThread(doOnlyFlashOBKConfig);
+        }
+
+        private void buttonReadOBKConfig_Click(object sender, EventArgs e)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            //setButtonReadLabel(label_stopRead);
+            startWorkerThread(doOnlyReadOBKConfig);
         }
     }
 }

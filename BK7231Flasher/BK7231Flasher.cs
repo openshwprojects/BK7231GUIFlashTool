@@ -14,7 +14,14 @@ namespace BK7231Flasher
     public enum BKType
     {
         BK7231T,
-        BK7231N
+        BK7231N,
+        Detect
+    }
+    public enum WriteMode
+    {
+        ReadAndWrite,
+        OnlyWrite,
+        OnlyOBKConfig
     }
     public class BK7231Flasher
     {
@@ -275,7 +282,10 @@ namespace BK7231Flasher
             ret[9] = (byte)((addr >> 8) & 0xff);
             ret[10] = (byte)((addr >> 16) & 0xff);
             ret[11] = (byte)((addr >> 24) & 0xff);
-            Array.Copy(data, startOfs, ret, 12, 4096);
+            int lenToCopy = 4096;
+            if (lenToCopy > data.Length)
+                lenToCopy = data.Length;
+            Array.Copy(data, startOfs, ret, 12, lenToCopy);
             return ret;
         }
         byte[] BuildCmd_FlashWrite(int addr, byte[] data, int startOfs, int writeLen)
@@ -671,11 +681,11 @@ namespace BK7231Flasher
             }
         }
         
-        public void doReadAndWrite(int startSector, int sectors, string sourceFileName, bool bSkipWrite)
+        public void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             try
             {
-                doReadAndWriteInternal(startSector, sectors, sourceFileName, bSkipWrite);
+                doReadAndWriteInternal(startSector, sectors, sourceFileName, rwMode);
             }
             catch (Exception ex)
             {
@@ -714,6 +724,10 @@ namespace BK7231Flasher
             {
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
+        }
+        public byte []getReadResult()
+        {
+            return ms.ToArray();
         }
         bool saveReadResult(string fileName)
         {
@@ -914,37 +928,92 @@ namespace BK7231Flasher
             addSuccess("SetProtectState(" + unprotect + ") success!" + Environment.NewLine);
             return true;
         }
-        bool writeChunk(int startSector, byte [] data)
+        bool writeChunk(int startSector, byte [] data, WriteMode rwMode)
         {
-            logger.setState("Writing...", Color.Transparent);
-            data = MiscUtils.padArray(data, SECTOR_SIZE);
-            int sectors = data.Length / SECTOR_SIZE;
-            logger.setProgress(0, sectors);
-            if (doEraseInternal(startSector, sectors) == false)
+            OBKConfig cfg;
+            if(rwMode == WriteMode.OnlyOBKConfig)
             {
-                return false;
+                cfg = logger.getConfig();
+            }
+            else
+            {
+                cfg = logger.getConfigToWrite();
+            }
+            int ofs = OBKFlashLayout.getConfigLocation(chipType);
+            logger.setState("Writing...", Color.Transparent);
+            int sectors;
+            if (data != null)
+            {
+                data = MiscUtils.padArray(data, SECTOR_SIZE);
+                sectors = data.Length / SECTOR_SIZE;
+            }
+            else
+            {
+                sectors = 1;
+            }
+            logger.setProgress(0, sectors);
+            if (data != null)
+            {
+                if (doEraseInternal(startSector, sectors) == false)
+                {
+                    return false;
+                }
+            }
+            if (cfg != null)
+            {
+                if (doEraseInternal(ofs, 1) == false)
+                {
+                    return false;
+                }
             }
             logger.setState("Writing...", Color.Transparent);
-            for (int sec = 0; sec < sectors; sec++)
+            if (data != null)
             {
-                int secAddr = startSector + SECTOR_SIZE * sec;
-                // 4K write
-                bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
-                //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
-                addLog("Writing sector " + formatHex(secAddr) + "...");
+                for (int sec = 0; sec < sectors; sec++)
+                {
+                    int secAddr = startSector + SECTOR_SIZE * sec;
+                    // 4K write
+                    bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
+                    //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
+                    addLog("Writing sector " + formatHex(secAddr) + "...");
+                    if (bOk == false)
+                    {
+                        logger.setState("Writing error!", Color.Red);
+                        addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                        return false;
+                    }
+                    logger.setProgress(sec + 1, sectors);
+                    addLog(" ok! ");
+                }
+                if (false == checkCRC(startSector, sectors, data))
+                {
+                    logger.setState("Bad CRC!", Color.Red);
+                    return false;
+                }
+            }
+
+            addLog(Environment.NewLine);
+            if (cfg != null)
+            {
+                addLog("Now will also write OBK config..." + Environment.NewLine);
+                cfg.saveConfig();
+                addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                addLog("Writing config sector " + formatHex(ofs) + "...");
+                byte[] wd = MiscUtils.padArray(cfg.getData(), SECTOR_SIZE);
+                bool bOk = writeSector4K(ofs, wd, 0);
                 if (bOk == false)
                 {
                     logger.setState("Writing error!", Color.Red);
-                    addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                    addError("Writing OBK config data to chip failed." + Environment.NewLine);
                     return false;
                 }
-                logger.setProgress(sec + 1, sectors);
-                addLog(" ok! ");
+                logger.setState("OBK config write success!", Color.Green);
             }
-            if (false == checkCRC(startSector, sectors, data))
+            else
             {
-                logger.setState("Bad CRC!", Color.Red);
-                return false;
+                addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
             }
             logger.setState("Write success!", Color.Green);
             return true;
@@ -992,7 +1061,7 @@ namespace BK7231Flasher
                     return false;
                 }
             }
-            if (writeChunk(startSector, data) == false)
+            if (writeChunk(startSector, data,WriteMode.OnlyWrite) == false)
             {
                 return false;
             }
@@ -1117,13 +1186,17 @@ namespace BK7231Flasher
             addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
             return true;
         }
-        
-        bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, bool bSkipWrite)
+
+        bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             logger.setProgress(0, sectors);
-            if(bSkipWrite)
+            if (rwMode == WriteMode.OnlyWrite)
             {
                 addLog(Environment.NewLine + "Starting flash new (no backup)!" + Environment.NewLine);
+            }
+            else if (rwMode == WriteMode.OnlyOBKConfig)
+            {
+                addLog(Environment.NewLine + "Starting write only OBK config!" + Environment.NewLine);
             }
             else
             {
@@ -1133,7 +1206,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if(bSkipWrite == false)
+            if (rwMode == WriteMode.ReadAndWrite)
             {
                 //ms = readChunk(startSector, sectors);
                 ms = readChunk(0, TOTAL_SECTORS);
@@ -1146,23 +1219,27 @@ namespace BK7231Flasher
                     return false;
                 }
             }
-            byte[] data;
-            addLog("Reading file " + sourceFileName +"..." + Environment.NewLine);
-            data = File.ReadAllBytes(sourceFileName);
-            if(data == null)
-            {
-                addError("Failed to open " + sourceFileName + "..." + Environment.NewLine);
-                return false;
-            }
-            addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
-            if(sourceFileName.Contains("_QIO_") && this.chipType == BKType.BK7231T && startSector == BK7231Flasher.BOOTLOADER_SIZE)
-            {
-                // very hacky, but skip bootloader
-                int length = data.Length - startSector; 
-                byte[] newData = new byte[length];
-                Array.Copy(data, startSector, newData, 0, length); 
-                data = newData;
-                addWarning("Using BK7231T hack to write QIO - just skip bootloader" + Environment.NewLine);
+
+            byte[] data = null;
+            if (rwMode != WriteMode.OnlyOBKConfig)
+            { 
+                addLog("Reading file " + sourceFileName + "..." + Environment.NewLine);
+                data = File.ReadAllBytes(sourceFileName);
+                if (data == null)
+                {
+                    addError("Failed to open " + sourceFileName + "..." + Environment.NewLine);
+                    return false;
+                }
+                addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
+                if (sourceFileName.Contains("_QIO_") && this.chipType == BKType.BK7231T && startSector == BK7231Flasher.BOOTLOADER_SIZE)
+                {
+                    // very hacky, but skip bootloader
+                    int length = data.Length - startSector;
+                    byte[] newData = new byte[length];
+                    Array.Copy(data, startSector, newData, 0, length);
+                    data = newData;
+                    addWarning("Using BK7231T hack to write QIO - just skip bootloader" + Environment.NewLine);
+                }
             }
             addLog("Preparing to write data file to chip - resetting bus and baud..." + Environment.NewLine);
             // it must be redone
@@ -1177,7 +1254,7 @@ namespace BK7231Flasher
                     return false;
                 }
             }
-            if (writeChunk(startSector, data) == false)
+            if (writeChunk(startSector, data, rwMode) == false)
             {
                 addError("Writing file data to chip failed." + Environment.NewLine);
                 return false;

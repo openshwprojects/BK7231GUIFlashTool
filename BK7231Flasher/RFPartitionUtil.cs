@@ -4,10 +4,24 @@ namespace BK7231Flasher
 {
     internal class RFPartitionUtil
     {
-        public static Random r = new Random(DateTime.Now.Millisecond);
-        public static byte getRandomByte()
+        public static int RF_MAC_OFS = 36;
+
+        public static byte [] getMACFromQio(byte [] data, BKType type)
         {
-            return (byte)r.Next(0, 255);
+            int mac_ofs = getRFOffset(type) + RF_MAC_OFS;
+            return MiscUtils.subArray(data, mac_ofs, 6);
+        }
+
+        public static int getRFOffset(BKType curType)
+        {
+            if (curType == BKType.BK7231T)
+            {
+                return 0x1e0000;
+            }
+            else
+            {
+                return 0x1d0000;
+            }
         }
         internal static byte[] constructRFDataFor(BKType curType, int sectorSize)
         {
@@ -31,9 +45,9 @@ namespace BK7231Flasher
 0x56, 0x94, 0x56, 0x94, 0x54, 0x94, 0x54, 0x94, 0x55, 0x95, 0x54, 0x95, 0x55, 0x95, 0x54, 0x95, 0x02, 0x44, 0x44, 0x44, 0x04, 0x00, 0x00, 0x00, 0xee, 0x01, 0x00, 0x00, 0x03, 0x44, 0x44, 0x44,
 0x04, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
                 // NOTE: MAC 84:e3:42:b2:61:bf
-                correct_rf_config[39] = getRandomByte();// replace 0xb2
-                correct_rf_config[40] = getRandomByte();// replace 0x61
-                correct_rf_config[41] = getRandomByte();// replace 0xbf
+                correct_rf_config[39] = Rand.getRandomByte();// replace 0xb2
+                correct_rf_config[40] = Rand.getRandomByte();// replace 0x61
+                correct_rf_config[41] = Rand.getRandomByte();// replace 0xbf
             }
             else if (curType == BKType.BK7231N)
             {
@@ -42,9 +56,9 @@ namespace BK7231Flasher
 , 0x53, 0x01, 0x05, 0x11, 0x11, 0x11, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x06, 0x11, 0x11, 0x11, 0x04, 0x00, 0x00, 0x00, 0x55, 0x00, 0x54, 0x03, 0x07, 0x11, 0x11, 0x11, 0x08, 0x00
 , 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
                 // NOTE: MAC 38:1f:8d:38:57:0e
-                correct_rf_config[39] = getRandomByte();// replace 0x38
-                correct_rf_config[40] = getRandomByte();// replace 0x57
-                correct_rf_config[41] = getRandomByte();// replace 0x0e
+                correct_rf_config[39] = Rand.getRandomByte();// replace 0x38
+                correct_rf_config[40] = Rand.getRandomByte();// replace 0x57
+                correct_rf_config[41] = Rand.getRandomByte();// replace 0x0e
             }
             else
             {

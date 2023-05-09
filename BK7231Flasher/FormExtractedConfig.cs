@@ -21,10 +21,14 @@ namespace BK7231Flasher
               textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
               textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
         }
-
         private void FormExtractedConfig_Load(object sender, EventArgs e)
         {
 
+        }
+        internal void showMAC(byte[] mac)
+        {
+            string macString = BitConverter.ToString(mac).Replace("-", ":");
+            labelMac.Text = "The MAC address of this device seems to be " + macString;
         }
     }
 }

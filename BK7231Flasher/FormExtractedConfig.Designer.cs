@@ -34,6 +34,7 @@
             this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
+            this.labelMac = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // label1
@@ -52,7 +53,7 @@
             this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(17, 66);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
-            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(317, 372);
+            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(317, 356);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
             // textBoxTuyaCFGText
@@ -60,7 +61,7 @@
             this.textBoxTuyaCFGText.Location = new System.Drawing.Point(340, 66);
             this.textBoxTuyaCFGText.Multiline = true;
             this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
-            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(317, 372);
+            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(317, 356);
             this.textBoxTuyaCFGText.TabIndex = 2;
             // 
             // label2
@@ -91,11 +92,21 @@
             this.label4.Text = "You can just copy-paste the JSON format into OBK Web App->Import field to setup G" +
     "PIO of your device.";
             // 
+            // labelMac
+            // 
+            this.labelMac.AutoSize = true;
+            this.labelMac.Location = new System.Drawing.Point(17, 429);
+            this.labelMac.Name = "labelMac";
+            this.labelMac.Size = new System.Drawing.Size(200, 13);
+            this.labelMac.TabIndex = 6;
+            this.labelMac.Text = "It also seems that device MAC is [TODO]";
+            // 
             // FormExtractedConfig
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(815, 480);
+            this.Controls.Add(this.labelMac);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
@@ -118,5 +129,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Label labelMac;
     }
 }

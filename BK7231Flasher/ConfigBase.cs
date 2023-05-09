@@ -17,21 +17,34 @@ namespace BK7231Flasher
         {
             return raw[ofs];
         }
+        internal byte[] getData()
+        {
+            return raw;
+        }
         protected void writeStr(int ofs, string value, int maxLen)
         {
             byte[] strBytes = Encoding.ASCII.GetBytes(value);
             int len = strBytes.Length;
-            if (len > maxLen)
-                len = maxLen;
+            if (len > maxLen-1)
+                len = maxLen-1;
             for(int i = 0; i < len; i++)
             {
                 writeByte(ofs + i, strBytes[i]);
             }
+            writeByte(ofs + len, 0);
         }
         protected string readStr(int ofs, int maxLen)
         {
             string r = "";
-            r = Encoding.ASCII.GetString(raw, ofs, maxLen);
+            int realLen;
+            for(realLen = 0; realLen < maxLen; realLen++)
+            {
+                if (readByte(ofs + realLen) == 0)
+                {
+                    break;
+                }
+            }
+            r = Encoding.ASCII.GetString(raw, ofs, realLen);
             return r;
         }
         protected void writeInt(int ofs, int value)

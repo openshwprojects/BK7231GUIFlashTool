@@ -16,24 +16,58 @@ namespace BK7231Flasher
 
         public FormOBKConfig(FormMain mf)
         {
+            cfg = new OBKConfig();
+            cfg.setDefaults();
             this.main = mf;
             InitializeComponent();
         }
-        public void refreshBinding()
+        public void saveBinding()
         {
-            for(int i = 0; i < this.Controls.Count; i++)
+            try
             {
-                var c = this.Controls[i];
-                if(c is TextBox)
+                    for (int i = 0; i < this.Controls.Count; i++)
+                    {
+                        var c = this.Controls[i];
+                        if (c is TextBox)
+                        {
+                            TextBox tb = c as TextBox;
+                            for (int j = 0; j < tb.DataBindings.Count; j++)
+                            {
+                                Binding b = tb.DataBindings[j];
+                                //b.WriteValue();
+                            }
+                    //    tb.Text = tb.Text;
+                        }
+                    }
+            }
+            catch (Exception ex)
+            {
+
+            }
+        }
+        void refreshBinding_r(Control.ControlCollection list)
+        {
+            // Running on the UI thread
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c is TextBox)
                 {
                     TextBox tb = c as TextBox;
-                    for(int j = 0; j < tb.DataBindings.Count; j++)
+                    for (int j = 0; j < tb.DataBindings.Count; j++)
                     {
                         var b = tb.DataBindings[j];
                         b.ReadValue();
                     }
+                    tb.Invalidate();
+                    tb.Refresh();
                 }
+                refreshBinding_r(c.Controls);
             }
+        }
+        void refreshBinding()
+        {
+            refreshBinding_r(this.Controls);
         }
         FormPin fp;
         List<ComboBox> pinRoles = new List<ComboBox>();
@@ -57,18 +91,48 @@ namespace BK7231Flasher
                 }
             }
         }
+        List<CheckBox> flagCheckBoxes = new List<CheckBox>();
+        public void refreshCheckBoxes()
+        {
+            for(int i = 0; i < flagCheckBoxes.Count; i++)
+            {
+                if (cfg.hasFlag(i))
+                {
+                    flagCheckBoxes[i].Checked = true;
+                }
+                else
+                {
+                    flagCheckBoxes[i].Checked = false;
+                }
+            }
+        }
+        private void comboBox_flag_onToggle(object sender, EventArgs e)
+        {
+            CheckBox cb = (CheckBox)sender;
+            int flag = (int)cb.Tag;
+            if (cfg != null)
+            {
+                if (cfg.hasFlag(flag) != cb.Checked)
+                {
+                    cfg.setFlag(flag, cb.Checked);
+                }
+            }
+        }
         private void FormOBKConfig_Load(object sender, EventArgs e)
         {
             fp = new FormPin();
-            cfg = new OBKConfig() ;
-            this.textBoxWiFiSSID.DataBindings.Add(new Binding("Text", cfg, "wifi_ssid"));
-            this.textBoxWiFiPass.DataBindings.Add(new Binding("Text", cfg, "wifi_pass"));
-            this.textBoxMQTTPort.DataBindings.Add(new Binding("Text", cfg, "mqtt_port"));
-            this.textBoxMQTTHost.DataBindings.Add(new Binding("Text", cfg, "mqtt_host"));
-            this.textBoxMQTTTopic.DataBindings.Add(new Binding("Text", cfg, "mqtt_clientId"));
-            this.textBoxMQTTUser.DataBindings.Add(new Binding("Text", cfg, "mqtt_userName"));
-            this.textBoxMQTTPass.DataBindings.Add(new Binding("Text", cfg, "mqtt_pass"));
-            this.textBoxMQTTGroup.DataBindings.Add(new Binding("Text", cfg, "mqtt_group"));
+            this.textBoxWiFiSSID.DataBindings.Add(new Binding("Text", cfg, "wifi_ssid",false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxWiFiPass.DataBindings.Add(new Binding("Text", cfg, "wifi_pass", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxMQTTPort.DataBindings.Add(new Binding("Text", cfg, "mqtt_port", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxMQTTHost.DataBindings.Add(new Binding("Text", cfg, "mqtt_host", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxMQTTTopic.DataBindings.Add(new Binding("Text", cfg, "mqtt_clientId", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxMQTTUser.DataBindings.Add(new Binding("Text", cfg, "mqtt_userName", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxMQTTPass.DataBindings.Add(new Binding("Text", cfg, "mqtt_pass", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxMQTTGroup.DataBindings.Add(new Binding("Text", cfg, "mqtt_group", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxShortName.DataBindings.Add(new Binding("Text", cfg, "shortDeviceName", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxLongName.DataBindings.Add(new Binding("Text", cfg, "longDeviceName", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxShortStartupCommand.DataBindings.Add(new Binding("Text", cfg, "initCommandLine", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxWebAppRoot.DataBindings.Add(new Binding("Text", cfg, "webappRoot", false, DataSourceUpdateMode.OnPropertyChanged));
 
             for (int i = 0; i < 30; i++)
             {
@@ -78,6 +142,46 @@ namespace BK7231Flasher
                 it.SubItems.Add("0");
                 it.SubItems.Add("0");
                 listViewGPIO.Items.Add(it);
+            }
+            flagCheckBoxes = new List<CheckBox>();
+            for (int i = 0; i < 64; i++)
+            {
+                CheckBox cb;
+                if(i == 0)
+                {
+                    cb = checkBoxFlag;
+                }
+                else
+                {
+                    cb = new CheckBox();
+                }
+                cb.Tag = i;
+                cb.Text = "[" + i + "] - "+OBKFlags.getSafe(i);
+                int x = checkBoxFlag.Location.X;
+                int y = checkBoxFlag.Location.Y;
+                int column;
+                int row;
+                if (false)
+                {
+                    column = i / 16;
+                    row = i % 16;
+                }
+                else
+                {
+                    column = 0;
+                    row = i;
+                }
+                x += column * 200;
+                y += row * 24;
+                cb.Location = new Point(x, y);
+                cb.Width = 550;
+                cb.Height = checkBoxFlag.Height;
+                if (i != 0)
+                {
+                    checkBoxFlag.Parent.Controls.Add(cb);
+                }
+                cb.Click += new EventHandler(comboBox_flag_onToggle);
+                flagCheckBoxes.Add(cb);
             }
             refreshPins();
 /*
@@ -131,9 +235,56 @@ namespace BK7231Flasher
             }
         }
 
+        internal bool tryToLoadOBKConfig(byte[] dat, BKType curType, bool bApplyOffset = true)
+        {
+           bool bError= cfg.loadFrom(dat, curType, bApplyOffset);
+            if(bError == false)
+            {
+                string t = cfg.wifi_pass;
+                refreshAll();
+                return false;
+            }
+            return true;
+        }
         internal void loadFromTuyaConfig(TuyaConfig tc)
         {
             tc.getKeysHumanReadable(cfg);
+            refreshAll();
+        }
+        bool tryToImportTuyaSettings(string fname)
+        {
+            TuyaConfig tc = new TuyaConfig();
+            if (!tc.fromFile(fname))
+            {
+                if (!tc.extractKeys())
+                {
+                    tc.getKeysHumanReadable(cfg);
+                    refreshAll();
+                    return false;
+                }
+            }
+            return true;//error
+        }
+        bool tryToImportOBKSettings(string fname, BKType type)
+        {
+            if(type == BKType.Detect)
+            {
+                if (fname.Contains("BK7231T"))
+                {
+                    type = BKType.BK7231T;
+                }
+                if (fname.Contains("BK7231N"))
+                {
+                    type = BKType.BK7231N;
+                }
+            }
+            bool bError = cfg.loadFrom(fname, type);
+            if (bError == true)
+            {
+                return true;//error
+            }
+            refreshAll();
+            return false;
         }
         private void FormOBKConfig_DragDrop(object sender, DragEventArgs e)
         {
@@ -141,28 +292,41 @@ namespace BK7231Flasher
             for(int i = 0; i < files.Length; i++)
             {
                 string fname = files[i];
-                BKType type = BKType.BK7231N;
-                if (fname.Contains("BK7231T"))
+                bool bError = tryToImportOBKSettings(fname, BKType.Detect);
+                if(bError == true)
                 {
-                    type = BKType.BK7231T;
+                    bError = tryToImportTuyaSettings(fname);
                 }
-                bool bOk = cfg.loadFrom(fname, type);
-                if(bOk == false)
-                {
-                    TuyaConfig tc = new TuyaConfig();
-                    if (!tc.fromFile(fname))
-                    {
-                        if (!tc.extractKeys())
-                        {
-                            tc.getKeysHumanReadable(cfg);
-                        }
-                    }
-                }
-                refreshBinding();
-                refreshPins();
+                refreshAll();
             }
         }
+        void refreshUIThread()
+        {
+            refreshBinding();
+            refreshPins();
+            refreshCheckBoxes();
+        }
 
+        void refreshAll()
+        {
+            try
+            {
+                if (this.InvokeRequired == false)
+                {
+                    refreshUIThread();
+                    return;
+                }
+                this.textBoxLongName.Invoke((MethodInvoker)delegate {
+                    // Running on the UI thread
+                    refreshUIThread();
+                }
+                    );
+            }
+            catch(Exception ex)
+            {
+
+            }
+        }
         private void listView1_MouseClick(object sender, MouseEventArgs e)
         {
         }
@@ -187,6 +351,95 @@ namespace BK7231Flasher
             this.Hide();
             e.Cancel = true; // this cancels the close event.
         }
+        string getTypeLetter(BKType t)
+        {
+            if (t == BKType.BK7231N)
+                return "N";
+            return "T";
+        }
+        void generateNamesForMAC(byte [] mac, BKType curType)
+        {
+            cfg.mqtt_clientId = "" + curType + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
+            cfg.shortDeviceName = "obk" + getTypeLetter(curType) + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
+            cfg.longDeviceName = "Open" + curType + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
 
+        }
+        void generateRandomNames()
+        {
+            byte[] mac = new byte[6];
+            Rand.r.NextBytes(mac);
+            cfg.mqtt_clientId = "obk_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
+            cfg.shortDeviceName = "obk" + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
+            cfg.longDeviceName = "OpenBK_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
+
+        }
+        internal void onMACLoaded(byte[] mac, BKType curType)
+        {
+            if (checkBoxAutoGenerateNames.Checked)
+            {
+                generateNamesForMAC(mac, curType);
+            }
+        }
+
+        internal OBKConfig getCFG()
+        {
+            return cfg;
+        }
+
+        private void appendSettingsFromTuya2MBBackupToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Tuya Binary files (*.bin)|*.bin|All files (*.*)|*.*";
+            DialogResult result = openFileDialog.ShowDialog();
+            if (result == DialogResult.OK && openFileDialog.FileName.Length>0)
+            {
+                if (tryToImportTuyaSettings(openFileDialog.FileName))
+                {
+                    MessageBox.Show("Failed.");
+                }
+                else
+                {
+                    refreshAll();
+                    MessageBox.Show("Settings imported.");
+                }
+            }
+        }
+
+        private void appendSettingsFromOBKConfigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "OBK Binary files (*.bin)|*.bin|All files (*.*)|*.*";
+            DialogResult result = openFileDialog.ShowDialog();
+            if (result == DialogResult.OK && openFileDialog.FileName.Length > 0)
+            {
+                if (tryToImportOBKSettings(openFileDialog.FileName, BKType.Detect))
+                {
+                    MessageBox.Show("Failed.");
+                }
+                else
+                {
+                    refreshAll();
+                    MessageBox.Show("Settings imported.");
+                }
+            }
+        }
+
+        private void buttonRandomizeNames_Click(object sender, EventArgs e)
+        {
+            generateRandomNames();
+            refreshAll();
+        }
+
+        private void clearSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            cfg.zeroMemory();
+            cfg.setDefaults();
+            cfg.saveConfig();
+            refreshAll();
+        }
+
+        private void FormOBKConfig_Leave(object sender, EventArgs e)
+        {
+        }
     }
 }

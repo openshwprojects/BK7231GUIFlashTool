@@ -81,20 +81,40 @@ namespace BK7231Flasher
                 writeByte(0x000004B9, value);
             }
         }
+        internal bool loadFrom(byte [] dat, BKType type, bool bApplyOffset)
+        {
+            byte[] subArray = null;
+            if(type == BKType.Detect)
+            {
+                if(dat.Length < 8192)
+                {
+                    bApplyOffset = false;
+                }
+                else
+                {
+                    type = OBKFlashLayout.detectChipTypeForCFG(dat);
+                }
+            }
+            if (bApplyOffset)
+            {
+                int offset = OBKFlashLayout.getConfigLocation(type);
+                subArray = MiscUtils.subArray(dat, offset, 4096);
+            }
+            else
+            {
+                subArray = dat;
+            }
+            if (isValid(subArray))
+            {
+                this.raw = subArray;
+                return false;
+            }
+            return true;
+        }
         internal bool loadFrom(string fname, BKType type)
         {
-            int offset = OBKFlashLayout.getConfigLocation(type);
-            using (FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read))
-            {
-                stream.Seek(offset, SeekOrigin.Begin);
-                int bytesRead = stream.Read(this.raw, 0, this.raw.Length);
-            }
-            if (isValid())
-            {
-                return true;
-            }
-            zeroMemory();
-            return false;
+            byte[] fileBytes = File.ReadAllBytes(fname);
+            return loadFrom(fileBytes, type, true);
         }
         public byte buttonHoldRepeat
         {
@@ -435,31 +455,30 @@ namespace BK7231Flasher
             this.buttonShortPress = CFG_DEFAULT_BTN_SHORT;
             // default value is 10, which means 1000ms
             this.buttonLongPress = CFG_DEFAULT_BTN_LONG;
+            string randomSuffix = Rand.getRandomByte().ToString("X2") + Rand.getRandomByte().ToString("X2") + Rand.getRandomByte().ToString("X2");
+            this.shortDeviceName = "obk" + randomSuffix;
+            this.longDeviceName = "OpenBekenX_" + randomSuffix;
         }
 
-        public bool isValid()
+        public static bool isValid(byte [] raw, int extraOfs = 0)
         {
             byte crc = 0;
-            if (raw[0] != (byte)'C')
+            if (raw[extraOfs+0] != (byte)'C' || raw[extraOfs + 1] != (byte)'F' || raw[extraOfs + 2] != (byte)'G')
             {
+                FormMain.Singleton.addLog("It's not an OBK config, header is bad", System.Drawing.Color.Yellow);
                 return false;
             }
-            if (raw[1] != (byte)'F')
-            {
-                return false;
-            }
-            if (raw[2] != (byte)'G')
-            {
-                return false;
-            }
+            int version = BitConverter.ToInt32(raw, extraOfs + 4);
             if(version > 100)
             {
+                FormMain.Singleton.addLog("OBK config has wrong version? Skipping", System.Drawing.Color.Yellow);
                 return false;
             }
             int useLen = getLenForVersion(version);
-            crc = CRC.Tiny_CRC8(raw, 4, useLen - 4);
-            if(raw[3] != crc)
+            crc = CRC.Tiny_CRC8(raw, extraOfs + 4, useLen - 4);
+            if(raw[extraOfs + 3] != crc)
             {
+                FormMain.Singleton.addLog("OBK config has wrong checksum? Skipping", System.Drawing.Color.Yellow);
                 return false;
             }
             return true;
@@ -478,8 +497,15 @@ namespace BK7231Flasher
             raw[0] = (byte)'C';
             raw[1] = (byte)'F';
             raw[2] = (byte)'G';
-            crc = CRC.Tiny_CRC8(raw, 4, raw.Length - 4);
+            version = 4;
+            int realLen = getLenForVersion(version);
+            crc = CRC.Tiny_CRC8(raw, 4, realLen - 4);
             raw[3] = (byte)crc;
+            if (isValid(raw) == false)
+            {
+                Console.WriteLine("Error in checksum recalculation");
+            }
         }
+
     }
 }

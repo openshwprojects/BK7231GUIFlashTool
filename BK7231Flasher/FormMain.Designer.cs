@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.checkBoxAutoReadTuya = new System.Windows.Forms.CheckBox();
             this.buttonChangeOBKSettings = new System.Windows.Forms.Button();
             this.checkBoxAutoOBKConfig = new System.Windows.Forms.CheckBox();
             this.checkBoxAllowBackup = new System.Windows.Forms.CheckBox();
@@ -95,7 +96,9 @@
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.checkBoxAutoReadTuya = new System.Windows.Forms.CheckBox();
+            this.checkBoxReadOBKConfig = new System.Windows.Forms.CheckBox();
+            this.buttonWriteOBKConfig = new System.Windows.Forms.Button();
+            this.buttonReadOBKConfig = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -196,6 +199,9 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonReadOBKConfig);
+            this.tabPage1.Controls.Add(this.buttonWriteOBKConfig);
+            this.tabPage1.Controls.Add(this.checkBoxReadOBKConfig);
             this.tabPage1.Controls.Add(this.checkBoxAutoReadTuya);
             this.tabPage1.Controls.Add(this.buttonChangeOBKSettings);
             this.tabPage1.Controls.Add(this.checkBoxAutoOBKConfig);
@@ -234,9 +240,21 @@
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
+            // checkBoxAutoReadTuya
+            // 
+            this.checkBoxAutoReadTuya.AutoSize = true;
+            this.checkBoxAutoReadTuya.Checked = true;
+            this.checkBoxAutoReadTuya.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxAutoReadTuya.Location = new System.Drawing.Point(11, 155);
+            this.checkBoxAutoReadTuya.Name = "checkBoxAutoReadTuya";
+            this.checkBoxAutoReadTuya.Size = new System.Drawing.Size(222, 17);
+            this.checkBoxAutoReadTuya.TabIndex = 30;
+            this.checkBoxAutoReadTuya.Text = "Automatically extract Tuya Config on read";
+            this.checkBoxAutoReadTuya.UseVisualStyleBackColor = true;
+            // 
             // buttonChangeOBKSettings
             // 
-            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(470, 153);
+            this.buttonChangeOBKSettings.Location = new System.Drawing.Point(689, 153);
             this.buttonChangeOBKSettings.Name = "buttonChangeOBKSettings";
             this.buttonChangeOBKSettings.Size = new System.Drawing.Size(196, 23);
             this.buttonChangeOBKSettings.TabIndex = 29;
@@ -247,7 +265,7 @@
             // checkBoxAutoOBKConfig
             // 
             this.checkBoxAutoOBKConfig.AutoSize = true;
-            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(239, 155);
+            this.checkBoxAutoOBKConfig.Location = new System.Drawing.Point(404, 155);
             this.checkBoxAutoOBKConfig.Name = "checkBoxAutoOBKConfig";
             this.checkBoxAutoOBKConfig.Size = new System.Drawing.Size(225, 17);
             this.checkBoxAutoOBKConfig.TabIndex = 28;
@@ -277,9 +295,9 @@
             // 
             // buttonEraseAll
             // 
-            this.buttonEraseAll.Location = new System.Drawing.Point(658, 126);
+            this.buttonEraseAll.Location = new System.Drawing.Point(658, 68);
             this.buttonEraseAll.Name = "buttonEraseAll";
-            this.buttonEraseAll.Size = new System.Drawing.Size(62, 23);
+            this.buttonEraseAll.Size = new System.Drawing.Size(127, 23);
             this.buttonEraseAll.TabIndex = 25;
             this.buttonEraseAll.Text = "Erase all";
             this.buttonEraseAll.UseVisualStyleBackColor = true;
@@ -287,7 +305,7 @@
             // 
             // buttonClearOldFirmware
             // 
-            this.buttonClearOldFirmware.Location = new System.Drawing.Point(653, 58);
+            this.buttonClearOldFirmware.Location = new System.Drawing.Point(658, 39);
             this.buttonClearOldFirmware.Name = "buttonClearOldFirmware";
             this.buttonClearOldFirmware.Size = new System.Drawing.Size(67, 23);
             this.buttonClearOldFirmware.TabIndex = 24;
@@ -299,7 +317,7 @@
             // 
             this.buttonOpenBackupsDir.Location = new System.Drawing.Point(525, 97);
             this.buttonOpenBackupsDir.Name = "buttonOpenBackupsDir";
-            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(127, 23);
+            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(104, 23);
             this.buttonOpenBackupsDir.TabIndex = 23;
             this.buttonOpenBackupsDir.Text = "Open backups dir";
             this.buttonOpenBackupsDir.UseVisualStyleBackColor = true;
@@ -787,17 +805,37 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // checkBoxAutoReadTuya
+            // checkBoxReadOBKConfig
             // 
-            this.checkBoxAutoReadTuya.AutoSize = true;
-            this.checkBoxAutoReadTuya.Checked = true;
-            this.checkBoxAutoReadTuya.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxAutoReadTuya.Location = new System.Drawing.Point(11, 155);
-            this.checkBoxAutoReadTuya.Name = "checkBoxAutoReadTuya";
-            this.checkBoxAutoReadTuya.Size = new System.Drawing.Size(222, 17);
-            this.checkBoxAutoReadTuya.TabIndex = 30;
-            this.checkBoxAutoReadTuya.Text = "Automatically extract Tuya Config on read";
-            this.checkBoxAutoReadTuya.UseVisualStyleBackColor = true;
+            this.checkBoxReadOBKConfig.AutoSize = true;
+            this.checkBoxReadOBKConfig.Checked = true;
+            this.checkBoxReadOBKConfig.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxReadOBKConfig.Location = new System.Drawing.Point(239, 155);
+            this.checkBoxReadOBKConfig.Name = "checkBoxReadOBKConfig";
+            this.checkBoxReadOBKConfig.Size = new System.Drawing.Size(159, 17);
+            this.checkBoxReadOBKConfig.TabIndex = 31;
+            this.checkBoxReadOBKConfig.Text = "Read OBK Config if possible";
+            this.checkBoxReadOBKConfig.UseVisualStyleBackColor = true;
+            // 
+            // buttonWriteOBKConfig
+            // 
+            this.buttonWriteOBKConfig.Location = new System.Drawing.Point(658, 124);
+            this.buttonWriteOBKConfig.Name = "buttonWriteOBKConfig";
+            this.buttonWriteOBKConfig.Size = new System.Drawing.Size(127, 23);
+            this.buttonWriteOBKConfig.TabIndex = 32;
+            this.buttonWriteOBKConfig.Text = "Write only OBK config";
+            this.buttonWriteOBKConfig.UseVisualStyleBackColor = true;
+            this.buttonWriteOBKConfig.Click += new System.EventHandler(this.buttonWriteOBKConfig_Click);
+            // 
+            // buttonReadOBKConfig
+            // 
+            this.buttonReadOBKConfig.Location = new System.Drawing.Point(658, 95);
+            this.buttonReadOBKConfig.Name = "buttonReadOBKConfig";
+            this.buttonReadOBKConfig.Size = new System.Drawing.Size(127, 23);
+            this.buttonReadOBKConfig.TabIndex = 33;
+            this.buttonReadOBKConfig.Text = "Read only OBK config";
+            this.buttonReadOBKConfig.UseVisualStyleBackColor = true;
+            this.buttonReadOBKConfig.Click += new System.EventHandler(this.buttonReadOBKConfig_Click);
             // 
             // FormMain
             // 
@@ -891,6 +929,9 @@
         private System.Windows.Forms.Button buttonChangeOBKSettings;
         private System.Windows.Forms.CheckBox checkBoxAutoOBKConfig;
         private System.Windows.Forms.CheckBox checkBoxAutoReadTuya;
+        private System.Windows.Forms.CheckBox checkBoxReadOBKConfig;
+        private System.Windows.Forms.Button buttonWriteOBKConfig;
+        private System.Windows.Forms.Button buttonReadOBKConfig;
     }
 }
 

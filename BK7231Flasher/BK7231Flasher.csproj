@@ -83,25 +83,31 @@
     <Compile Include="MiscUtils.cs" />
     <Compile Include="MySettings.cs" />
     <Compile Include="OBKConfig.cs" />
+    <Compile Include="OBKFlags.cs" />
     <Compile Include="OBKFlashLayout.cs" />
     <Compile Include="OBKRoles.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Rand.cs" />
     <Compile Include="TuyaConfig.cs" />
     <Compile Include="RFPartitionUtil.cs" />
     <Compile Include="RichTextUtil.cs" />
     <Compile Include="SecurityProtocolTypeExtensions.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="FormExtractedConfig.resx">
       <DependentUpon>FormExtractedConfig.cs</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="FormMain.resx">
       <DependentUpon>FormMain.cs</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="FormOBKConfig.resx">
       <DependentUpon>FormOBKConfig.cs</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="FormPin.resx">
       <DependentUpon>FormPin.cs</DependentUpon>
