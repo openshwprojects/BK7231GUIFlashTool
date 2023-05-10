@@ -400,7 +400,7 @@ namespace BK7231Flasher
                 keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("{Jsonver"));
                 if (keys_at == -1)
                 {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
                     return true;
                 }
                 else
@@ -415,8 +415,9 @@ namespace BK7231Flasher
             int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', keys_at);
             if (stopAT == -1)
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Yellow);
-                return true;
+                //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Yellow);
+                // return true;
+                stopAT = descryptedRaw.Length;
             }
             byte[] str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
             string asciiString;
