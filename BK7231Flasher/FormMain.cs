@@ -487,7 +487,17 @@ namespace BK7231Flasher
             int sectors = 1;
             flasher.doRead(startSector, sectors);
             byte [] res = flasher.getReadResult();
-            formObkCfg.tryToLoadOBKConfig(res, curType, false);
+            bool bError = formObkCfg.tryToLoadOBKConfig(res, curType, false);
+            if(bError)
+            {
+                addLog("OBK config load failed.", Color.DarkOrange);
+            }
+            else
+            {
+                addLog("OBK config loaded. You can now view it by clicking 'Change OBK settings' button."+Environment.NewLine, Color.Black);
+                addLog("You can also edit it whatever you want." + Environment.NewLine, Color.Black);
+                addLog("You can also use 'Write OBK config' button to write it back with your changes." + Environment.NewLine, Color.Black);
+            }
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();

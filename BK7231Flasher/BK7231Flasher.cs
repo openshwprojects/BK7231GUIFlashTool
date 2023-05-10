@@ -59,6 +59,14 @@ namespace BK7231Flasher
         public void setBackupName(string newName)
         {
             this.backupName = newName;
+            if(this.backupName.Length == 0)
+            {
+                addLog("Backup name has not been set, so output file will only contain flash type/date.");
+            }
+            else
+            {
+                addLog("Backup name is set to " + this.backupName +".");
+            }
         }
         bool openPort()
         {
