@@ -47,7 +47,9 @@ namespace BK7231Flasher
                     aes.Key = key;
                     aes.Padding = PaddingMode.Zeros;
                     ICryptoTransform decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                    using (MemoryStream msDecrypt = new MemoryStream(data, baseOffset + SECTOR_SIZE * blockIndex, SECTOR_SIZE))
+                    int readOfs = baseOffset + SECTOR_SIZE * blockIndex;
+                    int rem = data.Length - readOfs;
+                    using (MemoryStream msDecrypt = new MemoryStream(data, readOfs, SECTOR_SIZE))
                     {
                         using (MemoryStream msPlain = new MemoryStream())
                         {
