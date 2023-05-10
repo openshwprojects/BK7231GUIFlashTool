@@ -106,8 +106,9 @@ namespace BK7231Flasher
                 using (BinaryReader br = new BinaryReader(new MemoryStream(next)))
                 {
                     UInt32 mag = br.ReadUInt32();
-                    if (mag != MAGIC_NEXT_BLOCK)
+                    if (mag != MAGIC_NEXT_BLOCK && mag != 324478635)
                     {
+                        // it seems that TuyaOS3 binaries have here 324478635?
                         return true;
                     }
                     uint crc = br.ReadUInt32();
@@ -373,18 +374,31 @@ namespace BK7231Flasher
             r += "}" + Environment.NewLine;
             return r;
         }
-        public bool extractKeys() { 
+        public bool extractKeys()
+        {
+            int first_at = 0;
             int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
             if (keys_at == -1)
             {
-                return true;
+                keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("{Jsonver"));
+                if (keys_at == -1)
+                {
+                    return true;
+                }
+                else
+                {
+                    first_at = keys_at + 1;
+                }
+            }
+            else
+            {
+                first_at = keys_at + 5;
             }
             int stopAT = MiscUtils.findFirst(descryptedRaw, (byte)'}', keys_at);
             if (stopAT == -1)
             {
                 return true;
             }
-            int first_at = keys_at + 5;
             byte[] str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
             string asciiString;
             // There is still some kind of Tuya paging here,
