@@ -93,6 +93,10 @@ Firmware download will not work on systems without newer TLS version required by
 https://github.com/openshwprojects/OpenBK7231T_App
 and put into firmwares bin, then restart flasher.
 
+# Automatic reboot on read/write (so you don't have to power cycle manually)
+This tool supports automatic reboot command, just like bkWriter 1.60, but you have to enable UART command line in OBK for it first:
+![image](https://github.com/openshwprojects/BK7231GUIFlashTool/assets/85486843/c63a163f-b1be-4f61-80aa-b161f7c706bd)
+With this option enabled, OBK will receive the "reboot" string send by flasher on UART before any read/write operation is started and will automatically get bus.
 
 # Other problems?
 You can also try changing the baudrate for flashing. Remember - sometimes higher baud rate might worker better than lower one!
