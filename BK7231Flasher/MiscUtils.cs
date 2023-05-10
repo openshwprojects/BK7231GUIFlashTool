@@ -58,6 +58,26 @@ namespace BK7231Flasher
             }
             return -1;
         }
+        public static int findMatching(byte[] dat, byte needle, byte opener, int start)
+        {
+            int level = 1;
+            for (int i = start; i < dat.Length; i++)
+            {
+                if(dat[i] == opener)
+                {
+                    level++;
+                }
+                if (dat[i] == needle)
+                {
+                    level--;
+                    if(level == 0)
+                    {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
         public static int indexOf(byte[] src, byte[] needle)
         {
             for (int i = 0; i < src.Length - needle.Length; i++)

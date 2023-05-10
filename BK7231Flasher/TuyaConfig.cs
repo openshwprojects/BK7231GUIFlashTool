@@ -73,7 +73,13 @@ namespace BK7231Flasher
         public bool fromBytes(byte[] data)
         {
             int needle = MiscUtils.indexOf(data, MAGIC_CONFIG_START);
+            if(needle < 0)
+            {
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Yellow);
+                return true;
+            }
             needle -= 32;
+            FormMain.Singleton.addLog("Tuya config extractor - magic is at " + needle +" " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
             byte[] key = null;
 
@@ -85,12 +91,14 @@ namespace BK7231Flasher
                 UInt32 mag = br.ReadUInt32();
                 if (mag != MAGIC_FIRST_BLOCK)
                 {
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock header" + Environment.NewLine, System.Drawing.Color.Yellow);
                     return true;
                 }
                 uint crc = br.ReadUInt32();
                 key = br.ReadBytes(16);
                 if (checkCRC(crc, key, 0, key.Length) == false)
                 {
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Yellow);
                     return true;
                 }
                 key = makeSecondaryKey(key);
@@ -109,18 +117,27 @@ namespace BK7231Flasher
                     if (mag != MAGIC_NEXT_BLOCK && mag != 324478635)
                     {
                         // it seems that TuyaOS3 binaries have here 324478635?
-                        return true;
+                        //FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock header" + Environment.NewLine, System.Drawing.Color.Yellow);
+                        //return true;
+                        FormMain.Singleton.addLog("WARNING - strange nextblock header " + mag.ToString("X4") + Environment.NewLine, System.Drawing.Color.Yellow);
+
                     }
                     uint crc = br.ReadUInt32();
                     if (checkCRC(crc, next, 8, next.Length - 8) == false)
                     {
-                        return true;
+                        FormMain.Singleton.addLog("WARNING - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Yellow);
+
+                        //   FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Yellow);
+                        //  return true;
                     }
                     bw.Write(next, 8, next.Length - 8);
                 }
             }
             descryptedRaw = decrypted.ToArray();
-            File.WriteAllBytes("lastRawDecryptedStrings.bin", descryptedRaw);
+            string debugName = "lastRawDecryptedStrings.bin";
+            FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName+"" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+
+            File.WriteAllBytes(debugName, descryptedRaw);
             return false;
         }
         public string getKeysHumanReadable(OBKConfig tg = null)
@@ -291,11 +308,11 @@ namespace BK7231Flasher
             string iicsda = getKeyValue("iicsda");
             if (iicscl.Length > 0 && iicsda.Length > 0)
             {
-                string iicr = getKeyValue("iicr");
-                string iicg = getKeyValue("iicg");
-                string iicb = getKeyValue("iicb");
-                string iicc = getKeyValue("iicc");
-                string iicw = getKeyValue("iicw");
+                string iicr = getKeyValue("iicr","?");
+                string iicg = getKeyValue("iicg", "?");
+                string iicb = getKeyValue("iicb", "?");
+                string iicc = getKeyValue("iicc", "?");
+                string iicw = getKeyValue("iicw", "?");
                 string map = "" + iicr + " " + iicg + " " + iicb + " " + iicc + " " + iicw;
                 string ledType = "Unknown";
                 string iicccur = getKeyValue("iicccur");
@@ -347,7 +364,7 @@ namespace BK7231Flasher
             }
             return desc;
         }
-        public string getKeyValue(string key)
+        public string getKeyValue(string key, string sdefault = "")
         {
             for (int i = 0; i < parms.Count; i++)
             {
@@ -356,7 +373,7 @@ namespace BK7231Flasher
                     return parms[i].Value;
                 }
             }
-            return "";
+            return sdefault;
         }
         public string getKeysAsJSON()
         {
@@ -383,6 +400,7 @@ namespace BK7231Flasher
                 keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("{Jsonver"));
                 if (keys_at == -1)
                 {
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Yellow);
                     return true;
                 }
                 else
@@ -394,9 +412,10 @@ namespace BK7231Flasher
             {
                 first_at = keys_at + 5;
             }
-            int stopAT = MiscUtils.findFirst(descryptedRaw, (byte)'}', keys_at);
+            int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', keys_at);
             if (stopAT == -1)
             {
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Yellow);
                 return true;
             }
             byte[] str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
@@ -423,15 +442,35 @@ namespace BK7231Flasher
             for(int i = 0; i < pairs.Length; i++)
             {
                 string []kp = pairs[i].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                if(kp.Length < 2)
+                {
+                    FormMain.Singleton.addLog("Malformed key? " + Environment.NewLine, System.Drawing.Color.Orange);
+
+                    continue;
+                }
                 string skey = kp[0];
                 string svalue = kp[1];
                 skey = skey.Trim(new char[] { '"' });
                 svalue = svalue.Trim(new char[] { '"' });
                 //parms.Add(skey, svalue);
-                KeyValue kv = new KeyValue(skey, svalue);
-                parms.Add(kv);
+                if (findKeyValue(skey) == null)
+                {
+                    KeyValue kv = new KeyValue(skey, svalue);
+                    parms.Add(kv);
+                }
             }
+            FormMain.Singleton.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
+
             return false;
+        }
+        KeyValue findKeyValue(string key)
+        {
+            for(int i = 0; i < parms.Count; i++)
+            {
+                if (parms[i].Key == key)
+                    return parms[i];
+            }
+            return null;
         }
         byte[] makeSecondaryKey(byte[] innerKey)
         {
