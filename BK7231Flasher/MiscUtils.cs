@@ -58,6 +58,17 @@ namespace BK7231Flasher
             }
             return -1;
         }
+        public static int findFirstRev(byte[] dat, byte needle, int start)
+        {
+            for (int i = start; i >= 0; i--)
+            {
+                if (dat[i] == needle)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
         public static int findMatching(byte[] dat, byte needle, byte opener, int start)
         {
             int level = 1;

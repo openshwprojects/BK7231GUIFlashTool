@@ -399,7 +399,11 @@ namespace BK7231Flasher
             int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
             if (keys_at == -1)
             {
-                keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("{Jsonver"));
+                int jsonAt = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("Jsonver"));
+                if(jsonAt != -1)
+                {
+                    keys_at = MiscUtils.findFirstRev(descryptedRaw, (byte)'{', jsonAt);
+                }
                 if (keys_at == -1)
                 {
                     FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
