@@ -383,6 +383,7 @@ namespace BK7231Flasher
         {
             clearUp();
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            flasher.setBackupName(lastBackupNameEnteredByUser);
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.ReadAndWrite);
@@ -466,6 +467,7 @@ namespace BK7231Flasher
         {
             clearUp();
             flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            flasher.setBackupName(lastBackupNameEnteredByUser);
             // thanks to wrap around hack, we can read from start correctly
             int startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
@@ -745,7 +747,11 @@ namespace BK7231Flasher
             {
                 return;
             }
-           // setButtonReadLabel(label_stopRead);
+            if (promptForBackupName() == false)
+            {
+                return;
+            }
+            // setButtonReadLabel(label_stopRead);
             startWorkerThread(readThread);
         }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
@@ -767,11 +773,27 @@ namespace BK7231Flasher
             //setButtonReadLabel(label_stopRead);
             startWorkerThread(testWrite);
         }
-
+        string lastBackupNameEnteredByUser;
+        bool promptForBackupName()
+        {
+            FormPrompt p = new FormPrompt();
+            p.ShowDialog();
+            if(p.getIsCanceled())
+            {
+                lastBackupNameEnteredByUser = "";
+                return false;
+            }
+            lastBackupNameEnteredByUser = p.getResult();
+            return true;
+        }
         private void button4_Click(object sender, EventArgs e)
         {
             showObkConfigFormIfPossible();
             if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            if (promptForBackupName() == false)
             {
                 return;
             }

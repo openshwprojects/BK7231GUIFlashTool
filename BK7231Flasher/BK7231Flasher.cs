@@ -29,6 +29,7 @@ namespace BK7231Flasher
 
         bool bDebugUART;
         SerialPort serial;
+        string backupName;
         string serialName;
         ILogListener logger;
         BKType chipType = BKType.BK7231N;
@@ -54,6 +55,10 @@ namespace BK7231Flasher
         void addWarning(string s)
         {
             logger.addLog(s, Color.Orange);
+        }
+        public void setBackupName(string newName)
+        {
+            this.backupName = newName;
         }
         bool openPort()
         {
@@ -745,7 +750,7 @@ namespace BK7231Flasher
         }
         public bool saveReadResult()
         {
-            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+ "_QIO", "bin");
+            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+ "_QIO", backupName, "bin");
             return saveReadResult(fileName);
         }
         bool setBaudRateIfNeeded()

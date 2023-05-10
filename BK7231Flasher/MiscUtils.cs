@@ -11,9 +11,19 @@ namespace BK7231Flasher
             string r = DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss"); ;
             return r;
         }
-        public static string formatDateNowFileName(string start, string ext)
+        public static string formatDateNowFileName(string start, string backupName, string ext)
         {
-            string r = start + "_" + formatDateNowFileNameBase() + "." + ext;
+            string r = formatDateNowFileNameFor(start, backupName,  formatDateNowFileNameBase(), ext);
+            return r;
+        }
+        public static string formatDateNowFileNameFor(string start, string backupName, string dateStr, string ext)
+        {
+            string r = start + "_";
+            if (backupName.Length > 0)
+            {
+                r += backupName + "_";
+            }
+            r += dateStr + "." + ext;
             return r;
         }
 

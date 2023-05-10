@@ -117,4 +117,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="label1.Text" xml:space="preserve">
+    <value>Please enter name of the device you are backing. Remember that the file prefix (platform),
+extension, and read date will be added automatically. So only enter device name, like 
+"treatlife_SW10", without quotation marks.
+
+You can also leave it blank, then backup file name will contain only platform and date.
+</value>
+  </data>
 </root>
