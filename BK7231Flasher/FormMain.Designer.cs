@@ -40,6 +40,9 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonReadOBKConfig = new System.Windows.Forms.Button();
+            this.buttonWriteOBKConfig = new System.Windows.Forms.Button();
+            this.checkBoxReadOBKConfig = new System.Windows.Forms.CheckBox();
             this.checkBoxAutoReadTuya = new System.Windows.Forms.CheckBox();
             this.buttonChangeOBKSettings = new System.Windows.Forms.Button();
             this.checkBoxAutoOBKConfig = new System.Windows.Forms.CheckBox();
@@ -96,15 +99,21 @@
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.checkBoxReadOBKConfig = new System.Windows.Forms.CheckBox();
-            this.buttonWriteOBKConfig = new System.Windows.Forms.Button();
-            this.buttonReadOBKConfig = new System.Windows.Forms.Button();
+            this.tabPage5 = new System.Windows.Forms.TabPage();
+            this.textBoxIP = new System.Windows.Forms.TextBox();
+            this.label19 = new System.Windows.Forms.Label();
+            this.buttonCheckCommunication = new System.Windows.Forms.Button();
+            this.labelCheckCommunicationStatus = new System.Windows.Forms.Label();
+            this.buttonIPDump2MB = new System.Windows.Forms.Button();
+            this.buttonIPCFGDump = new System.Windows.Forms.Button();
+            this.label20 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.tabPage4.SuspendLayout();
             this.tabPage2.SuspendLayout();
+            this.tabPage5.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonRead
@@ -190,6 +199,7 @@
             this.tabControl1.Controls.Add(this.tabPage3);
             this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.Controls.Add(this.tabPage5);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
@@ -239,6 +249,38 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonReadOBKConfig
+            // 
+            this.buttonReadOBKConfig.Location = new System.Drawing.Point(658, 95);
+            this.buttonReadOBKConfig.Name = "buttonReadOBKConfig";
+            this.buttonReadOBKConfig.Size = new System.Drawing.Size(127, 23);
+            this.buttonReadOBKConfig.TabIndex = 33;
+            this.buttonReadOBKConfig.Text = "Read only OBK config";
+            this.buttonReadOBKConfig.UseVisualStyleBackColor = true;
+            this.buttonReadOBKConfig.Click += new System.EventHandler(this.buttonReadOBKConfig_Click);
+            // 
+            // buttonWriteOBKConfig
+            // 
+            this.buttonWriteOBKConfig.Location = new System.Drawing.Point(658, 124);
+            this.buttonWriteOBKConfig.Name = "buttonWriteOBKConfig";
+            this.buttonWriteOBKConfig.Size = new System.Drawing.Size(127, 23);
+            this.buttonWriteOBKConfig.TabIndex = 32;
+            this.buttonWriteOBKConfig.Text = "Write only OBK config";
+            this.buttonWriteOBKConfig.UseVisualStyleBackColor = true;
+            this.buttonWriteOBKConfig.Click += new System.EventHandler(this.buttonWriteOBKConfig_Click);
+            // 
+            // checkBoxReadOBKConfig
+            // 
+            this.checkBoxReadOBKConfig.AutoSize = true;
+            this.checkBoxReadOBKConfig.Checked = true;
+            this.checkBoxReadOBKConfig.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxReadOBKConfig.Location = new System.Drawing.Point(239, 155);
+            this.checkBoxReadOBKConfig.Name = "checkBoxReadOBKConfig";
+            this.checkBoxReadOBKConfig.Size = new System.Drawing.Size(159, 17);
+            this.checkBoxReadOBKConfig.TabIndex = 31;
+            this.checkBoxReadOBKConfig.Text = "Read OBK Config if possible";
+            this.checkBoxReadOBKConfig.UseVisualStyleBackColor = true;
             // 
             // checkBoxAutoReadTuya
             // 
@@ -805,37 +847,87 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // checkBoxReadOBKConfig
+            // tabPage5
             // 
-            this.checkBoxReadOBKConfig.AutoSize = true;
-            this.checkBoxReadOBKConfig.Checked = true;
-            this.checkBoxReadOBKConfig.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxReadOBKConfig.Location = new System.Drawing.Point(239, 155);
-            this.checkBoxReadOBKConfig.Name = "checkBoxReadOBKConfig";
-            this.checkBoxReadOBKConfig.Size = new System.Drawing.Size(159, 17);
-            this.checkBoxReadOBKConfig.TabIndex = 31;
-            this.checkBoxReadOBKConfig.Text = "Read OBK Config if possible";
-            this.checkBoxReadOBKConfig.UseVisualStyleBackColor = true;
+            this.tabPage5.Controls.Add(this.label20);
+            this.tabPage5.Controls.Add(this.buttonIPCFGDump);
+            this.tabPage5.Controls.Add(this.buttonIPDump2MB);
+            this.tabPage5.Controls.Add(this.labelCheckCommunicationStatus);
+            this.tabPage5.Controls.Add(this.buttonCheckCommunication);
+            this.tabPage5.Controls.Add(this.label19);
+            this.tabPage5.Controls.Add(this.textBoxIP);
+            this.tabPage5.Location = new System.Drawing.Point(4, 22);
+            this.tabPage5.Name = "tabPage5";
+            this.tabPage5.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage5.Size = new System.Drawing.Size(899, 484);
+            this.tabPage5.TabIndex = 5;
+            this.tabPage5.Text = "Get CFG from OBK device on LAN";
+            this.tabPage5.UseVisualStyleBackColor = true;
             // 
-            // buttonWriteOBKConfig
+            // textBoxIP
             // 
-            this.buttonWriteOBKConfig.Location = new System.Drawing.Point(658, 124);
-            this.buttonWriteOBKConfig.Name = "buttonWriteOBKConfig";
-            this.buttonWriteOBKConfig.Size = new System.Drawing.Size(127, 23);
-            this.buttonWriteOBKConfig.TabIndex = 32;
-            this.buttonWriteOBKConfig.Text = "Write only OBK config";
-            this.buttonWriteOBKConfig.UseVisualStyleBackColor = true;
-            this.buttonWriteOBKConfig.Click += new System.EventHandler(this.buttonWriteOBKConfig_Click);
+            this.textBoxIP.Location = new System.Drawing.Point(53, 31);
+            this.textBoxIP.Name = "textBoxIP";
+            this.textBoxIP.Size = new System.Drawing.Size(177, 20);
+            this.textBoxIP.TabIndex = 0;
+            this.textBoxIP.Text = "127.0.0.1";
             // 
-            // buttonReadOBKConfig
+            // label19
             // 
-            this.buttonReadOBKConfig.Location = new System.Drawing.Point(658, 95);
-            this.buttonReadOBKConfig.Name = "buttonReadOBKConfig";
-            this.buttonReadOBKConfig.Size = new System.Drawing.Size(127, 23);
-            this.buttonReadOBKConfig.TabIndex = 33;
-            this.buttonReadOBKConfig.Text = "Read only OBK config";
-            this.buttonReadOBKConfig.UseVisualStyleBackColor = true;
-            this.buttonReadOBKConfig.Click += new System.EventHandler(this.buttonReadOBKConfig_Click);
+            this.label19.AutoSize = true;
+            this.label19.Location = new System.Drawing.Point(27, 34);
+            this.label19.Name = "label19";
+            this.label19.Size = new System.Drawing.Size(20, 13);
+            this.label19.TabIndex = 1;
+            this.label19.Text = "IP:";
+            // 
+            // buttonCheckCommunication
+            // 
+            this.buttonCheckCommunication.Location = new System.Drawing.Point(237, 27);
+            this.buttonCheckCommunication.Name = "buttonCheckCommunication";
+            this.buttonCheckCommunication.Size = new System.Drawing.Size(145, 23);
+            this.buttonCheckCommunication.TabIndex = 2;
+            this.buttonCheckCommunication.Text = "Check communication";
+            this.buttonCheckCommunication.UseVisualStyleBackColor = true;
+            this.buttonCheckCommunication.Click += new System.EventHandler(this.buttonCheckCommunication_Click);
+            // 
+            // labelCheckCommunicationStatus
+            // 
+            this.labelCheckCommunicationStatus.AutoSize = true;
+            this.labelCheckCommunicationStatus.Location = new System.Drawing.Point(27, 54);
+            this.labelCheckCommunicationStatus.Name = "labelCheckCommunicationStatus";
+            this.labelCheckCommunicationStatus.Size = new System.Drawing.Size(41, 13);
+            this.labelCheckCommunicationStatus.TabIndex = 3;
+            this.labelCheckCommunicationStatus.Text = "label20";
+            // 
+            // buttonIPDump2MB
+            // 
+            this.buttonIPDump2MB.Location = new System.Drawing.Point(386, 67);
+            this.buttonIPDump2MB.Name = "buttonIPDump2MB";
+            this.buttonIPDump2MB.Size = new System.Drawing.Size(192, 23);
+            this.buttonIPDump2MB.TabIndex = 4;
+            this.buttonIPDump2MB.Text = "Download 2MB dump from target";
+            this.buttonIPDump2MB.UseVisualStyleBackColor = true;
+            // 
+            // buttonIPCFGDump
+            // 
+            this.buttonIPCFGDump.Location = new System.Drawing.Point(584, 67);
+            this.buttonIPCFGDump.Name = "buttonIPCFGDump";
+            this.buttonIPCFGDump.Size = new System.Drawing.Size(285, 23);
+            this.buttonIPCFGDump.TabIndex = 5;
+            this.buttonIPCFGDump.Text = "Download OBK config partition (4096 bytes) from target";
+            this.buttonIPCFGDump.UseVisualStyleBackColor = true;
+            this.buttonIPCFGDump.Click += new System.EventHandler(this.buttonIPCFGDump_Click);
+            // 
+            // label20
+            // 
+            this.label20.AutoSize = true;
+            this.label20.Location = new System.Drawing.Point(9, 7);
+            this.label20.Name = "label20";
+            this.label20.Size = new System.Drawing.Size(712, 13);
+            this.label20.TabIndex = 6;
+            this.label20.Text = "Here are some tools useful for accessing OBK device on your local network. Rememb" +
+    "er that you can do the same operations by using OBK Web App.\r\n";
             // 
             // FormMain
             // 
@@ -858,6 +950,8 @@
             this.tabPage4.PerformLayout();
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
+            this.tabPage5.ResumeLayout(false);
+            this.tabPage5.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -932,6 +1026,14 @@
         private System.Windows.Forms.CheckBox checkBoxReadOBKConfig;
         private System.Windows.Forms.Button buttonWriteOBKConfig;
         private System.Windows.Forms.Button buttonReadOBKConfig;
+        private System.Windows.Forms.TabPage tabPage5;
+        private System.Windows.Forms.Label label19;
+        private System.Windows.Forms.TextBox textBoxIP;
+        private System.Windows.Forms.Button buttonCheckCommunication;
+        private System.Windows.Forms.Label labelCheckCommunicationStatus;
+        private System.Windows.Forms.Button buttonIPDump2MB;
+        private System.Windows.Forms.Button buttonIPCFGDump;
+        private System.Windows.Forms.Label label20;
     }
 }
 
