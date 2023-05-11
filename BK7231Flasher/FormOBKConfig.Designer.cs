@@ -69,14 +69,15 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.checkBoxFlag = new System.Windows.Forms.CheckBox();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.checkBoxFlag = new System.Windows.Forms.CheckBox();
             this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.label13 = new System.Windows.Forms.Label();
             this.textBoxShortStartupCommand = new System.Windows.Forms.TextBox();
+            this.label13 = new System.Windows.Forms.Label();
             this.tabPage4 = new System.Windows.Forms.TabPage();
-            this.label14 = new System.Windows.Forms.Label();
             this.textBoxWebAppRoot = new System.Windows.Forms.TextBox();
+            this.label14 = new System.Windows.Forms.Label();
+            this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -343,7 +344,8 @@
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.appendSettingsFromTuya2MBBackupToolStripMenuItem,
             this.appendSettingsFromOBKConfigToolStripMenuItem,
-            this.clearSettingsToolStripMenuItem});
+            this.clearSettingsToolStripMenuItem,
+            this.saveAsToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
             this.fileToolStripMenuItem.Text = "File";
@@ -438,16 +440,6 @@
             this.tabPage2.Text = "Flags";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // checkBoxFlag
-            // 
-            this.checkBoxFlag.AutoSize = true;
-            this.checkBoxFlag.Location = new System.Drawing.Point(5, 3);
-            this.checkBoxFlag.Name = "checkBoxFlag";
-            this.checkBoxFlag.Size = new System.Drawing.Size(80, 17);
-            this.checkBoxFlag.TabIndex = 0;
-            this.checkBoxFlag.Text = "[1] First flag";
-            this.checkBoxFlag.UseVisualStyleBackColor = true;
-            // 
             // panel1
             // 
             this.panel1.AutoScroll = true;
@@ -457,6 +449,16 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(815, 431);
             this.panel1.TabIndex = 1;
+            // 
+            // checkBoxFlag
+            // 
+            this.checkBoxFlag.AutoSize = true;
+            this.checkBoxFlag.Location = new System.Drawing.Point(5, 3);
+            this.checkBoxFlag.Name = "checkBoxFlag";
+            this.checkBoxFlag.Size = new System.Drawing.Size(80, 17);
+            this.checkBoxFlag.TabIndex = 0;
+            this.checkBoxFlag.Text = "[1] First flag";
+            this.checkBoxFlag.UseVisualStyleBackColor = true;
             // 
             // tabPage3
             // 
@@ -470,6 +472,14 @@
             this.tabPage3.Text = "Short startup command";
             this.tabPage3.UseVisualStyleBackColor = true;
             // 
+            // textBoxShortStartupCommand
+            // 
+            this.textBoxShortStartupCommand.Location = new System.Drawing.Point(12, 24);
+            this.textBoxShortStartupCommand.Multiline = true;
+            this.textBoxShortStartupCommand.Name = "textBoxShortStartupCommand";
+            this.textBoxShortStartupCommand.Size = new System.Drawing.Size(801, 261);
+            this.textBoxShortStartupCommand.TabIndex = 1;
+            // 
             // label13
             // 
             this.label13.AutoSize = true;
@@ -478,14 +488,6 @@
             this.label13.Size = new System.Drawing.Size(219, 13);
             this.label13.TabIndex = 0;
             this.label13.Text = "Short startup command is run at OBK startup:";
-            // 
-            // textBoxShortStartupCommand
-            // 
-            this.textBoxShortStartupCommand.Location = new System.Drawing.Point(12, 24);
-            this.textBoxShortStartupCommand.Multiline = true;
-            this.textBoxShortStartupCommand.Name = "textBoxShortStartupCommand";
-            this.textBoxShortStartupCommand.Size = new System.Drawing.Size(801, 261);
-            this.textBoxShortStartupCommand.TabIndex = 1;
             // 
             // tabPage4
             // 
@@ -499,6 +501,13 @@
             this.tabPage4.Text = "Misc";
             this.tabPage4.UseVisualStyleBackColor = true;
             // 
+            // textBoxWebAppRoot
+            // 
+            this.textBoxWebAppRoot.Location = new System.Drawing.Point(12, 22);
+            this.textBoxWebAppRoot.Name = "textBoxWebAppRoot";
+            this.textBoxWebAppRoot.Size = new System.Drawing.Size(315, 20);
+            this.textBoxWebAppRoot.TabIndex = 1;
+            // 
             // label14
             // 
             this.label14.AutoSize = true;
@@ -508,12 +517,12 @@
             this.label14.TabIndex = 0;
             this.label14.Text = "Web App root:";
             // 
-            // textBoxWebAppRoot
+            // saveAsToolStripMenuItem
             // 
-            this.textBoxWebAppRoot.Location = new System.Drawing.Point(12, 22);
-            this.textBoxWebAppRoot.Name = "textBoxWebAppRoot";
-            this.textBoxWebAppRoot.Size = new System.Drawing.Size(315, 20);
-            this.textBoxWebAppRoot.TabIndex = 1;
+            this.saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
+            this.saveAsToolStripMenuItem.Size = new System.Drawing.Size(295, 22);
+            this.saveAsToolStripMenuItem.Text = "Save obk settings as...";
+            this.saveAsToolStripMenuItem.Click += new System.EventHandler(this.saveAsToolStripMenuItem_Click);
             // 
             // FormOBKConfig
             // 
@@ -598,5 +607,6 @@
         private System.Windows.Forms.TabPage tabPage4;
         private System.Windows.Forms.TextBox textBoxWebAppRoot;
         private System.Windows.Forms.Label label14;
+        private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
     }
 }

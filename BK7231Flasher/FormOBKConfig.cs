@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
@@ -265,6 +266,12 @@ namespace BK7231Flasher
             }
             return true;//error
         }
+        bool tryToExportOBKSettings(string fname)
+        {
+            cfg.saveConfig();
+            File.WriteAllBytes(fname, cfg.getData());
+            return false;
+        }
         bool tryToImportOBKSettings(string fname, BKType type)
         {
             if(type == BKType.Detect)
@@ -440,6 +447,24 @@ namespace BK7231Flasher
 
         private void FormOBKConfig_Leave(object sender, EventArgs e)
         {
+        }
+
+        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Binary files (*.bin)|*.bin|All files (*.*)|*.*";
+            DialogResult result = saveFileDialog.ShowDialog();
+            if (result == DialogResult.OK && saveFileDialog.FileName.Length > 0)
+            {
+                if (tryToExportOBKSettings(saveFileDialog.FileName))
+                {
+                    MessageBox.Show("Failed to save file.");
+                }
+                else
+                {
+                    MessageBox.Show("OBK settings exported as single OBK sector. Remember that you can just drag and drop them over the form to open them later.");
+                }
+            }
         }
     }
 }
