@@ -99,6 +99,7 @@
     <Compile Include="RFPartitionUtil.cs" />
     <Compile Include="RichTextUtil.cs" />
     <Compile Include="SecurityProtocolTypeExtensions.cs" />
+    <Compile Include="TuyaModules.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
       <SubType>Designer</SubType>

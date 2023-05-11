@@ -15,7 +15,8 @@ namespace BK7231Flasher
     {
         BK7231T,
         BK7231N,
-        Detect
+        Detect,
+        Invalid
     }
     public enum WriteMode
     {

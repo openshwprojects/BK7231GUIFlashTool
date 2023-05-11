@@ -362,8 +362,27 @@ namespace BK7231Flasher
             }
             else
             {
-                desc = "Sorry, no meaningful data found. This device may be TuyaMCU or a custom one with no Tuya config data." + Environment.NewLine;
+                desc = "Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data." + Environment.NewLine;
             }
+            var kp = this.findKeyValue("module");
+            if (kp != null)
+            {
+                BKType type = TuyaModules.getTypeForModuleName(kp.Value);
+                desc += "Device seems to be using " + kp.Value + " module";
+                if(type == BKType.BK7231N || type == BKType.BK7231T)
+                {
+                    desc += ", which is using " + type + ".";
+                }
+                else
+                {
+                    desc += ".";
+                }
+            }
+            else
+            {
+                desc += "No module information found.";
+            }
+            desc += Environment.NewLine;
             return desc;
         }
         public string getKeyValue(string key, string sdefault = "")
@@ -457,8 +476,8 @@ namespace BK7231Flasher
                 }
                 string skey = kp[0];
                 string svalue = kp[1];
-                skey = skey.Trim(new char[] { '"' });
-                svalue = svalue.Trim(new char[] { '"' });
+                skey = skey.Trim(new char[] { '"' }).Replace("\"", "");
+                svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "");
                 //parms.Add(skey, svalue);
                 if (findKeyValue(skey) == null)
                 {
