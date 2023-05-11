@@ -365,6 +365,10 @@ namespace BK7231Flasher
                 desc = "Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data." + Environment.NewLine;
             }
             var kp = this.findKeyValue("module");
+            if(kp == null)
+            {
+                kp = this.findKeyContaining("module");
+            }
             if (kp != null)
             {
                 BKType type = TuyaModules.getTypeForModuleName(kp.Value);
@@ -488,6 +492,15 @@ namespace BK7231Flasher
             FormMain.Singleton.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
 
             return false;
+        }
+        KeyValue findKeyContaining(string key)
+        {
+            for (int i = 0; i < parms.Count; i++)
+            {
+                if (parms[i].Key.Contains(key))
+                    return parms[i];
+            }
+            return null;
         }
         KeyValue findKeyValue(string key)
         {
