@@ -979,5 +979,9 @@ namespace BK7231Flasher
             startWorkerThread(doOnlyReadOBKConfig);
         }
 
+        private void buttonStartScan_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -15,14 +15,22 @@ using System.Windows.Forms;
 namespace BK7231Flasher
 {
     public delegate void OBKScannerFoundDevice(OBKDeviceAPI api);
-
+    public delegate void OBKScannerFinished(bool bInterrupted);
+    
     public class OBKScanner
     {
         int maxWorkers = 8;
         string startIP, endIP;
         Thread thread;
+        bool bWantStop;
         List<OBKDeviceAPI> workers = new List<OBKDeviceAPI>();
         OBKScannerFoundDevice onDeviceFound;
+        OBKScannerFinished onScanFinished;
+        
+        internal void requestStop()
+        {
+            bWantStop = true;
+        }
 
         public OBKScanner(string start, string end)
         {
@@ -32,6 +40,10 @@ namespace BK7231Flasher
         public void setOnDeviceFound(OBKScannerFoundDevice d)
         {
             this.onDeviceFound = d;
+        }
+        public void setOnFinished(OBKScannerFinished d)
+        {
+            this.onScanFinished = d;
         }
         public void setMaxWorkers(int max)
         {
@@ -57,6 +69,10 @@ namespace BK7231Flasher
             uint current = start;
             while (current <= end)
             {
+                if (bWantStop)
+                {
+                    break;
+                }
                 OBKDeviceAPI worker = getWorker();
                 if(worker == null)
                 {
@@ -72,6 +88,7 @@ namespace BK7231Flasher
                 worker.sendGetInfo(null);
                 current++;
             }
+            onScanFinished(bWantStop);
         }
 
         private OBKDeviceAPI getWorker()

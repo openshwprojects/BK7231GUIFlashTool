@@ -137,6 +137,30 @@ namespace BK7231Flasher
             }
             return sResult;
         }
+        string escapeString(string s)
+        {
+            return Uri.EscapeDataString(s);
+        }
+        public void SendGetRequestTasmotaStatus(object ocb)
+        {
+            string jsonText = sendGet("/cm?cmnd - TODO");
+            ProcessJSONReply cb = ocb as ProcessJSONReply;
+            // Parse the response as a JSON object
+            JObject jsonObject = null;
+            try
+            {
+                jsonObject = JObject.Parse(jsonText);
+            }
+            catch (Exception ex)
+            {
+
+            }
+            if (cb != null)
+            {
+                cb(jsonObject);
+            }
+            this.info = jsonObject;
+        }
         public void SendGetRequestJSON(object ocb)
         {
             string jsonText = sendGet("/api/info");

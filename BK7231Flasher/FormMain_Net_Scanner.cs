@@ -21,6 +21,12 @@ namespace BK7231Flasher
 
         private void buttonStartScan_Click(object sender, EventArgs e)
         {
+            if (scan != null)
+            {
+                buttonStartScan.Text = "Stopping...";
+                scan.requestStop();
+                return;
+            }
             IPAddress tmp;
             if(IPAddress.TryParse(textBoxStartIP.Text, out tmp) == false)
             {
@@ -35,8 +41,25 @@ namespace BK7231Flasher
 
             scan = new OBKScanner(textBoxStartIP.Text, textBoxEndIP.Text);
             scan.setOnDeviceFound(onScannerFound);
+            scan.setOnFinished(onScannerFinished);
             scan.startScan();
+            buttonStartScan.Text = "Stop";
         }
+        
+        private void onScannerFinished(bool bInterrupted)
+        {
+            if (this.InvokeRequired)
+            {
+                Singleton.textBoxLog.Invoke((MethodInvoker)delegate
+                {
+                    onScannerFinished(bInterrupted);
+                });
+                return;
+            }
+            scan = null;
+            buttonStartScan.Text = "Start";
+        }
+
         private void onScannerFound(OBKDeviceAPI api)
         {
             if(this.InvokeRequired)

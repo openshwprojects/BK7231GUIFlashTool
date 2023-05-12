@@ -120,6 +120,9 @@
             this.textBoxStartIP = new System.Windows.Forms.TextBox();
             this.label21 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.label24 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -940,6 +943,7 @@
             // 
             // tabPage6
             // 
+            this.tabPage6.Controls.Add(this.label24);
             this.tabPage6.Controls.Add(this.listView1);
             this.tabPage6.Controls.Add(this.buttonStartScan);
             this.tabPage6.Controls.Add(this.textBoxScannerThreads);
@@ -962,7 +966,10 @@
             this.columnID,
             this.columnHeader1,
             this.columnHeader2,
-            this.columnHeader3});
+            this.columnHeader3,
+            this.columnHeader4,
+            this.columnHeader5});
+            this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
             this.listView1.Location = new System.Drawing.Point(11, 75);
             this.listView1.Name = "listView1";
@@ -1055,6 +1062,24 @@
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
+            // 
+            // columnHeader4
+            // 
+            this.columnHeader4.Text = "MAC";
+            // 
+            // columnHeader5
+            // 
+            this.columnHeader5.Text = "Build";
+            this.columnHeader5.Width = 75;
+            // 
+            // label24
+            // 
+            this.label24.AutoSize = true;
+            this.label24.Location = new System.Drawing.Point(8, 12);
+            this.label24.Name = "label24";
+            this.label24.Size = new System.Drawing.Size(330, 13);
+            this.label24.TabIndex = 8;
+            this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. ";
             // 
             // FormMain
             // 
@@ -1176,6 +1201,9 @@
         private System.Windows.Forms.ColumnHeader columnHeader1;
         private System.Windows.Forms.ColumnHeader columnHeader2;
         private System.Windows.Forms.ColumnHeader columnHeader3;
+        private System.Windows.Forms.ColumnHeader columnHeader4;
+        private System.Windows.Forms.ColumnHeader columnHeader5;
+        private System.Windows.Forms.Label label24;
     }
 }
 
