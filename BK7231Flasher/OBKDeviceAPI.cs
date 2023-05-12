@@ -13,13 +13,31 @@ namespace BK7231Flasher
     public delegate void ProcessBytesReply(byte[] data);
     public class OBKDeviceAPI
     {
+        int userIndex;
         string adr;
+        JObject info;
 
         class GetFlashChunkArguments
         {
             public int adr;
             public int size;
             public ProcessBytesReply cb;
+        }
+        public void setUserIndex(int i)
+        {
+            userIndex = i;
+        }
+        public int getUserIndex()
+        {
+            return userIndex;
+        }
+        public void setAdr(string s)
+        {
+            adr = s;
+        }
+        public OBKDeviceAPI()
+        {
+            this.adr = "";
         }
         public OBKDeviceAPI(string na)
         {
@@ -28,45 +46,95 @@ namespace BK7231Flasher
         private byte []sendGetInternal(string path)
         {
             byte[] ret = null;
-            using (var tcp = new TcpClient(adr, 80))
-            using (var stream = tcp.GetStream())
+            try
             {
-                tcp.SendTimeout = 500;
-                tcp.ReceiveTimeout = 1000;
-                // Send request headers
-                var builder = new StringBuilder();
-                builder.AppendLine("GET " + path + " HTTP/1.1");
-                //builder.AppendLine("Host: any.com");
-                //builder.AppendLine("Content-Length: " + data.Length);   // only for POST request
-                builder.AppendLine("Connection: close");
-                builder.AppendLine();
-                var header = Encoding.ASCII.GetBytes(builder.ToString());
-                stream.Write(header, 0, header.Length);
-                // receive data
-                using (var memory = new MemoryStream())
+                using (var tcp = new TcpClient(adr, 80))
+                using (var stream = tcp.GetStream())
                 {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    tcp.SendTimeout = 500;
+                    tcp.ReceiveTimeout = 1000;
+                    // Send request headers
+                    var builder = new StringBuilder();
+                    builder.AppendLine("GET " + path + " HTTP/1.1");
+                    //builder.AppendLine("Host: any.com");
+                    //builder.AppendLine("Content-Length: " + data.Length);   // only for POST request
+                    builder.AppendLine("Connection: close");
+                    builder.AppendLine();
+                    var header = Encoding.ASCII.GetBytes(builder.ToString());
+                    stream.Write(header, 0, header.Length);
+                    // receive data
+                    using (var memory = new MemoryStream())
                     {
-                        memory.Write(buffer, 0, bytesRead);
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            memory.Write(buffer, 0, bytesRead);
+                        }
+                        memory.Position = 0;
+                        byte[] data = memory.ToArray();
+
+                        var index = BinaryMatch(data, Encoding.ASCII.GetBytes("\r\n\r\n")) + 4;
+                        var headers = Encoding.ASCII.GetString(data, 0, index);
+                        memory.Position = index;
+
+                        ret = MiscUtils.subArray(data, index, data.Length - index);
                     }
-                    memory.Position = 0;
-                    byte[] data = memory.ToArray();
-
-                    var index = BinaryMatch(data, Encoding.ASCII.GetBytes("\r\n\r\n")) + 4;
-                    var headers = Encoding.ASCII.GetString(data, 0, index);
-                    memory.Position = index;
-
-                    ret = MiscUtils.subArray(data, index, data.Length - index);
                 }
+            }
+            catch(Exception ex)
+            {
+
             }
             return ret;
         }
+
+        internal bool hasAdr(string s)
+        {
+            return this.adr == s;
+        }
+
+        internal string getAdr()
+        {
+            return adr;
+        }
+
+        internal string getShortName()
+        {
+            return info["shortName"].ToString();
+        }
+        internal string getChipSet()
+        {
+            return info["chipset"].ToString();
+        }
+        internal string getMAC()
+        {
+            return info["mac"].ToString();
+        }
+        internal string getBuild()
+        {
+            return info["build"].ToString();
+        }
+
+        internal JObject getInfo()
+        {
+            return info;
+        }
+
+        internal void clear()
+        {
+            adr = "";
+            info = null;
+        }
+
         private string sendGet(string path)
         {
             byte[] res = sendGetInternal(path);
-            string sResult = Encoding.UTF8.GetString(res);
+            string sResult = "";
+            if (res != null)
+            {
+                sResult = Encoding.UTF8.GetString(res);
+            }
             return sResult;
         }
         public void SendGetRequestJSON(object ocb)
@@ -74,8 +142,20 @@ namespace BK7231Flasher
             string jsonText = sendGet("/api/info");
             ProcessJSONReply cb = ocb as ProcessJSONReply;
             // Parse the response as a JSON object
-            JObject jsonObject = JObject.Parse(jsonText);
-            cb(jsonObject);
+            JObject jsonObject = null;
+            try
+            {
+                jsonObject = JObject.Parse(jsonText);
+            }
+            catch(Exception ex)
+            {
+
+            }
+            if (cb != null)
+            {
+                cb(jsonObject);
+            }
+            this.info = jsonObject;
         }
         public void SendGetRequestBytes(object obj)
         {
@@ -90,11 +170,11 @@ namespace BK7231Flasher
                 arg.cb(flash);
             }
         }
-        public void getInfo(ProcessJSONReply cb)
+        public void sendGetInfo(ProcessJSONReply cb)
         {
             startThread(SendGetRequestJSON, cb);
         }
-        public void getFlashChunk(ProcessBytesReply cb, int adr, int size)
+        public void sendGetFlashChunk(ProcessBytesReply cb, int adr, int size)
         {
             GetFlashChunkArguments arg = new GetFlashChunkArguments();
             arg.cb = cb;

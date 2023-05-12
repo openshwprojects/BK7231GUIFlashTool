@@ -98,15 +98,28 @@
             this.linkLabel4 = new System.Windows.Forms.LinkLabel();
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
-            this.timer100ms = new System.Windows.Forms.Timer(this.components);
             this.tabPage5 = new System.Windows.Forms.TabPage();
-            this.textBoxIP = new System.Windows.Forms.TextBox();
-            this.label19 = new System.Windows.Forms.Label();
-            this.buttonCheckCommunication = new System.Windows.Forms.Button();
-            this.labelCheckCommunicationStatus = new System.Windows.Forms.Label();
-            this.buttonIPDump2MB = new System.Windows.Forms.Button();
-            this.buttonIPCFGDump = new System.Windows.Forms.Button();
             this.label20 = new System.Windows.Forms.Label();
+            this.buttonIPCFGDump = new System.Windows.Forms.Button();
+            this.buttonIPDump2MB = new System.Windows.Forms.Button();
+            this.labelCheckCommunicationStatus = new System.Windows.Forms.Label();
+            this.buttonCheckCommunication = new System.Windows.Forms.Button();
+            this.label19 = new System.Windows.Forms.Label();
+            this.textBoxIP = new System.Windows.Forms.TextBox();
+            this.tabPage6 = new System.Windows.Forms.TabPage();
+            this.listView1 = new System.Windows.Forms.ListView();
+            this.columnID = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.buttonStartScan = new System.Windows.Forms.Button();
+            this.textBoxScannerThreads = new System.Windows.Forms.TextBox();
+            this.label23 = new System.Windows.Forms.Label();
+            this.textBoxEndIP = new System.Windows.Forms.TextBox();
+            this.label22 = new System.Windows.Forms.Label();
+            this.textBoxStartIP = new System.Windows.Forms.TextBox();
+            this.label21 = new System.Windows.Forms.Label();
+            this.timer100ms = new System.Windows.Forms.Timer(this.components);
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -114,6 +127,7 @@
             this.tabPage4.SuspendLayout();
             this.tabPage2.SuspendLayout();
             this.tabPage5.SuspendLayout();
+            this.tabPage6.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonRead
@@ -200,6 +214,7 @@
             this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage5);
+            this.tabControl1.Controls.Add(this.tabPage6);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
@@ -842,11 +857,6 @@
             this.label16.TabIndex = 0;
             this.label16.Text = resources.GetString("label16.Text");
             // 
-            // timer100ms
-            // 
-            this.timer100ms.Enabled = true;
-            this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
             // tabPage5
             // 
             this.tabPage5.Controls.Add(this.label20);
@@ -864,54 +874,18 @@
             this.tabPage5.Text = "Get CFG from OBK device on LAN";
             this.tabPage5.UseVisualStyleBackColor = true;
             // 
-            // textBoxIP
+            // label20
             // 
-            this.textBoxIP.Location = new System.Drawing.Point(53, 31);
-            this.textBoxIP.Name = "textBoxIP";
-            this.textBoxIP.Size = new System.Drawing.Size(177, 20);
-            this.textBoxIP.TabIndex = 0;
-            this.textBoxIP.Text = "127.0.0.1";
-            // 
-            // label19
-            // 
-            this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(27, 34);
-            this.label19.Name = "label19";
-            this.label19.Size = new System.Drawing.Size(20, 13);
-            this.label19.TabIndex = 1;
-            this.label19.Text = "IP:";
-            // 
-            // buttonCheckCommunication
-            // 
-            this.buttonCheckCommunication.Location = new System.Drawing.Point(237, 27);
-            this.buttonCheckCommunication.Name = "buttonCheckCommunication";
-            this.buttonCheckCommunication.Size = new System.Drawing.Size(145, 23);
-            this.buttonCheckCommunication.TabIndex = 2;
-            this.buttonCheckCommunication.Text = "Check communication";
-            this.buttonCheckCommunication.UseVisualStyleBackColor = true;
-            this.buttonCheckCommunication.Click += new System.EventHandler(this.buttonCheckCommunication_Click);
-            // 
-            // labelCheckCommunicationStatus
-            // 
-            this.labelCheckCommunicationStatus.AutoSize = true;
-            this.labelCheckCommunicationStatus.Location = new System.Drawing.Point(27, 54);
-            this.labelCheckCommunicationStatus.Name = "labelCheckCommunicationStatus";
-            this.labelCheckCommunicationStatus.Size = new System.Drawing.Size(41, 13);
-            this.labelCheckCommunicationStatus.TabIndex = 3;
-            this.labelCheckCommunicationStatus.Text = "label20";
-            // 
-            // buttonIPDump2MB
-            // 
-            this.buttonIPDump2MB.Location = new System.Drawing.Point(386, 67);
-            this.buttonIPDump2MB.Name = "buttonIPDump2MB";
-            this.buttonIPDump2MB.Size = new System.Drawing.Size(192, 23);
-            this.buttonIPDump2MB.TabIndex = 4;
-            this.buttonIPDump2MB.Text = "Download 2MB dump from target";
-            this.buttonIPDump2MB.UseVisualStyleBackColor = true;
+            this.label20.AutoSize = true;
+            this.label20.Location = new System.Drawing.Point(9, 7);
+            this.label20.Name = "label20";
+            this.label20.Size = new System.Drawing.Size(748, 26);
+            this.label20.TabIndex = 6;
+            this.label20.Text = resources.GetString("label20.Text");
             // 
             // buttonIPCFGDump
             // 
-            this.buttonIPCFGDump.Location = new System.Drawing.Point(584, 67);
+            this.buttonIPCFGDump.Location = new System.Drawing.Point(579, 78);
             this.buttonIPCFGDump.Name = "buttonIPCFGDump";
             this.buttonIPCFGDump.Size = new System.Drawing.Size(285, 23);
             this.buttonIPCFGDump.TabIndex = 5;
@@ -919,15 +893,168 @@
             this.buttonIPCFGDump.UseVisualStyleBackColor = true;
             this.buttonIPCFGDump.Click += new System.EventHandler(this.buttonIPCFGDump_Click);
             // 
-            // label20
+            // buttonIPDump2MB
             // 
-            this.label20.AutoSize = true;
-            this.label20.Location = new System.Drawing.Point(9, 7);
-            this.label20.Name = "label20";
-            this.label20.Size = new System.Drawing.Size(712, 13);
-            this.label20.TabIndex = 6;
-            this.label20.Text = "Here are some tools useful for accessing OBK device on your local network. Rememb" +
-    "er that you can do the same operations by using OBK Web App.\r\n";
+            this.buttonIPDump2MB.Location = new System.Drawing.Point(381, 78);
+            this.buttonIPDump2MB.Name = "buttonIPDump2MB";
+            this.buttonIPDump2MB.Size = new System.Drawing.Size(192, 23);
+            this.buttonIPDump2MB.TabIndex = 4;
+            this.buttonIPDump2MB.Text = "Download 2MB dump from target";
+            this.buttonIPDump2MB.UseVisualStyleBackColor = true;
+            // 
+            // labelCheckCommunicationStatus
+            // 
+            this.labelCheckCommunicationStatus.AutoSize = true;
+            this.labelCheckCommunicationStatus.Location = new System.Drawing.Point(22, 78);
+            this.labelCheckCommunicationStatus.Name = "labelCheckCommunicationStatus";
+            this.labelCheckCommunicationStatus.Size = new System.Drawing.Size(41, 13);
+            this.labelCheckCommunicationStatus.TabIndex = 3;
+            this.labelCheckCommunicationStatus.Text = "label20";
+            // 
+            // buttonCheckCommunication
+            // 
+            this.buttonCheckCommunication.Location = new System.Drawing.Point(218, 48);
+            this.buttonCheckCommunication.Name = "buttonCheckCommunication";
+            this.buttonCheckCommunication.Size = new System.Drawing.Size(145, 23);
+            this.buttonCheckCommunication.TabIndex = 2;
+            this.buttonCheckCommunication.Text = "Check communication";
+            this.buttonCheckCommunication.UseVisualStyleBackColor = true;
+            this.buttonCheckCommunication.Click += new System.EventHandler(this.buttonCheckCommunication_Click);
+            // 
+            // label19
+            // 
+            this.label19.AutoSize = true;
+            this.label19.Location = new System.Drawing.Point(9, 51);
+            this.label19.Name = "label19";
+            this.label19.Size = new System.Drawing.Size(20, 13);
+            this.label19.TabIndex = 1;
+            this.label19.Text = "IP:";
+            // 
+            // textBoxIP
+            // 
+            this.textBoxIP.Location = new System.Drawing.Point(35, 48);
+            this.textBoxIP.Name = "textBoxIP";
+            this.textBoxIP.Size = new System.Drawing.Size(177, 20);
+            this.textBoxIP.TabIndex = 0;
+            this.textBoxIP.Text = "127.0.0.1";
+            // 
+            // tabPage6
+            // 
+            this.tabPage6.Controls.Add(this.listView1);
+            this.tabPage6.Controls.Add(this.buttonStartScan);
+            this.tabPage6.Controls.Add(this.textBoxScannerThreads);
+            this.tabPage6.Controls.Add(this.label23);
+            this.tabPage6.Controls.Add(this.textBoxEndIP);
+            this.tabPage6.Controls.Add(this.label22);
+            this.tabPage6.Controls.Add(this.textBoxStartIP);
+            this.tabPage6.Controls.Add(this.label21);
+            this.tabPage6.Location = new System.Drawing.Point(4, 22);
+            this.tabPage6.Name = "tabPage6";
+            this.tabPage6.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage6.Size = new System.Drawing.Size(899, 484);
+            this.tabPage6.TabIndex = 6;
+            this.tabPage6.Text = "LAN Scanner";
+            this.tabPage6.UseVisualStyleBackColor = true;
+            // 
+            // listView1
+            // 
+            this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnID,
+            this.columnHeader1,
+            this.columnHeader2,
+            this.columnHeader3});
+            this.listView1.HideSelection = false;
+            this.listView1.Location = new System.Drawing.Point(11, 75);
+            this.listView1.Name = "listView1";
+            this.listView1.Size = new System.Drawing.Size(440, 265);
+            this.listView1.TabIndex = 7;
+            this.listView1.UseCompatibleStateImageBehavior = false;
+            this.listView1.View = System.Windows.Forms.View.Details;
+            // 
+            // columnID
+            // 
+            this.columnID.Text = "Idx";
+            this.columnID.Width = 36;
+            // 
+            // columnHeader1
+            // 
+            this.columnHeader1.Text = "IP";
+            // 
+            // columnHeader2
+            // 
+            this.columnHeader2.Text = "Short Name";
+            this.columnHeader2.Width = 86;
+            // 
+            // columnHeader3
+            // 
+            this.columnHeader3.Text = "Chipset";
+            // 
+            // buttonStartScan
+            // 
+            this.buttonStartScan.Location = new System.Drawing.Point(588, 39);
+            this.buttonStartScan.Name = "buttonStartScan";
+            this.buttonStartScan.Size = new System.Drawing.Size(139, 23);
+            this.buttonStartScan.TabIndex = 6;
+            this.buttonStartScan.Text = "Start";
+            this.buttonStartScan.UseVisualStyleBackColor = true;
+            this.buttonStartScan.Click += new System.EventHandler(this.buttonStartScan_Click);
+            // 
+            // textBoxScannerThreads
+            // 
+            this.textBoxScannerThreads.Location = new System.Drawing.Point(513, 42);
+            this.textBoxScannerThreads.Name = "textBoxScannerThreads";
+            this.textBoxScannerThreads.Size = new System.Drawing.Size(69, 20);
+            this.textBoxScannerThreads.TabIndex = 5;
+            this.textBoxScannerThreads.Text = "8";
+            this.textBoxScannerThreads.TextChanged += new System.EventHandler(this.textBoxScannerThreads_TextChanged);
+            // 
+            // label23
+            // 
+            this.label23.AutoSize = true;
+            this.label23.Location = new System.Drawing.Point(458, 45);
+            this.label23.Name = "label23";
+            this.label23.Size = new System.Drawing.Size(49, 13);
+            this.label23.TabIndex = 4;
+            this.label23.Text = "Threads:";
+            // 
+            // textBoxEndIP
+            // 
+            this.textBoxEndIP.Location = new System.Drawing.Point(282, 42);
+            this.textBoxEndIP.Name = "textBoxEndIP";
+            this.textBoxEndIP.Size = new System.Drawing.Size(169, 20);
+            this.textBoxEndIP.TabIndex = 3;
+            this.textBoxEndIP.Text = "192.168.0.255";
+            // 
+            // label22
+            // 
+            this.label22.AutoSize = true;
+            this.label22.Location = new System.Drawing.Point(234, 45);
+            this.label22.Name = "label22";
+            this.label22.Size = new System.Drawing.Size(42, 13);
+            this.label22.TabIndex = 2;
+            this.label22.Text = "End IP:";
+            // 
+            // textBoxStartIP
+            // 
+            this.textBoxStartIP.Location = new System.Drawing.Point(59, 42);
+            this.textBoxStartIP.Name = "textBoxStartIP";
+            this.textBoxStartIP.Size = new System.Drawing.Size(169, 20);
+            this.textBoxStartIP.TabIndex = 1;
+            this.textBoxStartIP.Text = "192.168.0.0";
+            // 
+            // label21
+            // 
+            this.label21.AutoSize = true;
+            this.label21.Location = new System.Drawing.Point(8, 45);
+            this.label21.Name = "label21";
+            this.label21.Size = new System.Drawing.Size(45, 13);
+            this.label21.TabIndex = 0;
+            this.label21.Text = "Start IP:";
+            // 
+            // timer100ms
+            // 
+            this.timer100ms.Enabled = true;
+            this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
             // FormMain
             // 
@@ -952,6 +1079,8 @@
             this.tabPage2.PerformLayout();
             this.tabPage5.ResumeLayout(false);
             this.tabPage5.PerformLayout();
+            this.tabPage6.ResumeLayout(false);
+            this.tabPage6.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -1034,6 +1163,19 @@
         private System.Windows.Forms.Button buttonIPDump2MB;
         private System.Windows.Forms.Button buttonIPCFGDump;
         private System.Windows.Forms.Label label20;
+        private System.Windows.Forms.TabPage tabPage6;
+        private System.Windows.Forms.TextBox textBoxStartIP;
+        private System.Windows.Forms.Label label21;
+        private System.Windows.Forms.TextBox textBoxEndIP;
+        private System.Windows.Forms.Label label22;
+        private System.Windows.Forms.Button buttonStartScan;
+        private System.Windows.Forms.TextBox textBoxScannerThreads;
+        private System.Windows.Forms.Label label23;
+        private System.Windows.Forms.ListView listView1;
+        private System.Windows.Forms.ColumnHeader columnID;
+        private System.Windows.Forms.ColumnHeader columnHeader1;
+        private System.Windows.Forms.ColumnHeader columnHeader2;
+        private System.Windows.Forms.ColumnHeader columnHeader3;
     }
 }
 
