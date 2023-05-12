@@ -2,20 +2,27 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Configuration;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 
 namespace BK7231Flasher
 {
-    public delegate void ProcessJSONReply(JObject json);
+    public delegate void ProcessJSONReply(OBKDeviceAPI self);
     public delegate void ProcessBytesReply(byte[] data);
     public class OBKDeviceAPI
     {
         int userIndex;
         string adr;
         JObject info;
+        JObject status;
+        bool bGetInfoFailed;
+        bool bTasmota;
+        bool bGetInfoSuccess = false;
 
         class GetFlashChunkArguments
         {
@@ -43,8 +50,82 @@ namespace BK7231Flasher
         {
             this.adr = na;
         }
+
+
+        // Helper method to read the response stream fully into a byte array
+        static byte[] ReadFully(Stream stream)
+        {
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+
+                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    memoryStream.Write(buffer, 0, bytesRead);
+                }
+
+                return memoryStream.ToArray();
+            }
+        }
+        // Enable/disable useUnsafeHeaderParsing.
+        // See http://o2platform.wordpress.com/2010/10/20/dealing-with-the-server-committed-a-protocol-violation-sectionresponsestatusline/
+        public static bool ToggleAllowUnsafeHeaderParsing(bool enable)
+        {
+            //Get the assembly that contains the internal class
+            Assembly assembly = Assembly.GetAssembly(typeof(SettingsSection));
+            if (assembly != null)
+            {
+                //Use the assembly in order to get the internal type for the internal class
+                Type settingsSectionType = assembly.GetType("System.Net.Configuration.SettingsSectionInternal");
+                if (settingsSectionType != null)
+                {
+                    //Use the internal static property to get an instance of the internal settings class.
+                    //If the static instance isn't created already invoking the property will create it for us.
+                    object anInstance = settingsSectionType.InvokeMember("Section",
+                    BindingFlags.Static | BindingFlags.GetProperty | BindingFlags.NonPublic, null, null, new object[] { });
+                    if (anInstance != null)
+                    {
+                        //Locate the private bool field that tells the framework if unsafe header parsing is allowed
+                        FieldInfo aUseUnsafeHeaderParsing = settingsSectionType.GetField("useUnsafeHeaderParsing", BindingFlags.NonPublic | BindingFlags.Instance);
+                        if (aUseUnsafeHeaderParsing != null)
+                        {
+                            aUseUnsafeHeaderParsing.SetValue(anInstance, enable);
+                            return true;
+                        }
+
+                    }
+                }
+            }
+            return false;
+        }
         private byte []sendGetInternal(string path)
         {
+#if true
+            try
+            {
+                WebRequest request = WebRequest.Create("http://" + adr + path);
+
+                if (!ToggleAllowUnsafeHeaderParsing(true))
+                {
+                    // Couldn't set flag. Log the fact, throw an exception or whatever.
+                }
+                using (WebResponse response = request.GetResponse())
+                {
+                    using (Stream stream = response.GetResponseStream())
+                    {
+                        byte[] buffer = ReadFully(stream);
+                        return buffer;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+            return null;
+#else
             byte[] ret = null;
             try
             {
@@ -72,13 +153,41 @@ namespace BK7231Flasher
                             memory.Write(buffer, 0, bytesRead);
                         }
                         memory.Position = 0;
+                        byte[] tmp = new byte[16];
                         byte[] data = memory.ToArray();
+                        File.WriteAllBytes("lastPacketHTTP.bin", data);
+                        int index = BinaryMatch(data, Encoding.ASCII.GetBytes("\r\n\r\n")) + 4;
+                        string headers = Encoding.ASCII.GetString(data, 0, index);
+                        bool bIsChunked = headers.IndexOf("chunked") != -1;
+                        int totalLen = 0;
+                        if (bIsChunked)
+                        {
+                            MemoryStream merged = new MemoryStream();
+                            BinaryWriter bw = new BinaryWriter(merged);
+                            int cur = index;
+                            int next;
+                            while (true)
+                            {
+                                next = MiscUtils.indexOf(data, new byte[] { 0x0D, 0x0A }, cur);
+                                string lenStr = Encoding.ASCII.GetString(data, cur, next - cur);
+                                int len = int.Parse(lenStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                                if(len <= 0)
+                                {
+                                    break;
+                                }
+                                next += 2;
+                                bw.Write(data, next, len);
+                                cur = next + len;
+                                cur += 2;
+                            }
+                            return merged.GetBuffer();
+                        }
+                        else
+                        {
+                            memory.Position = index;
 
-                        var index = BinaryMatch(data, Encoding.ASCII.GetBytes("\r\n\r\n")) + 4;
-                        var headers = Encoding.ASCII.GetString(data, 0, index);
-                        memory.Position = index;
-
-                        ret = MiscUtils.subArray(data, index, data.Length - index);
+                            ret = MiscUtils.subArray(data, index, data.Length - index);
+                        }
                     }
                 }
             }
@@ -87,6 +196,7 @@ namespace BK7231Flasher
 
             }
             return ret;
+#endif
         }
 
         internal bool hasAdr(string s)
@@ -98,24 +208,111 @@ namespace BK7231Flasher
         {
             return adr;
         }
+        internal string getJObjectSafe(JObject o, string parent, string key, string def = "")
+        {
+            if (o == null)
+                return def;
+            JObject o2;
+            JToken o2t;
+            if(parent.Length == 0)
+            {
+                o2 = o;
+            }
+            else
+            {
+                if (o.TryGetValue(parent, out o2t) == false)
+                {
+                    return def;
+                }
+                o2 = (JObject)o2t;
+            }
 
+            JToken shortNameToken;
+            if (o2.TryGetValue(key, out shortNameToken))
+            {
+                return shortNameToken.ToString();
+            }
+            else
+            {
+                return def;
+            }
+        }
+        internal string getInfoObjectSafe(string key, string def = "")
+        {
+            if (info == null)
+                return def;
+            JToken shortNameToken;
+            if (info.TryGetValue(key, out shortNameToken))
+            {
+                return shortNameToken.ToString();
+            }
+            else
+            {
+                return def;
+            }
+        }
+        internal string getMQTTHost()
+        {
+            if (info == null)
+            {
+                return "";
+            }
+            return getInfoObjectSafe("mqtthost");
+        }
+        internal string getMQTTTopic()
+        {
+            if (info == null)
+            {
+                return getJObjectSafe(status, "Status", "Topic");
+            }
+            return getInfoObjectSafe("mqtttopic");
+        }
         internal string getShortName()
         {
-            return info["shortName"].ToString();
+            if(info == null)
+            {
+                return getJObjectSafe(status,"Status","DeviceName");
+            }
+            return getInfoObjectSafe("shortName");
         }
         internal string getChipSet()
         {
-            return info["chipset"].ToString();
+            if (info == null)
+            {
+                return getJObjectSafe(status, "StatusFWR", "Hardware");
+            }
+            return getInfoObjectSafe("chipset");
         }
+        
         internal string getMAC()
         {
-            return info["mac"].ToString();
+            if (info == null)
+            {
+                return getJObjectSafe(status, "StatusNET", "Mac");
+            }
+            return getInfoObjectSafe("mac");
         }
         internal string getBuild()
         {
-            return info["build"].ToString();
+            if (info == null)
+            {
+                return getJObjectSafe(status, "StatusFWR", "BuildDateTime")
+                    + " " + getJObjectSafe(status, "StatusFWR", "Core");
+            }
+            string r = getInfoObjectSafe("build");
+            r = r.Replace("Build on ","");
+            return r;
         }
-
+        public bool hasBasicInfoReceived()
+        {
+            if (this.bGetInfoSuccess)
+                return true;
+            return false;
+        }
+        public bool getInfoFailed()
+        {
+            return bGetInfoFailed;
+        }
         internal JObject getInfo()
         {
             return info;
@@ -125,6 +322,8 @@ namespace BK7231Flasher
         {
             adr = "";
             info = null;
+            bGetInfoFailed = false;
+            bGetInfoSuccess = false;
         }
 
         private string sendGet(string path)
@@ -133,55 +332,69 @@ namespace BK7231Flasher
             string sResult = "";
             if (res != null)
             {
-                sResult = Encoding.UTF8.GetString(res);
+                sResult = Encoding.ASCII.GetString(res);
             }
             return sResult;
         }
-        string escapeString(string s)
+        private JObject sendGenericJSONGet(string path)
         {
-            return Uri.EscapeDataString(s);
-        }
-        public void SendGetRequestTasmotaStatus(object ocb)
-        {
-            string jsonText = sendGet("/cm?cmnd - TODO");
-            ProcessJSONReply cb = ocb as ProcessJSONReply;
-            // Parse the response as a JSON object
+            string jsonText = sendGet(path);
             JObject jsonObject = null;
             try
             {
+                int lastBraceIndex = jsonText.LastIndexOf('}');
+                if (lastBraceIndex >= 0)
+                {
+                    jsonText = jsonText.Substring(0, lastBraceIndex + 1);
+                }
+                File.WriteAllText("lastHTTPJSONtext.txt", jsonText);
                 jsonObject = JObject.Parse(jsonText);
             }
             catch (Exception ex)
             {
 
             }
-            if (cb != null)
-            {
-                cb(jsonObject);
-            }
-            this.info = jsonObject;
+            return jsonObject;
         }
-        public void SendGetRequestJSON(object ocb)
+        string escape(string s)
         {
-            string jsonText = sendGet("/api/info");
+            //s = Uri.EscapeDataString(s);
+            s = s.Replace(" ", "%20");
+            return s;
+        }
+        public void ThreadSendGetInfo(object ocb)
+        {
+            bGetInfoFailed = false;
+            bGetInfoSuccess = false;
+            JObject jsonObject = sendGenericJSONGet("/api/info");
             ProcessJSONReply cb = ocb as ProcessJSONReply;
-            // Parse the response as a JSON object
-            JObject jsonObject = null;
-            try
+            this.info = jsonObject;
+            this.bTasmota = false;
+            if (this.info == null)
             {
-                jsonObject = JObject.Parse(jsonText);
             }
-            catch(Exception ex)
+            this.status = sendGenericJSONGet("/" + escape("cm?cmnd=STATUS 0"));
+            if (this.status == null)
             {
-
+                bGetInfoFailed = true;
+            }
+            else
+            {
+                if(this.info == null)
+                {
+                    this.bTasmota = true;
+                }
+            }
+            if(this.info != null || this.status != null)
+            {
+                bGetInfoSuccess = true;
             }
             if (cb != null)
             {
-                cb(jsonObject);
+                cb(this);
             }
-            this.info = jsonObject;
         }
-        public void SendGetRequestBytes(object obj)
+        public void ThreadSendGetFlashChunk(object obj)
         {
             GetFlashChunkArguments arg = obj as GetFlashChunkArguments;
             int size = arg.size;
@@ -196,7 +409,7 @@ namespace BK7231Flasher
         }
         public void sendGetInfo(ProcessJSONReply cb)
         {
-            startThread(SendGetRequestJSON, cb);
+            startThread(ThreadSendGetInfo, cb);
         }
         public void sendGetFlashChunk(ProcessBytesReply cb, int adr, int size)
         {
@@ -204,7 +417,7 @@ namespace BK7231Flasher
             arg.cb = cb;
             arg.adr = adr;
             arg.size = size;
-            startThread(SendGetRequestBytes, arg);
+            startThread(ThreadSendGetFlashChunk, arg);
         }
         private void startThread(System.Threading.ParameterizedThreadStart th, object arg)
         { 

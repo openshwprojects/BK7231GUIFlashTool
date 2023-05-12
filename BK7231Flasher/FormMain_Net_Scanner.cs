@@ -19,7 +19,7 @@ namespace BK7231Flasher
         OBKScanner scan;
         List<OBKDeviceAPI> founds = new List<OBKDeviceAPI>();
 
-        private void buttonStartScan_Click(object sender, EventArgs e)
+        private void startOrStopScannerThread()
         {
             if (scan != null)
             {
@@ -42,10 +42,25 @@ namespace BK7231Flasher
             scan = new OBKScanner(textBoxStartIP.Text, textBoxEndIP.Text);
             scan.setOnDeviceFound(onScannerFound);
             scan.setOnFinished(onScannerFinished);
+            scan.setOnProgress(onScannerProgress);
+            setMaxWorkersCountFromGUI();
             scan.startScan();
             buttonStartScan.Text = "Stop";
         }
-        
+
+        private void onScannerProgress(int done, int total)
+        {
+            if (this.InvokeRequired)
+            {
+                Singleton.textBoxLog.Invoke((MethodInvoker)delegate
+                {
+                    onScannerProgress(done,total);
+                });
+                return;
+            }
+            labelScanState.Text = "Scan progress: " + done + "/" + total + " requests sent";
+        }
+
         private void onScannerFinished(bool bInterrupted)
         {
             if (this.InvokeRequired)
@@ -64,9 +79,9 @@ namespace BK7231Flasher
         {
             if(this.InvokeRequired)
             {
-                Singleton.textBoxLog.Invoke((MethodInvoker)delegate
+                Singleton.buttonStartScan.Invoke((MethodInvoker)delegate
                 {
-                    onScannerFound(api);
+                    Singleton.onScannerFound(api);
                 });
                 return;
             }
@@ -105,12 +120,12 @@ namespace BK7231Flasher
             return null;
         }
 
-        private void textBoxScannerThreads_TextChanged(object sender, EventArgs e)
+        private void setMaxWorkersCountFromGUI()
         {
             if (scan != null)
             {
                 int cnt;
-                if(int.TryParse(textBoxScannerThreads.Text,out cnt))
+                if (int.TryParse(textBoxScannerThreads.Text, out cnt))
                 {
                     scan.setMaxWorkers(cnt);
                 }

@@ -107,11 +107,15 @@
             this.label19 = new System.Windows.Forms.Label();
             this.textBoxIP = new System.Windows.Forms.TextBox();
             this.tabPage6 = new System.Windows.Forms.TabPage();
+            this.labelScanState = new System.Windows.Forms.Label();
+            this.label24 = new System.Windows.Forms.Label();
             this.listView1 = new System.Windows.Forms.ListView();
             this.columnID = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.buttonStartScan = new System.Windows.Forms.Button();
             this.textBoxScannerThreads = new System.Windows.Forms.TextBox();
             this.label23 = new System.Windows.Forms.Label();
@@ -120,9 +124,6 @@
             this.textBoxStartIP = new System.Windows.Forms.TextBox();
             this.label21 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.label24 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -943,6 +944,7 @@
             // 
             // tabPage6
             // 
+            this.tabPage6.Controls.Add(this.labelScanState);
             this.tabPage6.Controls.Add(this.label24);
             this.tabPage6.Controls.Add(this.listView1);
             this.tabPage6.Controls.Add(this.buttonStartScan);
@@ -960,6 +962,24 @@
             this.tabPage6.Text = "LAN Scanner";
             this.tabPage6.UseVisualStyleBackColor = true;
             // 
+            // labelScanState
+            // 
+            this.labelScanState.AutoSize = true;
+            this.labelScanState.Location = new System.Drawing.Point(11, 73);
+            this.labelScanState.Name = "labelScanState";
+            this.labelScanState.Size = new System.Drawing.Size(61, 13);
+            this.labelScanState.TabIndex = 9;
+            this.labelScanState.Text = "Scan state:";
+            // 
+            // label24
+            // 
+            this.label24.AutoSize = true;
+            this.label24.Location = new System.Drawing.Point(8, 12);
+            this.label24.Name = "label24";
+            this.label24.Size = new System.Drawing.Size(330, 13);
+            this.label24.TabIndex = 8;
+            this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. ";
+            // 
             // listView1
             // 
             this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
@@ -971,9 +991,9 @@
             this.columnHeader5});
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
-            this.listView1.Location = new System.Drawing.Point(11, 75);
+            this.listView1.Location = new System.Drawing.Point(11, 92);
             this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(440, 265);
+            this.listView1.Size = new System.Drawing.Size(656, 265);
             this.listView1.TabIndex = 7;
             this.listView1.UseCompatibleStateImageBehavior = false;
             this.listView1.View = System.Windows.Forms.View.Details;
@@ -986,15 +1006,27 @@
             // columnHeader1
             // 
             this.columnHeader1.Text = "IP";
+            this.columnHeader1.Width = 100;
             // 
             // columnHeader2
             // 
             this.columnHeader2.Text = "Short Name";
-            this.columnHeader2.Width = 86;
+            this.columnHeader2.Width = 120;
             // 
             // columnHeader3
             // 
             this.columnHeader3.Text = "Chipset";
+            this.columnHeader3.Width = 78;
+            // 
+            // columnHeader4
+            // 
+            this.columnHeader4.Text = "MAC";
+            this.columnHeader4.Width = 111;
+            // 
+            // columnHeader5
+            // 
+            this.columnHeader5.Text = "Build";
+            this.columnHeader5.Width = 122;
             // 
             // buttonStartScan
             // 
@@ -1012,7 +1044,7 @@
             this.textBoxScannerThreads.Name = "textBoxScannerThreads";
             this.textBoxScannerThreads.Size = new System.Drawing.Size(69, 20);
             this.textBoxScannerThreads.TabIndex = 5;
-            this.textBoxScannerThreads.Text = "8";
+            this.textBoxScannerThreads.Text = "16";
             this.textBoxScannerThreads.TextChanged += new System.EventHandler(this.textBoxScannerThreads_TextChanged);
             // 
             // label23
@@ -1047,7 +1079,7 @@
             this.textBoxStartIP.Name = "textBoxStartIP";
             this.textBoxStartIP.Size = new System.Drawing.Size(169, 20);
             this.textBoxStartIP.TabIndex = 1;
-            this.textBoxStartIP.Text = "192.168.0.0";
+            this.textBoxStartIP.Text = "192.168.0.150";
             // 
             // label21
             // 
@@ -1062,24 +1094,6 @@
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
-            // columnHeader4
-            // 
-            this.columnHeader4.Text = "MAC";
-            // 
-            // columnHeader5
-            // 
-            this.columnHeader5.Text = "Build";
-            this.columnHeader5.Width = 75;
-            // 
-            // label24
-            // 
-            this.label24.AutoSize = true;
-            this.label24.Location = new System.Drawing.Point(8, 12);
-            this.label24.Name = "label24";
-            this.label24.Size = new System.Drawing.Size(330, 13);
-            this.label24.TabIndex = 8;
-            this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. ";
             // 
             // FormMain
             // 
@@ -1204,6 +1218,7 @@
         private System.Windows.Forms.ColumnHeader columnHeader4;
         private System.Windows.Forms.ColumnHeader columnHeader5;
         private System.Windows.Forms.Label label24;
+        private System.Windows.Forms.Label labelScanState;
     }
 }
 

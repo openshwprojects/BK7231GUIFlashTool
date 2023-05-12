@@ -89,9 +89,9 @@ namespace BK7231Flasher
             }
             return -1;
         }
-        public static int indexOf(byte[] src, byte[] needle)
+        public static int indexOf(byte[] src, byte[] needle, int start = 0)
         {
-            for (int i = 0; i < src.Length - needle.Length; i++)
+            for (int i = start; i < src.Length - needle.Length; i++)
             {
                 bool bOk = true;
                 for (int j = 0; j < needle.Length; j++)

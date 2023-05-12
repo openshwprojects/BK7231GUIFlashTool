@@ -16,7 +16,8 @@ namespace BK7231Flasher
 {
     public delegate void OBKScannerFoundDevice(OBKDeviceAPI api);
     public delegate void OBKScannerFinished(bool bInterrupted);
-    
+    public delegate void OBKScannerProgress(int done, int total);
+
     public class OBKScanner
     {
         int maxWorkers = 8;
@@ -26,7 +27,8 @@ namespace BK7231Flasher
         List<OBKDeviceAPI> workers = new List<OBKDeviceAPI>();
         OBKScannerFoundDevice onDeviceFound;
         OBKScannerFinished onScanFinished;
-        
+        OBKScannerProgress onProgress;
+
         internal void requestStop()
         {
             bWantStop = true;
@@ -45,6 +47,10 @@ namespace BK7231Flasher
         {
             this.onScanFinished = d;
         }
+        public void setOnProgress(OBKScannerProgress d)
+        {
+            this.onProgress = d;
+        }
         public void setMaxWorkers(int max)
         {
             this.maxWorkers = max;
@@ -53,6 +59,13 @@ namespace BK7231Flasher
         {
             thread = new Thread(scanThread);
             thread.Start();
+        }
+        void callOnProgress(int done, int total)
+        {
+            if (onProgress != null)
+            {
+                onProgress(done, total);
+            }
         }
         void scanThread()
         {
@@ -66,6 +79,9 @@ namespace BK7231Flasher
             Array.Reverse(endBytes);
             uint start = BitConverter.ToUInt32(startBytes, 0);
             uint end = BitConverter.ToUInt32(endBytes, 0);
+            int total = (int)end - (int)start;
+            int done = 0;
+            callOnProgress(done, total);
             uint current = start;
             while (current <= end)
             {
@@ -87,6 +103,8 @@ namespace BK7231Flasher
                 worker.setAdr(ip.ToString());
                 worker.sendGetInfo(null);
                 current++;
+                done++;
+                callOnProgress(done, total);
             }
             onScanFinished(bWantStop);
         }
@@ -96,11 +114,15 @@ namespace BK7231Flasher
             for(int i = 0; i < workers.Count; i++)
             {
                 OBKDeviceAPI d = workers[i];
-                if(d.getInfo()!=null)
+                if(d.hasBasicInfoReceived())
                 {
                     processFoundDevice(d);
                     workers.RemoveAt(i);
                     break;
+                }
+                if (d.getInfoFailed())
+                {
+                    return d;
                 }
             }
             if(workers.Count < maxWorkers)

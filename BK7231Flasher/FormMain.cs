@@ -981,7 +981,12 @@ namespace BK7231Flasher
 
         private void buttonStartScan_Click(object sender, EventArgs e)
         {
+            startOrStopScannerThread();
+        }
 
+        private void textBoxScannerThreads_TextChanged(object sender, EventArgs e)
+        {
+            setMaxWorkersCountFromGUI();
         }
     }
 }
