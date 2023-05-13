@@ -22,6 +22,15 @@ namespace BK7231Flasher
         static byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
         static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
 
+        public static string getMagicConstantStartString()
+        {
+            string s = "";
+            for(int i = 0; i < MAGIC_CONFIG_START.Length; i++)
+            {
+                s += MAGIC_CONFIG_START[i].ToString("X2");
+            }
+            return s;
+        }
         MemoryStream decrypted;
         byte[] descryptedRaw;
         // Dictionary<string, string> parms = new Dictionary<string, string>();

@@ -113,7 +113,8 @@ namespace BK7231Flasher
 #if true
             try
             {
-                WebRequest request = WebRequest.Create("http://" + adr + path);
+                string fullRequestText = "http://" + adr + path;
+                WebRequest request = WebRequest.Create(fullRequestText);
 
                 if (!ToggleAllowUnsafeHeaderParsing(true))
                 {

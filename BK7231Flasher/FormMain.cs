@@ -1017,11 +1017,23 @@ namespace BK7231Flasher
                 ToolStripMenuItem rebootMenuItem = new ToolStripMenuItem("Reboot");
                 rebootMenuItem.Click += (s, args) =>
                 {
-                    OBKDeviceAPI dev = selectedItem.Tag as OBKDeviceAPI;
-                    dev.sendCmnd("reboot",null);
+                    OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+                    devo.sendCmnd("reboot",null);
                 };
                 contextMenu.Items.Add(rebootMenuItem);
 
+                OBKDeviceAPI dev = selectedItem.Tag as OBKDeviceAPI;
+                for (int i = 0; i < dev.getPowerSlotsCount(); i++)
+                {
+                    int slotIndex = i+1; 
+                    ToolStripMenuItem toggleMenuItem = new ToolStripMenuItem("Toggle POWER"+ slotIndex);
+                    toggleMenuItem.Click += (s, args) =>
+                    {
+                        OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+                        devo.sendCmnd("POWER"+ slotIndex + " TOGGLE", null);
+                    };
+                    contextMenu.Items.Add(toggleMenuItem);
+                }
                 
                 contextMenu.Show(listView1, e.Location);
             }
