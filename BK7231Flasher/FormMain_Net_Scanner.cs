@@ -133,6 +133,7 @@ namespace BK7231Flasher
         }
         void updateItem(OBKDeviceAPI dev, ListViewItem it)
         {
+            it.Tag = dev;
             setSubItem(it, 0, dev.getUserIndex().ToString());
             setSubItem(it, 1, dev.getAdr());
             setSubItem(it, 2, dev.getShortName());

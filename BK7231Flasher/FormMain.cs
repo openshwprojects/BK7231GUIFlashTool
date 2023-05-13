@@ -988,5 +988,43 @@ namespace BK7231Flasher
         {
             setMaxWorkersCountFromGUI();
         }
+
+        private void listView1_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                ListViewItem selectedItem = listView1.FocusedItem;
+
+                ContextMenuStrip contextMenu = new ContextMenuStrip();
+
+                ToolStripMenuItem openPageMenuItem = new ToolStripMenuItem("Open page");
+                openPageMenuItem.Click += (s, args) =>
+                {
+                    string url = selectedItem.SubItems[1].Text; 
+                    System.Diagnostics.Process.Start("http://"+url);
+                };
+                contextMenu.Items.Add(openPageMenuItem);
+
+                ToolStripMenuItem copyUrlMenuItem = new ToolStripMenuItem("Copy URL");
+                copyUrlMenuItem.Click += (s, args) =>
+                {
+                    string url = selectedItem.SubItems[1].Text; 
+                    Clipboard.SetText(url);
+                };
+                contextMenu.Items.Add(copyUrlMenuItem);
+
+
+                ToolStripMenuItem rebootMenuItem = new ToolStripMenuItem("Reboot");
+                rebootMenuItem.Click += (s, args) =>
+                {
+                    OBKDeviceAPI dev = selectedItem.Tag as OBKDeviceAPI;
+                    dev.sendCmnd("reboot",null);
+                };
+                contextMenu.Items.Add(rebootMenuItem);
+
+                
+                contextMenu.Show(listView1, e.Location);
+            }
+        }
     }
 }

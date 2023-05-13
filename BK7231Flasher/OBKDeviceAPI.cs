@@ -13,6 +13,7 @@ using System.Text;
 namespace BK7231Flasher
 {
     public delegate void ProcessJSONReply(OBKDeviceAPI self);
+    public delegate void ProcessCMDReply(OBKDeviceAPI self, JObject reply);
     public delegate void ProcessBytesReply(byte[] data);
     public class OBKDeviceAPI
     {
@@ -20,15 +21,22 @@ namespace BK7231Flasher
         string adr;
         JObject info;
         JObject status;
+        JObject statusSTS;
         bool bGetInfoFailed;
         bool bTasmota;
         bool bGetInfoSuccess = false;
+        int powerCount;
 
         class GetFlashChunkArguments
         {
             public int adr;
             public int size;
             public ProcessBytesReply cb;
+        }
+        class SendCmndArguments
+        {
+            public string cmnd;
+            public ProcessCMDReply cb;
         }
         public void setUserIndex(int i)
         {
@@ -317,9 +325,14 @@ namespace BK7231Flasher
         {
             return info;
         }
-
+        public int getPowerSlotsCount()
+        {
+            return powerCount;
+        }
         internal void clear()
         {
+            statusSTS = null;
+            powerCount = 0;
             adr = "";
             info = null;
             bGetInfoFailed = false;
@@ -362,6 +375,16 @@ namespace BK7231Flasher
             s = s.Replace(" ", "%20");
             return s;
         }
+        
+        public void ThreadSendCmnd(object o)
+        {
+            SendCmndArguments arg = (SendCmndArguments)o;
+            JObject jsonObject = sendGenericJSONGet("/" + escape("cm?cmnd="+arg.cmnd));
+            if (arg.cb != null)
+            {
+                arg.cb(this, jsonObject);
+            }
+        }
         public void ThreadSendGetInfo(object ocb)
         {
             bGetInfoFailed = false;
@@ -380,7 +403,25 @@ namespace BK7231Flasher
             }
             else
             {
-                if(this.info == null)
+                JToken o;
+                if (status.TryGetValue("StatusSTS", out o) == false)
+                {
+                }
+                statusSTS = (JObject)o;
+
+                if(statusSTS != null)
+                {
+                    foreach (var property in statusSTS.Properties())
+                    {
+                        string key = property.Name;
+                        JToken value = property.Value;
+                        if (key.StartsWith("POWER"))
+                        {
+                            powerCount++;
+                        }
+                    }
+                }
+                if (this.info == null)
                 {
                     this.bTasmota = true;
                 }
@@ -406,6 +447,13 @@ namespace BK7231Flasher
             {
                 arg.cb(flash);
             }
+        }
+        internal void sendCmnd(string v, ProcessCMDReply cb)
+        {
+            SendCmndArguments arg = new SendCmndArguments();
+            arg.cmnd = v;
+            arg.cb = cb;
+            startThread(ThreadSendCmnd, arg);
         }
         public void sendGetInfo(ProcessJSONReply cb)
         {
