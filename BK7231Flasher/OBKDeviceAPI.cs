@@ -9,12 +9,15 @@ using System.Net.Configuration;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 
 namespace BK7231Flasher
 {
     public delegate void ProcessJSONReply(OBKDeviceAPI self);
     public delegate void ProcessCMDReply(OBKDeviceAPI self, JObject reply);
-    public delegate void ProcessBytesReply(byte[] data);
+    public delegate void ProcessBytesReply(byte[] data, int dataLen);
+    public delegate void ProcessProgress(int done, int total);
+
     public class OBKDeviceAPI
     {
         int userIndex;
@@ -32,6 +35,7 @@ namespace BK7231Flasher
             public int adr;
             public int size;
             public ProcessBytesReply cb;
+            public ProcessProgress cb_progress;
         }
         class SendCmndArguments
         {
@@ -441,12 +445,38 @@ namespace BK7231Flasher
             GetFlashChunkArguments arg = obj as GetFlashChunkArguments;
             int size = arg.size;
             int adr = arg.adr;
-            string hexString = string.Format("/api/flash/{0:X}-{1:X}", adr, size);
-            //byte [] flash = sendGetInternal("/api/flash/1e3000-2000");
-            byte[] flash = sendGetInternal(hexString);
+            int end = adr + size;
+            int step = 4096;
+            MemoryStream res = new MemoryStream();
+            BinaryWriter bw = new BinaryWriter(res);
+            int maxAttempts = 10;
+            for(int ofs = adr; ofs < end; ofs += step)
+            {
+                int nowLen = end - ofs;
+                if (nowLen > step)
+                    nowLen = step;
+
+                if (arg.cb_progress!=null)
+                {
+                    arg.cb_progress(ofs - adr, end - adr);
+                }
+                string hexString = string.Format("/api/flash/{0:X}-{1:X}", ofs, nowLen);
+                for(int tr = 0; tr < maxAttempts; tr++)
+                {
+                    //byte [] flash = sendGetInternal("/api/flash/1e3000-2000");
+                    byte[] flash = sendGetInternal(hexString);
+                    if(flash == null || flash.Length != nowLen)
+                    {
+                        Thread.Sleep(100);
+                        continue;
+                    }
+                    bw.Write(flash, 0, nowLen);
+                    break;
+                }
+            }
             if (arg.cb != null)
             {
-                arg.cb(flash);
+                arg.cb(res.ToArray(),(int)res.Position);
             }
         }
         internal void sendCmnd(string v, ProcessCMDReply cb)
@@ -460,10 +490,11 @@ namespace BK7231Flasher
         {
             startThread(ThreadSendGetInfo, cb);
         }
-        public void sendGetFlashChunk(ProcessBytesReply cb, int adr, int size)
+        public void sendGetFlashChunk(ProcessBytesReply cb, ProcessProgress cb_progress, int adr, int size)
         {
             GetFlashChunkArguments arg = new GetFlashChunkArguments();
             arg.cb = cb;
+            arg.cb_progress = cb_progress;
             arg.adr = adr;
             arg.size = size;
             startThread(ThreadSendGetFlashChunk, arg);

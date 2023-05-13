@@ -20,21 +20,30 @@ namespace BK7231Flasher
         public void onGetInfoReply(OBKDeviceAPI self)
         {
             Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
-
-                labelCheckCommunicationStatus.Text += " success!" + Environment.NewLine;
-                labelCheckCommunicationStatus.Text += "Chipset = " + self.getChipSet() + Environment.NewLine;   
-                labelCheckCommunicationStatus.Text += "ShortName = " + self.getShortName() + Environment.NewLine;
-                labelCheckCommunicationStatus.Text += "Build = " + self.getBuild() + Environment.NewLine;
-                labelCheckCommunicationStatus.Text += "MQTTHost = " + self.getMQTTHost() + Environment.NewLine;
-                labelCheckCommunicationStatus.Text += "IP = " + self.getAdr() + Environment.NewLine;
-                labelCheckCommunicationStatus.Text += "MQTTTopic = " + self.getMQTTTopic() + Environment.NewLine;
-                JObject json = self.getInfo();
-                if (json != null)
+                if(self.getInfoFailed())
                 {
-                    labelCheckCommunicationStatus.Text += "MAC = " + json["mac"] + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "WebApp = " + json["webapp"] + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "Uptime = " + json["uptime_s"] + " seconds" + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text = "Failed to get reply." + Environment.NewLine;
+                    setIPDeviceButtonsState(false);
                 }
+                else
+                {
+                    labelCheckCommunicationStatus.Text = " success!" + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text += "Chipset = " + self.getChipSet() + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text += "ShortName = " + self.getShortName() + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text += "Build = " + self.getBuild() + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text += "MQTTHost = " + self.getMQTTHost() + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text += "IP = " + self.getAdr() + Environment.NewLine;
+                    labelCheckCommunicationStatus.Text += "MQTTTopic = " + self.getMQTTTopic() + Environment.NewLine;
+                    JObject json = self.getInfo();
+                    if (json != null)
+                    {
+                        labelCheckCommunicationStatus.Text += "MAC = " + json["mac"] + Environment.NewLine;
+                        labelCheckCommunicationStatus.Text += "WebApp = " + json["webapp"] + Environment.NewLine;
+                        labelCheckCommunicationStatus.Text += "Uptime = " + json["uptime_s"] + " seconds" + Environment.NewLine;
+                    }
+                    setIPDeviceButtonsState(true);
+                }
+
             });
         }
         private void buttonCheckCommunication_Click(object sender, EventArgs e)
@@ -53,10 +62,19 @@ namespace BK7231Flasher
                 MessageBox.Show("Please enter valid IP string");
             }
         }
-
-        private void buttonIPCFGDump_Click(object sender, EventArgs e)
+        void doSingleDeviceOBKCFGDump()
         {
-            dev.sendGetFlashChunk(null, 0x0, 4096);
+            dev.sendGetFlashChunk(null, null, 0x0, 4096);
+        }
+        void doSingleDeviceTuyaCFGDump()
+        {
+            dev.sendGetFlashChunk(null, null, TuyaConfig.getMagicOffset(), TuyaConfig.getMagicSize());
+        }
+        void setIPDeviceButtonsState(bool b)
+        {
+            buttonIPCFGDump.Enabled = b;
+            buttonIPDump2MB.Enabled = b;
+            buttonIPDownloadTuyaConfig.Enabled = b;
         }
     }
 }

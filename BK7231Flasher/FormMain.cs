@@ -85,6 +85,7 @@ namespace BK7231Flasher
         private void Form1_Load(object sender, EventArgs e)
         {
 
+            setIPDeviceButtonsState(false);
 #if false
             {
                 byte[] data1 = { 0x01, 0x02, 0x03 };
@@ -1037,6 +1038,21 @@ namespace BK7231Flasher
                 
                 contextMenu.Show(listView1, e.Location);
             }
+        }
+
+        private void buttonIPCFGDump_Click(object sender, EventArgs e)
+        {
+            doSingleDeviceOBKCFGDump();
+        }
+
+        private void buttonIPDownloadTuyaConfig_Click(object sender, EventArgs e)
+        {
+            doSingleDeviceTuyaCFGDump();
+        }
+
+        private void buttonIPDump2MB_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Not implemented yet, as it's not needed");
         }
     }
 }

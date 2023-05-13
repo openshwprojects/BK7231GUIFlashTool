@@ -99,6 +99,7 @@
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
+            this.buttonIPDownloadTuyaConfig = new System.Windows.Forms.Button();
             this.label20 = new System.Windows.Forms.Label();
             this.buttonIPCFGDump = new System.Windows.Forms.Button();
             this.buttonIPDump2MB = new System.Windows.Forms.Button();
@@ -863,6 +864,7 @@
             // 
             // tabPage5
             // 
+            this.tabPage5.Controls.Add(this.buttonIPDownloadTuyaConfig);
             this.tabPage5.Controls.Add(this.label20);
             this.tabPage5.Controls.Add(this.buttonIPCFGDump);
             this.tabPage5.Controls.Add(this.buttonIPDump2MB);
@@ -877,6 +879,16 @@
             this.tabPage5.TabIndex = 5;
             this.tabPage5.Text = "Get CFG from OBK device on LAN";
             this.tabPage5.UseVisualStyleBackColor = true;
+            // 
+            // buttonIPDownloadTuyaConfig
+            // 
+            this.buttonIPDownloadTuyaConfig.Location = new System.Drawing.Point(381, 107);
+            this.buttonIPDownloadTuyaConfig.Name = "buttonIPDownloadTuyaConfig";
+            this.buttonIPDownloadTuyaConfig.Size = new System.Drawing.Size(483, 23);
+            this.buttonIPDownloadTuyaConfig.TabIndex = 7;
+            this.buttonIPDownloadTuyaConfig.Text = "Download Tuya config (Tuya GPIO) from 0x1EE000 offset, 72kilobytes";
+            this.buttonIPDownloadTuyaConfig.UseVisualStyleBackColor = true;
+            this.buttonIPDownloadTuyaConfig.Click += new System.EventHandler(this.buttonIPDownloadTuyaConfig_Click);
             // 
             // label20
             // 
@@ -905,6 +917,7 @@
             this.buttonIPDump2MB.TabIndex = 4;
             this.buttonIPDump2MB.Text = "Download 2MB dump from target";
             this.buttonIPDump2MB.UseVisualStyleBackColor = true;
+            this.buttonIPDump2MB.Click += new System.EventHandler(this.buttonIPDump2MB_Click);
             // 
             // labelCheckCommunicationStatus
             // 
@@ -1220,6 +1233,7 @@
         private System.Windows.Forms.ColumnHeader columnHeader5;
         private System.Windows.Forms.Label label24;
         private System.Windows.Forms.Label labelScanState;
+        private System.Windows.Forms.Button buttonIPDownloadTuyaConfig;
     }
 }
 

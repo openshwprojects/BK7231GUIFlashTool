@@ -21,7 +21,20 @@ namespace BK7231Flasher
         static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
         static byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
         static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
+        // TODO: check more bins with this offset
+        // hex 0x1EE000
+        // While flash is 0x200000, so we have at most 0x12000 bytes there...
+        // So it's 0x12 sectors (18 sectors)
+        static int USUAL_MAGIC_POSITION = 2023424;
 
+        internal static int getMagicOffset()
+        {
+            return USUAL_MAGIC_POSITION;
+        }
+        public static int getMagicSize()
+        {
+            return 0x200000-USUAL_MAGIC_POSITION;
+        }
         public static string getMagicConstantStartString()
         {
             string s = "";
@@ -31,11 +44,16 @@ namespace BK7231Flasher
             }
             return s;
         }
+        int magicPosition;
         MemoryStream decrypted;
         byte[] descryptedRaw;
         // Dictionary<string, string> parms = new Dictionary<string, string>();
         List<KeyValue> parms = new List<KeyValue>();
 
+        public int getMagicPosition()
+        {
+            return magicPosition;
+        }
         public bool fromFile(string fname)
         {
             using (var fs = new FileStream(fname, FileMode.Open, FileAccess.Read))
@@ -47,6 +65,16 @@ namespace BK7231Flasher
         }
         public byte []myDecrypt(byte [] data, int baseOffset, int blockIndex, byte [] key)
         {
+            bool bSaveDebug;
+            bSaveDebug = true;
+            string saveDir = "DebugAES/";
+            if (bSaveDebug)
+            {
+                if (Directory.Exists(saveDir) == false)
+                {
+                    Directory.CreateDirectory(saveDir);
+                }
+            }
             byte[] decryptedData = null;
             try
             {
@@ -56,10 +84,42 @@ namespace BK7231Flasher
                     aes.Key = key;
                     aes.Padding = PaddingMode.Zeros;
                     ICryptoTransform decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+                    if (bSaveDebug)
+                    {
+                        File.WriteAllBytes(saveDir + "used_IV.bin", aes.IV);
+                        string hexString = "";
+                        foreach (byte b in aes.IV)
+                        {
+                            hexString += b.ToString("X2");
+                        }
+                        File.WriteAllText(saveDir + "used_IV.txt", hexString);
+                    }
                     int readOfs = baseOffset + SECTOR_SIZE * blockIndex;
                     int rem = data.Length - readOfs;
                     using (MemoryStream msDecrypt = new MemoryStream(data, readOfs, SECTOR_SIZE))
                     {
+                        if (bSaveDebug)
+                        {
+                            byte[] msDecryptB = MiscUtils.subArray(data, readOfs, SECTOR_SIZE);
+                            File.WriteAllBytes(saveDir + "tuya_" + blockIndex + ".bin", msDecryptB);
+                            string hexString = "";
+                            foreach (byte b in msDecryptB)
+                            {
+                                hexString += b.ToString("X2");
+                            }
+                            File.WriteAllText(saveDir + "tuya_" + blockIndex + ".txt", hexString);
+                        }
+                        if (bSaveDebug)
+                        {
+                            byte[] msDecryptB = key;
+                            File.WriteAllBytes(saveDir + "key_" + blockIndex + ".bin", msDecryptB);
+                            string hexString = "";
+                            foreach (byte b in msDecryptB)
+                            {
+                                hexString += b.ToString("X2");
+                            }
+                            File.WriteAllText(saveDir + "key_" + blockIndex + ".txt", hexString);
+                        }
                         using (MemoryStream msPlain = new MemoryStream())
                         {
                             using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
@@ -72,6 +132,16 @@ namespace BK7231Flasher
                                 }
                             }
                             decryptedData = msPlain.ToArray();
+                            if (bSaveDebug)
+                            {
+                                File.WriteAllBytes(saveDir + "decoded_" + blockIndex + ".bin", decryptedData);
+                                string hexString = "";
+                                foreach (byte b in decryptedData)
+                                {
+                                    hexString += b.ToString("X2");
+                                }
+                                File.WriteAllText(saveDir + "decoded_" + blockIndex + ".txt", hexString);
+                            }
                         }
                     }
                 }
@@ -81,6 +151,8 @@ namespace BK7231Flasher
             }
             return decryptedData;
         }
+
+
         public bool fromBytes(byte[] data)
         {
             int needle = MiscUtils.indexOf(data, MAGIC_CONFIG_START);
@@ -91,6 +163,7 @@ namespace BK7231Flasher
             }
             needle -= 32;
             FormMain.Singleton.addLog("Tuya config extractor - magic is at " + needle +" " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+            magicPosition = needle;
 
             byte[] key = null;
 
@@ -396,6 +469,14 @@ namespace BK7231Flasher
                 desc += "No module information found.";
             }
             desc += Environment.NewLine;
+            if(magicPosition != USUAL_MAGIC_POSITION)
+            {
+                desc += "And the Tuya section starts at UNCOMMON POSITION " + magicPosition + Environment.NewLine;
+            }
+            else
+            {
+                desc += "And the Tuya section starts, as usual, at " + magicPosition + Environment.NewLine;
+            }
             return desc;
         }
         public string getKeyValue(string key, string sdefault = "")
