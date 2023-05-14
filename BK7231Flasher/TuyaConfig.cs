@@ -292,6 +292,16 @@ namespace BK7231Flasher
                         tg.setPinChannel(value, number);
                     }
                 }
+                else if (key == "basic_pin_pin")
+                {
+                    // This will read 1 if there was a movement, at least on the sensor I have
+                    // some devices have netled1_pin, some have netled_pin
+                    desc += "- PIR sensor on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.dInput);
+                    }
+                }
                 else if (key == "netled_pin")
                 {
                     // some devices have netled1_pin, some have netled_pin
