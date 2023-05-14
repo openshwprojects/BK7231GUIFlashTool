@@ -48,7 +48,7 @@ namespace BK7231Flasher
         {
             var textboxSender = (TextBox)sender;
             var cursorPosition = textboxSender.SelectionStart;
-            textboxSender.Text = Regex.Replace(textboxSender.Text, "[^0-9a-zA-Z_]", "");
+            textboxSender.Text = Regex.Replace(textboxSender.Text, "[^0-9a-zA-Z_-]", "");
             textboxSender.SelectionStart = cursorPosition;
         }
     }
