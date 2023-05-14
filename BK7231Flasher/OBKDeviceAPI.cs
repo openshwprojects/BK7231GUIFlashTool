@@ -29,6 +29,7 @@ namespace BK7231Flasher
         bool bTasmota;
         bool bGetInfoSuccess = false;
         int powerCount;
+        int webRequestTimeOut = 2000;
 
         class GetFlashChunkArguments
         {
@@ -41,6 +42,10 @@ namespace BK7231Flasher
         {
             public string cmnd;
             public ProcessCMDReply cb;
+        }
+        public void setWebRequestTimeOut(int t)
+        {
+            this.webRequestTimeOut = t;
         }
         public void setUserIndex(int i)
         {
@@ -119,7 +124,7 @@ namespace BK7231Flasher
             {
                 string fullRequestText = "http://" + adr + path;
                 WebRequest request = WebRequest.Create(fullRequestText);
-
+                request.Timeout = webRequestTimeOut;
                 if (!ToggleAllowUnsafeHeaderParsing(true))
                 {
                     // Couldn't set flag. Log the fact, throw an exception or whatever.

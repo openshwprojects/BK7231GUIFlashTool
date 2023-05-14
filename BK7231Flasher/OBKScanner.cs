@@ -83,6 +83,7 @@ namespace BK7231Flasher
             int done = 0;
             callOnProgress(done, total);
             uint current = start;
+            int scannerTimeOutMS = 1000;
             while (current <= end)
             {
                 if (bWantStop)
@@ -101,6 +102,7 @@ namespace BK7231Flasher
                 Console.WriteLine("Will try to check " +ip.ToString());
                 worker.clear();
                 worker.setAdr(ip.ToString());
+                worker.setWebRequestTimeOut(scannerTimeOutMS);
                 worker.sendGetInfo(null);
                 current++;
                 done++;
