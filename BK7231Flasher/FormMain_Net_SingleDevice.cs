@@ -49,11 +49,13 @@ namespace BK7231Flasher
         private void buttonCheckCommunication_Click(object sender, EventArgs e)
         {
             IPAddress tg;
-            bool bOk = IPAddress.TryParse(textBoxIP.Text, out tg);
+            bool bOk = IPAddress.TryParse(comboBoxIP.Text, out tg);
             if (bOk)
             {
+                settings.addRecentTargetIP(comboBoxIP.Text);
+                saveSettings();
                 labelCheckCommunicationStatus.Text = "Sending GET...";
-                dev = new OBKDeviceAPI(textBoxIP.Text);
+                dev = new OBKDeviceAPI(comboBoxIP.Text);
                 dev.sendGetInfo(onGetInfoReply);
             }
             else

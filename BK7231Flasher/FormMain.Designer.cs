@@ -106,7 +106,6 @@
             this.labelCheckCommunicationStatus = new System.Windows.Forms.Label();
             this.buttonCheckCommunication = new System.Windows.Forms.Button();
             this.label19 = new System.Windows.Forms.Label();
-            this.textBoxIP = new System.Windows.Forms.TextBox();
             this.tabPage6 = new System.Windows.Forms.TabPage();
             this.labelScanState = new System.Windows.Forms.Label();
             this.label24 = new System.Windows.Forms.Label();
@@ -125,6 +124,7 @@
             this.textBoxStartIP = new System.Windows.Forms.TextBox();
             this.label21 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.comboBoxIP = new System.Windows.Forms.ComboBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -864,6 +864,7 @@
             // 
             // tabPage5
             // 
+            this.tabPage5.Controls.Add(this.comboBoxIP);
             this.tabPage5.Controls.Add(this.buttonIPDownloadTuyaConfig);
             this.tabPage5.Controls.Add(this.label20);
             this.tabPage5.Controls.Add(this.buttonIPCFGDump);
@@ -871,7 +872,6 @@
             this.tabPage5.Controls.Add(this.labelCheckCommunicationStatus);
             this.tabPage5.Controls.Add(this.buttonCheckCommunication);
             this.tabPage5.Controls.Add(this.label19);
-            this.tabPage5.Controls.Add(this.textBoxIP);
             this.tabPage5.Location = new System.Drawing.Point(4, 22);
             this.tabPage5.Name = "tabPage5";
             this.tabPage5.Padding = new System.Windows.Forms.Padding(3);
@@ -946,14 +946,6 @@
             this.label19.Size = new System.Drawing.Size(20, 13);
             this.label19.TabIndex = 1;
             this.label19.Text = "IP:";
-            // 
-            // textBoxIP
-            // 
-            this.textBoxIP.Location = new System.Drawing.Point(35, 48);
-            this.textBoxIP.Name = "textBoxIP";
-            this.textBoxIP.Size = new System.Drawing.Size(177, 20);
-            this.textBoxIP.TabIndex = 0;
-            this.textBoxIP.Text = "127.0.0.1";
             // 
             // tabPage6
             // 
@@ -1109,6 +1101,14 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
+            // comboBoxIP
+            // 
+            this.comboBoxIP.FormattingEnabled = true;
+            this.comboBoxIP.Location = new System.Drawing.Point(35, 48);
+            this.comboBoxIP.Name = "comboBoxIP";
+            this.comboBoxIP.Size = new System.Drawing.Size(177, 21);
+            this.comboBoxIP.TabIndex = 8;
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1210,7 +1210,6 @@
         private System.Windows.Forms.Button buttonReadOBKConfig;
         private System.Windows.Forms.TabPage tabPage5;
         private System.Windows.Forms.Label label19;
-        private System.Windows.Forms.TextBox textBoxIP;
         private System.Windows.Forms.Button buttonCheckCommunication;
         private System.Windows.Forms.Label labelCheckCommunicationStatus;
         private System.Windows.Forms.Button buttonIPDump2MB;
@@ -1234,6 +1233,7 @@
         private System.Windows.Forms.Label label24;
         private System.Windows.Forms.Label labelScanState;
         private System.Windows.Forms.Button buttonIPDownloadTuyaConfig;
+        private System.Windows.Forms.ComboBox comboBoxIP;
     }
 }
 

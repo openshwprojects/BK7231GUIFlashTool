@@ -97,7 +97,7 @@ namespace BK7231Flasher
 
             }
 #endif
-
+            
 
             //  var t = new TuyaConfig();
             //  t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
@@ -115,6 +115,18 @@ namespace BK7231Flasher
             }
 
             settings = MySettings.CreateAndLoad("settings.cfg");
+            List<string> recentIPs = settings.getRecentIPs();
+            for(int i = recentIPs.Count-1; i >= 0; i--)
+            {
+                string s = recentIPs[i];
+                comboBoxIP.Items.Add(s);
+            }
+            if(comboBoxIP.Items.Count == 0)
+            {
+                comboBoxIP.Items.Add(("127.0.0.1"));
+            }
+            comboBoxIP.SelectedIndex = 0;
+
             // do not overwrite user settings with default
             bWithinSettingSet = true;
 
@@ -232,8 +244,12 @@ namespace BK7231Flasher
             }
             bWithinSettingSet = true;
             settings.SetKeyValue(key, value);
-            settings.Save("settings.cfg");
+            saveSettings();
             bWithinSettingSet = false;
+        }
+        void saveSettings()
+        {
+            settings.Save("settings.cfg");
         }
         int getBaudRateFromGUI()
         {
@@ -300,7 +316,10 @@ namespace BK7231Flasher
                 var res = MessageBox.Show("Do you want to interrupt flashing?", "Stop?", MessageBoxButtons.YesNo);
                 if (res == DialogResult.Yes)
                 {
-                    worker.Abort();
+                    if(worker != null)
+                    {
+                        worker.Abort();
+                    }
                     worker = null;
                     //setButtonReadLabel(label_startRead);
                     setButtonStates(true);

@@ -20,6 +20,7 @@ namespace BK7231Flasher
     class MySettings
     {
         private List<KeyValue> settingsList;
+        private List<string> recentTargetIPs = new List<string>();
 
         public MySettings()
         {
@@ -51,10 +52,28 @@ namespace BK7231Flasher
                 {
                     sw.WriteLine(kv.Key + "=" + kv.Value);
                 }
+                foreach(string s in recentTargetIPs)
+                {
+                    sw.WriteLine("RecentIP=" + s);
+                }
             }
+        }
+        public void addRecentTargetIP(string s)
+        {
+            recentTargetIPs.Remove(s);
+            if(recentTargetIPs.Count > 10)
+            {
+                recentTargetIPs.RemoveAt(0);
+            }
+            recentTargetIPs.Add(s);
         }
         public void SetKeyValue(string key, string value)
         {
+            if(key == "RecentIP"){
+               // recentTargetIPs.Add(key);
+                addRecentTargetIP(value);
+                return;
+            }
             bool found = false;
             foreach (KeyValue kv in settingsList)
             {
@@ -99,7 +118,7 @@ namespace BK7231Flasher
                         int index = line.IndexOf('=');
                         string key = line.Substring(0, index);
                         string value = line.Substring(index + 1);
-                        settingsList.Add(new KeyValue(key, value));
+                        SetKeyValue(key, value);
                     }
                 }
             }
@@ -112,6 +131,11 @@ namespace BK7231Flasher
                 return int.Parse(value);
             }
             return 0;
+        }
+
+        internal List<string> getRecentIPs()
+        {
+            return recentTargetIPs;
         }
 
         public bool FindKeyValueBool(string key)
