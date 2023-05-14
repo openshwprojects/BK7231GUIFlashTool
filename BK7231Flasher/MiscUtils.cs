@@ -112,5 +112,17 @@ namespace BK7231Flasher
         {
             throw new NotImplementedException();
         }
+
+        internal static bool isFullOf(byte[] data, byte ch)
+        {
+            for(int i = 0; i < data.Length; i++)
+            {
+                if(data[i] != ch)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }

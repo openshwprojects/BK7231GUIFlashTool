@@ -117,6 +117,17 @@ namespace BK7231Flasher
             }
             return false;
         }
+
+        internal BKType getBKType()
+        {
+            string cs = getChipSet();
+            if (cs == "BK7231N")
+                return BKType.BK7231N;
+            if (cs == "BK7231T")
+                return BKType.BK7231T;
+            return BKType.Invalid;
+        }
+
         private byte []sendGetInternal(string path)
         {
 #if true

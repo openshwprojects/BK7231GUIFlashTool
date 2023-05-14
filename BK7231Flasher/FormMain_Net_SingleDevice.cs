@@ -17,6 +17,11 @@ namespace BK7231Flasher
     public partial class FormMain : Form, ILogListener
     {
         OBKDeviceAPI dev;
+        byte[] ipOperationResult;
+        int ipOperationResultLen;
+        string ipOperationResultKind;
+        string ipDownloadOperationKind;
+
         public void onGetInfoReply(OBKDeviceAPI self)
         {
             Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
@@ -64,14 +69,128 @@ namespace BK7231Flasher
                 MessageBox.Show("Please enter valid IP string");
             }
         }
+        bool checkIsIPOBKDeviceAndShowError()
+        {
+            BKType type = dev.getBKType();
+            if (type == BKType.Invalid)
+            {
+                MessageBox.Show("This is implemented only for BK7231N and BK7231T");
+                return false;
+            }
+            return true;
+        }
         void doSingleDeviceOBKCFGDump()
         {
-            dev.sendGetFlashChunk(null, null, 0x0, 4096);
+            // is this BK7231?
+            if (checkIsIPOBKDeviceAndShowError() == false)
+            {
+                return;
+            }
+            // this is BK7231!
+            int ofs = OBKFlashLayout.getConfigLocation(dev.getBKType());
+            setupDownloadOperationProgressBar("Downloading OBK CFG dump...");
+            dev.sendGetFlashChunk(onOBKConfigDownloaded, onOBKConfigProgress, ofs, 4096);
         }
+        void setupDownloadOperationProgressBar(string opStr)
+        {
+            ipDownloadOperationKind = opStr;
+            updateIPOperationStatus(" starting...");
+        }
+        void updateIPOperationStatus(string subStr)
+        {
+            labelIPOperationStatus.Text = ipDownloadOperationKind + " " + subStr;
+        }
+
+        private void onGenericProgress(int done, int total)
+        {
+            Singleton.progressBarIPOperation.Invoke((MethodInvoker)delegate {
+                if (done > total)
+                    done = total;
+                progressBarIPOperation.SetState(1);
+                progressBarIPOperation.Maximum = total;
+                progressBarIPOperation.Value = done;
+                float per = (float)done / (float)total;
+                per *= 100.0f;
+                updateIPOperationStatus(" done " + per.ToString("0.0")+"%");
+            });
+        }
+        private void onOBKConfigProgress(int done, int total)
+        {
+            onGenericProgress(done, total);
+        }
+        private int saveIPBinaryResultTo(string filePath)
+        {
+            using (FileStream fs = new FileStream(filePath, FileMode.Create))
+            {
+                fs.Write(ipOperationResult, 0, ipOperationResultLen);
+            }
+            return ipOperationResultLen;
+        }
+        private void onIPSaveResultToFileClicked()
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Binary files (*.bin)|*.bin|All files (*.*)|*.*";
+            DialogResult result = saveFileDialog.ShowDialog();
+            if (result == DialogResult.OK && saveFileDialog.FileName.Length > 0)
+            {
+                int written = saveIPBinaryResultTo(saveFileDialog.FileName);
+                if (written == 0)
+                {
+                    MessageBox.Show("Failed to save file.");
+                }
+                else
+                {
+                    MessageBox.Show("Config saved. Remember that you can just drag and drop it over the form to view it later.");
+                }
+            }
+        }
+        private void handleGenericProgressFinish(byte [] data, int len, string kind)
+        {
+            this.ipOperationResult = data;
+            this.ipOperationResultLen = len;
+            this.ipOperationResultKind = kind;
+
+            Singleton.progressBarIPOperation.Invoke((MethodInvoker)delegate {
+                if (data != null)
+                {
+                    progressBarIPOperation.Value = progressBarIPOperation.Maximum;
+                    updateIPOperationStatus(" success!");
+                    buttonIPSaveResultToFile.Enabled = true;
+                }
+                else
+                {
+                    progressBarIPOperation.SetState(2);
+                    updateIPOperationStatus(" failed!");
+                    buttonIPSaveResultToFile.Enabled = false;
+                }
+            });
+        }
+        private void onOBKConfigDownloaded(byte[] data, int dataLen)
+        {
+            handleGenericProgressFinish(data, dataLen,"OBKCFG");
+        }
+        private void onTuyaConfigDownloaded(byte[] data, int dataLen)
+        {
+            handleGenericProgressFinish(data, dataLen,"TuyaCFG");
+        }
+        private void onTuyaConfigProgress(int done, int total)
+        {
+            onGenericProgress(done, total);
+        }
+
         void doSingleDeviceTuyaCFGDump()
         {
-            dev.sendGetFlashChunk(null, null, TuyaConfig.getMagicOffset(), TuyaConfig.getMagicSize());
+            // is this BK7231?
+            if (checkIsIPOBKDeviceAndShowError() == false)
+            {
+                return;
+            }
+            // this is BK7231!
+            setupDownloadOperationProgressBar("Downloading Tuya CFG dump from OBK device...");
+            dev.sendGetFlashChunk(onTuyaConfigDownloaded, onTuyaConfigProgress, TuyaConfig.getMagicOffset(), TuyaConfig.getMagicSize());
         }
+
+
         void setIPDeviceButtonsState(bool b)
         {
             buttonIPCFGDump.Enabled = b;

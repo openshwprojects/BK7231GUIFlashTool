@@ -152,13 +152,24 @@ namespace BK7231Flasher
             return decryptedData;
         }
 
-
+        bool bGivenBinaryIsFullOf0xff;
+        // warn users that they have erased flash sector with cfg
+        public bool isLastBinaryFullOf0xff()
+        {
+            return bGivenBinaryIsFullOf0xff;
+        }
         public bool fromBytes(byte[] data)
         {
             int needle = MiscUtils.indexOf(data, MAGIC_CONFIG_START);
             if(needle < 0)
             {
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Yellow);
+
+                if (MiscUtils.isFullOf(data, 0xff))
+                {
+                    FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    bGivenBinaryIsFullOf0xff = true;
+                }
                 return true;
             }
             needle -= 32;

@@ -100,6 +100,7 @@
     </Compile>
     <Compile Include="ILogListener.cs" />
     <Compile Include="MiscUtils.cs" />
+    <Compile Include="ModifyProgressBarColor.cs" />
     <Compile Include="MySettings.cs" />
     <Compile Include="OBKConfig.cs" />
     <Compile Include="OBKDeviceAPI.cs" />

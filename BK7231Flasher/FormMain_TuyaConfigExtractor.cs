@@ -42,6 +42,21 @@ namespace BK7231Flasher
                             textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
                             textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
                         }
+                        else
+                        {
+                            MessageBox.Show("Failed to extract keys");
+                        }
+                    }
+                    else
+                    {
+                        if (tc.isLastBinaryFullOf0xff())
+                        {
+                            MessageBox.Show("Failed, it seems that given binary is an erased flash sector, full of 0xFF");
+                        }
+                        else
+                        {
+                            MessageBox.Show("Failed, see log for more details");
+                        }
                     }
                 }
                 catch (Exception ex)

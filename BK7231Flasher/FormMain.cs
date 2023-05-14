@@ -85,6 +85,7 @@ namespace BK7231Flasher
         private void Form1_Load(object sender, EventArgs e)
         {
 
+            buttonIPSaveResultToFile.Enabled = false;
             setIPDeviceButtonsState(false);
 #if false
             {
@@ -1072,6 +1073,11 @@ namespace BK7231Flasher
         private void buttonIPDump2MB_Click(object sender, EventArgs e)
         {
             MessageBox.Show("Not implemented yet, as it's not needed");
+        }
+
+        private void buttonIPSaveResultToFile_Click(object sender, EventArgs e)
+        {
+            onIPSaveResultToFileClicked();
         }
     }
 }

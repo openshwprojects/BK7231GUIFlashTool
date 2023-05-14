@@ -99,6 +99,7 @@
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
+            this.comboBoxIP = new System.Windows.Forms.ComboBox();
             this.buttonIPDownloadTuyaConfig = new System.Windows.Forms.Button();
             this.label20 = new System.Windows.Forms.Label();
             this.buttonIPCFGDump = new System.Windows.Forms.Button();
@@ -124,7 +125,9 @@
             this.textBoxStartIP = new System.Windows.Forms.TextBox();
             this.label21 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.comboBoxIP = new System.Windows.Forms.ComboBox();
+            this.labelIPOperationStatus = new System.Windows.Forms.Label();
+            this.progressBarIPOperation = new System.Windows.Forms.ProgressBar();
+            this.buttonIPSaveResultToFile = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -864,6 +867,9 @@
             // 
             // tabPage5
             // 
+            this.tabPage5.Controls.Add(this.buttonIPSaveResultToFile);
+            this.tabPage5.Controls.Add(this.progressBarIPOperation);
+            this.tabPage5.Controls.Add(this.labelIPOperationStatus);
             this.tabPage5.Controls.Add(this.comboBoxIP);
             this.tabPage5.Controls.Add(this.buttonIPDownloadTuyaConfig);
             this.tabPage5.Controls.Add(this.label20);
@@ -879,6 +885,14 @@
             this.tabPage5.TabIndex = 5;
             this.tabPage5.Text = "Get CFG from OBK device on LAN";
             this.tabPage5.UseVisualStyleBackColor = true;
+            // 
+            // comboBoxIP
+            // 
+            this.comboBoxIP.FormattingEnabled = true;
+            this.comboBoxIP.Location = new System.Drawing.Point(35, 48);
+            this.comboBoxIP.Name = "comboBoxIP";
+            this.comboBoxIP.Size = new System.Drawing.Size(177, 21);
+            this.comboBoxIP.TabIndex = 8;
             // 
             // buttonIPDownloadTuyaConfig
             // 
@@ -1101,13 +1115,31 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // comboBoxIP
+            // labelIPOperationStatus
             // 
-            this.comboBoxIP.FormattingEnabled = true;
-            this.comboBoxIP.Location = new System.Drawing.Point(35, 48);
-            this.comboBoxIP.Name = "comboBoxIP";
-            this.comboBoxIP.Size = new System.Drawing.Size(177, 21);
-            this.comboBoxIP.TabIndex = 8;
+            this.labelIPOperationStatus.AutoSize = true;
+            this.labelIPOperationStatus.Location = new System.Drawing.Point(381, 160);
+            this.labelIPOperationStatus.Name = "labelIPOperationStatus";
+            this.labelIPOperationStatus.Size = new System.Drawing.Size(154, 13);
+            this.labelIPOperationStatus.TabIndex = 9;
+            this.labelIPOperationStatus.Text = "Current operation progress: 0/0";
+            // 
+            // progressBarIPOperation
+            // 
+            this.progressBarIPOperation.Location = new System.Drawing.Point(384, 176);
+            this.progressBarIPOperation.Name = "progressBarIPOperation";
+            this.progressBarIPOperation.Size = new System.Drawing.Size(480, 23);
+            this.progressBarIPOperation.TabIndex = 10;
+            // 
+            // buttonIPSaveResultToFile
+            // 
+            this.buttonIPSaveResultToFile.Location = new System.Drawing.Point(702, 206);
+            this.buttonIPSaveResultToFile.Name = "buttonIPSaveResultToFile";
+            this.buttonIPSaveResultToFile.Size = new System.Drawing.Size(162, 23);
+            this.buttonIPSaveResultToFile.TabIndex = 11;
+            this.buttonIPSaveResultToFile.Text = "Save result to file...";
+            this.buttonIPSaveResultToFile.UseVisualStyleBackColor = true;
+            this.buttonIPSaveResultToFile.Click += new System.EventHandler(this.buttonIPSaveResultToFile_Click);
             // 
             // FormMain
             // 
@@ -1234,6 +1266,9 @@
         private System.Windows.Forms.Label labelScanState;
         private System.Windows.Forms.Button buttonIPDownloadTuyaConfig;
         private System.Windows.Forms.ComboBox comboBoxIP;
+        private System.Windows.Forms.ProgressBar progressBarIPOperation;
+        private System.Windows.Forms.Label labelIPOperationStatus;
+        private System.Windows.Forms.Button buttonIPSaveResultToFile;
     }
 }
 
