@@ -1056,6 +1056,40 @@ namespace BK7231Flasher
                     contextMenu.Items.Add(toggleMenuItem);
                 }
                 
+                if(dev.hasDimmerSupport())
+                {
+                    ToolStripMenuItem dimmerToolsMenuItem = new ToolStripMenuItem("Dimmer");
+                    contextMenu.Items.Add(dimmerToolsMenuItem);
+
+                    for(int i = 0; i <= 100; i+=25)
+                    {
+                        int savedI = i;
+                        ToolStripMenuItem dimmerMenuItem = new ToolStripMenuItem("Set Dimmer "+i+"%");
+                        dimmerMenuItem.Click += (s, args) =>
+                        {
+                            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+                            devo.sendCmnd("Dimmer " + savedI + "", null);
+                        };
+                        dimmerToolsMenuItem.DropDownItems.Add(dimmerMenuItem);
+                    }
+                }
+                if (dev.hasCTSupport())
+                {
+                    ToolStripMenuItem ctToolsMenuItem = new ToolStripMenuItem("CT");
+                    contextMenu.Items.Add(ctToolsMenuItem);
+
+                    for (int i = 154; i <= 500; i += 173)
+                    {
+                        int savedI = i;
+                        ToolStripMenuItem ctMenuItem = new ToolStripMenuItem("Set CT " + i + "");
+                        ctMenuItem.Click += (s, args) =>
+                        {
+                            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+                            devo.sendCmnd("CT " + savedI + "", null);
+                        };
+                        ctToolsMenuItem.DropDownItems.Add(ctMenuItem);
+                    }
+                }
                 contextMenu.Show(listView1, e.Location);
             }
         }

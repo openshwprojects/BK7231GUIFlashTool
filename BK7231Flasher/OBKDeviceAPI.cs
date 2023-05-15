@@ -29,7 +29,7 @@ namespace BK7231Flasher
         bool bTasmota;
         bool bGetInfoSuccess = false;
         int powerCount;
-        int webRequestTimeOut = 2000;
+        int webRequestTimeOut = 3000;
 
         class GetFlashChunkArguments
         {
@@ -396,7 +396,43 @@ namespace BK7231Flasher
             s = s.Replace(" ", "%20");
             return s;
         }
-        
+        public bool hasDimmerSupport()
+        {
+            if(statusSTS == null)
+            {
+                return false;
+            }
+            if (statusSTS.ContainsKey("Dimmer"))
+            {
+                return true;
+            }
+            return false;
+        }
+        public bool hasColorSupport()
+        {
+            if (statusSTS == null)
+            {
+                return false;
+            }
+            if (statusSTS.ContainsKey("HSBColor"))
+            {
+                return true;
+            }
+            return false;
+        }
+        public bool hasCTSupport()
+        {
+            if (statusSTS == null)
+            {
+                return false;
+            }
+            if (statusSTS.ContainsKey("CT"))
+            {
+                return true;
+            }
+            return false;
+        }
+
         public void ThreadSendCmnd(object o)
         {
             SendCmndArguments arg = (SendCmndArguments)o;

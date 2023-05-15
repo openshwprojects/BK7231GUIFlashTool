@@ -149,5 +149,7 @@ namespace BK7231Flasher
             }
             it.SubItems[index].Text = s;
         }
+
+
     }
 }
