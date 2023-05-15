@@ -49,7 +49,11 @@ namespace BK7231Flasher
                     }
                     else
                     {
-                        if (tc.isLastBinaryFullOf0xff())
+                        if(tc.isLastBinaryOBKConfig())
+                        {
+                            MessageBox.Show("The file you've dragged looks like OBK config, not a Tuya one.");
+                        }
+                        else if (tc.isLastBinaryFullOf0xff())
                         {
                             MessageBox.Show("Failed, it seems that given binary is an erased flash sector, full of 0xFF");
                         }

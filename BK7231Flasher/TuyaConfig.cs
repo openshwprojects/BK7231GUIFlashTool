@@ -152,14 +152,22 @@ namespace BK7231Flasher
             return decryptedData;
         }
 
+        bool bLastBinaryOBKConfig;
         bool bGivenBinaryIsFullOf0xff;
         // warn users that they have erased flash sector with cfg
         public bool isLastBinaryFullOf0xff()
         {
             return bGivenBinaryIsFullOf0xff;
         }
+        public bool isLastBinaryOBKConfig()
+        {
+            return bLastBinaryOBKConfig;
+        }
         public bool fromBytes(byte[] data)
         {
+            this.bLastBinaryOBKConfig = false;
+            this.bGivenBinaryIsFullOf0xff = false;
+
             int needle = MiscUtils.indexOf(data, MAGIC_CONFIG_START);
             if(needle < 0)
             {
@@ -169,6 +177,11 @@ namespace BK7231Flasher
                 {
                     FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Yellow);
                     bGivenBinaryIsFullOf0xff = true;
+                }
+                if(data.Length>3 && data[0] == (byte)'C' && data[1] == (byte)'F' && data[2] == (byte)'G')
+                {
+                    FormMain.Singleton.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    this.bLastBinaryOBKConfig = true;
                 }
                 return true;
             }
