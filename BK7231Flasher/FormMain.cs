@@ -1158,8 +1158,15 @@ namespace BK7231Flasher
                 OBKDeviceAPI dev = it.Tag as OBKDeviceAPI;
                 backup.addDevice(dev);
             }
+            backup.setOnProgress(onMassBackupProgress);
             backup.beginBackupThread();
         }
 
+        private void onMassBackupProgress(string txt)
+        {
+            Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {
+                labelMassBackupProgress.Text = txt;
+            });
+        }
     }
 }

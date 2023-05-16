@@ -111,6 +111,9 @@
             this.buttonCheckCommunication = new System.Windows.Forms.Button();
             this.label19 = new System.Windows.Forms.Label();
             this.tabPage6 = new System.Windows.Forms.TabPage();
+            this.label29 = new System.Windows.Forms.Label();
+            this.labelMassBackupProgress = new System.Windows.Forms.Label();
+            this.buttonStartMassBackup = new System.Windows.Forms.Button();
             this.labelScanState = new System.Windows.Forms.Label();
             this.label24 = new System.Windows.Forms.Label();
             this.listView1 = new System.Windows.Forms.ListView();
@@ -135,10 +138,6 @@
             this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
             this.label25 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonStartMassBackup = new System.Windows.Forms.Button();
-            this.labelMassBackupProgress = new System.Windows.Forms.Label();
-            this.progressBarMassBackup = new System.Windows.Forms.ProgressBar();
-            this.label29 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -1003,7 +1002,6 @@
             // tabPage6
             // 
             this.tabPage6.Controls.Add(this.label29);
-            this.tabPage6.Controls.Add(this.progressBarMassBackup);
             this.tabPage6.Controls.Add(this.labelMassBackupProgress);
             this.tabPage6.Controls.Add(this.buttonStartMassBackup);
             this.tabPage6.Controls.Add(this.labelScanState);
@@ -1023,6 +1021,34 @@
             this.tabPage6.TabIndex = 6;
             this.tabPage6.Text = "LAN Scanner";
             this.tabPage6.UseVisualStyleBackColor = true;
+            // 
+            // label29
+            // 
+            this.label29.AutoSize = true;
+            this.label29.Location = new System.Drawing.Point(12, 396);
+            this.label29.Name = "label29";
+            this.label29.Size = new System.Drawing.Size(353, 13);
+            this.label29.TabIndex = 13;
+            this.label29.Text = "Here you can automatically download CFG backup for all devices from list";
+            // 
+            // labelMassBackupProgress
+            // 
+            this.labelMassBackupProgress.AutoSize = true;
+            this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
+            this.labelMassBackupProgress.Name = "labelMassBackupProgress";
+            this.labelMassBackupProgress.Size = new System.Drawing.Size(41, 13);
+            this.labelMassBackupProgress.TabIndex = 11;
+            this.labelMassBackupProgress.Text = "label28";
+            // 
+            // buttonStartMassBackup
+            // 
+            this.buttonStartMassBackup.Location = new System.Drawing.Point(14, 412);
+            this.buttonStartMassBackup.Name = "buttonStartMassBackup";
+            this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
+            this.buttonStartMassBackup.TabIndex = 10;
+            this.buttonStartMassBackup.Text = "Start mass CFG backup";
+            this.buttonStartMassBackup.UseVisualStyleBackColor = true;
+            this.buttonStartMassBackup.Click += new System.EventHandler(this.buttonStartMassBackup_Click);
             // 
             // labelScanState
             // 
@@ -1225,41 +1251,6 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonStartMassBackup
-            // 
-            this.buttonStartMassBackup.Location = new System.Drawing.Point(14, 412);
-            this.buttonStartMassBackup.Name = "buttonStartMassBackup";
-            this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
-            this.buttonStartMassBackup.TabIndex = 10;
-            this.buttonStartMassBackup.Text = "Start mass CFG backup";
-            this.buttonStartMassBackup.UseVisualStyleBackColor = true;
-            this.buttonStartMassBackup.Click += new System.EventHandler(this.buttonStartMassBackup_Click);
-            // 
-            // labelMassBackupProgress
-            // 
-            this.labelMassBackupProgress.AutoSize = true;
-            this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
-            this.labelMassBackupProgress.Name = "labelMassBackupProgress";
-            this.labelMassBackupProgress.Size = new System.Drawing.Size(41, 13);
-            this.labelMassBackupProgress.TabIndex = 11;
-            this.labelMassBackupProgress.Text = "label28";
-            // 
-            // progressBarMassBackup
-            // 
-            this.progressBarMassBackup.Location = new System.Drawing.Point(176, 431);
-            this.progressBarMassBackup.Name = "progressBarMassBackup";
-            this.progressBarMassBackup.Size = new System.Drawing.Size(487, 23);
-            this.progressBarMassBackup.TabIndex = 12;
-            // 
-            // label29
-            // 
-            this.label29.AutoSize = true;
-            this.label29.Location = new System.Drawing.Point(12, 396);
-            this.label29.Name = "label29";
-            this.label29.Size = new System.Drawing.Size(353, 13);
-            this.label29.TabIndex = 13;
-            this.label29.Text = "Here you can automatically download CFG backup for all devices from list";
-            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1398,7 +1389,6 @@
         private System.Windows.Forms.Label label27;
         private System.Windows.Forms.TextBox textBox_cfg_readReplyStyle;
         private System.Windows.Forms.Label label29;
-        private System.Windows.Forms.ProgressBar progressBarMassBackup;
         private System.Windows.Forms.Label labelMassBackupProgress;
         private System.Windows.Forms.Button buttonStartMassBackup;
     }
