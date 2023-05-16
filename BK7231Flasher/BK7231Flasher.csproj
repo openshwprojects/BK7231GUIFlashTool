@@ -107,6 +107,7 @@
     <Compile Include="OBKDeviceAPI.cs" />
     <Compile Include="OBKFlags.cs" />
     <Compile Include="OBKFlashLayout.cs" />
+    <Compile Include="OBKMassBackup.cs" />
     <Compile Include="OBKRoles.cs" />
     <Compile Include="OBKScanner.cs" />
     <Compile Include="Program.cs" />

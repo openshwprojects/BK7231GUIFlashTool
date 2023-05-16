@@ -33,19 +33,7 @@ namespace BK7231Flasher
                 else
                 {
                     labelCheckCommunicationStatus.Text = " success!" + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "Chipset = " + self.getChipSet() + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "ShortName = " + self.getShortName() + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "Build = " + self.getBuild() + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "MQTTHost = " + self.getMQTTHost() + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "IP = " + self.getAdr() + Environment.NewLine;
-                    labelCheckCommunicationStatus.Text += "MQTTTopic = " + self.getMQTTTopic() + Environment.NewLine;
-                    JObject json = self.getInfo();
-                    if (json != null)
-                    {
-                        labelCheckCommunicationStatus.Text += "MAC = " + json["mac"] + Environment.NewLine;
-                        labelCheckCommunicationStatus.Text += "WebApp = " + json["webapp"] + Environment.NewLine;
-                        labelCheckCommunicationStatus.Text += "Uptime = " + json["uptime_s"] + " seconds" + Environment.NewLine;
-                    }
+                    labelCheckCommunicationStatus.Text += self.getInfoText();
                     setIPDeviceButtonsState(true);
                 }
 
@@ -87,9 +75,8 @@ namespace BK7231Flasher
                 return;
             }
             // this is BK7231!
-            int ofs = OBKFlashLayout.getConfigLocation(dev.getBKType());
             setupDownloadOperationProgressBar("Downloading OBK CFG dump...");
-            dev.sendGetFlashChunk(onOBKConfigDownloaded, onOBKConfigProgress, ofs, 4096);
+            dev.sendGetFlashChunk_OBKConfig(onOBKConfigDownloaded, onOBKConfigProgress);
         }
         void setupDownloadOperationProgressBar(string opStr)
         {
@@ -187,7 +174,7 @@ namespace BK7231Flasher
             }
             // this is BK7231!
             setupDownloadOperationProgressBar("Downloading Tuya CFG dump from OBK device...");
-            dev.sendGetFlashChunk(onTuyaConfigDownloaded, onTuyaConfigProgress, TuyaConfig.getMagicOffset(), TuyaConfig.getMagicSize());
+            dev.sendGetFlashChunk_TuyaCFGFromOBKDevice(onTuyaConfigDownloaded, onTuyaConfigProgress);
         }
 
 

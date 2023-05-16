@@ -43,6 +43,26 @@ namespace BK7231Flasher
             public string cmnd;
             public ProcessCMDReply cb;
         }
+
+        internal string getInfoText()
+        {
+            string r = "";
+            r += "Chipset = " + this.getChipSet() + Environment.NewLine;
+           r += "ShortName = " + this.getShortName() + Environment.NewLine;
+           r += "Build = " + this.getBuild() + Environment.NewLine;
+           r += "MQTTHost = " + this.getMQTTHost() + Environment.NewLine;
+           r += "IP = " + this.getAdr() + Environment.NewLine;
+           r += "MQTTTopic = " + this.getMQTTTopic() + Environment.NewLine;
+            JObject json = this.getInfo();
+            if (json != null)
+            {
+               r += "MAC = " + json["mac"] + Environment.NewLine;
+               r += "WebApp = " + json["webapp"] + Environment.NewLine;
+               r += "Uptime = " + json["uptime_s"] + " seconds" + Environment.NewLine;
+            }
+            return r;
+        }
+
         public void setWebRequestTimeOut(int t)
         {
             this.webRequestTimeOut = t;
@@ -66,6 +86,16 @@ namespace BK7231Flasher
         public OBKDeviceAPI(string na)
         {
             this.adr = na;
+        }
+        internal void sendGetFlashChunk_TuyaCFGFromOBKDevice(ProcessBytesReply cb, ProcessProgress cb_progress)
+        {
+            this.sendGetFlashChunk(cb, cb_progress, TuyaConfig.getMagicOffset(), TuyaConfig.getMagicSize());
+        }
+        internal void sendGetFlashChunk_OBKConfig(ProcessBytesReply cb, ProcessProgress cb_progress)
+        {
+            var bkType = this.getBKType();
+            int ofs = OBKFlashLayout.getConfigLocation(bkType);
+            this.sendGetFlashChunk(cb, cb_progress, ofs, 4096);
         }
 
 
@@ -304,6 +334,13 @@ namespace BK7231Flasher
             }
             return getInfoObjectSafe("shortName");
         }
+        internal bool hasShortName()
+        {
+            string s = getShortName();
+            if (s.Length == 0)
+                return false;
+            return true;
+        }
         internal string getChipSet()
         {
             if (info == null)
@@ -320,6 +357,12 @@ namespace BK7231Flasher
                 return getJObjectSafe(status, "StatusNET", "Mac");
             }
             return getInfoObjectSafe("mac");
+        }
+        internal string getMACLast3BytesText()
+        {
+            string mac = getMAC();
+            mac = mac.Replace(":", "");
+            return mac.Substring(mac.Length - 6);
         }
         internal string getBuild()
         {
@@ -575,6 +618,10 @@ namespace BK7231Flasher
                 }
             }
             return -1;
+        }
+        internal bool isTasmota()
+        {
+            return bTasmota;
         }
     }
 }
