@@ -51,6 +51,7 @@
     <Compile Include="BitUtils.cs" />
     <Compile Include="BK7231Flasher.cs" />
     <Compile Include="BKFlashList.cs" />
+    <Compile Include="Colors.cs" />
     <Compile Include="ConfigBase.cs" />
     <Compile Include="CRC.cs" />
     <Compile Include="FormDownloader.cs">

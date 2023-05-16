@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.IO.Ports;
 using System.Net;
@@ -349,8 +350,15 @@ namespace BK7231Flasher
                 MessageBox.Show("Please choose a correct serial port or connect one if not present.");
                 return false;
             }
+            float.TryParse(textBox_cfg_readTimeOutMultForLoop.Text.Replace(',','.'),  NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out cfg_readTimeOutMultForLoop);
+            float.TryParse(textBox_cfg_readTimeOutMultForSerialClass.Text.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out cfg_readTimeOutMultForSerialClass);
+            int.TryParse(textBox_cfg_readReplyStyle.Text.Replace(',', '.'), NumberStyles.Integer, CultureInfo.InvariantCulture, out cfg_readReplyStyle);
+
             return true;
         }
+        int cfg_readReplyStyle;
+        float cfg_readTimeOutMultForLoop;
+        float cfg_readTimeOutMultForSerialClass;
         void downloadLatestFor(BKType type)
         {
             FormDownloader fd = new FormDownloader(this, type);
@@ -367,10 +375,17 @@ namespace BK7231Flasher
             }
         }
         
+        void createFlasher()
+        {
+            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            flasher.setReadReplyStyle(cfg_readReplyStyle);
+            flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
+            flasher.setReadTimeOutMultForSerialClass(cfg_readTimeOutMultForSerialClass);
+        }
         void testWrite()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             int startSector;
             int sectors;
             sectors = 5;
@@ -391,7 +406,7 @@ namespace BK7231Flasher
         void testReadWrite()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             int startSector;
             int sectors;
             sectors = 2;
@@ -405,7 +420,7 @@ namespace BK7231Flasher
         void doBackupAndFlashNew()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             flasher.setBackupName(lastBackupNameEnteredByUser);
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
@@ -418,7 +433,7 @@ namespace BK7231Flasher
         void doOnlyFlashNew()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
@@ -430,7 +445,7 @@ namespace BK7231Flasher
         void doOnlyFlashOBKConfig()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             flasher.doReadAndWrite(0, 0, "", WriteMode.OnlyOBKConfig);
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -465,7 +480,7 @@ namespace BK7231Flasher
         void restoreRF()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             int startOfs = RFPartitionUtil.getRFOffset(curType);
             byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
             flasher.doWrite(startOfs, data);
@@ -477,7 +492,7 @@ namespace BK7231Flasher
         void eraseAll()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
             int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
             flasher.doErase(startOfs, sectors);
@@ -489,7 +504,7 @@ namespace BK7231Flasher
         void readThread()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             flasher.setBackupName(lastBackupNameEnteredByUser);
             // thanks to wrap around hack, we can read from start correctly
             int startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
@@ -504,7 +519,7 @@ namespace BK7231Flasher
         void doOnlyReadOBKConfig()
         {
             clearUp();
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            createFlasher();
             // thanks to wrap around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType);
             int sectors = 1;
@@ -1090,6 +1105,25 @@ namespace BK7231Flasher
                         ctToolsMenuItem.DropDownItems.Add(ctMenuItem);
                     }
                 }
+                if (dev.hasColorSupport())
+                {
+                    ToolStripMenuItem colorToolsMenuItem = new ToolStripMenuItem("Color");
+                    contextMenu.Items.Add(colorToolsMenuItem);
+
+                    for (int i = 0; i < Colors.list.GetLength(0); i++)
+                    {
+                        int savedI = i;
+                        string name = Colors.list[i, 0];
+                        string code = Colors.list[i, 1];
+                        ToolStripMenuItem colorMenuItem = new ToolStripMenuItem("Set " + name + " ("+code+")");
+                        colorMenuItem.Click += (s, args) =>
+                        {
+                            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+                            devo.sendCmnd("Color " + code + "", null);
+                        };
+                        colorToolsMenuItem.DropDownItems.Add(colorMenuItem);
+                    }
+                }
                 contextMenu.Show(listView1, e.Location);
             }
         }
@@ -1113,5 +1147,19 @@ namespace BK7231Flasher
         {
             onIPSaveResultToFileClicked();
         }
+
+        private void buttonStartMassBackup_Click(object sender, EventArgs e)
+        {
+            buttonStartMassBackup.Enabled = false;
+            OBKMassBackup backup = new OBKMassBackup();
+            for(int i = 0; i < listView1.Items.Count; i++)
+            {
+                ListViewItem it = listView1.Items[i];
+                OBKDeviceAPI dev = it.Tag as OBKDeviceAPI;
+                backup.addDevice(dev);
+            }
+            backup.beginBackupThread();
+        }
+
     }
 }

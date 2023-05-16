@@ -392,8 +392,7 @@ namespace BK7231Flasher
         }
         string escape(string s)
         {
-            //s = Uri.EscapeDataString(s);
-            s = s.Replace(" ", "%20");
+            s = Uri.EscapeDataString(s);
             return s;
         }
         public bool hasDimmerSupport()
@@ -436,7 +435,7 @@ namespace BK7231Flasher
         public void ThreadSendCmnd(object o)
         {
             SendCmndArguments arg = (SendCmndArguments)o;
-            JObject jsonObject = sendGenericJSONGet("/" + escape("cm?cmnd="+arg.cmnd));
+            JObject jsonObject = sendGenericJSONGet("/" + "cm?cmnd="+ escape(arg.cmnd));
             if (arg.cb != null)
             {
                 arg.cb(this, jsonObject);
@@ -453,7 +452,7 @@ namespace BK7231Flasher
             if (this.info == null)
             {
             }
-            this.status = sendGenericJSONGet("/" + escape("cm?cmnd=STATUS 0"));
+            this.status = sendGenericJSONGet("/" + "cm?cmnd="+ escape("STATUS 0"));
             if (this.status == null)
             {
                 bGetInfoFailed = true;

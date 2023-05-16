@@ -99,6 +99,9 @@
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
+            this.buttonIPSaveResultToFile = new System.Windows.Forms.Button();
+            this.progressBarIPOperation = new System.Windows.Forms.ProgressBar();
+            this.labelIPOperationStatus = new System.Windows.Forms.Label();
             this.comboBoxIP = new System.Windows.Forms.ComboBox();
             this.buttonIPDownloadTuyaConfig = new System.Windows.Forms.Button();
             this.label20 = new System.Windows.Forms.Label();
@@ -124,10 +127,18 @@
             this.label22 = new System.Windows.Forms.Label();
             this.textBoxStartIP = new System.Windows.Forms.TextBox();
             this.label21 = new System.Windows.Forms.Label();
+            this.tabPage7 = new System.Windows.Forms.TabPage();
+            this.label27 = new System.Windows.Forms.Label();
+            this.textBox_cfg_readReplyStyle = new System.Windows.Forms.TextBox();
+            this.textBox_cfg_readTimeOutMultForLoop = new System.Windows.Forms.TextBox();
+            this.label26 = new System.Windows.Forms.Label();
+            this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
+            this.label25 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.labelIPOperationStatus = new System.Windows.Forms.Label();
-            this.progressBarIPOperation = new System.Windows.Forms.ProgressBar();
-            this.buttonIPSaveResultToFile = new System.Windows.Forms.Button();
+            this.buttonStartMassBackup = new System.Windows.Forms.Button();
+            this.labelMassBackupProgress = new System.Windows.Forms.Label();
+            this.progressBarMassBackup = new System.Windows.Forms.ProgressBar();
+            this.label29 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -136,6 +147,7 @@
             this.tabPage2.SuspendLayout();
             this.tabPage5.SuspendLayout();
             this.tabPage6.SuspendLayout();
+            this.tabPage7.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonRead
@@ -223,6 +235,7 @@
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage5);
             this.tabControl1.Controls.Add(this.tabPage6);
+            this.tabControl1.Controls.Add(this.tabPage7);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
@@ -886,6 +899,32 @@
             this.tabPage5.Text = "Get CFG from OBK device on LAN";
             this.tabPage5.UseVisualStyleBackColor = true;
             // 
+            // buttonIPSaveResultToFile
+            // 
+            this.buttonIPSaveResultToFile.Location = new System.Drawing.Point(702, 206);
+            this.buttonIPSaveResultToFile.Name = "buttonIPSaveResultToFile";
+            this.buttonIPSaveResultToFile.Size = new System.Drawing.Size(162, 23);
+            this.buttonIPSaveResultToFile.TabIndex = 11;
+            this.buttonIPSaveResultToFile.Text = "Save result to file...";
+            this.buttonIPSaveResultToFile.UseVisualStyleBackColor = true;
+            this.buttonIPSaveResultToFile.Click += new System.EventHandler(this.buttonIPSaveResultToFile_Click);
+            // 
+            // progressBarIPOperation
+            // 
+            this.progressBarIPOperation.Location = new System.Drawing.Point(384, 176);
+            this.progressBarIPOperation.Name = "progressBarIPOperation";
+            this.progressBarIPOperation.Size = new System.Drawing.Size(480, 23);
+            this.progressBarIPOperation.TabIndex = 10;
+            // 
+            // labelIPOperationStatus
+            // 
+            this.labelIPOperationStatus.AutoSize = true;
+            this.labelIPOperationStatus.Location = new System.Drawing.Point(381, 160);
+            this.labelIPOperationStatus.Name = "labelIPOperationStatus";
+            this.labelIPOperationStatus.Size = new System.Drawing.Size(154, 13);
+            this.labelIPOperationStatus.TabIndex = 9;
+            this.labelIPOperationStatus.Text = "Current operation progress: 0/0";
+            // 
             // comboBoxIP
             // 
             this.comboBoxIP.FormattingEnabled = true;
@@ -963,6 +1002,10 @@
             // 
             // tabPage6
             // 
+            this.tabPage6.Controls.Add(this.label29);
+            this.tabPage6.Controls.Add(this.progressBarMassBackup);
+            this.tabPage6.Controls.Add(this.labelMassBackupProgress);
+            this.tabPage6.Controls.Add(this.buttonStartMassBackup);
             this.tabPage6.Controls.Add(this.labelScanState);
             this.tabPage6.Controls.Add(this.label24);
             this.tabPage6.Controls.Add(this.listView1);
@@ -1012,7 +1055,7 @@
             this.listView1.HideSelection = false;
             this.listView1.Location = new System.Drawing.Point(11, 92);
             this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(656, 265);
+            this.listView1.Size = new System.Drawing.Size(656, 297);
             this.listView1.TabIndex = 7;
             this.listView1.UseCompatibleStateImageBehavior = false;
             this.listView1.View = System.Windows.Forms.View.Details;
@@ -1110,36 +1153,112 @@
             this.label21.TabIndex = 0;
             this.label21.Text = "Start IP:";
             // 
+            // tabPage7
+            // 
+            this.tabPage7.Controls.Add(this.label27);
+            this.tabPage7.Controls.Add(this.textBox_cfg_readReplyStyle);
+            this.tabPage7.Controls.Add(this.textBox_cfg_readTimeOutMultForLoop);
+            this.tabPage7.Controls.Add(this.label26);
+            this.tabPage7.Controls.Add(this.textBox_cfg_readTimeOutMultForSerialClass);
+            this.tabPage7.Controls.Add(this.label25);
+            this.tabPage7.Location = new System.Drawing.Point(4, 22);
+            this.tabPage7.Name = "tabPage7";
+            this.tabPage7.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage7.Size = new System.Drawing.Size(899, 484);
+            this.tabPage7.TabIndex = 7;
+            this.tabPage7.Text = "UART timeouts";
+            this.tabPage7.UseVisualStyleBackColor = true;
+            // 
+            // label27
+            // 
+            this.label27.AutoSize = true;
+            this.label27.Location = new System.Drawing.Point(11, 123);
+            this.label27.Name = "label27";
+            this.label27.Size = new System.Drawing.Size(99, 13);
+            this.label27.TabIndex = 5;
+            this.label27.Text = "cfg_readReplyStyle";
+            // 
+            // textBox_cfg_readReplyStyle
+            // 
+            this.textBox_cfg_readReplyStyle.Location = new System.Drawing.Point(187, 117);
+            this.textBox_cfg_readReplyStyle.Name = "textBox_cfg_readReplyStyle";
+            this.textBox_cfg_readReplyStyle.Size = new System.Drawing.Size(243, 20);
+            this.textBox_cfg_readReplyStyle.TabIndex = 4;
+            this.textBox_cfg_readReplyStyle.Text = "0";
+            // 
+            // textBox_cfg_readTimeOutMultForLoop
+            // 
+            this.textBox_cfg_readTimeOutMultForLoop.Location = new System.Drawing.Point(187, 90);
+            this.textBox_cfg_readTimeOutMultForLoop.Name = "textBox_cfg_readTimeOutMultForLoop";
+            this.textBox_cfg_readTimeOutMultForLoop.Size = new System.Drawing.Size(243, 20);
+            this.textBox_cfg_readTimeOutMultForLoop.TabIndex = 3;
+            this.textBox_cfg_readTimeOutMultForLoop.Text = "1";
+            // 
+            // label26
+            // 
+            this.label26.AutoSize = true;
+            this.label26.Location = new System.Drawing.Point(8, 93);
+            this.label26.Name = "label26";
+            this.label26.Size = new System.Drawing.Size(148, 13);
+            this.label26.TabIndex = 2;
+            this.label26.Text = "cfg_readTimeOutMultForLoop";
+            // 
+            // textBox_cfg_readTimeOutMultForSerialClass
+            // 
+            this.textBox_cfg_readTimeOutMultForSerialClass.Location = new System.Drawing.Point(187, 66);
+            this.textBox_cfg_readTimeOutMultForSerialClass.Name = "textBox_cfg_readTimeOutMultForSerialClass";
+            this.textBox_cfg_readTimeOutMultForSerialClass.Size = new System.Drawing.Size(243, 20);
+            this.textBox_cfg_readTimeOutMultForSerialClass.TabIndex = 1;
+            this.textBox_cfg_readTimeOutMultForSerialClass.Text = "1";
+            // 
+            // label25
+            // 
+            this.label25.AutoSize = true;
+            this.label25.Location = new System.Drawing.Point(6, 69);
+            this.label25.Name = "label25";
+            this.label25.Size = new System.Drawing.Size(175, 13);
+            this.label25.TabIndex = 0;
+            this.label25.Text = "cfg_readTimeOutMultForSerialClass";
+            // 
             // timer100ms
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // labelIPOperationStatus
+            // buttonStartMassBackup
             // 
-            this.labelIPOperationStatus.AutoSize = true;
-            this.labelIPOperationStatus.Location = new System.Drawing.Point(381, 160);
-            this.labelIPOperationStatus.Name = "labelIPOperationStatus";
-            this.labelIPOperationStatus.Size = new System.Drawing.Size(154, 13);
-            this.labelIPOperationStatus.TabIndex = 9;
-            this.labelIPOperationStatus.Text = "Current operation progress: 0/0";
+            this.buttonStartMassBackup.Location = new System.Drawing.Point(14, 412);
+            this.buttonStartMassBackup.Name = "buttonStartMassBackup";
+            this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
+            this.buttonStartMassBackup.TabIndex = 10;
+            this.buttonStartMassBackup.Text = "Start mass CFG backup";
+            this.buttonStartMassBackup.UseVisualStyleBackColor = true;
+            this.buttonStartMassBackup.Click += new System.EventHandler(this.buttonStartMassBackup_Click);
             // 
-            // progressBarIPOperation
+            // labelMassBackupProgress
             // 
-            this.progressBarIPOperation.Location = new System.Drawing.Point(384, 176);
-            this.progressBarIPOperation.Name = "progressBarIPOperation";
-            this.progressBarIPOperation.Size = new System.Drawing.Size(480, 23);
-            this.progressBarIPOperation.TabIndex = 10;
+            this.labelMassBackupProgress.AutoSize = true;
+            this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
+            this.labelMassBackupProgress.Name = "labelMassBackupProgress";
+            this.labelMassBackupProgress.Size = new System.Drawing.Size(41, 13);
+            this.labelMassBackupProgress.TabIndex = 11;
+            this.labelMassBackupProgress.Text = "label28";
             // 
-            // buttonIPSaveResultToFile
+            // progressBarMassBackup
             // 
-            this.buttonIPSaveResultToFile.Location = new System.Drawing.Point(702, 206);
-            this.buttonIPSaveResultToFile.Name = "buttonIPSaveResultToFile";
-            this.buttonIPSaveResultToFile.Size = new System.Drawing.Size(162, 23);
-            this.buttonIPSaveResultToFile.TabIndex = 11;
-            this.buttonIPSaveResultToFile.Text = "Save result to file...";
-            this.buttonIPSaveResultToFile.UseVisualStyleBackColor = true;
-            this.buttonIPSaveResultToFile.Click += new System.EventHandler(this.buttonIPSaveResultToFile_Click);
+            this.progressBarMassBackup.Location = new System.Drawing.Point(176, 431);
+            this.progressBarMassBackup.Name = "progressBarMassBackup";
+            this.progressBarMassBackup.Size = new System.Drawing.Size(487, 23);
+            this.progressBarMassBackup.TabIndex = 12;
+            // 
+            // label29
+            // 
+            this.label29.AutoSize = true;
+            this.label29.Location = new System.Drawing.Point(12, 396);
+            this.label29.Name = "label29";
+            this.label29.Size = new System.Drawing.Size(353, 13);
+            this.label29.TabIndex = 13;
+            this.label29.Text = "Here you can automatically download CFG backup for all devices from list";
             // 
             // FormMain
             // 
@@ -1166,6 +1285,8 @@
             this.tabPage5.PerformLayout();
             this.tabPage6.ResumeLayout(false);
             this.tabPage6.PerformLayout();
+            this.tabPage7.ResumeLayout(false);
+            this.tabPage7.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -1269,6 +1390,17 @@
         private System.Windows.Forms.ProgressBar progressBarIPOperation;
         private System.Windows.Forms.Label labelIPOperationStatus;
         private System.Windows.Forms.Button buttonIPSaveResultToFile;
+        private System.Windows.Forms.TabPage tabPage7;
+        private System.Windows.Forms.TextBox textBox_cfg_readTimeOutMultForSerialClass;
+        private System.Windows.Forms.Label label25;
+        private System.Windows.Forms.TextBox textBox_cfg_readTimeOutMultForLoop;
+        private System.Windows.Forms.Label label26;
+        private System.Windows.Forms.Label label27;
+        private System.Windows.Forms.TextBox textBox_cfg_readReplyStyle;
+        private System.Windows.Forms.Label label29;
+        private System.Windows.Forms.ProgressBar progressBarMassBackup;
+        private System.Windows.Forms.Label labelMassBackupProgress;
+        private System.Windows.Forms.Button buttonStartMassBackup;
     }
 }
 

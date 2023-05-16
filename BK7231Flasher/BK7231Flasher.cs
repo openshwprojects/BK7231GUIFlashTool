@@ -381,11 +381,27 @@ namespace BK7231Flasher
                 serial.Read(tmp, 0, serial.BytesToRead);
             }
         }
+        float cfg_readTimeOutMultForSerialClass = 1.0f;
+        float cfg_readTimeOutMultForLoop = 1.0f;
+        int cfg_readReplyStyle = 0;
+        public void setReadTimeOutMultForSerialClass(float f)
+        {
+            this.cfg_readTimeOutMultForSerialClass = f;
+        }
+        public void setReadTimeOutMultForLoop(float f)
+        {
+            this.cfg_readTimeOutMultForLoop = f;
+        }
+        public void setReadReplyStyle(int i)
+        {
+            this.cfg_readReplyStyle = i;
+        }
+
         byte[] Start_Cmd(byte[] txbuf, int rxLen = 0, float timeout = 0.05f)
         {
             consumePending();
             int realRead = 0;
-            serial.ReadTimeout = 10;
+            serial.ReadTimeout = (int)(10*cfg_readTimeOutMultForSerialClass);
             if(txbuf != null)
             {
                 serial.Write(txbuf, 0, txbuf.Length);
@@ -397,27 +413,56 @@ namespace BK7231Flasher
             if (rxLen > 0)
             {
                 byte[] ret = new byte[rxLen];
-                while (timer.Elapsed.TotalSeconds < timeout)
+                while (timer.Elapsed.TotalSeconds < timeout * cfg_readTimeOutMultForLoop)
                 {
                     try
                     {
-                        //addLog("serial.BytesToRead " + serial.BytesToRead+"");
-                        if (serial.BytesToRead >= rxLen)
+                        if (cfg_readReplyStyle == 0)
                         {
-                            //  addLog("Tries to read!");
-                            int readNow = serial.Read(ret, realRead, rxLen - realRead);
-                            realRead += readNow;
-                            if(bDebugUART)
+                            //addLog("serial.BytesToRead " + serial.BytesToRead+"");
+                            if (serial.BytesToRead >= rxLen)
                             {
-                                addLog("Read len: " + realRead + Environment.NewLine);
-                            }
-                            if (realRead == rxLen)
-                            {
+                                //  addLog("Tries to read!");
+                                int readNow = serial.Read(ret, realRead, rxLen - realRead);
+                                realRead += readNow;
                                 if (bDebugUART)
                                 {
-                                    addLog("Got UART reply!" + Environment.NewLine);
+                                    addLog("Read len: " + realRead + Environment.NewLine);
                                 }
-                                return ret;
+                                if (realRead == rxLen)
+                                {
+                                    if (bDebugUART)
+                                    {
+                                        addLog("Got UART reply!" + Environment.NewLine);
+                                    }
+                                    return ret;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //addLog("serial.BytesToRead " + serial.BytesToRead+"");
+                            int ava = serial.BytesToRead;
+                            if (ava > 0)
+                            {
+                                //  addLog("Tries to read!");
+                                int wantsToRead = rxLen - realRead;
+                                if (wantsToRead > ava)
+                                    wantsToRead = ava;
+                                int readNow = serial.Read(ret, realRead, wantsToRead);
+                                realRead += readNow;
+                                if (bDebugUART)
+                                {
+                                    addLog("Read len: " + realRead + Environment.NewLine);
+                                }
+                                if (realRead >= rxLen)
+                                {
+                                    if (bDebugUART)
+                                    {
+                                        addLog("Got UART reply!" + Environment.NewLine);
+                                    }
+                                    return ret;
+                                }
                             }
                         }
                     }
