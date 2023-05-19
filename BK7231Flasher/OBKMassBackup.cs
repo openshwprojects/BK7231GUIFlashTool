@@ -46,24 +46,28 @@ namespace BK7231Flasher
         internal void beginBackupThread()
         {
             thread = new Thread(workerThread);
+            thread.Start();
         }
         void processDeviceTAS(int index)
         {
             OBKDeviceAPI dev = devices[index];
         }
+        int stat_totalRetriesDone;
         DownloadState downloadState;
         DownloadTarget downloadTarget;
         private void onGenericDownloadReady(byte[] data, int dataLen)
         {
-            if(data == null)
+            if(data == null || dataLen == 0)
             {
                 downloadState = DownloadState.Error;
+                Console.WriteLine("Device: " + deviceDirName + ", mode " + downloadTarget + ", error!");
             }
             else
             {
                 downloadState = DownloadState.Ok;
                 string fileName = deviceDirName + "_" + downloadTarget.ToString() + ".bin";
-                File.WriteAllBytes(fileName, data);
+                Console.WriteLine("Device: " + deviceDirName + ", mode " + downloadTarget + ", saving result to file...");
+                File.WriteAllBytes(Path.Combine(deviceDirectory,fileName), data);
             }
         }
         private void onGenericProgress(int done, int total)
@@ -77,6 +81,7 @@ namespace BK7231Flasher
         }
         void processDeviceOBK(int index)
         {
+            int retriesDone = 0;
             OBKDeviceAPI dev = devices[index];
             for (int mode = 0; mode < 2; mode++)
             {
@@ -101,8 +106,11 @@ namespace BK7231Flasher
                     {
                         break;
                     }
+                    retriesDone++;
+                    stat_totalRetriesDone++;
                 }
             }
+            Console.WriteLine("Device: " + dev.getShortName() + " processed with " +retriesDone + " extra retries.");
         }
         void processDevice(int index)
         {
@@ -116,7 +124,10 @@ namespace BK7231Flasher
                 deviceDirName = dev.getMQTTTopic();
             }
             deviceDirName += "_" + dev.getMACLast3BytesText();
+            // remove ws
+            deviceDirName = deviceDirName.Replace(" ", "");
             deviceDirectory = Path.Combine(baseDir, deviceDirName);
+            Directory.CreateDirectory(deviceDirectory);
             File.WriteAllText(Path.Combine(deviceDirectory, deviceDirName + ".txt"), dev.getInfoText());
             if(dev.isTasmota())
             {
@@ -129,6 +140,7 @@ namespace BK7231Flasher
         }
         void workerThread()
         {
+            stat_totalRetriesDone = 0;
             baseDir = "massNetworkBackups";
             Directory.CreateDirectory(baseDir);
             baseDir = Path.Combine(baseDir, "backup_" + MiscUtils.formatDateNowFileNameBase());
@@ -138,6 +150,7 @@ namespace BK7231Flasher
             {
                 processDevice(i);
             }
+            Console.WriteLine("Total backup finished with " + stat_totalRetriesDone + " extra retries.");
             if (onFinished != null)
             {
                 onFinished();

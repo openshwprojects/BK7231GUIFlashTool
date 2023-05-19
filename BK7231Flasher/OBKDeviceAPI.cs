@@ -30,6 +30,7 @@ namespace BK7231Flasher
         bool bGetInfoSuccess = false;
         int powerCount;
         int webRequestTimeOut = 3000;
+        string userName, password;
 
         class GetFlashChunkArguments
         {
@@ -349,7 +350,15 @@ namespace BK7231Flasher
             }
             return getInfoObjectSafe("chipset");
         }
-        
+
+        internal void setUser(string text)
+        {
+            this.userName = text;
+        }
+        internal void setPassword(string text)
+        {
+            this.password = text;
+        }
         internal string getMAC()
         {
             if (info == null)
@@ -474,11 +483,25 @@ namespace BK7231Flasher
             }
             return false;
         }
-
+        string getBaseCmndString()
+        {
+            string r = "cm?";
+            if (userName.Length > 0)
+            {
+                r += "user=" + userName + "&";
+            }
+            if (password.Length > 0)
+            {
+                r += "password=" + password + "&";
+            }
+            r += "cmnd=";
+            return r;
+        }
         public void ThreadSendCmnd(object o)
         {
             SendCmndArguments arg = (SendCmndArguments)o;
-            JObject jsonObject = sendGenericJSONGet("/" + "cm?cmnd="+ escape(arg.cmnd));
+            // format cm?cmnd= string 
+            JObject jsonObject = sendGenericJSONGet("/" + getBaseCmndString ()+ escape(arg.cmnd));
             if (arg.cb != null)
             {
                 arg.cb(this, jsonObject);
@@ -495,7 +518,8 @@ namespace BK7231Flasher
             if (this.info == null)
             {
             }
-            this.status = sendGenericJSONGet("/" + "cm?cmnd="+ escape("STATUS 0"));
+            // format cm?cmnd= string 
+            this.status = sendGenericJSONGet("/" + getBaseCmndString() + escape("STATUS 0"));
             if (this.status == null)
             {
                 bGetInfoFailed = true;

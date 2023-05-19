@@ -1159,9 +1159,16 @@ namespace BK7231Flasher
                 backup.addDevice(dev);
             }
             backup.setOnProgress(onMassBackupProgress);
+            backup.setOnFinished(onMassBackupFinish);
             backup.beginBackupThread();
         }
-
+        private void onMassBackupFinish()
+        {
+            onMassBackupProgress("Ready!");
+            Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {
+                buttonStartMassBackup.Enabled = false;
+            });
+        }
         private void onMassBackupProgress(string txt)
         {
             Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {

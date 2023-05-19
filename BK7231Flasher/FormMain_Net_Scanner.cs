@@ -38,27 +38,46 @@ namespace BK7231Flasher
                 MessageBox.Show("Invalid end IP");
                 return;
             }
+            int retriesCount;
+            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false)
+            {
+                MessageBox.Show("Invalid retries count");
+                return;
+            }
+            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false)
+            {
+                MessageBox.Show("Invalid retries count");
+                return;
+            }
+            if(retriesCount < 1)
+            {
+                MessageBox.Show("It makes no sense to have less than 1 loops.");
+                return;
+            }
 
             scan = new OBKScanner(textBoxStartIP.Text, textBoxEndIP.Text);
+            scan.setUser(textBoxIPScannerUser.Text);
+            scan.setPassword(textBoxIPScannerPass.Text);
             scan.setOnDeviceFound(onScannerFound);
             scan.setOnFinished(onScannerFinished);
             scan.setOnProgress(onScannerProgress);
+            scan.setLoopsCount(retriesCount);
             setMaxWorkersCountFromGUI();
             scan.startScan();
             buttonStartScan.Text = "Stop";
         }
 
-        private void onScannerProgress(int done, int total)
+        private void onScannerProgress(int done, int total, string comment)
         {
             if (this.InvokeRequired)
             {
                 Singleton.textBoxLog.Invoke((MethodInvoker)delegate
                 {
-                    onScannerProgress(done,total);
+                    onScannerProgress(done,total, comment);
                 });
                 return;
             }
-            labelScanState.Text = "Scan progress: " + done + "/" + total + " requests sent";
+            labelScanState.Text = "Scan progress: " + done + "/" + total + " requests sent. "+comment;
         }
 
         private void onScannerFinished(bool bInterrupted)

@@ -16,11 +16,12 @@ namespace BK7231Flasher
 {
     public delegate void OBKScannerFoundDevice(OBKDeviceAPI api);
     public delegate void OBKScannerFinished(bool bInterrupted);
-    public delegate void OBKScannerProgress(int done, int total);
+    public delegate void OBKScannerProgress(int done, int total, string comment);
 
     public class OBKScanner
     {
         int maxWorkers = 8;
+        int loopsCount = 2;
         string startIP, endIP;
         Thread thread;
         bool bWantStop;
@@ -28,6 +29,7 @@ namespace BK7231Flasher
         OBKScannerFoundDevice onDeviceFound;
         OBKScannerFinished onScanFinished;
         OBKScannerProgress onProgress;
+        string userName, password;
 
         internal void requestStop()
         {
@@ -60,11 +62,26 @@ namespace BK7231Flasher
             thread = new Thread(scanThread);
             thread.Start();
         }
-        void callOnProgress(int done, int total)
+
+        internal void setLoopsCount(int nct)
+        {
+            this.loopsCount = nct;
+        }
+
+        internal void setUser(string text)
+        {
+            this.userName = text;
+        }
+        internal void setPassword(string text)
+        {
+            this.password = text;
+        }
+
+        void callOnProgress(int done, int total, string comment = "")
         {
             if (onProgress != null)
             {
-                onProgress(done, total);
+                onProgress(done, total, comment);
             }
         }
         void scanThread()
@@ -79,35 +96,58 @@ namespace BK7231Flasher
             Array.Reverse(endBytes);
             uint start = BitConverter.ToUInt32(startBytes, 0);
             uint end = BitConverter.ToUInt32(endBytes, 0);
-            int total = (int)end - (int)start;
+            int total = (((int)end - (int)start)+1) * loopsCount;
             int done = 0;
-            callOnProgress(done, total);
-            uint current = start;
-            int scannerTimeOutMS = 3000;
-            while (current <= end)
+            callOnProgress(done, total,"Starting scan...");
+            for(int loop = 0; loop < loopsCount; loop++)
             {
-                if (bWantStop)
+                uint current = start;
+                while (current <= end)
                 {
-                    break;
+                    if (bWantStop)
+                    {
+                        break;
+                    }
+                    OBKDeviceAPI worker = getWorker();
+                    if (worker == null)
+                    {
+                        Thread.Sleep(100);
+                        continue;
+                    }
+                    Thread.Sleep(50);
+                    int scannerTimeOutMS;
+                    if(loopsCount <= 1)
+                    {
+                        scannerTimeOutMS = 5000;
+                    }
+                    else
+                    {
+                        if(loop == 0)
+                        {
+                            scannerTimeOutMS = 2000;
+                        }
+                        else
+                        {
+                            scannerTimeOutMS = 5000 + 500 * loop;
+                        }
+                    }
+                    byte[] bytes = BitConverter.GetBytes(current);
+                    Array.Reverse(bytes);
+                    IPAddress ip = new IPAddress(bytes);
+                    string nextIPstr = ip.ToString();
+                    Console.WriteLine("Will try to check " + nextIPstr);
+                    worker.clear();
+                    worker.setPassword(password);
+                    worker.setUser(userName);
+                    worker.setAdr(ip.ToString());
+                    worker.setWebRequestTimeOut(scannerTimeOutMS);
+                    worker.sendGetInfo(null);
+                    current++;
+                    done++;
+                    callOnProgress(done, total, "Checked "+nextIPstr+"...");
                 }
-                OBKDeviceAPI worker = getWorker();
-                if(worker == null)
-                {
-                    Thread.Sleep(100);
-                    continue;
-                }
-                byte[] bytes = BitConverter.GetBytes(current);
-                Array.Reverse(bytes);
-                IPAddress ip = new IPAddress(bytes);
-                Console.WriteLine("Will try to check " +ip.ToString());
-                worker.clear();
-                worker.setAdr(ip.ToString());
-                worker.setWebRequestTimeOut(scannerTimeOutMS);
-                worker.sendGetInfo(null);
-                current++;
-                done++;
-                callOnProgress(done, total);
             }
+            callOnProgress(total, total, "All done.");
             onScanFinished(bWantStop);
         }
 

@@ -138,6 +138,12 @@
             this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
             this.label25 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.label28 = new System.Windows.Forms.Label();
+            this.textBoxBoxScannerRetries = new System.Windows.Forms.TextBox();
+            this.label30 = new System.Windows.Forms.Label();
+            this.textBoxIPScannerUser = new System.Windows.Forms.TextBox();
+            this.label31 = new System.Windows.Forms.Label();
+            this.textBoxIPScannerPass = new System.Windows.Forms.TextBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -1001,6 +1007,12 @@
             // 
             // tabPage6
             // 
+            this.tabPage6.Controls.Add(this.textBoxIPScannerPass);
+            this.tabPage6.Controls.Add(this.label31);
+            this.tabPage6.Controls.Add(this.textBoxIPScannerUser);
+            this.tabPage6.Controls.Add(this.label30);
+            this.tabPage6.Controls.Add(this.textBoxBoxScannerRetries);
+            this.tabPage6.Controls.Add(this.label28);
             this.tabPage6.Controls.Add(this.label29);
             this.tabPage6.Controls.Add(this.labelMassBackupProgress);
             this.tabPage6.Controls.Add(this.buttonStartMassBackup);
@@ -1053,7 +1065,7 @@
             // labelScanState
             // 
             this.labelScanState.AutoSize = true;
-            this.labelScanState.Location = new System.Drawing.Point(11, 73);
+            this.labelScanState.Location = new System.Drawing.Point(12, 101);
             this.labelScanState.Name = "labelScanState";
             this.labelScanState.Size = new System.Drawing.Size(61, 13);
             this.labelScanState.TabIndex = 9;
@@ -1064,9 +1076,10 @@
             this.label24.AutoSize = true;
             this.label24.Location = new System.Drawing.Point(8, 12);
             this.label24.Name = "label24";
-            this.label24.Size = new System.Drawing.Size(330, 13);
+            this.label24.Size = new System.Drawing.Size(747, 13);
             this.label24.TabIndex = 8;
-            this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. ";
+            this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. Scanner will first " +
+    "do a quick, unprecise loop and then some slower, more precise checks.\r\n";
             // 
             // listView1
             // 
@@ -1079,9 +1092,9 @@
             this.columnHeader5});
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
-            this.listView1.Location = new System.Drawing.Point(11, 92);
+            this.listView1.Location = new System.Drawing.Point(11, 117);
             this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(656, 297);
+            this.listView1.Size = new System.Drawing.Size(656, 272);
             this.listView1.TabIndex = 7;
             this.listView1.UseCompatibleStateImageBehavior = false;
             this.listView1.View = System.Windows.Forms.View.Details;
@@ -1119,7 +1132,7 @@
             // 
             // buttonStartScan
             // 
-            this.buttonStartScan.Location = new System.Drawing.Point(588, 39);
+            this.buttonStartScan.Location = new System.Drawing.Point(662, 40);
             this.buttonStartScan.Name = "buttonStartScan";
             this.buttonStartScan.Size = new System.Drawing.Size(139, 23);
             this.buttonStartScan.TabIndex = 6;
@@ -1131,7 +1144,7 @@
             // 
             this.textBoxScannerThreads.Location = new System.Drawing.Point(513, 42);
             this.textBoxScannerThreads.Name = "textBoxScannerThreads";
-            this.textBoxScannerThreads.Size = new System.Drawing.Size(69, 20);
+            this.textBoxScannerThreads.Size = new System.Drawing.Size(44, 20);
             this.textBoxScannerThreads.TabIndex = 5;
             this.textBoxScannerThreads.Text = "16";
             this.textBoxScannerThreads.TextChanged += new System.EventHandler(this.textBoxScannerThreads_TextChanged);
@@ -1250,6 +1263,55 @@
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
+            // 
+            // label28
+            // 
+            this.label28.AutoSize = true;
+            this.label28.Location = new System.Drawing.Point(563, 45);
+            this.label28.Name = "label28";
+            this.label28.Size = new System.Drawing.Size(39, 13);
+            this.label28.TabIndex = 14;
+            this.label28.Text = "Loops:";
+            // 
+            // textBoxBoxScannerRetries
+            // 
+            this.textBoxBoxScannerRetries.Location = new System.Drawing.Point(612, 42);
+            this.textBoxBoxScannerRetries.Name = "textBoxBoxScannerRetries";
+            this.textBoxBoxScannerRetries.Size = new System.Drawing.Size(44, 20);
+            this.textBoxBoxScannerRetries.TabIndex = 15;
+            this.textBoxBoxScannerRetries.Text = "4";
+            // 
+            // label30
+            // 
+            this.label30.AutoSize = true;
+            this.label30.Location = new System.Drawing.Point(11, 73);
+            this.label30.Name = "label30";
+            this.label30.Size = new System.Drawing.Size(60, 13);
+            this.label30.TabIndex = 16;
+            this.label30.Text = "UserName:";
+            // 
+            // textBoxIPScannerUser
+            // 
+            this.textBoxIPScannerUser.Location = new System.Drawing.Point(77, 70);
+            this.textBoxIPScannerUser.Name = "textBoxIPScannerUser";
+            this.textBoxIPScannerUser.Size = new System.Drawing.Size(151, 20);
+            this.textBoxIPScannerUser.TabIndex = 17;
+            // 
+            // label31
+            // 
+            this.label31.AutoSize = true;
+            this.label31.Location = new System.Drawing.Point(234, 73);
+            this.label31.Name = "label31";
+            this.label31.Size = new System.Drawing.Size(56, 13);
+            this.label31.TabIndex = 18;
+            this.label31.Text = "Password:";
+            // 
+            // textBoxIPScannerPass
+            // 
+            this.textBoxIPScannerPass.Location = new System.Drawing.Point(296, 70);
+            this.textBoxIPScannerPass.Name = "textBoxIPScannerPass";
+            this.textBoxIPScannerPass.Size = new System.Drawing.Size(151, 20);
+            this.textBoxIPScannerPass.TabIndex = 19;
             // 
             // FormMain
             // 
@@ -1391,6 +1453,12 @@
         private System.Windows.Forms.Label label29;
         private System.Windows.Forms.Label labelMassBackupProgress;
         private System.Windows.Forms.Button buttonStartMassBackup;
+        private System.Windows.Forms.TextBox textBoxBoxScannerRetries;
+        private System.Windows.Forms.Label label28;
+        private System.Windows.Forms.TextBox textBoxIPScannerPass;
+        private System.Windows.Forms.Label label31;
+        private System.Windows.Forms.TextBox textBoxIPScannerUser;
+        private System.Windows.Forms.Label label30;
     }
 }
 
