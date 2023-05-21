@@ -462,6 +462,8 @@ namespace BK7231Flasher
 
         public static bool isValid(byte [] raw, int extraOfs = 0)
         {
+            if (raw == null)
+                return false;
             byte crc = 0;
             if (raw[extraOfs+0] != (byte)'C' || raw[extraOfs + 1] != (byte)'F' || raw[extraOfs + 2] != (byte)'G')
             {

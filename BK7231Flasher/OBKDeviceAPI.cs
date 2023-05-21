@@ -14,7 +14,7 @@ using System.Threading;
 namespace BK7231Flasher
 {
     public delegate void ProcessJSONReply(OBKDeviceAPI self);
-    public delegate void ProcessCMDReply(OBKDeviceAPI self, JObject reply);
+    public delegate void ProcessCMDReply(OBKDeviceAPI self, JObject reply, string replyText);
     public delegate void ProcessBytesReply(byte[] data, int dataLen);
     public delegate void ProcessProgress(int done, int total);
 
@@ -422,9 +422,9 @@ namespace BK7231Flasher
             }
             return sResult;
         }
-        private JObject sendGenericJSONGet(string path)
+        private JObject sendGenericJSONGet(string path, out string jsonText)
         {
-            string jsonText = sendGet(path);
+            jsonText = sendGet(path);
             JObject jsonObject = null;
             try
             {
@@ -501,17 +501,19 @@ namespace BK7231Flasher
         {
             SendCmndArguments arg = (SendCmndArguments)o;
             // format cm?cmnd= string 
-            JObject jsonObject = sendGenericJSONGet("/" + getBaseCmndString ()+ escape(arg.cmnd));
+            string replyStr;
+            JObject jsonObject = sendGenericJSONGet("/" + getBaseCmndString ()+ escape(arg.cmnd), out replyStr);
             if (arg.cb != null)
             {
-                arg.cb(this, jsonObject);
+                arg.cb(this, jsonObject, replyStr);
             }
         }
         public void ThreadSendGetInfo(object ocb)
         {
             bGetInfoFailed = false;
             bGetInfoSuccess = false;
-            JObject jsonObject = sendGenericJSONGet("/api/info");
+            string jsonText;
+            JObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
             ProcessJSONReply cb = ocb as ProcessJSONReply;
             this.info = jsonObject;
             this.bTasmota = false;
@@ -519,7 +521,7 @@ namespace BK7231Flasher
             {
             }
             // format cm?cmnd= string 
-            this.status = sendGenericJSONGet("/" + getBaseCmndString() + escape("STATUS 0"));
+            this.status = sendGenericJSONGet("/" + getBaseCmndString() + escape("STATUS 0"), out jsonText);
             if (this.status == null)
             {
                 bGetInfoFailed = true;

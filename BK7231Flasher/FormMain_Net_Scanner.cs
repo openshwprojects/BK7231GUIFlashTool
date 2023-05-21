@@ -21,6 +21,10 @@ namespace BK7231Flasher
 
         private void startOrStopScannerThread()
         {
+            if (RequiredLibrariesCheck.doCheck())
+            {
+                return;
+            }
             if (scan != null)
             {
                 buttonStartScan.Text = "Stopping...";

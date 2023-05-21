@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Newtonsoft.Json.Linq;
 
 namespace BK7231Flasher
 {
@@ -17,12 +18,17 @@ namespace BK7231Flasher
     {
         None,
         OBKConfig,
-        TuyaConfig
+        TuyaConfig,
+        TasmotaTemplate,
+        TasmotaStatus0,
+        TasmotaStatus1
     }
     public delegate void MassBackupProgressUpdate(string txt);
-    public delegate void MassBackupFinished();
+    public delegate void MassBackupFinished(int totalErrors, int totalRetries);
     class OBKMassBackup
     {
+        public static string DEFAULT_BASE_DIR = "massNetworkBackups";
+
         List<OBKDeviceAPI> devices = new List<OBKDeviceAPI>();
         Thread thread;
         string deviceDirectory;
@@ -48,10 +54,50 @@ namespace BK7231Flasher
             thread = new Thread(workerThread);
             thread.Start();
         }
-        void processDeviceTAS(int index)
+        void processDeviceTASCommand(int index, string cmd, DownloadTarget dt)
         {
             OBKDeviceAPI dev = devices[index];
+            downloadTarget = dt;
+            for (int at = 0; at < 5; at++)
+            {
+                downloadState = DownloadState.Pending;
+                dev.sendCmnd(cmd, onTasReplyTemplate);
+                while (downloadState == DownloadState.Pending)
+                {
+                    Thread.Sleep(100);
+                }
+                if (downloadState == DownloadState.Ok)
+                {
+                    break;
+                }
+                stat_totalRetriesDone++;
+                Thread.Sleep(250 + 250 * at);
+            }
+            if(downloadState == DownloadState.Error)
+            {
+                stat_totalErrors++;
+            }
         }
+        void processDeviceTAS(int index)
+        {
+            processDeviceTASCommand(index, "Template", DownloadTarget.TasmotaTemplate);
+            processDeviceTASCommand(index, "Status 0", DownloadTarget.TasmotaStatus0);
+            processDeviceTASCommand(index, "Status 1", DownloadTarget.TasmotaStatus1);
+        }
+        private void onTasReplyTemplate(OBKDeviceAPI self, JObject reply, string replyText)
+        {
+            if (reply != null)
+            {
+                downloadState = DownloadState.Ok;
+                string fileName = deviceDirName + "_" + downloadTarget.ToString() + ".txt";
+                File.WriteAllText(Path.Combine(deviceDirectory, fileName), replyText);
+            }
+            else
+            {
+                downloadState = DownloadState.Error;
+            }
+        }
+        int stat_totalErrors;
         int stat_totalRetriesDone;
         DownloadState downloadState;
         DownloadTarget downloadTarget;
@@ -74,6 +120,7 @@ namespace BK7231Flasher
         {
             string stat = "Downloading " + downloadTarget.ToString() + " for " + deviceDirName
                 + " progress " + done + "/" + total;
+            stat += ", total fatal download errors so far: " + stat_totalErrors + ", retries " + stat_totalRetriesDone;
             if (onProgress != null)
             {
                 onProgress(stat);
@@ -82,10 +129,11 @@ namespace BK7231Flasher
         void processDeviceOBK(int index)
         {
             int retriesDone = 0;
+            int faileds = 0;
             OBKDeviceAPI dev = devices[index];
             for (int mode = 0; mode < 2; mode++)
             {
-                for (int attempt = 0; attempt < 3; attempt++)
+                for (int attempt = 0; attempt < 8; attempt++)
                 {
                     downloadState = DownloadState.Pending;
                     if(mode == 0)
@@ -106,15 +154,23 @@ namespace BK7231Flasher
                     {
                         break;
                     }
+                    Thread.Sleep(250+attempt*250);
                     retriesDone++;
                     stat_totalRetriesDone++;
                 }
+                if(downloadState == DownloadState.Error)
+                {
+                    stat_totalErrors++;
+                    faileds++;
+                }
             }
-            Console.WriteLine("Device: " + dev.getShortName() + " processed with " +retriesDone + " extra retries.");
+            Console.WriteLine("Device: " + dev.getShortName() + " processed with " +retriesDone + " extra retries and " + faileds + " failures.");
         }
         void processDevice(int index)
         {
+            Thread.Sleep(50);
             OBKDeviceAPI dev = devices[index];
+            dev.setWebRequestTimeOut(5000);
             if(dev.hasShortName())
             {
                 deviceDirName = dev.getShortName();
@@ -140,8 +196,9 @@ namespace BK7231Flasher
         }
         void workerThread()
         {
+            stat_totalErrors = 0;
             stat_totalRetriesDone = 0;
-            baseDir = "massNetworkBackups";
+            baseDir = DEFAULT_BASE_DIR;
             Directory.CreateDirectory(baseDir);
             baseDir = Path.Combine(baseDir, "backup_" + MiscUtils.formatDateNowFileNameBase());
             Directory.CreateDirectory(baseDir);
@@ -153,7 +210,7 @@ namespace BK7231Flasher
             Console.WriteLine("Total backup finished with " + stat_totalRetriesDone + " extra retries.");
             if (onFinished != null)
             {
-                onFinished();
+                onFinished(stat_totalErrors,stat_totalRetriesDone);
             }
         }
     }

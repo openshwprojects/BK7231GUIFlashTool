@@ -786,6 +786,8 @@ namespace BK7231Flasher
         }
         public byte []getReadResult()
         {
+            if (ms == null)
+                return null;
             return ms.ToArray();
         }
         bool saveReadResult(string fileName)

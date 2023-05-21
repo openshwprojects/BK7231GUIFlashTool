@@ -214,6 +214,22 @@ namespace BK7231Flasher
             {
                 checkBoxAllowBackup.Checked = settings.FindKeyValueBool("bAllowBackupRestore");
             }
+            if (settings.HasKey("ScannerPass"))
+            {
+                textBoxIPScannerPass.Text = settings.FindKeyValue("ScannerPass","admin");
+            }
+            if (settings.HasKey("ScannerUser"))
+            {
+                textBoxIPScannerUser.Text = settings.FindKeyValue("ScannerUser");
+            }
+            if (settings.HasKey("ScannerFirst"))
+            {
+                textBoxStartIP.Text = settings.FindKeyValue("ScannerFirst");
+            }
+            if (settings.HasKey("ScannerLast"))
+            {
+                textBoxEndIP.Text = settings.FindKeyValue("ScannerLast");
+            }
         }
         public void setComboBoxValueByContent(ComboBox comboBox, string itemToSet)
         {
@@ -1162,11 +1178,11 @@ namespace BK7231Flasher
             backup.setOnFinished(onMassBackupFinish);
             backup.beginBackupThread();
         }
-        private void onMassBackupFinish()
+        private void onMassBackupFinish(int totalErrors, int totalRetries)
         {
-            onMassBackupProgress("Ready!");
+            onMassBackupProgress("Ready! "+totalErrors+" errors, " + totalRetries + " retries.");
             Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {
-                buttonStartMassBackup.Enabled = false;
+                buttonStartMassBackup.Enabled = true;
             });
         }
         private void onMassBackupProgress(string txt)
@@ -1174,6 +1190,40 @@ namespace BK7231Flasher
             Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {
                 labelMassBackupProgress.Text = txt;
             });
+        }
+
+        private void textBoxIPScannerUser_TextChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("ScannerUser", textBoxIPScannerUser.Text);
+        }
+
+        private void textBoxIPScannerPass_TextChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("ScannerPass", textBoxIPScannerPass.Text);
+        }
+
+        private void textBoxStartIP_TextChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("ScannerFirst", textBoxStartIP.Text);
+        }
+
+        private void textBoxEndIP_TextChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("ScannerLast", textBoxEndIP.Text);
+        }
+
+        private void buttonIPScannerOpenDir_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // opens the folder in explorer
+                string path = Path.Combine(Directory.GetCurrentDirectory(), OBKMassBackup.DEFAULT_BASE_DIR);
+                Process.Start("explorer.exe", path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed, no backups done yet!");
+            }
         }
     }
 }

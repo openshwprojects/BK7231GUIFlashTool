@@ -41,6 +41,10 @@ namespace BK7231Flasher
         }
         private void buttonCheckCommunication_Click(object sender, EventArgs e)
         {
+            if (RequiredLibrariesCheck.doCheck())
+            {
+                return;
+            }
             IPAddress tg;
             bool bOk = IPAddress.TryParse(comboBoxIP.Text, out tg);
             if (bOk)

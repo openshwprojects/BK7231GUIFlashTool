@@ -32,7 +32,7 @@ namespace BK7231Flasher
             settingsList.Add(new KeyValue(key, value));
         }
 
-        public string FindKeyValue(string key)
+        public string FindKeyValue(string key, string def = null)
         {
             foreach (KeyValue kv in settingsList)
             {
@@ -40,6 +40,10 @@ namespace BK7231Flasher
                 {
                     return kv.Value;
                 }
+            }
+            if(def != null && def.Length > 0)
+            {
+                return def;
             }
             return null;
         }
