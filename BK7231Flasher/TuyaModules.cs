@@ -16,6 +16,7 @@ namespace BK7231Flasher
         {
             if (s.Length == 0)
                 return BKType.Invalid;
+            s = s.ToUpper();
             if (s[0] == 'W')
                 return BKType.BK7231T;
             if (s[0] == 'C')
