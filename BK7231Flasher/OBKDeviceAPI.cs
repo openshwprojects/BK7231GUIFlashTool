@@ -342,6 +342,10 @@ namespace BK7231Flasher
                 return false;
             return true;
         }
+        internal string getSDK()
+        {
+            return getJObjectSafe(status, "StatusFWR", "SDK");
+        }
         internal string getChipSet()
         {
             if (info == null)
@@ -486,13 +490,19 @@ namespace BK7231Flasher
         string getBaseCmndString()
         {
             string r = "cm?";
-            if (userName.Length > 0)
+            if (userName != null)
             {
-                r += "user=" + userName + "&";
+                if (userName.Length > 0)
+                {
+                    r += "user=" + userName + "&";
+                }
             }
-            if (password.Length > 0)
+            if (password != null)
             {
-                r += "password=" + password + "&";
+                if (password.Length > 0)
+                {
+                    r += "password=" + password + "&";
+                }
             }
             r += "cmnd=";
             return r;
@@ -510,16 +520,11 @@ namespace BK7231Flasher
         }
         public void ThreadSendGetInfo(object ocb)
         {
+            ProcessJSONReply cb = ocb as ProcessJSONReply;
             bGetInfoFailed = false;
             bGetInfoSuccess = false;
             string jsonText;
-            JObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
-            ProcessJSONReply cb = ocb as ProcessJSONReply;
-            this.info = jsonObject;
-            this.bTasmota = false;
-            if (this.info == null)
-            {
-            }
+            this.bTasmota = true;
             // format cm?cmnd= string 
             this.status = sendGenericJSONGet("/" + getBaseCmndString() + escape("STATUS 0"), out jsonText);
             if (this.status == null)
@@ -546,7 +551,21 @@ namespace BK7231Flasher
                         }
                     }
                 }
-                if (this.info == null)
+                if (getSDK().ToLower() == "obk")
+                {
+                    this.bTasmota = true;
+                    for (int att = 0; att < 4; att++)
+                    {
+                        JObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
+                        this.info = jsonObject;
+                        if (this.info == null)
+                        {
+                            break;
+                        }
+                        Thread.Sleep(50*att);
+                    }
+                }
+                else
                 {
                     this.bTasmota = true;
                 }
