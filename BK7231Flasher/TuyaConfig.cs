@@ -250,6 +250,7 @@ namespace BK7231Flasher
         }
         public string getKeysHumanReadable(OBKConfig tg = null)
         {
+            bool bHasBattery = false;
             string desc = "";
             for (int i = 0; i < parms.Count; i++)
             {
@@ -276,6 +277,40 @@ namespace BK7231Flasher
                         tg.setPinRole(value, PinRole.WifiLED_n);
                     }
                 }
+                else if (Regex.IsMatch(key, "status_led_pin"))
+                {
+                    desc += "- Status LED on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.WifiLED_n);
+                    }
+                }
+                else if (Regex.IsMatch(key, "samp_sw_pin"))
+                {
+                    desc += "- Battery Relay on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.BAT_Relay);
+                    }
+                }
+                else if (Regex.IsMatch(key, "samp_pin"))
+                {
+                    desc += "- Battery ADC on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.BAT_ADC);
+                    }
+                }
+                else if (key == "max_V")
+                {
+                    desc += "- Battery Max Voltage: " + value + Environment.NewLine;
+                    bHasBattery = true;
+                }
+                else if (key == "min_V")
+                {
+                    desc += "- Battery Min Voltage: " + value + Environment.NewLine;
+                    bHasBattery = true;
+                }
                 else if (Regex.IsMatch(key, "^rl\\d+_pin$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
@@ -283,6 +318,16 @@ namespace BK7231Flasher
                     if (tg != null)
                     {
                         tg.setPinRole(value, PinRole.Rel);
+                        tg.setPinChannel(value, number);
+                    }
+                }
+                else if (key == "bt_pin")
+                {
+                    int number = 0;
+                    desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Btn);
                         tg.setPinChannel(value, number);
                     }
                 }
@@ -479,6 +524,10 @@ namespace BK7231Flasher
             else
             {
                 desc = "Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data." + Environment.NewLine;
+            }
+            if (bHasBattery)
+            {
+                desc += "Device seems to use Battery Driver. See more details here: https://www.elektroda.com/rtvforum/topic3959103.html" + Environment.NewLine;
             }
             var kp = this.findKeyValue("module");
             if(kp == null)
