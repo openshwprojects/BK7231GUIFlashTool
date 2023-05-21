@@ -92,6 +92,8 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.buttonTuyaConfig_CopyTextToClipBoard = new System.Windows.Forms.Button();
+            this.buttonTuyaConfig_CopyJSONToClipBoard = new System.Windows.Forms.Button();
             this.label18 = new System.Windows.Forms.Label();
             this.textBoxTuyaCFGText = new System.Windows.Forms.TextBox();
             this.label17 = new System.Windows.Forms.Label();
@@ -815,6 +817,8 @@
             // tabPage2
             // 
             this.tabPage2.AllowDrop = true;
+            this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyTextToClipBoard);
+            this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyJSONToClipBoard);
             this.tabPage2.Controls.Add(this.label18);
             this.tabPage2.Controls.Add(this.textBoxTuyaCFGText);
             this.tabPage2.Controls.Add(this.label17);
@@ -829,6 +833,26 @@
             this.tabPage2.UseVisualStyleBackColor = true;
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
+            // 
+            // buttonTuyaConfig_CopyTextToClipBoard
+            // 
+            this.buttonTuyaConfig_CopyTextToClipBoard.Location = new System.Drawing.Point(564, 58);
+            this.buttonTuyaConfig_CopyTextToClipBoard.Name = "buttonTuyaConfig_CopyTextToClipBoard";
+            this.buttonTuyaConfig_CopyTextToClipBoard.Size = new System.Drawing.Size(114, 21);
+            this.buttonTuyaConfig_CopyTextToClipBoard.TabIndex = 12;
+            this.buttonTuyaConfig_CopyTextToClipBoard.Text = "Copy to Clipboard";
+            this.buttonTuyaConfig_CopyTextToClipBoard.UseVisualStyleBackColor = true;
+            this.buttonTuyaConfig_CopyTextToClipBoard.Click += new System.EventHandler(this.buttonTuyaConfig_CopyTextToClipBoard_Click);
+            // 
+            // buttonTuyaConfig_CopyJSONToClipBoard
+            // 
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Location = new System.Drawing.Point(228, 58);
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Name = "buttonTuyaConfig_CopyJSONToClipBoard";
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Size = new System.Drawing.Size(114, 21);
+            this.buttonTuyaConfig_CopyJSONToClipBoard.TabIndex = 11;
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Text = "Copy to Clipboard";
+            this.buttonTuyaConfig_CopyJSONToClipBoard.UseVisualStyleBackColor = true;
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Click += new System.EventHandler(this.buttonTuyaConfig_CopyJSONToClipBoard_Click);
             // 
             // label18
             // 
@@ -1476,6 +1500,8 @@
         private System.Windows.Forms.TextBox textBoxIPScannerUser;
         private System.Windows.Forms.Label label30;
         private System.Windows.Forms.Button buttonIPScannerOpenDir;
+        private System.Windows.Forms.Button buttonTuyaConfig_CopyJSONToClipBoard;
+        private System.Windows.Forms.Button buttonTuyaConfig_CopyTextToClipBoard;
     }
 }
 

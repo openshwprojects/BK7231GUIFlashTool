@@ -1225,5 +1225,15 @@ namespace BK7231Flasher
                 MessageBox.Show("Failed, no backups done yet!");
             }
         }
+
+        private void buttonTuyaConfig_CopyJSONToClipBoard_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(textBoxTuyaCFGJSON.Text);
+        }
+
+        private void buttonTuyaConfig_CopyTextToClipBoard_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(textBoxTuyaCFGText.Text);
+        }
     }
 }
