@@ -529,6 +529,11 @@ namespace BK7231Flasher
             {
                 desc += "Device seems to use Battery Driver. See more details here: https://www.elektroda.com/rtvforum/topic3959103.html" + Environment.NewLine;
             }
+            var baud = this.findKeyValue("baud");
+            if(baud != null)
+            {
+                desc += "Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is " + baud.Value + Environment.NewLine;
+            }
             var kp = this.findKeyValue("module");
             if(kp == null)
             {
