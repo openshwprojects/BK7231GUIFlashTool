@@ -92,6 +92,8 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.linkLabel5 = new System.Windows.Forms.LinkLabel();
+            this.label32 = new System.Windows.Forms.Label();
             this.buttonTuyaConfig_CopyTextToClipBoard = new System.Windows.Forms.Button();
             this.buttonTuyaConfig_CopyJSONToClipBoard = new System.Windows.Forms.Button();
             this.label18 = new System.Windows.Forms.Label();
@@ -817,6 +819,8 @@
             // tabPage2
             // 
             this.tabPage2.AllowDrop = true;
+            this.tabPage2.Controls.Add(this.linkLabel5);
+            this.tabPage2.Controls.Add(this.label32);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyTextToClipBoard);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyJSONToClipBoard);
             this.tabPage2.Controls.Add(this.label18);
@@ -834,9 +838,30 @@
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
             // 
+            // linkLabel5
+            // 
+            this.linkLabel5.AutoSize = true;
+            this.linkLabel5.Location = new System.Drawing.Point(419, 41);
+            this.linkLabel5.Name = "linkLabel5";
+            this.linkLabel5.Size = new System.Drawing.Size(160, 13);
+            this.linkLabel5.TabIndex = 14;
+            this.linkLabel5.TabStop = true;
+            this.linkLabel5.Text = "TuyaConfig from OBK YT tutorial";
+            this.linkLabel5.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel5_LinkClicked);
+            // 
+            // label32
+            // 
+            this.label32.AutoSize = true;
+            this.label32.Location = new System.Drawing.Point(9, 41);
+            this.label32.Name = "label32";
+            this.label32.Size = new System.Drawing.Size(414, 13);
+            this.label32.TabIndex = 13;
+            this.label32.Text = "You can also get binary from OBK device, only Tuya-config section, 72KB, see tuto" +
+    "rial:";
+            // 
             // buttonTuyaConfig_CopyTextToClipBoard
             // 
-            this.buttonTuyaConfig_CopyTextToClipBoard.Location = new System.Drawing.Point(564, 58);
+            this.buttonTuyaConfig_CopyTextToClipBoard.Location = new System.Drawing.Point(570, 70);
             this.buttonTuyaConfig_CopyTextToClipBoard.Name = "buttonTuyaConfig_CopyTextToClipBoard";
             this.buttonTuyaConfig_CopyTextToClipBoard.Size = new System.Drawing.Size(114, 21);
             this.buttonTuyaConfig_CopyTextToClipBoard.TabIndex = 12;
@@ -846,7 +871,7 @@
             // 
             // buttonTuyaConfig_CopyJSONToClipBoard
             // 
-            this.buttonTuyaConfig_CopyJSONToClipBoard.Location = new System.Drawing.Point(228, 58);
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Location = new System.Drawing.Point(234, 70);
             this.buttonTuyaConfig_CopyJSONToClipBoard.Name = "buttonTuyaConfig_CopyJSONToClipBoard";
             this.buttonTuyaConfig_CopyJSONToClipBoard.Size = new System.Drawing.Size(114, 21);
             this.buttonTuyaConfig_CopyJSONToClipBoard.TabIndex = 11;
@@ -857,7 +882,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(351, 62);
+            this.label18.Location = new System.Drawing.Point(357, 74);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(82, 13);
             this.label18.TabIndex = 10;
@@ -865,16 +890,16 @@
             // 
             // textBoxTuyaCFGText
             // 
-            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(348, 78);
+            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(354, 90);
             this.textBoxTuyaCFGText.Multiline = true;
             this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
-            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 398);
+            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 386);
             this.textBoxTuyaCFGText.TabIndex = 9;
             // 
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(8, 62);
+            this.label17.Location = new System.Drawing.Point(14, 74);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(67, 13);
             this.label17.TabIndex = 8;
@@ -893,10 +918,10 @@
             // 
             // textBoxTuyaCFGJSON
             // 
-            this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(12, 78);
+            this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(18, 90);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
-            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 398);
+            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 386);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
             // label16
@@ -1502,6 +1527,8 @@
         private System.Windows.Forms.Button buttonIPScannerOpenDir;
         private System.Windows.Forms.Button buttonTuyaConfig_CopyJSONToClipBoard;
         private System.Windows.Forms.Button buttonTuyaConfig_CopyTextToClipBoard;
+        private System.Windows.Forms.LinkLabel linkLabel5;
+        private System.Windows.Forms.Label label32;
     }
 }
 

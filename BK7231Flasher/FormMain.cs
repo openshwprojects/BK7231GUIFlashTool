@@ -1235,5 +1235,10 @@ namespace BK7231Flasher
         {
             Clipboard.SetText(textBoxTuyaCFGText.Text);
         }
+
+        private void linkLabel5_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
+        }
     }
 }
