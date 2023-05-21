@@ -19,6 +19,13 @@ namespace BK7231Flasher
         OBKScanner scan;
         List<OBKDeviceAPI> founds = new List<OBKDeviceAPI>();
 
+        private void killScanner()
+        {
+            if (scan != null)
+            {
+                scan.requestStop();
+            }
+        }
         private void startOrStopScannerThread()
         {
             if (RequiredLibrariesCheck.doCheck())

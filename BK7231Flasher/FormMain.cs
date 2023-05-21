@@ -1240,5 +1240,10 @@ namespace BK7231Flasher
         {
             System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
         }
+
+        private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            killScanner();
+        }
     }
 }

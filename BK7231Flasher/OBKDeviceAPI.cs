@@ -44,7 +44,7 @@ namespace BK7231Flasher
             public string cmnd;
             public ProcessCMDReply cb;
         }
-
+        
         internal string getInfoText()
         {
             string r = "";

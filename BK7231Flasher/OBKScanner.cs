@@ -21,6 +21,8 @@ namespace BK7231Flasher
     public class OBKScanner
     {
         int maxWorkers = 8;
+
+
         int loopsCount = 2;
         string startIP, endIP;
         Thread thread;
