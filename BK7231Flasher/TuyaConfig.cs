@@ -455,7 +455,7 @@ namespace BK7231Flasher
                 }
                 else if (key == "total_bt_pin")
                 {
-                    desc += "- Pair/Toggle All Pin on P" + value + Environment.NewLine;
+                    desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
                     if (tg != null)
                     {
                         tg.setPinRole(value, PinRole.Btn_Tgl_All);
