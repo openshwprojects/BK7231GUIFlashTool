@@ -1345,7 +1345,7 @@
             this.textBox_cfg_readTimeOutMultForLoop.Name = "textBox_cfg_readTimeOutMultForLoop";
             this.textBox_cfg_readTimeOutMultForLoop.Size = new System.Drawing.Size(243, 20);
             this.textBox_cfg_readTimeOutMultForLoop.TabIndex = 3;
-            this.textBox_cfg_readTimeOutMultForLoop.Text = "1";
+            this.textBox_cfg_readTimeOutMultForLoop.Text = "5";
             // 
             // label26
             // 
@@ -1362,7 +1362,7 @@
             this.textBox_cfg_readTimeOutMultForSerialClass.Name = "textBox_cfg_readTimeOutMultForSerialClass";
             this.textBox_cfg_readTimeOutMultForSerialClass.Size = new System.Drawing.Size(243, 20);
             this.textBox_cfg_readTimeOutMultForSerialClass.TabIndex = 1;
-            this.textBox_cfg_readTimeOutMultForSerialClass.Text = "1";
+            this.textBox_cfg_readTimeOutMultForSerialClass.Text = "5";
             // 
             // label25
             // 
