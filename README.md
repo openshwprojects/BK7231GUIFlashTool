@@ -88,6 +88,10 @@ No command line and no strange arguments required.
 CRCs are calculated correctly for both N and T. If you get CRC mismatch, you are most likely selecting a wrong chip type.
 ![image](https://user-images.githubusercontent.com/85486843/210281290-31d037f5-61c1-403b-a9c5-891fbda75914.png)
 
+# OBK Configuration via UART
+See this tutorial:
+https://www.elektroda.com/rtvforum/viewtopic.php?p=20733610#20733610
+
 # Can't auto download firmware?
 Firmware download will not work on systems without newer TLS version required by Github. You can always manually download release from here:
 https://github.com/openshwprojects/OpenBK7231T_App
