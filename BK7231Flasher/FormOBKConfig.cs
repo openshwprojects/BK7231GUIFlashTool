@@ -134,6 +134,10 @@ namespace BK7231Flasher
             this.textBoxLongName.DataBindings.Add(new Binding("Text", cfg, "longDeviceName", false, DataSourceUpdateMode.OnPropertyChanged));
             this.textBoxShortStartupCommand.DataBindings.Add(new Binding("Text", cfg, "initCommandLine", false, DataSourceUpdateMode.OnPropertyChanged));
             this.textBoxWebAppRoot.DataBindings.Add(new Binding("Text", cfg, "webappRoot", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxOBKIP.DataBindings.Add(new Binding("Text", cfg, "localIPAddr", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxOBKMask.DataBindings.Add(new Binding("Text", cfg, "netMask", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxOBKGate.DataBindings.Add(new Binding("Text", cfg, "gatewayIPAddr", false, DataSourceUpdateMode.OnPropertyChanged));
+            this.textBoxOBKDNS.DataBindings.Add(new Binding("Text", cfg, "dnsServerIpAddr", false, DataSourceUpdateMode.OnPropertyChanged));
 
             for (int i = 0; i < 30; i++)
             {

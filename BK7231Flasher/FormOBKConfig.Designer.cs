@@ -65,6 +65,7 @@
             this.appendSettingsFromTuya2MBBackupToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.appendSettingsFromOBKConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.clearSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.buttonRandomizeNames = new System.Windows.Forms.Button();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
@@ -77,7 +78,16 @@
             this.tabPage4 = new System.Windows.Forms.TabPage();
             this.textBoxWebAppRoot = new System.Windows.Forms.TextBox();
             this.label14 = new System.Windows.Forms.Label();
-            this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.tabPage5 = new System.Windows.Forms.TabPage();
+            this.textBoxOBKIP = new System.Windows.Forms.TextBox();
+            this.textBoxOBKDNS = new System.Windows.Forms.TextBox();
+            this.textBoxOBKGate = new System.Windows.Forms.TextBox();
+            this.textBoxOBKMask = new System.Windows.Forms.TextBox();
+            this.label15 = new System.Windows.Forms.Label();
+            this.label16 = new System.Windows.Forms.Label();
+            this.label17 = new System.Windows.Forms.Label();
+            this.label18 = new System.Windows.Forms.Label();
+            this.label19 = new System.Windows.Forms.Label();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -85,6 +95,7 @@
             this.panel1.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.tabPage4.SuspendLayout();
+            this.tabPage5.SuspendLayout();
             this.SuspendLayout();
             // 
             // label1
@@ -371,6 +382,13 @@
             this.clearSettingsToolStripMenuItem.Text = "Clear settings";
             this.clearSettingsToolStripMenuItem.Click += new System.EventHandler(this.clearSettingsToolStripMenuItem_Click);
             // 
+            // saveAsToolStripMenuItem
+            // 
+            this.saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
+            this.saveAsToolStripMenuItem.Size = new System.Drawing.Size(295, 22);
+            this.saveAsToolStripMenuItem.Text = "Save obk settings as...";
+            this.saveAsToolStripMenuItem.Click += new System.EventHandler(this.saveAsToolStripMenuItem_Click);
+            // 
             // buttonRandomizeNames
             // 
             this.buttonRandomizeNames.Location = new System.Drawing.Point(331, 253);
@@ -387,6 +405,7 @@
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
             this.tabControl1.Controls.Add(this.tabPage4);
+            this.tabControl1.Controls.Add(this.tabPage5);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 24);
             this.tabControl1.Name = "tabControl1";
@@ -517,12 +536,96 @@
             this.label14.TabIndex = 0;
             this.label14.Text = "Web App root:";
             // 
-            // saveAsToolStripMenuItem
+            // tabPage5
             // 
-            this.saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
-            this.saveAsToolStripMenuItem.Size = new System.Drawing.Size(295, 22);
-            this.saveAsToolStripMenuItem.Text = "Save obk settings as...";
-            this.saveAsToolStripMenuItem.Click += new System.EventHandler(this.saveAsToolStripMenuItem_Click);
+            this.tabPage5.Controls.Add(this.label19);
+            this.tabPage5.Controls.Add(this.label18);
+            this.tabPage5.Controls.Add(this.label17);
+            this.tabPage5.Controls.Add(this.label16);
+            this.tabPage5.Controls.Add(this.label15);
+            this.tabPage5.Controls.Add(this.textBoxOBKMask);
+            this.tabPage5.Controls.Add(this.textBoxOBKGate);
+            this.tabPage5.Controls.Add(this.textBoxOBKDNS);
+            this.tabPage5.Controls.Add(this.textBoxOBKIP);
+            this.tabPage5.Location = new System.Drawing.Point(4, 22);
+            this.tabPage5.Name = "tabPage5";
+            this.tabPage5.Size = new System.Drawing.Size(821, 437);
+            this.tabPage5.TabIndex = 4;
+            this.tabPage5.Text = "IP Config";
+            this.tabPage5.UseVisualStyleBackColor = true;
+            // 
+            // textBoxOBKIP
+            // 
+            this.textBoxOBKIP.Location = new System.Drawing.Point(95, 15);
+            this.textBoxOBKIP.Name = "textBoxOBKIP";
+            this.textBoxOBKIP.Size = new System.Drawing.Size(133, 20);
+            this.textBoxOBKIP.TabIndex = 0;
+            // 
+            // textBoxOBKDNS
+            // 
+            this.textBoxOBKDNS.Location = new System.Drawing.Point(95, 65);
+            this.textBoxOBKDNS.Name = "textBoxOBKDNS";
+            this.textBoxOBKDNS.Size = new System.Drawing.Size(133, 20);
+            this.textBoxOBKDNS.TabIndex = 1;
+            // 
+            // textBoxOBKGate
+            // 
+            this.textBoxOBKGate.Location = new System.Drawing.Point(95, 91);
+            this.textBoxOBKGate.Name = "textBoxOBKGate";
+            this.textBoxOBKGate.Size = new System.Drawing.Size(133, 20);
+            this.textBoxOBKGate.TabIndex = 2;
+            // 
+            // textBoxOBKMask
+            // 
+            this.textBoxOBKMask.Location = new System.Drawing.Point(95, 41);
+            this.textBoxOBKMask.Name = "textBoxOBKMask";
+            this.textBoxOBKMask.Size = new System.Drawing.Size(133, 20);
+            this.textBoxOBKMask.TabIndex = 3;
+            // 
+            // label15
+            // 
+            this.label15.AutoSize = true;
+            this.label15.Location = new System.Drawing.Point(39, 18);
+            this.label15.Name = "label15";
+            this.label15.Size = new System.Drawing.Size(50, 13);
+            this.label15.TabIndex = 4;
+            this.label15.Text = "Static IP:";
+            // 
+            // label16
+            // 
+            this.label16.AutoSize = true;
+            this.label16.Location = new System.Drawing.Point(39, 44);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(36, 13);
+            this.label16.TabIndex = 5;
+            this.label16.Text = "Mask:";
+            // 
+            // label17
+            // 
+            this.label17.AutoSize = true;
+            this.label17.Location = new System.Drawing.Point(39, 68);
+            this.label17.Name = "label17";
+            this.label17.Size = new System.Drawing.Size(33, 13);
+            this.label17.TabIndex = 6;
+            this.label17.Text = "DNS:";
+            // 
+            // label18
+            // 
+            this.label18.AutoSize = true;
+            this.label18.Location = new System.Drawing.Point(39, 94);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(33, 13);
+            this.label18.TabIndex = 7;
+            this.label18.Text = "Gate:";
+            // 
+            // label19
+            // 
+            this.label19.AutoSize = true;
+            this.label19.Location = new System.Drawing.Point(234, 15);
+            this.label19.Name = "label19";
+            this.label19.Size = new System.Drawing.Size(233, 13);
+            this.label19.TabIndex = 8;
+            this.label19.Text = "If you want to use DHCP, set static IP to 0.0.0.0";
             // 
             // FormOBKConfig
             // 
@@ -553,6 +656,8 @@
             this.tabPage3.PerformLayout();
             this.tabPage4.ResumeLayout(false);
             this.tabPage4.PerformLayout();
+            this.tabPage5.ResumeLayout(false);
+            this.tabPage5.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -608,5 +713,15 @@
         private System.Windows.Forms.TextBox textBoxWebAppRoot;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
+        private System.Windows.Forms.TabPage tabPage5;
+        private System.Windows.Forms.TextBox textBoxOBKMask;
+        private System.Windows.Forms.TextBox textBoxOBKGate;
+        private System.Windows.Forms.TextBox textBoxOBKDNS;
+        private System.Windows.Forms.TextBox textBoxOBKIP;
+        private System.Windows.Forms.Label label19;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.Label label15;
     }
 }

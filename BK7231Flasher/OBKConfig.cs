@@ -437,7 +437,85 @@ namespace BK7231Flasher
                 writeStr(0x00000C84, value, 64);
             }
         }
+        string readIP(int ofs)
+        {
+            byte a = getData()[ofs];
+            byte b = getData()[ofs+1];
+            byte c = getData()[ofs+2];
+            byte d = getData()[ofs+3];
+            // return string like 192.168.0.13
+            string ipAddress = $"{a}.{b}.{c}.{d}";
+            return ipAddress;
+        }
+        void writeIP(int ofs, string s)
+        {  
+            string[] octets = s.Split('.');
 
+            if (octets.Length == 4)
+            {
+                if (byte.TryParse(octets[0], out byte a) &&
+                    byte.TryParse(octets[1], out byte b) &&
+                    byte.TryParse(octets[2], out byte c) &&
+                    byte.TryParse(octets[3], out byte d))
+                {
+                    byte[] data = getData();
+                    data[ofs] = a;
+                    data[ofs + 1] = b;
+                    data[ofs + 2] = c;
+                    data[ofs + 3] = d;
+                }
+                else
+                {
+                }
+            }
+            else
+            {
+            }
+        }
+        public string localIPAddr
+        {
+            get
+            {
+                return readIP(0x00000527);
+            }
+            set
+            {
+                writeIP(0x00000527, value);
+            }
+        }
+        public string netMask
+        {
+            get
+            {
+                return readIP(0x00000527+4);
+            }
+            set
+            {
+                writeIP(0x00000527+4, value);
+            }
+        }
+        public string gatewayIPAddr
+        {
+            get
+            {
+                return readIP(0x00000527 + 8);
+            }
+            set
+            {
+                writeIP(0x00000527 + 8, value);
+            }
+        }
+        public string dnsServerIpAddr
+        {
+            get
+            {
+                return readIP(0x00000527 + 12);
+            }
+            set
+            {
+                writeIP(0x00000527 + 12, value);
+            }
+        }
 
         public void setDefaults()
         {
