@@ -321,6 +321,28 @@ namespace BK7231Flasher
                         tg.setPinChannel(value, number);
                     }
                 }
+                else if (Regex.IsMatch(key, "^rl_on\\d+_pin$"))
+                {
+                    // match rl_on1_pin
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- Bridge Relay On (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Rel);
+                        tg.setPinChannel(value, number);
+                    }
+                }
+                else if (Regex.IsMatch(key, "^rl_off\\d+_pin$"))
+                {
+                    // match rl_off1_pin
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- Bridge Relay Off (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Rel_n);
+                        tg.setPinChannel(value, number);
+                    }
+                }
                 else if (key == "bt_pin")
                 {
                     int number = 0;
