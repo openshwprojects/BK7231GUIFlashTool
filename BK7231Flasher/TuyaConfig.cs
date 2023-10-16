@@ -453,6 +453,14 @@ namespace BK7231Flasher
                 {
                     desc += "- Control Pin (TODO) on P" + value + Environment.NewLine;
                 }
+                else if (key == "buzzer_io")
+                {
+                    desc += "- Buzzer Pin (TODO) on P" + value + Environment.NewLine;
+                }
+                else if (key == "buzzer_pwm")
+                {
+                    desc += "- Buzzer Frequency (TODO) is " + value + "Hz"+ Environment.NewLine;
+                }
                 else if (key == "total_bt_pin")
                 {
                     desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
