@@ -483,6 +483,10 @@ namespace BK7231Flasher
                 {
                     desc += "- Buzzer Frequency (TODO) is " + value + "Hz"+ Environment.NewLine;
                 }
+                else if (key == "mic")
+                {
+                    desc += "- Microphone (TODO) is on P" + value + "" + Environment.NewLine;
+                }
                 else if (key == "total_bt_pin")
                 {
                     desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
