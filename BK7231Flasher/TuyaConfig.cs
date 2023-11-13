@@ -407,7 +407,7 @@ namespace BK7231Flasher
                     desc += "- BL0937 ELE on P" + value + Environment.NewLine;
                     if (tg != null)
                     {
-                        tg.setPinRole(value, PinRole.BL0937CF1);
+                        tg.setPinRole(value, PinRole.BL0937CF);
                     }
                 }
                 else if (key == "vi_pin")
@@ -415,7 +415,7 @@ namespace BK7231Flasher
                     desc += "- BL0937 VI on P" + value + Environment.NewLine;
                     if (tg != null)
                     {
-                        tg.setPinRole(value, PinRole.BL0937CF);
+                        tg.setPinRole(value, PinRole.BL0937CF1);
                     }
                 }
                 else if (key == "sel_pin_pin")
@@ -487,6 +487,30 @@ namespace BK7231Flasher
                 {
                     desc += "- Microphone (TODO) is on P" + value + "" + Environment.NewLine;
                 }
+                else if (key == "pwmhz")
+                {
+                    desc += "- TODO" + key + "" + Environment.NewLine;
+                }
+                else if (key == "pirsense_pin")
+                {
+                    desc += "- TODO" + key + "" + Environment.NewLine;
+                }
+                else if (key == "pirlduty")
+                {
+                    desc += "- TODO" + key + "" + Environment.NewLine;
+                }
+                else if (key == "pirfreq")
+                {
+                    desc += "- TODO" + key + "" + Environment.NewLine;
+                }
+                else if (key == "pirmduty")
+                {
+                    desc += "- TODO" + key + "" + Environment.NewLine;
+                }
+                else if (key == "pirin_pin")
+                {
+                    desc += "- TODO" + key + "" + Environment.NewLine;
+                }
                 else if (key == "total_bt_pin")
                 {
                     desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
@@ -519,6 +543,7 @@ namespace BK7231Flasher
                 string cjwcur = getKeyValue("cjwcur");
                 string _2235ccur = getKeyValue("2235ccur");
                 string _2335ccur = getKeyValue("2335ccur");
+                string kp58wcur = getKeyValue("kp58wcur");
                 // use current (color/cw) setting
                 if (ehccur.Length>0 || wampere.Length > 0 || iicccur.Length > 0)
                 {
@@ -540,6 +565,10 @@ namespace BK7231Flasher
                 {
                     // fallback
                     ledType = "SM2235";
+                }
+                else if (kp58wcur.Length > 0)
+                {
+                    ledType = "KP18058";
                 }
                 else
                 {
