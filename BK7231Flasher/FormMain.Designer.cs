@@ -149,6 +149,7 @@
             this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
             this.label25 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.buttonImportConfigFileDialog = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -819,6 +820,7 @@
             // tabPage2
             // 
             this.tabPage2.AllowDrop = true;
+            this.tabPage2.Controls.Add(this.buttonImportConfigFileDialog);
             this.tabPage2.Controls.Add(this.linkLabel5);
             this.tabPage2.Controls.Add(this.label32);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyTextToClipBoard);
@@ -841,7 +843,7 @@
             // linkLabel5
             // 
             this.linkLabel5.AutoSize = true;
-            this.linkLabel5.Location = new System.Drawing.Point(419, 41);
+            this.linkLabel5.Location = new System.Drawing.Point(415, 73);
             this.linkLabel5.Name = "linkLabel5";
             this.linkLabel5.Size = new System.Drawing.Size(160, 13);
             this.linkLabel5.TabIndex = 14;
@@ -852,7 +854,7 @@
             // label32
             // 
             this.label32.AutoSize = true;
-            this.label32.Location = new System.Drawing.Point(9, 41);
+            this.label32.Location = new System.Drawing.Point(8, 73);
             this.label32.Name = "label32";
             this.label32.Size = new System.Drawing.Size(414, 13);
             this.label32.TabIndex = 13;
@@ -861,7 +863,7 @@
             // 
             // buttonTuyaConfig_CopyTextToClipBoard
             // 
-            this.buttonTuyaConfig_CopyTextToClipBoard.Location = new System.Drawing.Point(570, 70);
+            this.buttonTuyaConfig_CopyTextToClipBoard.Location = new System.Drawing.Point(570, 89);
             this.buttonTuyaConfig_CopyTextToClipBoard.Name = "buttonTuyaConfig_CopyTextToClipBoard";
             this.buttonTuyaConfig_CopyTextToClipBoard.Size = new System.Drawing.Size(114, 21);
             this.buttonTuyaConfig_CopyTextToClipBoard.TabIndex = 12;
@@ -871,7 +873,7 @@
             // 
             // buttonTuyaConfig_CopyJSONToClipBoard
             // 
-            this.buttonTuyaConfig_CopyJSONToClipBoard.Location = new System.Drawing.Point(234, 70);
+            this.buttonTuyaConfig_CopyJSONToClipBoard.Location = new System.Drawing.Point(234, 89);
             this.buttonTuyaConfig_CopyJSONToClipBoard.Name = "buttonTuyaConfig_CopyJSONToClipBoard";
             this.buttonTuyaConfig_CopyJSONToClipBoard.Size = new System.Drawing.Size(114, 21);
             this.buttonTuyaConfig_CopyJSONToClipBoard.TabIndex = 11;
@@ -882,7 +884,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(357, 74);
+            this.label18.Location = new System.Drawing.Point(354, 93);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(82, 13);
             this.label18.TabIndex = 10;
@@ -890,16 +892,16 @@
             // 
             // textBoxTuyaCFGText
             // 
-            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(354, 90);
+            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(354, 113);
             this.textBoxTuyaCFGText.Multiline = true;
             this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
-            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 386);
+            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGText.TabIndex = 9;
             // 
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(14, 74);
+            this.label17.Location = new System.Drawing.Point(15, 97);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(67, 13);
             this.label17.TabIndex = 8;
@@ -918,10 +920,10 @@
             // 
             // textBoxTuyaCFGJSON
             // 
-            this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(18, 90);
+            this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(18, 113);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
-            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 386);
+            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
             // label16
@@ -1378,6 +1380,16 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
+            // buttonImportConfigFileDialog
+            // 
+            this.buttonImportConfigFileDialog.Location = new System.Drawing.Point(18, 43);
+            this.buttonImportConfigFileDialog.Name = "buttonImportConfigFileDialog";
+            this.buttonImportConfigFileDialog.Size = new System.Drawing.Size(185, 23);
+            this.buttonImportConfigFileDialog.TabIndex = 15;
+            this.buttonImportConfigFileDialog.Text = "Open config with open file dialog instead...";
+            this.buttonImportConfigFileDialog.UseVisualStyleBackColor = true;
+            this.buttonImportConfigFileDialog.Click += new System.EventHandler(this.buttonImportConfigFileDialog_Click);
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1530,6 +1542,7 @@
         private System.Windows.Forms.Button buttonTuyaConfig_CopyTextToClipBoard;
         private System.Windows.Forms.LinkLabel linkLabel5;
         private System.Windows.Forms.Label label32;
+        private System.Windows.Forms.Button buttonImportConfigFileDialog;
     }
 }
 

@@ -1245,5 +1245,6 @@ namespace BK7231Flasher
         {
             killScanner();
         }
+
     }
 }

@@ -31,6 +31,37 @@ namespace BK7231Flasher
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
+				importTuyaConfig(file);
+			}
+		}
+        private void buttonImportConfigFileDialog_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog1 = new OpenFileDialog();
+
+            // Set the file dialog properties
+            openFileDialog1.InitialDirectory = "c:\\";
+            openFileDialog1.Filter = "All files (*.*)|*.*";
+            openFileDialog1.FilterIndex = 1;
+            openFileDialog1.RestoreDirectory = true;
+
+            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    string selectedFile = openFileDialog1.FileName;
+
+                    // Call the importTuyaConfig method with the selected file
+                    importTuyaConfig(selectedFile);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error: Could not read file from disk. Original error: " + ex.Message);
+                }
+            }
+        }
+
+        public void importTuyaConfig(string file) 
+		{
                 try
                 {
                     // Do something with the dropped file(s)
@@ -68,7 +99,5 @@ namespace BK7231Flasher
                     textBoxTuyaCFGText.Text = "Sorry, exception occured: " + ex.ToString();
                 }
             }
-        }
-
     }
 }
