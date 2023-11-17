@@ -353,6 +353,17 @@ namespace BK7231Flasher
                         tg.setPinChannel(value, number);
                     }
                 }
+                // parse k3pin_pin
+                else if (Regex.IsMatch(key, "^k\\d+pin_pin$"))
+                {
+                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                    desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Btn);
+                        tg.setPinChannel(value, number);
+                    }
+                }
                 else if (Regex.IsMatch(key, "^bt\\d+_pin$"))
                 {
                     int number = int.Parse(Regex.Match(key, "\\d+").Value);
