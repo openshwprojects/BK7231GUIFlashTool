@@ -820,6 +820,11 @@ namespace BK7231Flasher
         }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
         {
+            if (true)
+            {
+                MessageBox.Show("This option is developer-only, it's disabled in release");
+                return;
+            }
             if (doGenericOperationPreparations() == false)
             {
                 return;
@@ -830,6 +835,11 @@ namespace BK7231Flasher
 
         private void buttonTestWrite_Click(object sender, EventArgs e)
         {
+            if (true)
+            {
+                MessageBox.Show("This option is developer-only, it's disabled in release");
+                return;
+            }
             if (doGenericOperationPreparations() == false)
             {
                 return;
