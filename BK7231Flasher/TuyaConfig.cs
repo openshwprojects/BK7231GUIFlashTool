@@ -482,6 +482,10 @@ namespace BK7231Flasher
                         tg.setPinChannel(value, 4);
                     }
                 }
+                else if (key == "micpin")
+                {
+                    desc += "- Microphone (TODO) on P" + value + Environment.NewLine;
+                }
                 else if (key == "ctrl_pin")
                 {
                     desc += "- Control Pin (TODO) on P" + value + Environment.NewLine;
@@ -497,6 +501,14 @@ namespace BK7231Flasher
                 else if (key == "mic")
                 {
                     desc += "- Microphone (TODO) is on P" + value + "" + Environment.NewLine;
+                }
+                else if (key == "irpin")
+                {
+                    desc += "- IR Receiver is on P" + value + "" + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.IRRecv);
+                    }
                 }
                 else if (key == "pwmhz")
                 {
@@ -521,6 +533,14 @@ namespace BK7231Flasher
                 else if (key == "pirin_pin")
                 {
                     desc += "- TODO" + key + "" + Environment.NewLine;
+                }
+                else if (key == "mosi")
+                {
+                    desc += "- SPI MOSI" + key + "" + Environment.NewLine;
+                }
+                else if (key == "miso")
+                {
+                    desc += "- SPI MISO" + key + "" + Environment.NewLine;
                 }
                 else if (key == "total_bt_pin")
                 {
