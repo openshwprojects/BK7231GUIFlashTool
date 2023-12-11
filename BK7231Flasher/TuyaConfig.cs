@@ -512,35 +512,35 @@ namespace BK7231Flasher
                 }
                 else if (key == "pwmhz")
                 {
-                    desc += "- TODO" + key + "" + Environment.NewLine;
+                    desc += "- TODO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirsense_pin")
                 {
-                    desc += "- TODO" + key + "" + Environment.NewLine;
+                    desc += "- TODO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirlduty")
                 {
-                    desc += "- TODO" + key + "" + Environment.NewLine;
+                    desc += "- TODO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirfreq")
                 {
-                    desc += "- TODO" + key + "" + Environment.NewLine;
+                    desc += "- TODO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirmduty")
                 {
-                    desc += "- TODO" + key + "" + Environment.NewLine;
+                    desc += "- TODO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirin_pin")
                 {
-                    desc += "- TODO" + key + "" + Environment.NewLine;
+                    desc += "- TODO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "mosi")
                 {
-                    desc += "- SPI MOSI" + key + "" + Environment.NewLine;
+                    desc += "- SPI MOSI" + value + "" + Environment.NewLine;
                 }
                 else if (key == "miso")
                 {
-                    desc += "- SPI MISO" + key + "" + Environment.NewLine;
+                    desc += "- SPI MISO" + value + "" + Environment.NewLine;
                 }
                 else if (key == "total_bt_pin")
                 {
