@@ -512,27 +512,27 @@ namespace BK7231Flasher
                 }
                 else if (key == "pwmhz")
                 {
-                    desc += "- TODO" + value + "" + Environment.NewLine;
+                    desc += "- PWM Frequency" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirsense_pin")
                 {
-                    desc += "- TODO" + value + "" + Environment.NewLine;
+                    desc += "- PIR Sensitivity " + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirlduty")
                 {
-                    desc += "- TODO" + value + "" + Environment.NewLine;
+                    desc += "- PIR Low Duty" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirfreq")
                 {
-                    desc += "- TODO" + value + "" + Environment.NewLine;
+                    desc += "- PIR Frequency" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirmduty")
                 {
-                    desc += "- TODO" + value + "" + Environment.NewLine;
+                    desc += "- PIR High Duty" + value + "" + Environment.NewLine;
                 }
                 else if (key == "pirin_pin")
                 {
-                    desc += "- TODO" + value + "" + Environment.NewLine;
+                    desc += "- PIR Input " + value + "" + Environment.NewLine;
                 }
                 else if (key == "mosi")
                 {
