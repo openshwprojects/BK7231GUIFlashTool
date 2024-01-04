@@ -502,12 +502,36 @@ namespace BK7231Flasher
                 {
                     desc += "- Microphone (TODO) is on P" + value + "" + Environment.NewLine;
                 }
-                else if (key == "irpin")
+                else if (key == "irpin" || key == "infrr")
                 {
                     desc += "- IR Receiver is on P" + value + "" + Environment.NewLine;
                     if (tg != null)
                     {
                         tg.setPinRole(value, PinRole.IRRecv);
+                    }
+                }
+                else if (key == "infre")
+                {
+                    desc += "- IR Transmitter is on P" + value + "" + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.IRSend);
+                    }
+                }
+                else if (key == "reset_pin")
+                {
+                    desc += "- Button is on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.Btn);
+                    }
+                }
+                else if (key == "wfst_pin")
+                {
+                    desc += "- WiFi LED on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.WifiLED);
                     }
                 }
                 else if (key == "pwmhz")
