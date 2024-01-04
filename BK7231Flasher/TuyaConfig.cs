@@ -713,7 +713,7 @@ namespace BK7231Flasher
             {
                 first_at = keys_at + 5;
             }
-            int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', keys_at);
+            int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
             if (stopAT == -1)
             {
                 //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Yellow);
