@@ -277,6 +277,14 @@ namespace BK7231Flasher
                         tg.setPinRole(value, PinRole.WifiLED_n);
                     }
                 }
+                else if (Regex.IsMatch(key, "bz_pin_pin"))
+                {// https://www.elektroda.com/rtvforum/viewtopic.php?p=21070110#21070110
+                    desc += "- Buzzer on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        //tg.setPinRole(value, PinRole.WifiLED_n);
+                    }
+                }
                 else if (Regex.IsMatch(key, "status_led_pin"))
                 {
                     desc += "- Status LED on P" + value + Environment.NewLine;
