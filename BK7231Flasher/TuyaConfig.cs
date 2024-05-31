@@ -309,6 +309,27 @@ namespace BK7231Flasher
                         tg.setPinRole(value, PinRole.BAT_ADC);
                     }
                 }
+                else if (Regex.IsMatch(key, "i2c_scl_pin"))
+                {
+                    desc += "- I2C SCL on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                    }
+                }
+                else if (Regex.IsMatch(key, "i2c_sda_pin"))
+                {
+                    desc += "- I2C SDA on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                    }
+                }
+                else if (Regex.IsMatch(key, "alt_pin_pin"))
+                {
+                    desc += "- ALT pin on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                    }
+                }
                 else if (key == "max_V")
                 {
                     desc += "- Battery Max Voltage: " + value + Environment.NewLine;
