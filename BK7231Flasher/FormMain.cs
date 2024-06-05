@@ -142,6 +142,7 @@ namespace BK7231Flasher
 
             comboBoxChipType.Items.Add(BKType.BK7231T);
             comboBoxChipType.Items.Add(BKType.BK7231N);
+            comboBoxChipType.Items.Add(BKType.BK7231M);
 
             comboBoxChipType.SelectedIndex = 0;
 
@@ -397,7 +398,10 @@ namespace BK7231Flasher
             flasher.setReadReplyStyle(cfg_readReplyStyle);
             flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
             flasher.setReadTimeOutMultForSerialClass(cfg_readTimeOutMultForSerialClass);
+            flasher.setOverwriteBootloader(checkBoxOverwriteBootloader.Checked);
+            flasher.setSkipKeyCheck(checkBoxSkipKeyCheck.Checked);
         }
+        
         void testWrite()
         {
             clearUp();
@@ -567,6 +571,10 @@ namespace BK7231Flasher
             {
                 return ("OpenBK7231T_UA_");
             }
+            if (t == BKType.BK7231M)
+            {
+                return ("OpenBK7231M_QIO_");
+            }
             return "Error_Firmware";
         }
         public bool checkFirmwareForCurType(string s)
@@ -590,6 +598,17 @@ namespace BK7231Flasher
                     return true;
                 }
                 if (s.StartsWith("OpenBK7231T_QIO_"))
+                {
+                    return true;
+                }
+            }
+            if (curType == BKType.BK7231M)
+            {
+                if (s.StartsWith("OpenBK7231M_UA_"))
+                {
+                    return true;
+                }
+                if (s.StartsWith("OpenBK7231M_QIO_"))
                 {
                     return true;
                 }
@@ -1257,5 +1276,22 @@ namespace BK7231Flasher
             killScanner();
         }
 
+        private void checkBoxOverwriteBootloader_CheckedChanged(object sender, EventArgs e)
+        {
+            if(checkBoxOverwriteBootloader.Checked == true)
+            {
+                DialogResult res = MessageBox.Show("This will break bootloader if used incorrectly, do you have a backup? Are you sure?",
+                    "Are you sure?", MessageBoxButtons.YesNo);
+                if(res == DialogResult.No)
+                {
+                    checkBoxOverwriteBootloader.Checked = false;
+                }
+            }
+        }
+
+        private void checkBoxSkipKeyCheck_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

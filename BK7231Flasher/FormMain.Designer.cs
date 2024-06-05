@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.checkBoxOverwriteBootloader = new System.Windows.Forms.CheckBox();
             this.buttonReadOBKConfig = new System.Windows.Forms.Button();
             this.buttonWriteOBKConfig = new System.Windows.Forms.Button();
             this.checkBoxReadOBKConfig = new System.Windows.Forms.CheckBox();
@@ -92,6 +93,7 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.buttonImportConfigFileDialog = new System.Windows.Forms.Button();
             this.linkLabel5 = new System.Windows.Forms.LinkLabel();
             this.label32 = new System.Windows.Forms.Label();
             this.buttonTuyaConfig_CopyTextToClipBoard = new System.Windows.Forms.Button();
@@ -149,7 +151,7 @@
             this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
             this.label25 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonImportConfigFileDialog = new System.Windows.Forms.Button();
+            this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -256,6 +258,8 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.checkBoxSkipKeyCheck);
+            this.tabPage1.Controls.Add(this.checkBoxOverwriteBootloader);
             this.tabPage1.Controls.Add(this.buttonReadOBKConfig);
             this.tabPage1.Controls.Add(this.buttonWriteOBKConfig);
             this.tabPage1.Controls.Add(this.checkBoxReadOBKConfig);
@@ -296,6 +300,17 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxOverwriteBootloader
+            // 
+            this.checkBoxOverwriteBootloader.AutoSize = true;
+            this.checkBoxOverwriteBootloader.Location = new System.Drawing.Point(548, 5);
+            this.checkBoxOverwriteBootloader.Name = "checkBoxOverwriteBootloader";
+            this.checkBoxOverwriteBootloader.Size = new System.Drawing.Size(227, 17);
+            this.checkBoxOverwriteBootloader.TabIndex = 34;
+            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (for N/M, don\'t use it)";
+            this.checkBoxOverwriteBootloader.UseVisualStyleBackColor = true;
+            this.checkBoxOverwriteBootloader.CheckedChanged += new System.EventHandler(this.checkBoxOverwriteBootloader_CheckedChanged);
             // 
             // buttonReadOBKConfig
             // 
@@ -364,7 +379,7 @@
             // checkBoxAllowBackup
             // 
             this.checkBoxAllowBackup.AutoSize = true;
-            this.checkBoxAllowBackup.Location = new System.Drawing.Point(760, 8);
+            this.checkBoxAllowBackup.Location = new System.Drawing.Point(426, 5);
             this.checkBoxAllowBackup.Name = "checkBoxAllowBackup";
             this.checkBoxAllowBackup.Size = new System.Drawing.Size(125, 17);
             this.checkBoxAllowBackup.TabIndex = 27;
@@ -464,7 +479,7 @@
             // checkBoxShowAdvanced
             // 
             this.checkBoxShowAdvanced.AutoSize = true;
-            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(612, 8);
+            this.checkBoxShowAdvanced.Location = new System.Drawing.Point(279, 6);
             this.checkBoxShowAdvanced.Name = "checkBoxShowAdvanced";
             this.checkBoxShowAdvanced.Size = new System.Drawing.Size(141, 17);
             this.checkBoxShowAdvanced.TabIndex = 17;
@@ -839,6 +854,16 @@
             this.tabPage2.UseVisualStyleBackColor = true;
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
+            // 
+            // buttonImportConfigFileDialog
+            // 
+            this.buttonImportConfigFileDialog.Location = new System.Drawing.Point(18, 43);
+            this.buttonImportConfigFileDialog.Name = "buttonImportConfigFileDialog";
+            this.buttonImportConfigFileDialog.Size = new System.Drawing.Size(185, 23);
+            this.buttonImportConfigFileDialog.TabIndex = 15;
+            this.buttonImportConfigFileDialog.Text = "Open config with open file dialog instead...";
+            this.buttonImportConfigFileDialog.UseVisualStyleBackColor = true;
+            this.buttonImportConfigFileDialog.Click += new System.EventHandler(this.buttonImportConfigFileDialog_Click);
             // 
             // linkLabel5
             // 
@@ -1380,15 +1405,16 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonImportConfigFileDialog
+            // checkBoxSkipKeyCheck
             // 
-            this.buttonImportConfigFileDialog.Location = new System.Drawing.Point(18, 43);
-            this.buttonImportConfigFileDialog.Name = "buttonImportConfigFileDialog";
-            this.buttonImportConfigFileDialog.Size = new System.Drawing.Size(185, 23);
-            this.buttonImportConfigFileDialog.TabIndex = 15;
-            this.buttonImportConfigFileDialog.Text = "Open config with open file dialog instead...";
-            this.buttonImportConfigFileDialog.UseVisualStyleBackColor = true;
-            this.buttonImportConfigFileDialog.Click += new System.EventHandler(this.buttonImportConfigFileDialog_Click);
+            this.checkBoxSkipKeyCheck.AutoSize = true;
+            this.checkBoxSkipKeyCheck.Location = new System.Drawing.Point(772, 5);
+            this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
+            this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(100, 17);
+            this.checkBoxSkipKeyCheck.TabIndex = 35;
+            this.checkBoxSkipKeyCheck.Text = "Skip key check";
+            this.checkBoxSkipKeyCheck.UseVisualStyleBackColor = true;
+            this.checkBoxSkipKeyCheck.CheckedChanged += new System.EventHandler(this.checkBoxSkipKeyCheck_CheckedChanged);
             // 
             // FormMain
             // 
@@ -1543,6 +1569,8 @@
         private System.Windows.Forms.LinkLabel linkLabel5;
         private System.Windows.Forms.Label label32;
         private System.Windows.Forms.Button buttonImportConfigFileDialog;
+        private System.Windows.Forms.CheckBox checkBoxOverwriteBootloader;
+        private System.Windows.Forms.CheckBox checkBoxSkipKeyCheck;
     }
 }
 
