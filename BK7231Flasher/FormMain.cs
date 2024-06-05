@@ -613,7 +613,7 @@ namespace BK7231Flasher
             }
             return null;
         }
-        public void onReadResultQIOSaved(byte[] dat, string fullPath)
+        public void onReadResultQIOSaved(byte[] dat, string lastEncryptionKey, string fullPath)
         {
             if (checkBoxReadOBKConfig.Checked)
             {
@@ -652,6 +652,7 @@ namespace BK7231Flasher
                                 FormExtractedConfig fo = new FormExtractedConfig();
                                 fo.showConfig(tc);
                                 fo.showMAC(mac);
+                                fo.showEncryption(lastEncryptionKey);
                                 fo.Show();
                             });
                             // also pass to new config window

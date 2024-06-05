@@ -30,5 +30,14 @@ namespace BK7231Flasher
             string macString = BitConverter.ToString(mac).Replace("-", ":");
             labelMac.Text = "The MAC address of this device seems to be " + macString;
         }
+        internal void showEncryption(string enc)
+        {
+            if (enc.Length == 0)
+            {
+                labelKey.Text = "";
+                return;
+            }
+            labelKey.Text = "The encryption key of this device seems to be " + enc;
+        }
     }
 }

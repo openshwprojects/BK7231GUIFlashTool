@@ -35,12 +35,13 @@ namespace BK7231Flasher
         ILogListener logger;
         BKType chipType = BKType.BK7231N;
         MemoryStream ms;
+        string lastEncryptionKey;
         int baudrate = 921600;
         public static int SECTOR_SIZE = 0x1000;
         public static int FLASH_SIZE = 0x200000;
         public static int BOOTLOADER_SIZE = 0x11000;
         public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
-        
+        public static string TUYA_ENCRYPTION_KEY = "510fb093 a3cbeadc 5993a17e c7adeb03";
         void addLog(string s)
         {
             logger.addLog(s, Color.Black);
@@ -877,7 +878,7 @@ namespace BK7231Flasher
             string fullPath = "backups/" + fileName;
             File.WriteAllBytes(fullPath, dat);
             addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
-            logger.onReadResultQIOSaved(dat, fullPath);
+            logger.onReadResultQIOSaved(dat, lastEncryptionKey, fullPath);
             return true;
         }
         public bool saveReadResult()
@@ -944,19 +945,26 @@ namespace BK7231Flasher
             {
                 return false;
             }
+            // make sure it's clear
+            lastEncryptionKey = "";
             if (chipType == BKType.BK7231N)
             {
                 if (doUnprotect())
                 {
                     return false;
                 }
+                addLog("Going to read encryption key..." +Environment.NewLine);
                 string key = readEncryptionKey();
+                addLog("Encryption key read done!" + Environment.NewLine);
                 addLog("Encryption key: " + key+Environment.NewLine);
-                if(key != "510fb093 a3cbeadc 5993a17e c7adeb03")
+                if(key != TUYA_ENCRYPTION_KEY)
                 {
+                    addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                     addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
                     addError("Please report to forum https://www.elektroda.com/rtvforum/forum51.html " + Environment.NewLine);
+                    addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                 }
+                lastEncryptionKey = key;
             }
             return true;
         }

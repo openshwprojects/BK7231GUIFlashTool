@@ -35,6 +35,7 @@
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.labelMac = new System.Windows.Forms.Label();
+            this.labelKey = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // label1
@@ -85,7 +86,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(17, 445);
+            this.label4.Location = new System.Drawing.Point(17, 425);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(498, 13);
             this.label4.TabIndex = 5;
@@ -95,17 +96,27 @@
             // labelMac
             // 
             this.labelMac.AutoSize = true;
-            this.labelMac.Location = new System.Drawing.Point(17, 429);
+            this.labelMac.Location = new System.Drawing.Point(17, 438);
             this.labelMac.Name = "labelMac";
             this.labelMac.Size = new System.Drawing.Size(200, 13);
             this.labelMac.TabIndex = 6;
             this.labelMac.Text = "It also seems that device MAC is [TODO]";
             // 
+            // labelKey
+            // 
+            this.labelKey.AutoSize = true;
+            this.labelKey.Location = new System.Drawing.Point(17, 451);
+            this.labelKey.Name = "labelKey";
+            this.labelKey.Size = new System.Drawing.Size(220, 13);
+            this.labelKey.TabIndex = 7;
+            this.labelKey.Text = "It also seems that device encryption is TODO";
+            // 
             // FormExtractedConfig
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(815, 480);
+            this.ClientSize = new System.Drawing.Size(815, 507);
+            this.Controls.Add(this.labelKey);
             this.Controls.Add(this.labelMac);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
@@ -130,5 +141,6 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label labelMac;
+        private System.Windows.Forms.Label labelKey;
     }
 }
