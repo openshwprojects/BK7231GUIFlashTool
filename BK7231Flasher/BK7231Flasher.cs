@@ -116,9 +116,11 @@ namespace BK7231Flasher
             this.baudrate = baudrate;
 
         }
-        enum CommandCode
+       enum CommandCode
         {
             LinkCheck = 0,
+            WriteReg = 1,
+            ReadReg = 0x03,
             FlashRead4K = 0x09,
             CheckCRC = 0x10,
             SetBaudRate = 0x0f,
@@ -141,6 +143,21 @@ namespace BK7231Flasher
             return ret;
         }
 
+        byte[] BuildCmd_ReadRegn(int addr)
+        {
+            int length = 1 + (4);
+            byte[] buf = new byte[9];
+            buf[0] = 0x01;
+            buf[1] = 0xe0;
+            buf[2] = 0xfc;
+            buf[3] = (byte)length;
+            buf[4] = (byte)CommandCode.ReadReg;
+            buf[5] = (byte)(addr & 0xff);
+            buf[6] = (byte)((addr >> 8) & 0xff);
+            buf[7] = (byte)((addr >> 16) & 0xff);
+            buf[8] = (byte)((addr >> 24) & 0xff);
+            return buf;
+        }
         byte[] BuildCmd_EraseSector4K(int addr, int szcmd)
         {
             int length = 1 + (4 );
@@ -319,6 +336,25 @@ namespace BK7231Flasher
             ret[10] = (byte)((addr >> 16) & 0xff);
             ret[11] = (byte)((addr >> 24) & 0xff);
             Array.Copy(data, startOfs, ret, 12, writeLen);
+            return ret;
+        }
+        byte[] BuildCmd_WriteReg(int regAddr, int val)
+        {
+            int length = 1 + (4 + 4);
+            byte[] ret = new byte[12 + 4];
+            ret[0] = 0x01;
+            ret[1] = 0xe0;
+            ret[2] = 0xfc;
+            ret[3] = (byte)length;
+            ret[4] = (byte)CommandCode.WriteReg;
+            ret[5] = (byte)(regAddr & 0xff);
+            ret[6] = (byte)((regAddr >> 8) & 0xff);
+            ret[7] = (byte)((regAddr >> 16) & 0xff);
+            ret[8] = (byte)((regAddr >> 24) & 0xff);
+            ret[9] = (byte)(val & 0xff);
+            ret[10] = (byte)((val >> 8) & 0xff);
+            ret[11] = (byte)((val >> 16) & 0xff);
+            ret[12] = (byte)((val >> 24) & 0xff);
             return ret;
         }
         byte[] BuildCmd_FlashRead4K(int addr)
@@ -538,6 +574,29 @@ namespace BK7231Flasher
             addLog("CheckRespond_CheckCRC: ERROR" + Environment.NewLine);
             return 0;
         }
+        bool CheckRespond_WriteReg(byte[] buf, int regAddr, int val)
+        {
+            byte[] cBuf = new byte[15] { 0x04, 0x0e, 0x05, 0x01, 0xe0, 0xfc, (byte)CommandCode.WriteReg,
+            0, 0, 0,0,0,0,0,0};
+            cBuf[2] = 3 + 1 + 4 + 4;
+
+            cBuf[7] = (byte)(regAddr & 0xff);
+            cBuf[8] = (byte)((regAddr >> 8) & 0xff);
+            cBuf[9] = (byte)((regAddr >> 16) & 0xff);
+            cBuf[10] = (byte)((regAddr >> 24) & 0xff);
+            cBuf[11] = (byte)(val & 0xff);
+            cBuf[12] = (byte)((val >> 8) & 0xff);
+            cBuf[13] = (byte)((val >> 16) & 0xff);
+            cBuf[14] = (byte)((val >> 24) & 0xff);
+
+            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
+            {
+                return true;
+            }
+            addLog("CheckRespond_WriteReg: ERROR" + Environment.NewLine);
+            return false;
+        }
+
 
         bool CheckRespond_FlashWrite(byte[] buf, int addr)
         {
@@ -587,6 +646,23 @@ namespace BK7231Flasher
                 return ret;
             }
             addError("CheckRespond_FlashWriteSR: bad value returned?" + Environment.NewLine);
+            return null;
+        }
+
+        byte[] CheckRespond_ReadFlashReg(byte[] buf, int addr)
+        {
+            byte[] cBuf = new byte[] { 0x04, 0x0e, 0x05, 0x01, 0xe0, 0xfc, (byte)CommandCode.ReadReg, 0, 0, 0, 0};
+            cBuf[2] = 3 + 1 + 4 + 4;
+            cBuf[7] = (byte)(addr & 0xff);
+            cBuf[8] = (byte)((addr >> 8) & 0xff);
+            cBuf[9] = (byte)((addr >> 16) & 0xff);
+            cBuf[10] = (byte)((addr >> 24) & 0xff);
+            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
+            {
+                byte[] ret = new byte[4] { buf[11], buf[12], buf[13], buf[14] };
+                return ret;
+            }
+            addError("CheckRespond_FlashReadSR: bad value returned?" + Environment.NewLine);
             return null;
         }
         byte[] CheckRespond_FlashReadSR(byte[] buf, int addr)
@@ -873,6 +949,13 @@ namespace BK7231Flasher
                 if (doUnprotect())
                 {
                     return false;
+                }
+                string key = readEncryptionKey();
+                addLog("Encryption key: " + key+Environment.NewLine);
+                if(key != "510fb093 a3cbeadc 5993a17e c7adeb03")
+                {
+                    addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
+                    addError("Please report to forum https://www.elektroda.com/rtvforum/forum51.html " + Environment.NewLine);
                 }
             }
             return true;
@@ -1193,6 +1276,45 @@ namespace BK7231Flasher
             }
             return true;
         }
+        string readEncryptionKey()
+        {
+            int SCTRL_EFUSE_CTRL = 0x00800074;
+            int SCTRL_EFUSE_OPTR = 0x00800078;
+            byte[] efuse = new byte[16];
+            for (int addr = 0; addr < 16; addr++)
+            {
+                int reg = ReadFlashRegInt(SCTRL_EFUSE_CTRL);
+                reg = (reg & ~0x1F02) | (addr << 8) | 1;
+                WriteFlashReg(SCTRL_EFUSE_CTRL, reg);
+                while ((reg & 1) != 0)
+                {
+                    reg = ReadFlashRegInt(SCTRL_EFUSE_CTRL);
+                }
+                reg = ReadFlashRegInt(SCTRL_EFUSE_OPTR);
+                if ((reg & 0x100) != 0)
+                {
+                    int regb = (reg & 0xff);
+                    efuse[addr] = (byte)regb;
+                    Console.WriteLine($"Efuse ok at {addr} (0x{addr:X}) is {regb} (0x{regb:X})");
+                }
+                else
+                {
+                    Console.WriteLine("Efuse error at " + addr);
+                }
+            }
+            uint[] coeffs = new uint[4];
+            for (int i = 0; i < 4; i++)
+            {
+                coeffs[i] = ((uint)efuse[i * 4]) |
+                            ((uint)efuse[i * 4 + 1] << 8) |
+                            ((uint)efuse[i * 4 + 2] << 16) |
+                            ((uint)efuse[i * 4 + 3] << 24);
+            }
+
+            string encryptionKey = string.Join(" ", Array.ConvertAll(coeffs, c => c.ToString("x8")));
+            Console.WriteLine("Encryption Key: " + encryptionKey);
+            return encryptionKey;
+        }
         MemoryStream readChunk(int startSector, int sectors)
         {
             logger.setState("Reading...", Color.Transparent);
@@ -1362,6 +1484,14 @@ namespace BK7231Flasher
         {
             return (3 + 3 + 3 + (1 + 1 + (4 + 4 * 1024)));
         }
+        int CalcRxLength_ReadFlashReg()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (1 + 3)));
+        }
+        int CalcRxLength_WriteFlashReg()
+        {
+            return (3 + 3 + 3 + (1 + 1 + (1 + 3)));
+        }
         int CalcRxLength_ReadFlashSR()
         {
             return (3 + 3 + 3 + (1 + 1 + (1 + 1)));
@@ -1389,6 +1519,45 @@ namespace BK7231Flasher
                 return CheckRespond_FlashGetMID(rxbuf);
             }
             //addLog("Failed!" + Environment.NewLine);
+            return 0;
+        }
+        bool WriteFlashReg(int addr, int val)
+        {
+            //addLog("Starting read sector for " + addr + Environment.NewLine);
+            byte[] txbuf = BuildCmd_WriteReg(addr, val);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_WriteFlashReg());
+            if (rxbuf != null)
+            {
+                //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
+                return CheckRespond_WriteReg(rxbuf, addr, val);
+            }
+            //addLog("Failed!" + Environment.NewLine);
+            return false;
+        }
+        byte[] ReadFlashReg(int addr)
+        {
+            //addLog("Starting read sector for " + addr + Environment.NewLine);
+            byte[] txbuf = BuildCmd_ReadRegn(addr);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_ReadFlashReg());
+            if (rxbuf != null)
+            {
+                //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
+                return CheckRespond_ReadFlashReg(rxbuf, addr);
+            }
+            //addLog("Failed!" + Environment.NewLine);
+            return null;
+        }
+
+        int ReadFlashRegInt(int addr)
+        {
+            byte[] r = ReadFlashReg(addr);
+            if (r != null)
+            {
+                //return BitConverter.ToInt32(r, 0); ;
+              int value = (r[3] << 24) | (r[2] << 16) | (r[1] << 8) | r[0];
+                //   int value = (r[0] << 24) | (r[1] << 16) | (r[2] << 8) | r[3];
+                return value;
+            }
             return 0;
         }
         byte[] ReadFlashSR(int addr)
