@@ -948,6 +948,8 @@ namespace BK7231Flasher
             buttonEraseAll.Visible = b;
             buttonRestoreRF.Visible = b;
             checkBoxAllowBackup.Visible = b;
+            checkBoxOverwriteBootloader.Visible = b;
+            checkBoxSkipKeyCheck.Visible = b;
         }
         
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
