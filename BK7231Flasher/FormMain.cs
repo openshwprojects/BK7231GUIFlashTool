@@ -475,7 +475,7 @@ namespace BK7231Flasher
         int getBackupStartSectorForCurrentPlatform()
         {
             int startSector;
-            if (curType == BKType.BK7231N)
+            if (curType == BKType.BK7231N || curType == BKType.BK7231M)
             {
                 startSector = 0;
             }
