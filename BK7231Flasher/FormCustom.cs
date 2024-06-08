@@ -73,18 +73,47 @@ namespace BK7231Flasher
 
             return false;
         }
-        private void button1_Click(object sender, EventArgs e)
+        FormMain.CustomParms cp;
+        bool doSharedPrepare()
         {
             if (checkRound())
             {
-                return;
+                return true;
             }
-            FormMain.CustomParms cp;
             cp = new FormMain.CustomParms();
             cp.ofs = ofs;
             cp.len = len;
+            return false;
+        }
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if(doSharedPrepare())
+            {
+                return;
+            }
             this.Close();
             fm.doCustomRead(cp);
+        }
+
+        private void buttonCustomWrite_Click(object sender, EventArgs e)
+        {
+            if (doSharedPrepare())
+            {
+                return;
+            }
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "Bin files (*.bin)|*.bin|All files (*.*)|*.*",
+                Title = "Select a BIN file"
+            };
+
+            if (openFileDialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+            cp.sourceFileName = openFileDialog.FileName;
+            this.Close();
+            fm.doCustomWrite(cp);
         }
     }
 }

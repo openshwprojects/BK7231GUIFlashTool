@@ -451,12 +451,38 @@ namespace BK7231Flasher
             clearUp();
             setButtonStates(true);
         }
-        void doOnlyFlashNew()
+        internal void doCustomWrite(CustomParms cp)
+        {
+            showObkConfigFormIfPossible();
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            //setButtonReadLabel(label_stopRead);
+            startWorkerThread(doOnlyFlashNew, cp);
+        }
+        void doOnlyFlashNew(object oParm)
         {
             clearUp();
             createFlasher();
-            int startSector = getBackupStartSectorForCurrentPlatform();
-            int sectors = getBackupSectorCountForCurrentPlatform();
+            int startSector;
+            int sectors;
+            CustomParms parms = null;
+            if (oParm != null)
+            {
+                parms = oParm as CustomParms;
+            }
+            if(parms!=null)
+            {
+                startSector = parms.ofs;
+                sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
+                chosenSourceFile = parms.sourceFileName;
+            }
+            else
+            {
+                startSector = getBackupStartSectorForCurrentPlatform();
+                sectors = getBackupSectorCountForCurrentPlatform();
+            }
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -999,7 +1025,7 @@ namespace BK7231Flasher
                 return;
             }
             //setButtonReadLabel(label_stopRead);
-            startWorkerThread(doOnlyFlashNew);
+            startWorkerThread(doOnlyFlashNew, null);
         }
 
         private void genericLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1086,6 +1112,7 @@ namespace BK7231Flasher
         public class CustomParms
         {
             public int ofs, len;
+            public string sourceFileName;
         }
         public void doCustomRead(CustomParms customRead)
         {

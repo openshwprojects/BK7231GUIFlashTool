@@ -87,6 +87,8 @@ namespace BK7231Flasher
             ipDownloadOperationKind = opStr;
             updateIPOperationStatus(" starting...");
         }
+
+
         void updateIPOperationStatus(string subStr)
         {
             labelIPOperationStatus.Text = ipDownloadOperationKind + " " + subStr;

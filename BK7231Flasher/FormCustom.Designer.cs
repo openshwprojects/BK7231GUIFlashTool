@@ -32,7 +32,8 @@
             this.textBoxCh1 = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
-            this.button1 = new System.Windows.Forms.Button();
+            this.buttonCustomRead = new System.Windows.Forms.Button();
+            this.buttonCustomWrite = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // textBoxCh0
@@ -69,22 +70,33 @@
             this.label4.TabIndex = 6;
             this.label4.Text = "Length:";
             // 
-            // button1
+            // buttonCustomRead
             // 
-            this.button1.Location = new System.Drawing.Point(15, 136);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(163, 23);
-            this.button1.TabIndex = 7;
-            this.button1.Text = "Read";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.buttonCustomRead.Location = new System.Drawing.Point(15, 136);
+            this.buttonCustomRead.Name = "buttonCustomRead";
+            this.buttonCustomRead.Size = new System.Drawing.Size(160, 23);
+            this.buttonCustomRead.TabIndex = 7;
+            this.buttonCustomRead.Text = "Do Custom Read";
+            this.buttonCustomRead.UseVisualStyleBackColor = true;
+            this.buttonCustomRead.Click += new System.EventHandler(this.button1_Click);
+            // 
+            // buttonCustomWrite
+            // 
+            this.buttonCustomWrite.Location = new System.Drawing.Point(181, 136);
+            this.buttonCustomWrite.Name = "buttonCustomWrite";
+            this.buttonCustomWrite.Size = new System.Drawing.Size(170, 23);
+            this.buttonCustomWrite.TabIndex = 8;
+            this.buttonCustomWrite.Text = "Do Custom Write";
+            this.buttonCustomWrite.UseVisualStyleBackColor = true;
+            this.buttonCustomWrite.Click += new System.EventHandler(this.buttonCustomWrite_Click);
             // 
             // FormCustom
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(361, 171);
-            this.Controls.Add(this.button1);
+            this.Controls.Add(this.buttonCustomWrite);
+            this.Controls.Add(this.buttonCustomRead);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.textBoxCh1);
@@ -102,6 +114,7 @@
         private System.Windows.Forms.TextBox textBoxCh1;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button buttonCustomRead;
+        private System.Windows.Forms.Button buttonCustomWrite;
     }
 }
