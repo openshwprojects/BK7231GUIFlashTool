@@ -13,7 +13,7 @@ namespace BK7231Flasher
             {
                 return 0x1e1000;
             }
-            if (type == BKType.BK7231N)
+            if (type == BKType.BK7231N || type == BKType.BK7231M)
             {
                 return 0x1d1000;
             }
