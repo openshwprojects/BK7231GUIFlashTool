@@ -968,7 +968,11 @@ namespace BK7231Flasher
 
         private void buttonClearOldFirmware_Click(object sender, EventArgs e)
         {
-            clearFirmwaresList();
+            var res = MessageBox.Show("Do you want to clear all downloaded firwmares? ", "Remove old firmware files", MessageBoxButtons.YesNo);
+            if (res == DialogResult.Yes)
+            {
+                clearFirmwaresList()
+            };
         }
 
         private void buttonWriteOnly_Click(object sender, EventArgs e)
