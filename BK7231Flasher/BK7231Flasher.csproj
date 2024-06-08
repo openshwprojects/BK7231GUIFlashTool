@@ -93,6 +93,12 @@
     <Compile Include="FormPin.Designer.cs">
       <DependentUpon>FormPin.cs</DependentUpon>
     </Compile>
+    <Compile Include="FormCustom.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormCustom.Designer.cs">
+      <DependentUpon>FormCustom.cs</DependentUpon>
+    </Compile>
     <Compile Include="FormPrompt.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -137,6 +143,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="FormPin.resx">
       <DependentUpon>FormPin.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormCustom.resx">
+      <DependentUpon>FormCustom.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormPrompt.resx">
       <DependentUpon>FormPrompt.cs</DependentUpon>

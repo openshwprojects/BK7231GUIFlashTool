@@ -21,6 +21,7 @@ namespace BK7231Flasher
         public static FormMain Singleton;
         int chosenBaudRate;
         string chosenSourceFile;
+        FormCustom formCustom;
 
         public FormMain()
         {
@@ -521,14 +522,29 @@ namespace BK7231Flasher
             clearUp();
             setButtonStates(true);
         }
-        void readThread()
+        void readThread(object oParm)
         {
+            CustomParms parms = null;
+            if(oParm != null)
+            {
+                parms = oParm as CustomParms;
+            }
             clearUp();
             createFlasher();
             flasher.setBackupName(lastBackupNameEnteredByUser);
             // thanks to wrap around hack, we can read from start correctly
-            int startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
-            int sectors = getBackupSectorCountForCurrentPlatform();
+            int startSector;
+            int sectors;
+            if (parms!= null)
+            {
+                startSector = parms.ofs;
+                sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
+            }
+            else
+            {
+                startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
+                sectors = getBackupSectorCountForCurrentPlatform();
+            }
             flasher.doRead(startSector, sectors);
             flasher.saveReadResult();
             worker = null;
@@ -819,12 +835,6 @@ namespace BK7231Flasher
             }
         }
 
-        void startWorkerThread(ThreadStart ts)
-        {
-            setButtonStates(false);
-            worker = new Thread(ts);
-            worker.Start();
-        }
         private void buttonRead_Click(object sender, EventArgs e)
         {
             if (doGenericOperationPreparations() == false)
@@ -836,7 +846,7 @@ namespace BK7231Flasher
                 return;
             }
             // setButtonReadLabel(label_stopRead);
-            startWorkerThread(readThread);
+            startWorkerThread(readThread,null);
         }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
         {
@@ -867,7 +877,7 @@ namespace BK7231Flasher
             //setButtonReadLabel(label_stopRead);
             startWorkerThread(testWrite);
         }
-        string lastBackupNameEnteredByUser;
+        string lastBackupNameEnteredByUser = "unnamedDump.bin";
         bool promptForBackupName()
         {
             FormPrompt p = new FormPrompt();
@@ -950,6 +960,7 @@ namespace BK7231Flasher
             checkBoxAllowBackup.Visible = b;
             checkBoxOverwriteBootloader.Visible = b;
             checkBoxSkipKeyCheck.Visible = b;
+            buttonCustomOperation.Visible = b;
         }
         
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
@@ -971,8 +982,8 @@ namespace BK7231Flasher
             var res = MessageBox.Show("Do you want to clear all downloaded firwmares? ", "Remove old firmware files", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
-                clearFirmwaresList()
-            };
+                clearFirmwaresList();
+            }
         }
 
         private void buttonWriteOnly_Click(object sender, EventArgs e)
@@ -1067,6 +1078,35 @@ namespace BK7231Flasher
             startWorkerThread(doOnlyReadOBKConfig);
         }
 
+        public class CustomParms
+        {
+            public int ofs, len;
+        }
+        public void doCustomRead(CustomParms customRead)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            if (promptForBackupName() == false)
+            {
+                return;
+            }
+            startWorkerThread(readThread, customRead);
+        }
+        
+        void startWorkerThread(ParameterizedThreadStart ts, object customArg)
+        {
+            setButtonStates(false);
+            worker = new Thread(ts);
+            worker.Start(customArg);
+        }
+        void startWorkerThread(ThreadStart ts)
+        {
+            setButtonStates(false);
+            worker = new Thread(ts);
+            worker.Start();
+        }
         private void buttonStartScan_Click(object sender, EventArgs e)
         {
             startOrStopScannerThread();
@@ -1298,6 +1338,15 @@ namespace BK7231Flasher
         private void checkBoxSkipKeyCheck_CheckedChanged(object sender, EventArgs e)
         {
 
+        }
+        private void buttonCustomOperation_Click(object sender, EventArgs e)
+        {
+            if (formCustom == null)
+            {
+                formCustom = new FormCustom();
+                formCustom.fm = this;
+            }
+            formCustom.ShowDialog();
         }
     }
 }

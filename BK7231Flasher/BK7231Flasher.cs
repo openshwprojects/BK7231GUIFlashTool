@@ -1400,7 +1400,7 @@ namespace BK7231Flasher
         bool checkCRC(int startSector, int total, byte [] array)
         {
             logger.setState("Doing CRC verification...", Color.Transparent);
-            addLog("Starting CRC check for " + total + " sectors, starting at offset " + startSector.ToString("X2") + Environment.NewLine);
+            addLog("Starting CRC check for " + total + " sectors, starting at offset 0x" + startSector.ToString("X2") + Environment.NewLine);
             int last = startSector + total * SECTOR_SIZE;
             uint bk_crc = calcCRC(startSector, last);
             uint our_crc = CRC.crc32_ver2(0xffffffff, array);
@@ -1512,6 +1512,12 @@ namespace BK7231Flasher
         {
             logger.setProgress(0, sectors);
             addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
+            addLog("Read parms: start 0x"+
+                (startSector ).ToString("X2")
+                + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
+                (sectors * BK7231Flasher.SECTOR_SIZE).ToString("X2")
+                + " (" + startSector + " sectors)"
+                + Environment.NewLine);
             if (doGenericSetup() == false)
             {
                 return;

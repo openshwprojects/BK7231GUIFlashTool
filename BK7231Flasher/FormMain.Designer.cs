@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
             this.checkBoxOverwriteBootloader = new System.Windows.Forms.CheckBox();
             this.buttonReadOBKConfig = new System.Windows.Forms.Button();
             this.buttonWriteOBKConfig = new System.Windows.Forms.Button();
@@ -151,7 +152,7 @@
             this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
             this.label25 = new System.Windows.Forms.Label();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
+            this.buttonCustomOperation = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -258,6 +259,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonCustomOperation);
             this.tabPage1.Controls.Add(this.checkBoxSkipKeyCheck);
             this.tabPage1.Controls.Add(this.checkBoxOverwriteBootloader);
             this.tabPage1.Controls.Add(this.buttonReadOBKConfig);
@@ -300,6 +302,17 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxSkipKeyCheck
+            // 
+            this.checkBoxSkipKeyCheck.AutoSize = true;
+            this.checkBoxSkipKeyCheck.Location = new System.Drawing.Point(772, 5);
+            this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
+            this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(100, 17);
+            this.checkBoxSkipKeyCheck.TabIndex = 35;
+            this.checkBoxSkipKeyCheck.Text = "Skip key check";
+            this.checkBoxSkipKeyCheck.UseVisualStyleBackColor = true;
+            this.checkBoxSkipKeyCheck.CheckedChanged += new System.EventHandler(this.checkBoxSkipKeyCheck_CheckedChanged);
             // 
             // checkBoxOverwriteBootloader
             // 
@@ -409,9 +422,9 @@
             // 
             // buttonClearOldFirmware
             // 
-            this.buttonClearOldFirmware.Location = new System.Drawing.Point(658, 39);
+            this.buttonClearOldFirmware.Location = new System.Drawing.Point(590, 31);
             this.buttonClearOldFirmware.Name = "buttonClearOldFirmware";
-            this.buttonClearOldFirmware.Size = new System.Drawing.Size(67, 23);
+            this.buttonClearOldFirmware.Size = new System.Drawing.Size(62, 23);
             this.buttonClearOldFirmware.TabIndex = 24;
             this.buttonClearOldFirmware.Text = "Clear old";
             this.buttonClearOldFirmware.UseVisualStyleBackColor = true;
@@ -421,7 +434,7 @@
             // 
             this.buttonOpenBackupsDir.Location = new System.Drawing.Point(525, 97);
             this.buttonOpenBackupsDir.Name = "buttonOpenBackupsDir";
-            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(104, 23);
+            this.buttonOpenBackupsDir.Size = new System.Drawing.Size(127, 23);
             this.buttonOpenBackupsDir.TabIndex = 23;
             this.buttonOpenBackupsDir.Text = "Open backups dir";
             this.buttonOpenBackupsDir.UseVisualStyleBackColor = true;
@@ -521,7 +534,7 @@
             // 
             this.buttonDownloadLatest.Location = new System.Drawing.Point(502, 58);
             this.buttonDownloadLatest.Name = "buttonDownloadLatest";
-            this.buttonDownloadLatest.Size = new System.Drawing.Size(145, 23);
+            this.buttonDownloadLatest.Size = new System.Drawing.Size(150, 23);
             this.buttonDownloadLatest.TabIndex = 13;
             this.buttonDownloadLatest.Text = "Download latest from Web";
             this.buttonDownloadLatest.UseVisualStyleBackColor = true;
@@ -1405,16 +1418,15 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // checkBoxSkipKeyCheck
+            // buttonCustomOperation
             // 
-            this.checkBoxSkipKeyCheck.AutoSize = true;
-            this.checkBoxSkipKeyCheck.Location = new System.Drawing.Point(772, 5);
-            this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
-            this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(100, 17);
-            this.checkBoxSkipKeyCheck.TabIndex = 35;
-            this.checkBoxSkipKeyCheck.Text = "Skip key check";
-            this.checkBoxSkipKeyCheck.UseVisualStyleBackColor = true;
-            this.checkBoxSkipKeyCheck.CheckedChanged += new System.EventHandler(this.checkBoxSkipKeyCheck_CheckedChanged);
+            this.buttonCustomOperation.Location = new System.Drawing.Point(658, 39);
+            this.buttonCustomOperation.Name = "buttonCustomOperation";
+            this.buttonCustomOperation.Size = new System.Drawing.Size(127, 23);
+            this.buttonCustomOperation.TabIndex = 36;
+            this.buttonCustomOperation.Text = "Custom operation";
+            this.buttonCustomOperation.UseVisualStyleBackColor = true;
+            this.buttonCustomOperation.Click += new System.EventHandler(this.buttonCustomOperation_Click);
             // 
             // FormMain
             // 
@@ -1571,6 +1583,7 @@
         private System.Windows.Forms.Button buttonImportConfigFileDialog;
         private System.Windows.Forms.CheckBox checkBoxOverwriteBootloader;
         private System.Windows.Forms.CheckBox checkBoxSkipKeyCheck;
+        private System.Windows.Forms.Button buttonCustomOperation;
     }
 }
 
