@@ -918,6 +918,11 @@ namespace BK7231Flasher
                 buttonTestWrite.Enabled = b;
                 buttonDoBackupAndFlashNew.Enabled = b;
                 buttonWriteOnly.Enabled = b;
+                buttonWriteOBKConfig.Enabled = b;
+                buttonReadOBKConfig.Enabled = b;
+                buttonRestoreRF.Enabled = b;
+                buttonCustomOperation.Enabled = b;
+                buttonEraseAll.Enabled = b;
                 buttonStop.Enabled = !b;
             });
         }
