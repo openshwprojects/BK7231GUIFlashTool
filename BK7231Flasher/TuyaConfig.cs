@@ -330,6 +330,14 @@ namespace BK7231Flasher
                     {
                     }
                 }
+                else if (Regex.IsMatch(key, "backlit_io_pin"))
+                {
+                    desc += "- Backlit IO pin on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.LED);
+                    }
+                }
                 else if (key == "max_V")
                 {
                     desc += "- Battery Max Voltage: " + value + Environment.NewLine;
