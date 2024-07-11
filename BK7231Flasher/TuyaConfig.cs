@@ -330,6 +330,14 @@ namespace BK7231Flasher
                     {
                     }
                 }
+                else if (Regex.IsMatch(key, "one_wire_pin"))
+                {
+                    desc += "- OneWire IO pin on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                       
+                    }
+                }
                 else if (Regex.IsMatch(key, "backlit_io_pin"))
                 {
                     desc += "- Backlit IO pin on P" + value + Environment.NewLine;
