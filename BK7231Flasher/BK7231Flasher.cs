@@ -986,6 +986,7 @@ namespace BK7231Flasher
                 {
                     addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                     addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
+                    addError("If it's all zero, it may also mean that read is disabled." + Environment.NewLine);
                     addError("Please report to forum https://www.elektroda.com/rtvforum/forum51.html " + Environment.NewLine);
 
                     if (chipType == BKType.BK7231N)
