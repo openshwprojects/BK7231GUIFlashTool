@@ -1389,6 +1389,11 @@ namespace BK7231Flasher
                 addLog("Ok! ");
             }
             addLog(Environment.NewLine + "Basic read operation finished, but now it's time to verify..." + Environment.NewLine);
+
+            if (false == checkAbnormal(startSector, sectors, tempResult.ToArray()))
+            {
+                return null;
+            }
             if (false==checkCRC(startSector, sectors, tempResult.ToArray()))
             {
                 return null;
@@ -1397,6 +1402,35 @@ namespace BK7231Flasher
             addSuccess("All read!" + Environment.NewLine);
             addLog("Loaded total " + formatHex(sectors* step) + " bytes " + Environment.NewLine);
             return tempResult;
+        }
+        bool checkAbnormal(int startSector, int total, byte[] array)
+        {
+            bool isAllZero = true;
+            for (int i = 0; i < array.Length; i++) {
+                if (array[i] != 0x00) {
+                    isAllZero = false;
+                    break;
+                }
+            }
+            if (isAllZero) {
+                logger.setState("Only 0x00 bytes read!", Color.Red);
+                addError("Data is entirely filled with 0x00, something must went wrong!" + Environment.NewLine);
+                return false;
+            }
+            
+            bool isAllFF = true;
+            for (int i = 0; i < array.Length; i++) {
+                if (array[i] != 0xFF)   {
+                    isAllFF = false;
+                    break;
+                }
+            }
+            if (isAllFF)  {
+                logger.setState("Only 0xff bytes read!", Color.Red);
+                addError("Data is entirely filled with 0xff, something must went wrong!" + Environment.NewLine);
+                return false;
+            }
+            return true;
         }
         bool checkCRC(int startSector, int total, byte [] array)
         {
