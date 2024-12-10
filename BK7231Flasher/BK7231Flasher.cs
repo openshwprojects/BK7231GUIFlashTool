@@ -179,6 +179,7 @@ namespace BK7231Flasher
             buf[11] = (byte)((addr >> 24) & 0xff);
             return buf;
         }
+        // szcmd can have two options: SECTOR_4K = 0x20 and BLOCK_64K = 0xD8
         byte[] BuildCmd_FlashErase(int addr, int szcmd)
         {
             int length = 1 + (4+1);
