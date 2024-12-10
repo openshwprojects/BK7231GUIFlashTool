@@ -93,6 +93,9 @@ namespace BK7231Flasher
         public static int FLASH_ID_GD_25WQ16E=0x001565c8;
         public static int FLASH_ID_TH25Q_16HB = 0x001560eb;
         public static int FLASH_ID_NA = 0x001640c8;
+
+        public static int FLASH_ID_Puya_25Q16HB_K = 0x152085;
+
         public static int BFD(int v, int bs, int bl)
         {
             return (v & ((1 << (bl)) - 1)) << (bs);
@@ -146,7 +149,7 @@ namespace BK7231Flasher
             addFlash(new BKFlash(FLASH_ID_GD_25WQ16E, "GD25WQ16E", "GD", 16 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_GD_25WQ32E, "GD25WQ32E", "GD", 32 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_GD_25WQ64E, "GD25WQ64E", "GD", 64 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
-
+            addFlash(new BKFlash(FLASH_ID_Puya_25Q16HB_K, "P25Q16HB_K", "Puya", 16 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
 
         }
     }
