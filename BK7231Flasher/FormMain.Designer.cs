@@ -1435,7 +1435,7 @@
             this.ClientSize = new System.Drawing.Size(907, 510);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
-            this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
+            this.Text = "BK7231 Easy UART Flasher v1.3.5 - Automatically download firmware and flash BK7231T/BK72" +
     "31N  - Elektroda.com";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FormMain_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
