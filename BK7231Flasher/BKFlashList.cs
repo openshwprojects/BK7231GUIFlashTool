@@ -92,7 +92,7 @@ namespace BK7231Flasher
         public static int FLASH_ID_GD_25WQ32E=0x001665c8;
         public static int FLASH_ID_GD_25WQ16E=0x001565c8;
         public static int FLASH_ID_TH25Q_16HB = 0x001560eb;
-        public static int FLASH_ID_GD25Q32 = 0x001640c8;//  # GD flash-4M, renamed from FLASH_ID_NA
+        public static int FLASH_ID_GD_25Q32E = 0x001640c8;//  # GD flash-4M, renamed from FLASH_ID_NA
 
         public static int FLASH_ID_Puya_25Q16HB_K = 0x152085;
 
@@ -145,7 +145,7 @@ namespace BK7231Flasher
             addFlash(new BKFlash(FLASH_ID_WB_25Q128JV, "WB25Q128JV", "WB", 128 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_ESMT_25QH16B, "EN25QH16B", "ESMT", 16 * 1024 * 1024, 1, 0x00, 0x07, BFD(0xf, 2, 5), 2, 4,    new byte[] {0x05, 0xff, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_TH25Q_16HB, "TH25Q_16HB", "TH", 16 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
-            addFlash(new BKFlash(FLASH_ID_GD25Q32, "GD25Q32", "GD", 32 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
+            addFlash(new BKFlash(FLASH_ID_GD_25Q32E, "GD25Q32E", "GD", 32 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_GD_25WQ16E, "GD25WQ16E", "GD", 16 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_GD_25WQ32E, "GD25WQ32E", "GD", 32 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
             addFlash(new BKFlash(FLASH_ID_GD_25WQ64E, "GD25WQ64E", "GD", 64 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5,    new byte[] {0x05, 0x35, 0xff, 0xff},   new byte[] {0x01, 0xff, 0xff, 0xff}));
