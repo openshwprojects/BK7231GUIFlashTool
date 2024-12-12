@@ -104,7 +104,7 @@ namespace BK7231Flasher
 	public static int FLASH_ID_GD25WQ16E=0x001565c8;
 	public static int FLASH_ID_GD25WQ32E=0x001665c8;
 	public static int FLASH_ID_GD25WQ64E=0x001765c8;
-	public static int FLASH_ID_Puya25Q16HBK=0x152085:
+        public static int FLASH_ID_Puya25Q16HBK = 0x152085;
 	public static int FLASH_ID_GD_25Q32E = 0x001640c8; //  # GD flash-4M, renamed from FLASH_ID_NA
 		
         
