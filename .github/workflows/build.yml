@@ -1,0 +1,32 @@
+name: Build BK7231Flasher
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Restore NuGet packages
+        run: nuget restore BK7231Flasher.sln
+
+      - name: Build solution
+        run: msbuild BK7231Flasher.sln /p:Configuration=Release
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BK7231Flasher-Release
+          path: BK7231Flasher/bin/Release
