@@ -1,4 +1,4 @@
-name: Build BK7231Flasher
+name: Build and Release BK7231GUIFlashTool
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,17 +17,79 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild
+      - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1
 
+      - name: Install NuGet
+        uses: NuGet/setup-nuget@v2
+
       - name: Restore NuGet packages
-        run: nuget restore BK7231Flasher.sln
+        run: nuget restore BK7231Flasher/BK7231Flasher.csproj -SolutionDirectory .
 
-      - name: Build solution
-        run: msbuild BK7231Flasher.sln /p:Configuration=Release
+      - name: Create Output Directory
+        run: mkdir -p BuildOutput/Release
 
-      - name: Upload Build Artifact
+      - name: Build the project
+        run: msbuild BK7231Flasher/BK7231Flasher.csproj /p:Configuration=Release /p:OutDir=BuildOutput\Release\
+
+      - name: Debug Build Output
+        run: |
+          echo "Checking output directory..."
+          dir BuildOutput
+          dir BuildOutput\Release
+
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: BK7231Flasher-Release
-          path: BK7231Flasher/bin/Release
+          name: BK7231GUIFlashTool
+          path: |
+            BK7231Flasher/BuildOutput/Release/*.exe
+            BK7231Flasher/BuildOutput/Release/*.dll
+          if-no-files-found: warn
+
+      - name: Debug Build Output Directory
+        run: |
+          echo "Contents of BuildOutput/Release:"
+          dir BK7231Flasher/BuildOutput/Release
+
+  release:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: BK7231GUIFlashTool
+
+      - name: Recreate Directory Structure
+        run: |
+          echo "Recreating BuildOutput directory..."
+          mkdir -p BuildOutput/Release
+          move *.exe BuildOutput/Release/
+          move *.dll BuildOutput/Release/
+
+      - name: Debug Downloaded Artifacts
+        run: |
+          echo "Downloaded artifacts in BuildOutput/Release:"
+          dir BuildOutput/Release
+
+      - name: Create ZIP File
+        run: |
+          mkdir release
+          powershell Compress-Archive -Path "BuildOutput/Release/*" -DestinationPath "release/BK7231GUIFlashTool-v${{ github.run_number }}.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: BK7231GUIFlashTool v${{ github.run_number }}
+          body: |
+            Automated release for BK7231GUIFlashTool.
+            Includes the latest .exe and .dll files.
+          draft: false
+          prerelease: false
+          files: release/BK7231GUIFlashTool-v${{ github.run_number }}.zip
