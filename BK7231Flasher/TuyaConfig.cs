@@ -171,16 +171,16 @@ namespace BK7231Flasher
             int needle = MiscUtils.indexOf(data, MAGIC_CONFIG_START);
             if(needle < 0)
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Yellow);
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
 
                 if (MiscUtils.isFullOf(data, 0xff))
                 {
-                    FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Purple);
                     bGivenBinaryIsFullOf0xff = true;
                 }
                 if(data.Length>3 && data[0] == (byte)'C' && data[1] == (byte)'F' && data[2] == (byte)'G')
                 {
-                    FormMain.Singleton.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    FormMain.Singleton.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Purple);
                     this.bLastBinaryOBKConfig = true;
                 }
                 return true;
@@ -199,14 +199,14 @@ namespace BK7231Flasher
                 UInt32 mag = br.ReadUInt32();
                 if (mag != MAGIC_FIRST_BLOCK)
                 {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock header" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock header" + Environment.NewLine, System.Drawing.Color.Purple);
                     return true;
                 }
                 uint crc = br.ReadUInt32();
                 key = br.ReadBytes(16);
                 if (checkCRC(crc, key, 0, key.Length) == false)
                 {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Yellow);
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Purple);
                     return true;
                 }
                 key = makeSecondaryKey(key);
@@ -225,17 +225,17 @@ namespace BK7231Flasher
                     if (mag != MAGIC_NEXT_BLOCK && mag != 324478635)
                     {
                         // it seems that TuyaOS3 binaries have here 324478635?
-                        //FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock header" + Environment.NewLine, System.Drawing.Color.Yellow);
+                        //FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock header" + Environment.NewLine, System.Drawing.Color.Purple);
                         //return true;
-                        FormMain.Singleton.addLog("WARNING - strange nextblock header " + mag.ToString("X4") + Environment.NewLine, System.Drawing.Color.Yellow);
+                        FormMain.Singleton.addLog("WARNING - strange nextblock header " + mag.ToString("X4") + Environment.NewLine, System.Drawing.Color.Purple);
 
                     }
                     uint crc = br.ReadUInt32();
                     if (checkCRC(crc, next, 8, next.Length - 8) == false)
                     {
-                        FormMain.Singleton.addLog("WARNING - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Yellow);
+                        FormMain.Singleton.addLog("WARNING - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Purple);
 
-                        //   FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Yellow);
+                        //   FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Purple);
                         //  return true;
                     }
                     bw.Write(next, 8, next.Length - 8);
@@ -785,7 +785,7 @@ namespace BK7231Flasher
             int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
             if (stopAT == -1)
             {
-                //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Yellow);
+                //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Purple);
                 // return true;
                 stopAT = descryptedRaw.Length;
             }
