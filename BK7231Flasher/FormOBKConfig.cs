@@ -288,6 +288,10 @@ namespace BK7231Flasher
                 {
                     type = BKType.BK7231N;
                 }
+                if (fname.Contains("BK7238"))
+                {
+                    type = BKType.BK7238;
+                }
             }
             bool bError = cfg.loadFrom(fname, type);
             if (bError == true)
@@ -366,7 +370,11 @@ namespace BK7231Flasher
         {
             if (t == BKType.BK7231N)
                 return "N";
-            return "T";
+            if (t == BKType.BK7231M)
+                return "M";
+            if (t == BKType.BK7231T)
+                return "T";
+            return "";
         }
         void generateNamesForMAC(byte [] mac, BKType curType)
         {

@@ -16,6 +16,7 @@ namespace BK7231Flasher
         BK7231T,
         BK7231N,
         BK7231M,
+        BK7238,
         Detect,
         Invalid
     }
@@ -965,50 +966,53 @@ namespace BK7231Flasher
             }
             // make sure it's clear
             lastEncryptionKey = "";
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M)
+            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
             {
                 if (doUnprotect())
                 {
                     return false;
                 }
-                addLog("Going to read encryption key..." +Environment.NewLine);
-                string key = readEncryptionKey();
-                addLog("Encryption key read done!" + Environment.NewLine);
-                addLog("Encryption key: " + key+Environment.NewLine);
-                string otherMode;
-                string expectedKey;
-                if (chipType == BKType.BK7231N)
+                if (chipType != BKType.BK7238)
                 {
-                    otherMode = "BK7231M";
-                    expectedKey = TUYA_ENCRYPTION_KEY;
-                }
-                else
-                {
-                    otherMode = "BK7231N";
-                    expectedKey = EMPTY_ENCRYPTION_KEY;
-                }
-                if (key != expectedKey)
-                {
-                    addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
-                    addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
-                    addError("If it's all zero, it may also mean that read is disabled." + Environment.NewLine);
-                    addError("Please report to forum https://www.elektroda.com/rtvforum/forum51.html " + Environment.NewLine);
-
+                    addLog("Going to read encryption key..." + Environment.NewLine);
+                    string key = readEncryptionKey();
+                    addLog("Encryption key read done!" + Environment.NewLine);
+                    addLog("Encryption key: " + key + Environment.NewLine);
+                    string otherMode;
+                    string expectedKey;
                     if (chipType == BKType.BK7231N)
                     {
-                        addError("Or just try using BK7231M mode " + Environment.NewLine);
+                        otherMode = "BK7231M";
+                        expectedKey = TUYA_ENCRYPTION_KEY;
                     }
                     else
                     {
-
+                        otherMode = "BK7231N";
+                        expectedKey = EMPTY_ENCRYPTION_KEY;
                     }
-                    addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
-                    if (bSkipKeyCheck == false)
+                    if (key != expectedKey)
                     {
-                        return false;
+                        addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
+                        addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
+                        addError("If it's all zero, it may also mean that read is disabled." + Environment.NewLine);
+                        addError("Please report to forum https://www.elektroda.com/rtvforum/forum51.html " + Environment.NewLine);
+
+                        if (chipType == BKType.BK7231N)
+                        {
+                            addError("Or just try using BK7231M mode " + Environment.NewLine);
+                        }
+                        else
+                        {
+
+                        }
+                        addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
+                        if (bSkipKeyCheck == false)
+                        {
+                            return false;
+                        }
                     }
+                    lastEncryptionKey = key;
                 }
-                lastEncryptionKey = key;
             }
             return true;
         }
@@ -1250,7 +1254,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M)
+            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
             {
                 if (doUnprotect())
                 {
@@ -1532,7 +1536,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M)
+            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
             {
                 if (doUnprotect())
                 {
@@ -1776,7 +1780,7 @@ namespace BK7231Flasher
         }
         uint calcCRC(int start, int end)
         {
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M)
+            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
             {
                 end = end - 1;
             }
@@ -1810,7 +1814,7 @@ namespace BK7231Flasher
                 return false;
             }
             addr %= FLASH_SIZE;
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M)
+            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238) 
                 return true;
             if (addr >= 0 && addr < BOOTLOADER_SIZE)
             {

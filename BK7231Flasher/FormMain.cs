@@ -164,6 +164,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(BKType.BK7231T);
             comboBoxChipType.Items.Add(BKType.BK7231N);
             comboBoxChipType.Items.Add(BKType.BK7231M);
+            comboBoxChipType.Items.Add(BKType.BK7238);
 
             comboBoxChipType.SelectedIndex = 0;
 
@@ -522,7 +523,7 @@ namespace BK7231Flasher
         int getBackupStartSectorForCurrentPlatform()
         {
             int startSector;
-            if (curType == BKType.BK7231N || curType == BKType.BK7231M)
+            if (curType == BKType.BK7231N || curType == BKType.BK7231M || curType == BKType.BK7238)
             {
                 startSector = 0;
             }
@@ -629,6 +630,10 @@ namespace BK7231Flasher
             {
                 return ("OpenBK7231N_QIO_");
             }
+            if (t == BKType.BK7238)
+            {
+                return ("OpenBK7238_QIO_");
+            }
             if (t == BKType.BK7231T)
             {
                 return ("OpenBK7231T_UA_");
@@ -649,6 +654,13 @@ namespace BK7231Flasher
             if (curType == BKType.BK7231N)
             {
                 if (s.StartsWith("OpenBK7231N_QIO_"))
+                {
+                    return true;
+                }
+            }
+            if (curType == BKType.BK7238)
+            {
+                if (s.StartsWith("OpenBK7238_QIO_"))
                 {
                     return true;
                 }

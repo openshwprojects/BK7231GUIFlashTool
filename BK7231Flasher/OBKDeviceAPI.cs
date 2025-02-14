@@ -154,6 +154,8 @@ namespace BK7231Flasher
             string cs = getChipSet();
             if (cs == "BK7231N")
                 return BKType.BK7231N;
+            if (cs == "BK7238")
+                return BKType.BK7238;
             if (cs == "BK7231T")
                 return BKType.BK7231T;
             return BKType.Invalid;
