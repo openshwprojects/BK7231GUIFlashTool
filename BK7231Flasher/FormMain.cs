@@ -9,6 +9,8 @@ using System.Globalization;
 using System.IO;
 using System.IO.Ports;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -81,11 +83,29 @@ namespace BK7231Flasher
             string[] newPorts = SerialPort.GetPortNames();
             setPorts(newPorts);
         }
+        private static bool ValidateRemoteCertificate(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors error)
+        {
+            // If the certificate is a valid, signed certificate, return true.
+            if (error == System.Net.Security.SslPolicyErrors.None)
+            {
+                return true;
+            }
+
+            Console.WriteLine("X509Certificate [{0}] Policy Error: '{1}'",
+                cert.Subject,
+                error.ToString());
+
+            return false;
+        }
         string backupsPath = "backups";
        // string label_startRead = "Start Read Flash (Full backup)";
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
+            ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
+            ServicePointManager.Expect100Continue = true;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
 
             buttonIPSaveResultToFile.Enabled = false;
             setIPDeviceButtonsState(false);
@@ -1379,6 +1399,91 @@ namespace BK7231Flasher
                 formCustom.fm = this;
             }
             formCustom.ShowDialog();
+        }
+
+        class OTAData
+        {
+            public string ip;
+            public byte[] data;
+        }
+        private void buttonOTAFlash_Click(object sender, EventArgs e)
+        {
+            string fname = ("D:/OpenBK7231T_1.17.799.rbl");
+            buttonOTAFlash.Enabled = false;
+            string ip = textBoxOTATarget.Text;
+            OTAData data = new OTAData();
+            data.ip = ip;
+            data.data = System.IO.File.ReadAllBytes(fname);
+            System.Threading.Thread thread = new System.Threading.Thread(ThreadOTA);
+            thread.Start(data);
+        }
+        public void ThreadOTA(object ocb)
+        {
+            OTAData d = (OTAData)ocb;
+            try
+            {
+                var request = (System.Net.WebRequest)System.Net.WebRequest.Create($"http://{d.ip}/api/ota");
+                request.Method = "POST";
+                request.ContentType = "application/octet-stream";
+                using (var stream = request.GetRequestStream())
+                {
+                    stream.Write(d.data, 0, d.data.Length);
+                }
+                try
+                {
+                    using (var response = (System.Net.HttpWebResponse)request.GetResponse())
+                    {
+                        if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                        {
+                            //        throw new Exception($"Failed to send OTA file: {response.StatusCode} {response.StatusDescription}");
+                        }
+                    }
+                }
+                catch (Exception ex2)
+                {
+                }
+                request = (System.Net.WebRequest)System.Net.WebRequest.Create($"http://{d.ip}/api/reboot");
+                request.Method = "POST";
+                try
+                {
+                    using (var response = (System.Net.HttpWebResponse)request.GetResponse())
+                    {
+                        if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                        {
+                            //      throw new Exception($"Failed to send reboot command: {response.StatusCode} {response.StatusDescription}");
+                        }
+                    }
+                }
+                catch (Exception ex2)
+                {
+                }
+
+                System.Windows.Forms.MessageBox.Show("OTA update completed successfully.");
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"Error: {ex.Message}");
+            }
+            finally
+            {
+                this.Invoke((MethodInvoker)delegate {
+                    buttonOTAFlash.Enabled = true;
+                });
+            }
+        }
+
+        private void radioButton2_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void tabPage8_Enter(object sender, EventArgs e)
+        {
+            refreshOTAs();
+        }
+        void refreshOTAs()
+        {
+
         }
     }
 }

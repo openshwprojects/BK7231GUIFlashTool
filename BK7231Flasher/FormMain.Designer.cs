@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonCustomOperation = new System.Windows.Forms.Button();
             this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
             this.checkBoxOverwriteBootloader = new System.Windows.Forms.CheckBox();
             this.buttonReadOBKConfig = new System.Windows.Forms.Button();
@@ -151,8 +152,18 @@
             this.label26 = new System.Windows.Forms.Label();
             this.textBox_cfg_readTimeOutMultForSerialClass = new System.Windows.Forms.TextBox();
             this.label25 = new System.Windows.Forms.Label();
+            this.tabPage8 = new System.Windows.Forms.TabPage();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.listBoxOTA = new System.Windows.Forms.ListBox();
+            this.radioButton3 = new System.Windows.Forms.RadioButton();
+            this.radioButton2 = new System.Windows.Forms.RadioButton();
+            this.label33 = new System.Windows.Forms.Label();
+            this.radioButton1 = new System.Windows.Forms.RadioButton();
+            this.buttonOTAFlash = new System.Windows.Forms.Button();
+            this.textBoxOTATarget = new System.Windows.Forms.TextBox();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonCustomOperation = new System.Windows.Forms.Button();
+            this.comboBox1 = new System.Windows.Forms.ComboBox();
+            this.label34 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -162,6 +173,8 @@
             this.tabPage5.SuspendLayout();
             this.tabPage6.SuspendLayout();
             this.tabPage7.SuspendLayout();
+            this.tabPage8.SuspendLayout();
+            this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonRead
@@ -250,6 +263,7 @@
             this.tabControl1.Controls.Add(this.tabPage5);
             this.tabControl1.Controls.Add(this.tabPage6);
             this.tabControl1.Controls.Add(this.tabPage7);
+            this.tabControl1.Controls.Add(this.tabPage8);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
@@ -302,6 +316,16 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonCustomOperation
+            // 
+            this.buttonCustomOperation.Location = new System.Drawing.Point(658, 39);
+            this.buttonCustomOperation.Name = "buttonCustomOperation";
+            this.buttonCustomOperation.Size = new System.Drawing.Size(127, 23);
+            this.buttonCustomOperation.TabIndex = 36;
+            this.buttonCustomOperation.Text = "Custom operation";
+            this.buttonCustomOperation.UseVisualStyleBackColor = true;
+            this.buttonCustomOperation.Click += new System.EventHandler(this.buttonCustomOperation_Click);
             // 
             // checkBoxSkipKeyCheck
             // 
@@ -1413,20 +1437,125 @@
             this.label25.TabIndex = 0;
             this.label25.Text = "cfg_readTimeOutMultForSerialClass";
             // 
+            // tabPage8
+            // 
+            this.tabPage8.Controls.Add(this.panel1);
+            this.tabPage8.Controls.Add(this.buttonOTAFlash);
+            this.tabPage8.Controls.Add(this.textBoxOTATarget);
+            this.tabPage8.Location = new System.Drawing.Point(4, 22);
+            this.tabPage8.Name = "tabPage8";
+            this.tabPage8.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage8.Size = new System.Drawing.Size(899, 484);
+            this.tabPage8.TabIndex = 8;
+            this.tabPage8.Text = "OTA Tool";
+            this.tabPage8.UseVisualStyleBackColor = true;
+            this.tabPage8.Enter += new System.EventHandler(this.tabPage8_Enter);
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.label34);
+            this.panel1.Controls.Add(this.comboBox1);
+            this.panel1.Controls.Add(this.listBoxOTA);
+            this.panel1.Controls.Add(this.radioButton3);
+            this.panel1.Controls.Add(this.radioButton2);
+            this.panel1.Controls.Add(this.label33);
+            this.panel1.Controls.Add(this.radioButton1);
+            this.panel1.Location = new System.Drawing.Point(8, 31);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(235, 445);
+            this.panel1.TabIndex = 3;
+            // 
+            // listBoxOTA
+            // 
+            this.listBoxOTA.FormattingEnabled = true;
+            this.listBoxOTA.Location = new System.Drawing.Point(7, 78);
+            this.listBoxOTA.Name = "listBoxOTA";
+            this.listBoxOTA.Size = new System.Drawing.Size(202, 355);
+            this.listBoxOTA.TabIndex = 6;
+            // 
+            // radioButton3
+            // 
+            this.radioButton3.AutoSize = true;
+            this.radioButton3.Location = new System.Drawing.Point(124, 54);
+            this.radioButton3.Name = "radioButton3";
+            this.radioButton3.Size = new System.Drawing.Size(85, 17);
+            this.radioButton3.TabIndex = 5;
+            this.radioButton3.TabStop = true;
+            this.radioButton3.Text = "Pull Request";
+            this.radioButton3.UseVisualStyleBackColor = true;
+            // 
+            // radioButton2
+            // 
+            this.radioButton2.AutoSize = true;
+            this.radioButton2.Location = new System.Drawing.Point(77, 54);
+            this.radioButton2.Name = "radioButton2";
+            this.radioButton2.Size = new System.Drawing.Size(41, 17);
+            this.radioButton2.TabIndex = 4;
+            this.radioButton2.TabStop = true;
+            this.radioButton2.Text = "File";
+            this.radioButton2.UseVisualStyleBackColor = true;
+            this.radioButton2.CheckedChanged += new System.EventHandler(this.radioButton2_CheckedChanged);
+            // 
+            // label33
+            // 
+            this.label33.AutoSize = true;
+            this.label33.Location = new System.Drawing.Point(4, 4);
+            this.label33.Name = "label33";
+            this.label33.Size = new System.Drawing.Size(103, 13);
+            this.label33.TabIndex = 3;
+            this.label33.Text = "Choose OTA source";
+            // 
+            // radioButton1
+            // 
+            this.radioButton1.AutoSize = true;
+            this.radioButton1.Checked = true;
+            this.radioButton1.Location = new System.Drawing.Point(7, 54);
+            this.radioButton1.Name = "radioButton1";
+            this.radioButton1.Size = new System.Drawing.Size(64, 17);
+            this.radioButton1.TabIndex = 2;
+            this.radioButton1.TabStop = true;
+            this.radioButton1.Text = "Release";
+            this.radioButton1.UseVisualStyleBackColor = true;
+            // 
+            // buttonOTAFlash
+            // 
+            this.buttonOTAFlash.Location = new System.Drawing.Point(433, 51);
+            this.buttonOTAFlash.Name = "buttonOTAFlash";
+            this.buttonOTAFlash.Size = new System.Drawing.Size(97, 23);
+            this.buttonOTAFlash.TabIndex = 1;
+            this.buttonOTAFlash.Text = "Flash!";
+            this.buttonOTAFlash.UseVisualStyleBackColor = true;
+            this.buttonOTAFlash.Click += new System.EventHandler(this.buttonOTAFlash_Click);
+            // 
+            // textBoxOTATarget
+            // 
+            this.textBoxOTATarget.Location = new System.Drawing.Point(275, 51);
+            this.textBoxOTATarget.Name = "textBoxOTATarget";
+            this.textBoxOTATarget.Size = new System.Drawing.Size(152, 20);
+            this.textBoxOTATarget.TabIndex = 0;
+            this.textBoxOTATarget.Text = "192.168.0.165";
+            // 
             // timer100ms
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonCustomOperation
+            // comboBox1
             // 
-            this.buttonCustomOperation.Location = new System.Drawing.Point(658, 39);
-            this.buttonCustomOperation.Name = "buttonCustomOperation";
-            this.buttonCustomOperation.Size = new System.Drawing.Size(127, 23);
-            this.buttonCustomOperation.TabIndex = 36;
-            this.buttonCustomOperation.Text = "Custom operation";
-            this.buttonCustomOperation.UseVisualStyleBackColor = true;
-            this.buttonCustomOperation.Click += new System.EventHandler(this.buttonCustomOperation_Click);
+            this.comboBox1.FormattingEnabled = true;
+            this.comboBox1.Location = new System.Drawing.Point(58, 32);
+            this.comboBox1.Name = "comboBox1";
+            this.comboBox1.Size = new System.Drawing.Size(151, 21);
+            this.comboBox1.TabIndex = 7;
+            // 
+            // label34
+            // 
+            this.label34.AutoSize = true;
+            this.label34.Location = new System.Drawing.Point(4, 35);
+            this.label34.Name = "label34";
+            this.label34.Size = new System.Drawing.Size(48, 13);
+            this.label34.TabIndex = 8;
+            this.label34.Text = "Platform:";
             // 
             // FormMain
             // 
@@ -1456,6 +1585,10 @@
             this.tabPage6.PerformLayout();
             this.tabPage7.ResumeLayout(false);
             this.tabPage7.PerformLayout();
+            this.tabPage8.ResumeLayout(false);
+            this.tabPage8.PerformLayout();
+            this.panel1.ResumeLayout(false);
+            this.panel1.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -1584,6 +1717,17 @@
         private System.Windows.Forms.CheckBox checkBoxOverwriteBootloader;
         private System.Windows.Forms.CheckBox checkBoxSkipKeyCheck;
         private System.Windows.Forms.Button buttonCustomOperation;
+        private System.Windows.Forms.TabPage tabPage8;
+        private System.Windows.Forms.Button buttonOTAFlash;
+        private System.Windows.Forms.TextBox textBoxOTATarget;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.RadioButton radioButton2;
+        private System.Windows.Forms.Label label33;
+        private System.Windows.Forms.RadioButton radioButton1;
+        private System.Windows.Forms.RadioButton radioButton3;
+        private System.Windows.Forms.ListBox listBoxOTA;
+        private System.Windows.Forms.Label label34;
+        private System.Windows.Forms.ComboBox comboBox1;
     }
 }
 

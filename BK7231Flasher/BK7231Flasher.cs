@@ -781,6 +781,10 @@ namespace BK7231Flasher
             {
                 if(tr % 10 == 0)
                 {
+                    //serial.RtsEnable = true;
+                   // Thread.Sleep(10);
+                   // serial.RtsEnable = false;
+                    // OBK commandline reboot
                     serial.WriteLine("reboot");
                 }
                 for (int l = 0; l < loops && !bOk; l++)
