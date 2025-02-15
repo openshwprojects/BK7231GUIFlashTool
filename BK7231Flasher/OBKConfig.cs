@@ -545,20 +545,20 @@ namespace BK7231Flasher
             byte crc = 0;
             if (raw[extraOfs+0] != (byte)'C' || raw[extraOfs + 1] != (byte)'F' || raw[extraOfs + 2] != (byte)'G')
             {
-                FormMain.Singleton.addLog("It's not an OBK config, header is bad"+Environment.NewLine, System.Drawing.Color.Yellow);
+                FormMain.Singleton.addLog("It's not an OBK config, header is bad"+Environment.NewLine, System.Drawing.Color.Purple);
                 return false;
             }
             int version = BitConverter.ToInt32(raw, extraOfs + 4);
             if(version > 100)
             {
-                FormMain.Singleton.addLog("OBK config has wrong version? Skipping" + Environment.NewLine, System.Drawing.Color.Yellow);
+                FormMain.Singleton.addLog("OBK config has wrong version? Skipping" + Environment.NewLine, System.Drawing.Color.Purple);
                 return false;
             }
             int useLen = getLenForVersion(version);
             crc = CRC.Tiny_CRC8(raw, extraOfs + 4, useLen - 4);
             if(raw[extraOfs + 3] != crc)
             {
-                FormMain.Singleton.addLog("OBK config has wrong checksum? Skipping" + Environment.NewLine, System.Drawing.Color.Yellow);
+                FormMain.Singleton.addLog("OBK config has wrong checksum? Skipping" + Environment.NewLine, System.Drawing.Color.Purple);
                 return false;
             }
             return true;
