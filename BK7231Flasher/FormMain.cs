@@ -1068,7 +1068,7 @@ namespace BK7231Flasher
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
         {
-            var res = MessageBox.Show("This will remove everything, including configuration of OBK and MAC address and RF partition. "+
+            var res = MessageBox.Show("This will remove everything from 0x11000, including configuration of OBK and MAC address and RF partition. "+
                 "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
                 "Do it if you have RF issues. Flash OBK after doing erase. This option might require lower bauds. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
