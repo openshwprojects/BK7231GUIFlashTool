@@ -422,6 +422,8 @@ namespace BK7231Flasher
             flasher.setReadTimeOutMultForSerialClass(cfg_readTimeOutMultForSerialClass);
             flasher.setOverwriteBootloader(checkBoxOverwriteBootloader.Checked);
             flasher.setSkipKeyCheck(checkBoxSkipKeyCheck.Checked);
+            flasher.setIgnoreCRCErr(chkIgnoreCRCErr.Checked);
+            
         }
         
         void testWrite()
@@ -1024,6 +1026,7 @@ namespace BK7231Flasher
             checkBoxOverwriteBootloader.Visible = b;
             checkBoxSkipKeyCheck.Visible = b;
             buttonCustomOperation.Visible = b;
+            chkIgnoreCRCErr.Visible = b;
         }
         
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
@@ -1494,6 +1497,11 @@ namespace BK7231Flasher
             refreshOTAs();
         }
         void refreshOTAs()
+        {
+
+        }
+
+        private void chkIgnoreCRCErr_CheckedChanged(object sender, EventArgs e)
         {
 
         }

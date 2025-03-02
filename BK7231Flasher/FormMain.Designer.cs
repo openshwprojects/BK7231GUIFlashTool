@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
             this.buttonCustomOperation = new System.Windows.Forms.Button();
             this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
             this.checkBoxOverwriteBootloader = new System.Windows.Forms.CheckBox();
@@ -273,6 +274,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.chkIgnoreCRCErr);
             this.tabPage1.Controls.Add(this.buttonCustomOperation);
             this.tabPage1.Controls.Add(this.checkBoxSkipKeyCheck);
             this.tabPage1.Controls.Add(this.checkBoxOverwriteBootloader);
@@ -316,6 +318,17 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // chkIgnoreCRCErr
+            // 
+            this.chkIgnoreCRCErr.AutoSize = true;
+            this.chkIgnoreCRCErr.Location = new System.Drawing.Point(772, 22);
+            this.chkIgnoreCRCErr.Name = "chkIgnoreCRCErr";
+            this.chkIgnoreCRCErr.Size = new System.Drawing.Size(106, 17);
+            this.chkIgnoreCRCErr.TabIndex = 37;
+            this.chkIgnoreCRCErr.Text = "Ignore CRC Error";
+            this.chkIgnoreCRCErr.UseVisualStyleBackColor = true;
+            this.chkIgnoreCRCErr.CheckedChanged += new System.EventHandler(this.chkIgnoreCRCErr_CheckedChanged);
             // 
             // buttonCustomOperation
             // 
@@ -1728,6 +1741,7 @@
         private System.Windows.Forms.ListBox listBoxOTA;
         private System.Windows.Forms.Label label34;
         private System.Windows.Forms.ComboBox comboBox1;
+        private System.Windows.Forms.CheckBox chkIgnoreCRCErr;
     }
 }
 

@@ -432,6 +432,12 @@ namespace BK7231Flasher
         {
             bSkipKeyCheck = b;
         }
+        bool bIgnoreCRCErr=false;
+        public void setIgnoreCRCErr(bool b)
+        {
+            bIgnoreCRCErr = b;
+        }
+        
         public void setOverwriteBootloader(bool b)
         {
             bOverwriteBootloader = b;
@@ -1455,6 +1461,10 @@ namespace BK7231Flasher
                 addError("Send by BK " + formatHex(bk_crc) + ", our CRC " + formatHex(our_crc) + Environment.NewLine);
                 addError("Maybe you have wrong chip type set?" + Environment.NewLine);
                 addError("Did you set BK7231T but have in reality BK7231N or BK7231M?" + Environment.NewLine);
+                if (bIgnoreCRCErr) {
+                    addWarning("IgnoreCRCErr checked, bin will be saved even if there is a crc mismatch" + Environment.NewLine);
+                    return true;
+                }
                 return false;
             }
             addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
