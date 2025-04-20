@@ -165,6 +165,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(BKType.BK7231N);
             comboBoxChipType.Items.Add(BKType.BK7231M);
             comboBoxChipType.Items.Add(BKType.BK7238);
+            comboBoxChipType.Items.Add(BKType.BK7252);
 
             comboBoxChipType.SelectedIndex = 0;
 
@@ -589,13 +590,21 @@ namespace BK7231Flasher
                 startSector = parms.ofs;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
             }
+            else if(curType == BKType.BK7252)
+            {
+                startSector = 0x11000;
+                sectors = getBackupSectorCountForCurrentPlatform() - (startSector/ BK7231Flasher.SECTOR_SIZE);
+                addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
+                addLog("BK7252 mode - read offset is 0x11000, we can't access bootloader." + Environment.NewLine, Color.DarkOrange);
+                addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
+            }
             else
             {
                 startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
             flasher.doRead(startSector, sectors);
-            flasher.saveReadResult();
+            flasher.saveReadResult(startSector);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();

@@ -17,8 +17,9 @@ namespace BK7231Flasher
         BK7231N,
         BK7231M,
         BK7238,
+        BK7252,
         Detect,
-        Invalid
+        Invalid,
     }
     public enum WriteMode
     {
@@ -66,11 +67,11 @@ namespace BK7231Flasher
             this.backupName = newName;
             if(this.backupName.Length == 0)
             {
-                addLog("Backup name has not been set, so output file will only contain flash type/date.");
+                addLog("Backup name has not been set, so output file will only contain flash type/date."+Environment.NewLine);
             }
             else
             {
-                addLog("Backup name is set to " + this.backupName +".");
+                addLog("Backup name is set to " + this.backupName +"." + Environment.NewLine);
             }
         }
         bool openPort()
@@ -906,9 +907,22 @@ namespace BK7231Flasher
             logger.onReadResultQIOSaved(dat, lastEncryptionKey, fullPath);
             return true;
         }
-        public bool saveReadResult()
+        public bool saveReadResult(int startOffset)
         {
-            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+ "_QIO", backupName, "bin");
+            string typeStr = "";
+            if(startOffset == 0x11000)
+            {
+                typeStr = "UA";
+            }
+            else if(startOffset == 0x0)
+            {
+                typeStr = "QIO";
+            }
+            else
+            {
+                typeStr = startOffset.ToString();
+            }
+            string fileName = MiscUtils.formatDateNowFileName("readResult_"+chipType+ "_"+typeStr, backupName, "bin");
             return saveReadResult(fileName);
         }
         bool setBaudRateIfNeeded()
@@ -1384,6 +1398,7 @@ namespace BK7231Flasher
             MemoryStream tempResult = new MemoryStream();
 
             int step = 4096;
+           // startSector = 0x11000;
             // 4K page align
             startSector = (int)(startSector & 0xfffff000);
             addLog("Going to start reading at offset " + formatHex(startSector) + "..." + Environment.NewLine);
@@ -1392,7 +1407,15 @@ namespace BK7231Flasher
                 int addr = startSector + step * i;
                 addLog("Reading " + formatHex(addr) + "... ");
                 // BK7231T does not allow bootloader read, but we can use a wrap-around hack
-                addr += FLASH_SIZE;
+                if(chipType == BKType.BK7252)
+                {
+                    // wrap around breaks stuff here, maybe it has 4MB flash?
+                    //addr += 0x400000;// not working for BK7252 as well
+                }
+                else
+                {
+                    addr += FLASH_SIZE;
+                }
                 bool bOk = readSectorTo(addr, tempResult);
                 if (bOk == false)
                 {
@@ -1400,6 +1423,13 @@ namespace BK7231Flasher
                     addError("Failed! ");
                     return null;
                 }
+                // dev only
+                //if(checkAbnormal(0,(int)tempResult.Length,tempResult))
+                //{
+                //    logger.setState("Reading failed.", Color.Red);
+                //    addError("Failed! ");
+                //    return null;
+                //}
                 logger.setProgress(i + 1, sectors);
                 addLog("Ok! ");
             }
@@ -1490,15 +1520,23 @@ namespace BK7231Flasher
             {
                 return false;
             }
+            // hack
+            int realStart = 0;
+            int realLen = TOTAL_SECTORS;
+            if(chipType == BKType.BK7252)
+            {
+                realStart = 0x11000;
+                realLen = TOTAL_SECTORS - (0x11000 / 0x1000);
+            }
             if (rwMode == WriteMode.ReadAndWrite)
             {
                 //ms = readChunk(startSector, sectors);
-                ms = readChunk(0, TOTAL_SECTORS);
+                ms = readChunk(realStart, realLen);
                 if (ms == null)
                 {
                     return false;
                 }
-                if (saveReadResult() == false)
+                if (saveReadResult(realStart) == false)
                 {
                     return false;
                 }

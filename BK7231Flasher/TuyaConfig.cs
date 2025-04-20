@@ -212,7 +212,8 @@ namespace BK7231Flasher
                 key = makeSecondaryKey(key);
                 bw.Write(first, 8, first.Length - 8);
             }
-            for (int blockIndex = 1; blockIndex < 500; blockIndex++)
+            int blockIndex = 1;
+            for (; blockIndex < 500; blockIndex++)
             {
                 byte[] next = myDecrypt(data, needle, blockIndex, key);
                 if (next == null)
@@ -238,6 +239,7 @@ namespace BK7231Flasher
                         //   FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Purple);
                         //  return true;
                     }
+                    //uint len = br.ReadUInt32();
                     bw.Write(next, 8, next.Length - 8);
                 }
             }
