@@ -676,6 +676,17 @@ namespace BK7231Flasher
                     return true;
                 }
             }
+            if (curType == BKType.BK7252)
+            {
+                if (s.StartsWith("OpenBK7252_QIO_"))
+                {
+                    return true;
+                }
+                if (s.StartsWith("OpenBK7252_UA_"))
+                {
+                    return true;
+                }
+            }
             if (curType == BKType.BK7231T)
             {
                 if (s.StartsWith("OpenBK7231T_UA_"))
