@@ -344,7 +344,7 @@ namespace BK7231Flasher
             }
             return "";
         }
-        BK7231Flasher flasher;
+        BaseFlasher flasher;
         string serialName;
         BKType curType;
         void refreshType()
@@ -1522,6 +1522,11 @@ namespace BK7231Flasher
         }
 
         private void chkIgnoreCRCErr_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox_cfg_readReplyStyle_TextChanged(object sender, EventArgs e)
         {
 
         }

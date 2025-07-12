@@ -27,15 +27,110 @@ namespace BK7231Flasher
         OnlyWrite,
         OnlyOBKConfig
     }
-    public class BK7231Flasher
+
+    public class BaseFlasher
+    {
+        protected ILogListener logger;
+        protected string backupName;
+        protected float cfg_readTimeOutMultForSerialClass = 1.0f;
+        protected float cfg_readTimeOutMultForLoop = 1.0f;
+        protected int cfg_readReplyStyle = 0;
+        protected bool bOverwriteBootloader = false;
+        protected bool bSkipKeyCheck;
+        protected bool bIgnoreCRCErr = false;
+
+        public void addLog(string s)
+        {
+            logger.addLog(s, Color.Black);
+        }
+        public void addError(string s)
+        {
+            logger.addLog(s, Color.Red);
+        }
+        public void addSuccess(string s)
+        {
+            logger.addLog(s, Color.Green);
+        }
+        public void addWarning(string s)
+        {
+            logger.addLog(s, Color.Orange);
+        }
+        public void setBackupName(string newName)
+        {
+            this.backupName = newName;
+            if (this.backupName.Length == 0)
+            {
+                addLog("Backup name has not been set, so output file will only contain flash type/date." + Environment.NewLine);
+            }
+            else
+            {
+                addLog("Backup name is set to " + this.backupName + "." + Environment.NewLine);
+            }
+        }
+        public virtual void doWrite(int startSector, byte[] data)
+        {
+
+        }
+        public virtual void doRead(int startSector = 0x000, int sectors = 10)
+        {
+
+        }
+        public virtual byte[] getReadResult()
+        {
+            return null;
+        }
+        public virtual bool doErase(int startSector = 0x000, int sectors = 10)
+        {
+            return false;
+        }
+        public virtual void closePort()
+        {
+
+        }
+        public virtual void doTestReadWrite(int startSector = 0x000, int sectors = 10)
+        {
+        }
+
+        public virtual void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
+        {
+        }
+        public void setSkipKeyCheck(bool b)
+        {
+            bSkipKeyCheck = b;
+        }
+        public void setIgnoreCRCErr(bool b)
+        {
+            bIgnoreCRCErr = b;
+        }
+
+        public void setOverwriteBootloader(bool b)
+        {
+            bOverwriteBootloader = b;
+        }
+        public void setReadTimeOutMultForSerialClass(float f)
+        {
+            this.cfg_readTimeOutMultForSerialClass = f;
+        }
+        public void setReadTimeOutMultForLoop(float f)
+        {
+            this.cfg_readTimeOutMultForLoop = f;
+        }
+        public void setReadReplyStyle(int i)
+        {
+            this.cfg_readReplyStyle = i;
+        }
+        public virtual bool saveReadResult(int startOffset)
+        {
+            return false;
+        }
+    }
+    public class BK7231Flasher : BaseFlasher
     {
         public static Random rand = new Random(Guid.NewGuid().GetHashCode());
 
         bool bDebugUART;
         SerialPort serial;
-        string backupName;
         string serialName;
-        ILogListener logger;
         BKType chipType = BKType.BK7231N;
         MemoryStream ms;
         string lastEncryptionKey;
@@ -46,34 +141,6 @@ namespace BK7231Flasher
         public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
         public static string TUYA_ENCRYPTION_KEY = "510fb093 a3cbeadc 5993a17e c7adeb03";
         public static string EMPTY_ENCRYPTION_KEY = "00000000 00000000 00000000 00000000";
-        void addLog(string s)
-        {
-            logger.addLog(s, Color.Black);
-        }
-        void addError(string s)
-        {
-            logger.addLog(s, Color.Red);
-        }
-        void addSuccess(string s)
-        {
-            logger.addLog(s, Color.Green);
-        }
-        void addWarning(string s)
-        {
-            logger.addLog(s, Color.Orange);
-        }
-        public void setBackupName(string newName)
-        {
-            this.backupName = newName;
-            if(this.backupName.Length == 0)
-            {
-                addLog("Backup name has not been set, so output file will only contain flash type/date."+Environment.NewLine);
-            }
-            else
-            {
-                addLog("Backup name is set to " + this.backupName +"." + Environment.NewLine);
-            }
-        }
         bool openPort()
         {
             try
@@ -105,7 +172,7 @@ namespace BK7231Flasher
             }
             return false;
         }
-        public void closePort()
+        public override void closePort()
         {
             if (serial != null)
             {
@@ -422,38 +489,6 @@ namespace BK7231Flasher
             {
                 serial.Read(tmp, 0, serial.BytesToRead);
             }
-        }
-        float cfg_readTimeOutMultForSerialClass = 1.0f;
-        float cfg_readTimeOutMultForLoop = 1.0f;
-        int cfg_readReplyStyle = 0;
-        bool bOverwriteBootloader = false;
-        bool bSkipKeyCheck;
-
-        public void setSkipKeyCheck(bool b)
-        {
-            bSkipKeyCheck = b;
-        }
-        bool bIgnoreCRCErr=false;
-        public void setIgnoreCRCErr(bool b)
-        {
-            bIgnoreCRCErr = b;
-        }
-        
-        public void setOverwriteBootloader(bool b)
-        {
-            bOverwriteBootloader = b;
-        }
-        public void setReadTimeOutMultForSerialClass(float f)
-        {
-            this.cfg_readTimeOutMultForSerialClass = f;
-        }
-        public void setReadTimeOutMultForLoop(float f)
-        {
-            this.cfg_readTimeOutMultForLoop = f;
-        }
-        public void setReadReplyStyle(int i)
-        {
-            this.cfg_readReplyStyle = i;
         }
 
         byte[] Start_Cmd(byte[] txbuf, int rxLen = 0, float timeout = 0.05f)
@@ -820,7 +855,7 @@ namespace BK7231Flasher
         {
             return "0x" + i.ToString("X2");
         }
-        public void doWrite(int startSector, byte [] data)
+        public override void doWrite(int startSector, byte [] data)
         {
             try
             {
@@ -831,7 +866,7 @@ namespace BK7231Flasher
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
-        public void doTestReadWrite(int startSector = 0x000, int sectors = 10)
+        public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
             try
             {
@@ -843,7 +878,7 @@ namespace BK7231Flasher
             }
         }
         
-        public void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
+        public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             try
             {
@@ -855,7 +890,7 @@ namespace BK7231Flasher
             }
         }
         
-        public bool doErase(int startSector = 0x000, int sectors = 10)
+        public override bool doErase(int startSector = 0x000, int sectors = 10)
         {
             try
             {
@@ -876,7 +911,7 @@ namespace BK7231Flasher
             }
             return true;
         }
-        public void doRead(int startSector = 0x000, int sectors = 10)
+        public override void doRead(int startSector = 0x000, int sectors = 10)
         {
             try
             {
@@ -887,7 +922,7 @@ namespace BK7231Flasher
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
             }
         }
-        public byte []getReadResult()
+        public override byte[]getReadResult()
         {
             if (ms == null)
                 return null;
@@ -907,7 +942,7 @@ namespace BK7231Flasher
             logger.onReadResultQIOSaved(dat, lastEncryptionKey, fullPath);
             return true;
         }
-        public bool saveReadResult(int startOffset)
+        public override bool saveReadResult(int startOffset)
         {
             string typeStr = "";
             if(startOffset == 0x11000)

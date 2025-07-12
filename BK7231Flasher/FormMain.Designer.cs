@@ -155,6 +155,8 @@
             this.label25 = new System.Windows.Forms.Label();
             this.tabPage8 = new System.Windows.Forms.TabPage();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.label34 = new System.Windows.Forms.Label();
+            this.comboBox1 = new System.Windows.Forms.ComboBox();
             this.listBoxOTA = new System.Windows.Forms.ListBox();
             this.radioButton3 = new System.Windows.Forms.RadioButton();
             this.radioButton2 = new System.Windows.Forms.RadioButton();
@@ -163,8 +165,6 @@
             this.buttonOTAFlash = new System.Windows.Forms.Button();
             this.textBoxOTATarget = new System.Windows.Forms.TextBox();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.comboBox1 = new System.Windows.Forms.ComboBox();
-            this.label34 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -1414,7 +1414,8 @@
             this.textBox_cfg_readReplyStyle.Name = "textBox_cfg_readReplyStyle";
             this.textBox_cfg_readReplyStyle.Size = new System.Drawing.Size(243, 20);
             this.textBox_cfg_readReplyStyle.TabIndex = 4;
-            this.textBox_cfg_readReplyStyle.Text = "0";
+            this.textBox_cfg_readReplyStyle.Text = "5";
+            this.textBox_cfg_readReplyStyle.TextChanged += new System.EventHandler(this.textBox_cfg_readReplyStyle_TextChanged);
             // 
             // textBox_cfg_readTimeOutMultForLoop
             // 
@@ -1477,6 +1478,23 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(235, 445);
             this.panel1.TabIndex = 3;
+            // 
+            // label34
+            // 
+            this.label34.AutoSize = true;
+            this.label34.Location = new System.Drawing.Point(4, 35);
+            this.label34.Name = "label34";
+            this.label34.Size = new System.Drawing.Size(48, 13);
+            this.label34.TabIndex = 8;
+            this.label34.Text = "Platform:";
+            // 
+            // comboBox1
+            // 
+            this.comboBox1.FormattingEnabled = true;
+            this.comboBox1.Location = new System.Drawing.Point(58, 32);
+            this.comboBox1.Name = "comboBox1";
+            this.comboBox1.Size = new System.Drawing.Size(151, 21);
+            this.comboBox1.TabIndex = 7;
             // 
             // listBoxOTA
             // 
@@ -1552,23 +1570,6 @@
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
-            // comboBox1
-            // 
-            this.comboBox1.FormattingEnabled = true;
-            this.comboBox1.Location = new System.Drawing.Point(58, 32);
-            this.comboBox1.Name = "comboBox1";
-            this.comboBox1.Size = new System.Drawing.Size(151, 21);
-            this.comboBox1.TabIndex = 7;
-            // 
-            // label34
-            // 
-            this.label34.AutoSize = true;
-            this.label34.Location = new System.Drawing.Point(4, 35);
-            this.label34.Name = "label34";
-            this.label34.Size = new System.Drawing.Size(48, 13);
-            this.label34.TabIndex = 8;
-            this.label34.Text = "Platform:";
             // 
             // FormMain
             // 
