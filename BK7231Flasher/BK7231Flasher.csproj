@@ -49,6 +49,7 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BaseFlasher.cs" />
     <Compile Include="BitUtils.cs" />
     <Compile Include="BK7231Flasher.cs" />
     <Compile Include="BKFlashList.cs" />
