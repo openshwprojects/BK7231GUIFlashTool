@@ -43,6 +43,10 @@ namespace BK7231Flasher
         }
         public static byte [] subArray(byte [] originalArray, int start, int length)
         {
+            if(start + length > originalArray.Length)
+            {
+                return null;
+            }
             byte[] subArray = new byte[length];
             Array.Copy(originalArray, start, subArray, 0, length);
             return subArray;
