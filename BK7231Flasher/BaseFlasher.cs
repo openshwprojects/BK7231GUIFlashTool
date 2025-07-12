@@ -19,6 +19,7 @@ namespace BK7231Flasher
         BK7231M,
         BK7238,
         BK7252,
+        RTL8720DN,
         Detect,
         Invalid,
     }
@@ -39,7 +40,18 @@ namespace BK7231Flasher
         protected bool bOverwriteBootloader = false;
         protected bool bSkipKeyCheck;
         protected bool bIgnoreCRCErr = false;
+        protected SerialPort serial;
+        protected string serialName;
+        protected BKType chipType = BKType.BK7231N;
+        protected int baudrate = 921600;
 
+        public void setBasic(ILogListener logger, string serialName, BKType bkType, int baudrate = 921600)
+        {
+            this.logger = logger;
+            this.serialName = serialName;
+            this.chipType = bkType;
+            this.baudrate = baudrate;
+        }
         public void addLog(string s)
         {
             logger.addLog(s, Color.Black);

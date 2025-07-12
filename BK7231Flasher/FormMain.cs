@@ -166,7 +166,8 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(BKType.BK7231M);
             comboBoxChipType.Items.Add(BKType.BK7238);
             comboBoxChipType.Items.Add(BKType.BK7252);
-
+            comboBoxChipType.Items.Add(BKType.RTL8720DN);
+            
             comboBoxChipType.SelectedIndex = 0;
 
             comboBoxBaudRate.Items.Add(115200);
@@ -417,14 +418,14 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            flasher = new BK7231Flasher(this, serialName, curType, chosenBaudRate);
+            flasher = new BK7231Flasher();
+            flasher.setBasic(this, serialName, curType, chosenBaudRate);
             flasher.setReadReplyStyle(cfg_readReplyStyle);
             flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
             flasher.setReadTimeOutMultForSerialClass(cfg_readTimeOutMultForSerialClass);
             flasher.setOverwriteBootloader(checkBoxOverwriteBootloader.Checked);
             flasher.setSkipKeyCheck(checkBoxSkipKeyCheck.Checked);
             flasher.setIgnoreCRCErr(chkIgnoreCRCErr.Checked);
-            
         }
         
         void testWrite()
@@ -653,6 +654,10 @@ namespace BK7231Flasher
             {
                 return ("OpenBK7231M_QIO_");
             }
+            if (t == BKType.RTL8720DN)
+            {
+                return ("OpenRTL8720D_");
+            }
             return "Error_Firmware";
         }
         public bool checkFirmwareForCurType(string s)
@@ -709,6 +714,14 @@ namespace BK7231Flasher
                     return true;
                 }
             }
+            if (curType == BKType.RTL8720DN)
+            {
+                if (s.StartsWith("OpenRTL8720D_"))
+                {
+                    return true;
+                }
+            }
+            
             /*string prefix = getFirmwarePrefix(curType);
             if (s.StartsWith(prefix))
             {

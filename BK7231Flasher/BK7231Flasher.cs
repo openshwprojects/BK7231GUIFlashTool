@@ -17,12 +17,8 @@ namespace BK7231Flasher
         public static Random rand = new Random(Guid.NewGuid().GetHashCode());
 
         bool bDebugUART;
-        SerialPort serial;
-        string serialName;
-        BKType chipType = BKType.BK7231N;
         MemoryStream ms;
         string lastEncryptionKey;
-        int baudrate = 921600;
         public static int SECTOR_SIZE = 0x1000;
         public static int FLASH_SIZE = 0x200000;
         public static int BOOTLOADER_SIZE = 0x11000;
@@ -67,14 +63,6 @@ namespace BK7231Flasher
                 serial.Close();
                 serial.Dispose();
             }
-        }
-        public BK7231Flasher(ILogListener logger, string serialName, BKType bkType, int baudrate = 921600)
-        {
-            this.logger = logger;
-            this.serialName = serialName;
-            this.chipType = bkType;
-            this.baudrate = baudrate;
-
         }
        enum CommandCode
         {
