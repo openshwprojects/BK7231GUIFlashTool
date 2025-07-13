@@ -456,7 +456,7 @@ namespace BK7231Flasher
         private bool SendXmodem(Stream stream, int offset, int size, int retry)
         {
             logger.setProgress(0, size);
-            logger.setState("Sending...", Color.Transparent);
+            logger.setState("Writing...", Color.Transparent);
             if (!WriteCmd(new byte[] { 0x07 })) // CMD_XMD
                 return false;
 
@@ -535,11 +535,15 @@ namespace BK7231Flasher
                     {
                         errorCount++;
                         if (errorCount > retry)
+                        {
+                            logger.setState("Write error!", Color.Transparent);
                             return false;
+                        }
                     }
                 }
                 logger.setProgress(localOfs, size);
             }
+            logger.setState("Write complete!", Color.Transparent);
 
             return WriteCmd(new byte[] { 0x04 }); // EOT
         }
@@ -607,7 +611,7 @@ namespace BK7231Flasher
             int count = (size + 4095) / 4096;
             int eraseSize = count * 4096;
             int eraseOffset = address & 0xfff000;
-            addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize));
+            addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize)+Environment.NewLine);
 
             if (!this.EraseSectorsFlash(eraseOffset, size))
             {
@@ -618,16 +622,16 @@ namespace BK7231Flasher
 
             int writeOffset = address & 0x00ffffff;
             writeOffset |= 0x08000000;
-            Console.WriteLine("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size);
+            addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
 
             MemoryStream ms = new MemoryStream(data);
             if (!this.WriteBlockFlash(ms, writeOffset, size))
             {
-                Console.WriteLine("Error: Write Flash!");
+                addLog("Error: Write Flash!" + Environment.NewLine);
                 this.RestoreBaud();
                 return;
             }
-
+            addLog("Write done!" + Environment.NewLine);
 
             /*
             uint? checksum = rtl.FlashWrChkSum(writeOffset, size);
