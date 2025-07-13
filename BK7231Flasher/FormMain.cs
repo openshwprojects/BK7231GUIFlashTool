@@ -540,6 +540,10 @@ namespace BK7231Flasher
             {
                 startSector = 0;
             }
+            else if(curType == BKType.RTL8720DN)
+            {
+                startSector = 0;
+            }
             else
             {
                 startSector = BK7231Flasher.BOOTLOADER_SIZE;

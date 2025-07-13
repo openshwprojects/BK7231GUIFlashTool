@@ -31,6 +31,8 @@ namespace BK7231Flasher
         }
         public bool EraseSectorsFlash(int offset, int size)
         {
+
+            logger.setState("Erasing...", Color.Transparent);
             int count = (size + 4095) / 4096;
             offset &= 0xfff000;
 
@@ -38,6 +40,7 @@ namespace BK7231Flasher
             {
                 for (int i = 0; i < count; i++)
                 {
+                    logger.setProgress(i, count);
                     byte[] pkt = new byte[6];
                     pkt[0] = 0x17; // CMD_EFS
                     pkt[1] = (byte)(offset & 0xFF);
@@ -54,10 +57,10 @@ namespace BK7231Flasher
                 return true;
             }
 
-            Console.WriteLine("Bad parameters!");
+            addError("Bad parameters!");
             return false;
         }
-        public bool WriteBlockFlash(FileStream stream, int offset, int size)
+        public bool WriteBlockFlash(MemoryStream stream, int offset, int size)
         {
             return SendXmodem(stream, offset, size, 3);
         }
@@ -138,28 +141,34 @@ namespace BK7231Flasher
         {
             if (!SetBaud(baud))
             {
-                Console.WriteLine("Error Set Baud!");
+                addError("Error Set Baud!");
                 return true;
             }
 
             byte[] regs = ReadRegs(0x00082000, 4);
             if (regs == null || regs.Length != 4 || !(regs[0] == 33 && regs[1] == 32 && regs[2] == 8 && regs[3] == 0))
             {
-                FileStream stream = new FileStream("loaders/imgtool_flashloader_amebad.bin", FileMode.Open, FileAccess.Read);
+                string fname = "loaders/imgtool_flashloader_amebad.bin";
+                if(File.Exists(fname) == false)
+                {
+                    addError("Can't find " + fname);
+                    return true;
+                }
+                FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read);
                 long size = stream.Length;
                 if (size < 1)
                 {
                     stream.Close();
-                    Console.WriteLine("Error: File size = 0!");
+                    addError("Error: File size = 0!");
                     RestoreBaud();
                     return true;
                 }
                 int offset = 0x00082000;
-                Console.WriteLine("Write SRAM at 0x{0:X8} to 0x{1:X8} from file: imgtool_flashloader_amebad.bin", offset, offset + (int)size);
+                addLog(string.Format("Write SRAM at 0x{0:X8} to 0x{1:X8} from file: imgtool_flashloader_amebad.bin"+Environment.NewLine, offset, offset + (int)size));
                 if (!WriteBlockMem(stream, offset, (int)size))
                 {
                     stream.Close();
-                    Console.WriteLine("Error Write!");
+                    addError("Error Write!" + Environment.NewLine);
                     RestoreBaud();
                     return true;
                 }
@@ -167,7 +176,7 @@ namespace BK7231Flasher
                 SetComBaud(115200);
                 if (!SetBaud(baud))
                 {
-                    Console.WriteLine("Error Set Baud!");
+                    addError("Error Set Baud!" + Environment.NewLine);
                     return true;
                 }
             }
@@ -184,7 +193,7 @@ namespace BK7231Flasher
             logger.setState("Reading...", Color.Transparent);
             if (count < 1 || count > 0x10000 || offset < 0)
             {
-                Console.WriteLine("Bad parameters!");
+                addError("Bad parameters!");
                 return false;
             }
 
@@ -202,7 +211,7 @@ namespace BK7231Flasher
             }
             catch
             {
-                Console.WriteLine("Error Write to COM Port!");
+                addError("Error Write to COM Port!");
                 return false;
             }
 
@@ -212,19 +221,19 @@ namespace BK7231Flasher
                 logger.setProgress(i, count);
                 if ((i & 63) == 0)
                 {
-                    Console.Write("Read block at 0x{0:X6}...", offset);
+                   addLog(string.Format("Read block at 0x{0:X6}...", offset));
                 }
 
                 if (!WaitResp(0x02)) // STX
                 {
-                    Console.WriteLine("Error read block head id!");
+                    addError("Error read block head id!");
                     return false;
                 }
 
                 byte[] hdr = ReadBytes(2);
                 if (hdr == null || hdr.Length != 2 || hdr[0] != ((i + 1) & 0xff) || ((hdr[0] ^ 0xff) != hdr[1]))
                 {
-                    Console.WriteLine("Error read block head!");
+                    addError("Error read block head!");
                     return false;
                 }
 
@@ -237,7 +246,7 @@ namespace BK7231Flasher
                 if (data[1024] != CalcChecksum(data, 0, 1024))
                 {
                     WriteCmd(new byte[] { 0x18 }); // CAN
-                    Console.WriteLine("Bad Checksum!");
+                    addError("Bad Checksum!");
                     return false;
                 }
 
@@ -251,14 +260,14 @@ namespace BK7231Flasher
                     stream.Write(data, 0, size);
                     WriteCmd(new byte[] { 0x18 }); // CAN
                     if ((i & 63) == 0)
-                        Console.WriteLine("ok");
+                        addLog("ok");
                     return true;
                 }
 
                 size -= 1024;
                 offset += 1024;
                 if ((i & 63) == 0)
-                    Console.WriteLine("ok");
+                    addLog("ok");
             }
 
             return true;
@@ -282,13 +291,13 @@ namespace BK7231Flasher
                 }
                 catch
                 {
-                    Console.WriteLine("Error Write to COM Port!");
+                    addError("Error Write to COM Port!");
                     return null;
                 }
 
                 if (!WaitResp(0x31))
                 {
-                    Console.WriteLine("Error read data head id!");
+                    addError("Error read data head id!");
                     return null;
                 }
 
@@ -429,7 +438,7 @@ namespace BK7231Flasher
             }
             catch
             {
-                Console.WriteLine("Error: ReOpen COM port at " + baud);
+                addError("Error: ReOpen COM port at " + baud);
                 Environment.Exit(-1);
             }
             return true;
@@ -475,7 +484,7 @@ namespace BK7231Flasher
                 int read = stream.Read(data, 0, rdsize);
                 if (read <= 0)
                 {
-                    Console.WriteLine("send: at EOF");
+                    addError("send: at EOF");
                     return false;
                 }
 
@@ -580,7 +589,59 @@ namespace BK7231Flasher
         }
         public override void doWrite(int startSector, byte[] data)
         {
+            logger.setProgress(0, data.Length);
+            addLog(Environment.NewLine + "Starting write!" + Environment.NewLine);
+            addLog("Write parms: start 0x" +
+                (startSector).ToString("X2")
+                + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
+                (data.Length).ToString("X2")
+                + " (" + startSector + " sectors)"
+                + Environment.NewLine);
+            if (doGenericSetup() == false)
+            {
+                return;
+            }
+            Console.WriteLine("Connected");
+            int address = startSector * BK7231Flasher.SECTOR_SIZE;
+            int size = data.Length;
+            int count = (size + 4095) / 4096;
+            int eraseSize = count * 4096;
+            int eraseOffset = address & 0xfff000;
+            addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize));
 
+            if (!this.EraseSectorsFlash(eraseOffset, size))
+            {
+                addError("Error: Erase Flash sectors!");
+                this.RestoreBaud();
+                return;
+            }
+
+            int writeOffset = address & 0x00ffffff;
+            writeOffset |= 0x08000000;
+            Console.WriteLine("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size);
+
+            MemoryStream ms = new MemoryStream(data);
+            if (!this.WriteBlockFlash(ms, writeOffset, size))
+            {
+                Console.WriteLine("Error: Write Flash!");
+                this.RestoreBaud();
+                return;
+            }
+
+
+            /*
+            uint? checksum = rtl.FlashWrChkSum(writeOffset, size);
+            if (checksum == null)
+            {
+                Console.WriteLine("Flash block checksum retrieval error!");
+                rtl.RestoreBaud();
+                return;
+            }
+
+            Console.WriteLine("Checksum of the written block in Flash: 0x{0:X8}", checksum.Value);*/
+
+
+            this.RestoreBaud();
         }
         MemoryStream readChunk(int startSector, int sectors)
         {
@@ -637,6 +698,8 @@ namespace BK7231Flasher
 
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
+            byte []data = File.ReadAllBytes(sourceFileName);
+            doWrite(startSector, data);
         }
         bool saveReadResult(string fileName)
         {
