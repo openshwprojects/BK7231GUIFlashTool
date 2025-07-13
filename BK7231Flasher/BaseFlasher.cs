@@ -80,6 +80,41 @@ namespace BK7231Flasher
                 addLog("Backup name is set to " + this.backupName + "." + Environment.NewLine);
             }
         }
+        public static string formatHex(int i)
+        {
+            return "0x" + i.ToString("X2");
+        }
+        public static string formatHex(uint i)
+        {
+            return "0x" + i.ToString("X2");
+        }
+        public void setSkipKeyCheck(bool b)
+        {
+            bSkipKeyCheck = b;
+        }
+        public void setIgnoreCRCErr(bool b)
+        {
+            bIgnoreCRCErr = b;
+        }
+
+        public void setOverwriteBootloader(bool b)
+        {
+            bOverwriteBootloader = b;
+        }
+        public void setReadTimeOutMultForSerialClass(float f)
+        {
+            this.cfg_readTimeOutMultForSerialClass = f;
+        }
+        public void setReadTimeOutMultForLoop(float f)
+        {
+            this.cfg_readTimeOutMultForLoop = f;
+        }
+        public void setReadReplyStyle(int i)
+        {
+            this.cfg_readReplyStyle = i;
+        }
+
+
         public virtual void doWrite(int startSector, byte[] data)
         {
 
@@ -106,31 +141,6 @@ namespace BK7231Flasher
 
         public virtual void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-        }
-        public void setSkipKeyCheck(bool b)
-        {
-            bSkipKeyCheck = b;
-        }
-        public void setIgnoreCRCErr(bool b)
-        {
-            bIgnoreCRCErr = b;
-        }
-
-        public void setOverwriteBootloader(bool b)
-        {
-            bOverwriteBootloader = b;
-        }
-        public void setReadTimeOutMultForSerialClass(float f)
-        {
-            this.cfg_readTimeOutMultForSerialClass = f;
-        }
-        public void setReadTimeOutMultForLoop(float f)
-        {
-            this.cfg_readTimeOutMultForLoop = f;
-        }
-        public void setReadReplyStyle(int i)
-        {
-            this.cfg_readReplyStyle = i;
         }
         public virtual bool saveReadResult(int startOffset)
         {

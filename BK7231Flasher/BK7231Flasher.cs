@@ -723,14 +723,6 @@ namespace BK7231Flasher
             }
             return false;
         }
-        string formatHex(int i)
-        {
-            return "0x" + i.ToString("X2");
-        }
-        string formatHex(uint i)
-        {
-            return "0x" + i.ToString("X2");
-        }
         public override void doWrite(int startSector, byte [] data)
         {
             try

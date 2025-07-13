@@ -309,6 +309,8 @@ namespace BK7231Flasher
         }
         public void setProgress(int cur, int max)
         {
+            if (cur > max)
+                cur = max;
             Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
                 // Running on the UI thread
                 progressBar1.Maximum = max;
@@ -418,7 +420,14 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            flasher = new BK7231Flasher();
+            if(curType == BKType.RTL8720DN)
+            {
+                flasher = new RTLFlasher();
+            }
+            else
+            {
+                flasher = new BK7231Flasher();
+            }
             flasher.setBasic(this, serialName, curType, chosenBaudRate);
             flasher.setReadReplyStyle(cfg_readReplyStyle);
             flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
