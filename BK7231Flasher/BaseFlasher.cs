@@ -27,7 +27,8 @@ namespace BK7231Flasher
     {
         ReadAndWrite,
         OnlyWrite,
-        OnlyOBKConfig
+        OnlyOBKConfig,
+        OnlyErase
     }
 
     public class BaseFlasher

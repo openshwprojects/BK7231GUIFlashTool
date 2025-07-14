@@ -137,11 +137,38 @@ namespace BK7231Flasher
 
             return null;
         }
+        public byte[] ReadFlashID()
+        {
+            addLog("Sending Flash ID Read..." + Environment.NewLine);
+            byte[] cmd = new byte[] { CMD_GFS, 0x9F, 0x03 }; // CMD_GFS = 0x21, 0x9F for JEDEC ID, 0x03 for 3 bytes
+            if (!WriteCmd(cmd, CMD_GFS))
+            {
+                addError("Error sending Flash ID command!"+Environment.NewLine);
+                return null;
+            }
+
+            try
+            {
+                byte[] flashID = ReadBytes(3); // Read 3 bytes (Manufacturer ID, Memory Type, Capacity)
+                int megas = (1 << (flashID[2] - 0x11)) / 8;
+                if (flashID == null || flashID.Length != 3)
+                {
+                    addError("Error reading Flash ID!" + Environment.NewLine);
+                    return null;
+                }
+                return flashID;
+            }
+            catch
+            {
+                addError("Exception while reading Flash ID!" + Environment.NewLine);
+                return null;
+            }
+        }
         public bool Floader(int baud)
         {
             if (!SetBaud(baud))
             {
-                addError("Error Set Baud!");
+                addError("Error Set Baud!"+Environment.NewLine);
                 return true;
             }
 
@@ -180,7 +207,10 @@ namespace BK7231Flasher
                     return true;
                 }
             }
-
+            // See: https://www.elektroda.com/rtvforum/viewtopic.php?p=21606205#21606205
+            // NOTE: It will not work without RAM loader
+            byte[] x = ReadFlashID();
+            addLog("Flash ID: 0x" + x[0].ToString("X2") + x[1].ToString("X2") + x[2].ToString("X2")+Environment.NewLine);
             return false;
         }
 
@@ -270,9 +300,10 @@ namespace BK7231Flasher
                     addLog("ok. ");
             }
 
+            addLog("All blocks read!" + Environment.NewLine);
+            addLog("Read done for " + size + "bytes!" + Environment.NewLine);
             return true;
         }
-
         public byte[] ReadRegs(int offset, int size)
         {
             MemoryStream ms = new MemoryStream();
@@ -399,7 +430,7 @@ namespace BK7231Flasher
         {
             if (serial.BaudRate != baud)
             {
-                Console.WriteLine("Set baudrate " + baud);
+                int givenBaud = baud;
                 int x = 0x0D;
                 int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000 };
                 foreach (int el in br)
@@ -411,12 +442,17 @@ namespace BK7231Flasher
                     }
                     x++;
                 }
+                addLog("Setting baud rate " + baud + " (given as "+givenBaud+")...");
 
                 byte[] pkt = new byte[2];
                 pkt[0] = 0x05;
                 pkt[1] = (byte)x;
                 if (!WriteCmd(pkt))
+                {
+                    addLog("... ERROR!"+Environment.NewLine);
                     return false;
+                }
+                addLog("... OK!" + Environment.NewLine);
 
                 return SetComBaud(baud);
             }
@@ -547,6 +583,7 @@ namespace BK7231Flasher
                 }
                 logger.setProgress(localOfs, size);
             }
+            addLog("Write complete!" + Environment.NewLine);
             logger.setState("Write complete!", Color.Transparent);
 
             return WriteCmd(new byte[] { 0x04 }); // EOT
@@ -595,23 +632,35 @@ namespace BK7231Flasher
             addLog("RAM code ready!" + Environment.NewLine);
             return true;
         }
-        public override void doWrite(int startSector, byte[] data)
+        public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
         {
-            logger.setProgress(0, data.Length);
+            int size = numSectors * BK7231Flasher.SECTOR_SIZE;
+            if (data != null)
+            {
+                size = data.Length;
+            }
+            logger.setProgress(0, size);
             addLog(Environment.NewLine + "Starting write!" + Environment.NewLine);
             addLog("Write parms: start 0x" +
                 (startSector).ToString("X2")
                 + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
-                (data.Length).ToString("X2")
+                (size).ToString("X2")
                 + " (" + startSector + " sectors)"
                 + Environment.NewLine);
             if (doGenericSetup() == false)
             {
-                return;
+                return true;
             }
             Console.WriteLine("Connected");
+            if(mode == WriteMode.ReadAndWrite)
+            {
+                ms = readChunk(startSector, numSectors);
+                if (ms == null)
+                {
+                    return true;
+                }
+            }
             int address = startSector * BK7231Flasher.SECTOR_SIZE;
-            int size = data.Length;
             int count = (size + 4095) / 4096;
             int eraseSize = count * 4096;
             int eraseOffset = address & 0xfff000;
@@ -621,21 +670,30 @@ namespace BK7231Flasher
             {
                 addError("Error: Erase Flash sectors!");
                 this.RestoreBaud();
-                return;
+                return true;
             }
-
-            int writeOffset = address & 0x00ffffff;
-            writeOffset |= 0x08000000;
-            addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
-
-            MemoryStream ms = new MemoryStream(data);
-            if (!this.WriteBlockFlash(ms, writeOffset, size))
+            addLog("Erase done!" + Environment.NewLine);
+            if (mode == WriteMode.OnlyErase)
             {
-                addLog("Error: Write Flash!" + Environment.NewLine);
-                this.RestoreBaud();
-                return;
+                // skip
+                addLog("Erase only finished, nothing more to do!" + Environment.NewLine);
             }
-            addLog("Write done!" + Environment.NewLine);
+            else
+            {
+                int writeOffset = address & 0x00ffffff;
+                writeOffset |= 0x08000000;
+                addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
+
+                MemoryStream ms = new MemoryStream(data);
+                if (!this.WriteBlockFlash(ms, writeOffset, size))
+                {
+                    addLog("Error: Write Flash!" + Environment.NewLine);
+                    this.RestoreBaud();
+                    return true;
+                }
+                addLog("Write done!" + Environment.NewLine);
+            }
+
 
             /*
             uint? checksum = rtl.FlashWrChkSum(writeOffset, size);
@@ -649,7 +707,8 @@ namespace BK7231Flasher
             Console.WriteLine("Checksum of the written block in Flash: 0x{0:X8}", checksum.Value);*/
 
 
-            this.RestoreBaud();
+           // this.RestoreBaud();
+            return false;
         }
         MemoryStream readChunk(int startSector, int sectors)
         {
@@ -694,7 +753,7 @@ namespace BK7231Flasher
         }
         public override bool doErase(int startSector = 0x000, int sectors = 10)
         {
-            return false;
+            return doWrite(startSector, sectors, null, WriteMode.OnlyErase);
         }
         public override void closePort()
         {
@@ -707,7 +766,7 @@ namespace BK7231Flasher
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             byte []data = File.ReadAllBytes(sourceFileName);
-            doWrite(startSector, data);
+            doWrite(startSector, sectors, data, rwMode);
         }
         bool saveReadResult(string fileName)
         {
