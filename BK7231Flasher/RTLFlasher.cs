@@ -505,7 +505,7 @@ namespace BK7231Flasher
 
             //this.chk32 = 0;
             int sequence = 1;
-
+            int initialSize = size;
             int localOfs = 0;
             while (size > 0)
             {
@@ -588,7 +588,7 @@ namespace BK7231Flasher
                         }
                     }
                 }
-                logger.setProgress(localOfs, size);
+                logger.setProgress(localOfs, initialSize);
             }
             addLog("Write complete!" + Environment.NewLine);
             logger.setState("Write complete!", Color.Transparent);
