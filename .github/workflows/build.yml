@@ -72,10 +72,17 @@ jobs:
           move *.exe BuildOutput/Release/
           move *.dll BuildOutput/Release/
 
+      - name: Copy loaders directory into release
+        run: |
+          echo "Copying /loaders/ into BuildOutput/Release..."
+          xcopy loaders BuildOutput\Release\loaders /E /I /Y
+
       - name: Debug Downloaded Artifacts
         run: |
           echo "Downloaded artifacts in BuildOutput/Release:"
           dir BuildOutput/Release
+          echo "Contents of loaders:"
+          dir BuildOutput/Release/loaders
 
       - name: Create ZIP File
         run: |
@@ -89,7 +96,7 @@ jobs:
           name: BK7231GUIFlashTool v${{ github.run_number }}
           body: |
             Automated release for BK7231GUIFlashTool.
-            Includes the latest .exe and .dll files.
+            Includes the latest .exe, .dll files, and loaders directory.
           draft: false
           prerelease: false
           files: release/BK7231GUIFlashTool-v${{ github.run_number }}.zip
