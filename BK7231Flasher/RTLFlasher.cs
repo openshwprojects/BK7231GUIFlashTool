@@ -150,7 +150,6 @@ namespace BK7231Flasher
             try
             {
                 byte[] flashID = ReadBytes(3); // Read 3 bytes (Manufacturer ID, Memory Type, Capacity)
-                int megas = (1 << (flashID[2] - 0x11)) / 8;
                 if (flashID == null || flashID.Length != 3)
                 {
                     addError("Error reading Flash ID!" + Environment.NewLine);
@@ -209,11 +208,19 @@ namespace BK7231Flasher
             }
             // See: https://www.elektroda.com/rtvforum/viewtopic.php?p=21606205#21606205
             // NOTE: It will not work without RAM loader
-            byte[] x = ReadFlashID();
-            addLog("Flash ID: 0x" + x[0].ToString("X2") + x[1].ToString("X2") + x[2].ToString("X2")+Environment.NewLine);
+            flashID = ReadFlashID();
+            if(flashID == null)
+            {
+                addError("Flash ID read failed, cannot proceed" + Environment.NewLine);
+                return true;
+            }
+            flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
+            addLog("Flash ID: 0x" + flashID[0].ToString("X2") + flashID[1].ToString("X2") + flashID[2].ToString("X2")+Environment.NewLine);
+            addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
             return false;
         }
-
+        int flashSizeMB = 2;
+        byte[] flashID;
         public bool ReadBlockFlash(MemoryStream stream, int offset, int size)
         {
             int count = (size + 4095) / 4096;
@@ -757,7 +764,11 @@ namespace BK7231Flasher
         }
         public override void closePort()
         {
-
+            if (serial != null)
+            {
+                serial.Close();
+                serial.Dispose();
+            }
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
