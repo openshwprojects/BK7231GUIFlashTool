@@ -260,14 +260,14 @@ namespace BK7231Flasher
                     stream.Write(data, 0, size);
                     WriteCmd(new byte[] { 0x18 }); // CAN
                     if ((i & 63) == 0)
-                        addLog("ok");
+                        addLog("ok. ");
                     return true;
                 }
 
                 size -= 1024;
                 offset += 1024;
                 if ((i & 63) == 0)
-                    addLog("ok");
+                    addLog("ok. ");
             }
 
             return true;
@@ -466,6 +466,10 @@ namespace BK7231Flasher
             int localOfs = 0;
             while (size > 0)
             {
+                if ((sequence & 63) == 1)
+                {
+                    addLog(string.Format("Write at 0x{0:X6}...", (int)stream.Position));
+                }
                 int packetSize;
                 byte cmd;
                 if (size <= 128)
