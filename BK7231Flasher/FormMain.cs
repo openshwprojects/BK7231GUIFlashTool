@@ -629,10 +629,17 @@ namespace BK7231Flasher
             clearUp();
             createFlasher();
             // thanks to wrap around hack, we can read from start correctly
-            int startSector = OBKFlashLayout.getConfigLocation(curType);
-            int sectors = 1;
-            flasher.doRead(startSector, sectors);
-            byte [] res = flasher.getReadResult();
+            int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
+
+            if(curType == BKType.RTL8720DN /*|| type == BKType.RTL8710B */)
+            {
+                flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
+            }
+            else
+            {
+                flasher.doRead(startSector, sectors);
+            }
+            byte[] res = flasher.getReadResult();
             bool bError = formObkCfg.tryToLoadOBKConfig(res, curType, false);
             if(bError)
             {
@@ -666,6 +673,10 @@ namespace BK7231Flasher
             if (t == BKType.BK7231M)
             {
                 return ("OpenBK7231M_QIO_");
+            }
+            if(t == BKType.BK7252)
+            {
+                return ("OpenBK7252_UA_");
             }
             if (t == BKType.RTL8720DN)
             {

@@ -95,8 +95,8 @@ namespace BK7231Flasher
         internal void sendGetFlashChunk_OBKConfig(ProcessBytesReply cb, ProcessProgress cb_progress)
         {
             var bkType = this.getBKType();
-            int ofs = OBKFlashLayout.getConfigLocation(bkType);
-            this.sendGetFlashChunk(cb, cb_progress, ofs, 4096);
+            int ofs = OBKFlashLayout.getConfigLocation(bkType, out var sectors);
+            this.sendGetFlashChunk(cb, cb_progress, ofs, sectors * BK7231Flasher.SECTOR_SIZE);
         }
 
 
