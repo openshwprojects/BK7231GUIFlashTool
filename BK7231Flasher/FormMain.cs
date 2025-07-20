@@ -602,6 +602,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
+                if(curType == BKType.RTL8720DN) startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
             }
             else if(curType == BKType.BK7252)

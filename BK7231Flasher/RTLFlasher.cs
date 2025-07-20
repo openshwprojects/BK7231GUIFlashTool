@@ -176,13 +176,13 @@ namespace BK7231Flasher
             if (regs == null || regs.Length != 4 || !(regs[0] == 33 && regs[1] == 32 && regs[2] == 8 && regs[3] == 0))
             {
                 //string fname = "loaders/imgtool_flashloader_amebad.bin";
-                byte[] dat = Convert.FromBase64String(FLoaders.AmebaDFLoader);
                 //if(File.Exists(fname) == false)
                 //{
                 //    addError("Can't find " + fname);
                 //    return true;
                 //}
                 //FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read);
+                byte[] dat = Convert.FromBase64String(FLoaders.AmebaDFLoader);
                 var stream = new MemoryStream(dat);
                 long size = stream.Length;
                 if (size < 1)
@@ -193,7 +193,7 @@ namespace BK7231Flasher
                     return true;
                 }
                 int offset = 0x00082000;
-                addLog(string.Format("Write SRAM at 0x{0:X8} to 0x{1:X8} from file: imgtool_flashloader_amebad.bin"+Environment.NewLine, offset, offset + (int)size));
+                addLog(string.Format("Write Floader to SRAM at 0x{0:X8} to 0x{1:X8}"+Environment.NewLine, offset, offset + (int)size));
                 if (!WriteBlockMem(stream, offset, (int)size))
                 {
                     stream.Close();
@@ -686,13 +686,16 @@ namespace BK7231Flasher
             int eraseOffset = address & 0xfff000;
             addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize)+Environment.NewLine);
 
-            if (!this.EraseSectorsFlash(eraseOffset, size))
+            if(mode != WriteMode.OnlyOBKConfig)
             {
-                addError("Error: Erase Flash sectors!");
-                this.RestoreBaud();
-                return true;
+                if(!this.EraseSectorsFlash(eraseOffset, size))
+                {
+                    addError("Error: Erase Flash sectors!");
+                    this.RestoreBaud();
+                    return true;
+                }
+                addLog("Erase done!" + Environment.NewLine);
             }
-            addLog("Erase done!" + Environment.NewLine);
             if (mode == WriteMode.OnlyErase)
             {
                 // skip
@@ -720,10 +723,26 @@ namespace BK7231Flasher
             {
                 var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
                 var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+
+                if(!EraseSectorsFlash(offset, size))
+                {
+                    addError("Error: Erase Flash sectors!");
+                    RestoreBaud();
+                    return true;
+                }
                 byte[] efdata;
                 if(cfg.efdata != null)
                 {
-                    efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize);
+                    try
+                    {
+                        efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize);
+                    }
+                    catch(Exception ex)
+                    {
+                        addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+                        addLog(ex.Message + Environment.NewLine);
+                        efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+                    }
                 }
                 else
                 {

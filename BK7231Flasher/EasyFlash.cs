@@ -55,6 +55,8 @@ namespace BK7231Flasher
 		public static unsafe byte[] LoadFromData(byte[] data, int size, out byte[] efdata)
 		{
 			efdata = data;
+			if(data == null)
+				return null;
 			if(IntPtr.Size == 8)
 				EF64.set_env_size((uint)size);
 			else
@@ -143,6 +145,10 @@ namespace BK7231Flasher
 
 		public static unsafe byte[] SaveCfgToExistingEasyFlash(OBKConfig cfg, int areaSize)
 		{
+			if(cfg.efdata.Length != areaSize)
+			{
+				throw new Exception("Saved EF data length != target EF length");
+			}
 			if(IntPtr.Size == 8)
 				EF64.set_env_size((uint)areaSize);
 			else
