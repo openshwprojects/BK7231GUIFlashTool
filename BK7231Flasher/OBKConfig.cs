@@ -8,6 +8,7 @@ namespace BK7231Flasher
 {
     public class OBKConfig : ConfigBase
     {
+        public byte[] efdata = null;
         static byte DEFAULT_BOOT_SUCCESS_TIME = 5;
         static int OBK_CONFIG_VERSION = 4;
         static int MAX_GPIO = 32;
@@ -95,13 +96,19 @@ namespace BK7231Flasher
                     type = OBKFlashLayout.detectChipTypeForCFG(dat);
                 }
             }
-            if (bApplyOffset)
+            if(bApplyOffset)
             {
-                int offset = OBKFlashLayout.getConfigLocation(type);
-                subArray = MiscUtils.subArray(dat, offset, 4096);
+                int offset = OBKFlashLayout.getConfigLocation(type, out var sectors);
+                subArray = MiscUtils.subArray(dat, offset, sectors * BK7231Flasher.SECTOR_SIZE);
             }
             else
             {
+                subArray = dat;
+            }
+            if(type == BKType.RTL8720DN /*|| type == BKType.RTL8710B */)
+            {
+                _ = OBKFlashLayout.getConfigLocation(type, out var sectors);
+                dat = EasyFlash.LoadFromData(subArray, sectors * BK7231Flasher.SECTOR_SIZE, out efdata);
                 subArray = dat;
             }
             if (isValid(subArray))

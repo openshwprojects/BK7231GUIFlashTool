@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -174,13 +175,15 @@ namespace BK7231Flasher
             byte[] regs = ReadRegs(0x00082000, 4);
             if (regs == null || regs.Length != 4 || !(regs[0] == 33 && regs[1] == 32 && regs[2] == 8 && regs[3] == 0))
             {
-                string fname = "loaders/imgtool_flashloader_amebad.bin";
-                if(File.Exists(fname) == false)
-                {
-                    addError("Can't find " + fname);
-                    return true;
-                }
-                FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read);
+                //string fname = "loaders/imgtool_flashloader_amebad.bin";
+                //if(File.Exists(fname) == false)
+                //{
+                //    addError("Can't find " + fname);
+                //    return true;
+                //}
+                //FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read);
+                byte[] dat = Convert.FromBase64String(FLoaders.AmebaDFLoader);
+                var stream = new MemoryStream(dat);
                 long size = stream.Length;
                 if (size < 1)
                 {
@@ -190,7 +193,7 @@ namespace BK7231Flasher
                     return true;
                 }
                 int offset = 0x00082000;
-                addLog(string.Format("Write SRAM at 0x{0:X8} to 0x{1:X8} from file: imgtool_flashloader_amebad.bin"+Environment.NewLine, offset, offset + (int)size));
+                addLog(string.Format("Write Floader to SRAM at 0x{0:X8} to 0x{1:X8}"+Environment.NewLine, offset, offset + (int)size));
                 if (!WriteBlockMem(stream, offset, (int)size))
                 {
                     stream.Close();
@@ -492,7 +495,7 @@ namespace BK7231Flasher
             return SetBaud(115200);
         }
 
-        public bool WriteBlockMem(FileStream stream, int offset, int size)
+        public bool WriteBlockMem(Stream stream, int offset, int size)
         {
             return SendXmodem(stream, offset, size, 3);
         }
@@ -641,6 +644,16 @@ namespace BK7231Flasher
         }
         public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
         {
+            OBKConfig cfg;
+            if(mode == WriteMode.OnlyOBKConfig)
+            {
+                cfg = logger.getConfig();
+            }
+            else
+            {
+                cfg = logger.getConfigToWrite();
+            }
+
             int size = numSectors * BK7231Flasher.SECTOR_SIZE;
             if (data != null)
             {
@@ -673,34 +686,89 @@ namespace BK7231Flasher
             int eraseOffset = address & 0xfff000;
             addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize)+Environment.NewLine);
 
-            if (!this.EraseSectorsFlash(eraseOffset, size))
+            if(mode != WriteMode.OnlyOBKConfig)
             {
-                addError("Error: Erase Flash sectors!");
-                this.RestoreBaud();
-                return true;
+                if(!this.EraseSectorsFlash(eraseOffset, size))
+                {
+                    addError("Error: Erase Flash sectors!");
+                    this.RestoreBaud();
+                    return true;
+                }
+                addLog("Erase done!" + Environment.NewLine);
             }
-            addLog("Erase done!" + Environment.NewLine);
             if (mode == WriteMode.OnlyErase)
             {
                 // skip
                 addLog("Erase only finished, nothing more to do!" + Environment.NewLine);
             }
-            else
+            else if(mode != WriteMode.OnlyOBKConfig)
             {
                 int writeOffset = address & 0x00ffffff;
                 writeOffset |= 0x08000000;
                 addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
 
-                MemoryStream ms = new MemoryStream(data);
+                var ms = new MemoryStream(data);
                 if (!this.WriteBlockFlash(ms, writeOffset, size))
                 {
                     addLog("Error: Write Flash!" + Environment.NewLine);
                     this.RestoreBaud();
+                    ms?.Dispose();
                     return true;
                 }
                 addLog("Write done!" + Environment.NewLine);
+                ms?.Dispose();
             }
 
+            if(cfg != null)
+            {
+                var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
+                var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+
+                if(!EraseSectorsFlash(offset, size))
+                {
+                    addError("Error: Erase Flash sectors!");
+                    RestoreBaud();
+                    return true;
+                }
+                byte[] efdata;
+                if(cfg.efdata != null)
+                {
+                    try
+                    {
+                        efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize);
+                    }
+                    catch(Exception ex)
+                    {
+                        addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+                        addLog(ex.Message + Environment.NewLine);
+                        efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+                    }
+                }
+                else
+                {
+                    efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+                }
+                ms?.Dispose();
+                ms = new MemoryStream(efdata);
+                addLog("Now will also write OBK config..." + Environment.NewLine);
+                addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                addLog("Writing config sector " + formatHex(offset) + "...");
+				offset |= 0x08000000;
+				bool bOk = WriteBlockFlash(ms, offset, areaSize);
+                if(bOk == false)
+                {
+                    logger.setState("Writing error!", Color.Red);
+                    addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                    return false;
+                }
+                logger.setState("OBK config write success!", Color.Green);
+            }
+            else
+            {
+                addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+            }
 
             /*
             uint? checksum = rtl.FlashWrChkSum(writeOffset, size);
@@ -714,7 +782,7 @@ namespace BK7231Flasher
             Console.WriteLine("Checksum of the written block in Flash: 0x{0:X8}", checksum.Value);*/
 
 
-           // this.RestoreBaud();
+            // this.RestoreBaud();
             return false;
         }
         MemoryStream readChunk(int startSector, int sectors)
@@ -736,7 +804,7 @@ namespace BK7231Flasher
                 (startSector).ToString("X2")
                 + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
                 (sectors * BK7231Flasher.SECTOR_SIZE).ToString("X2")
-                + " (" + startSector + " sectors)"
+                + " (" + sectors + " sectors)"
                 + Environment.NewLine);
             if (doGenericSetup() == false)
             {
@@ -776,7 +844,16 @@ namespace BK7231Flasher
 
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-            byte []data = File.ReadAllBytes(sourceFileName);
+            byte[] data = null;
+
+            if(rwMode != WriteMode.OnlyOBKConfig)
+            {
+                data = File.ReadAllBytes(sourceFileName);
+            }
+            else
+            {
+                startSector = OBKFlashLayout.getConfigLocation(chipType, out sectors) / BK7231Flasher.SECTOR_SIZE;
+            }
             doWrite(startSector, sectors, data, rwMode);
         }
         bool saveReadResult(string fileName)

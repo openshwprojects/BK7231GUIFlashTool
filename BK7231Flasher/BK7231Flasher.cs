@@ -1062,17 +1062,12 @@ namespace BK7231Flasher
             {
                 cfg = logger.getConfigToWrite();
             }
-            int ofs = OBKFlashLayout.getConfigLocation(chipType);
+            int ofs = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
             logger.setState("Writing...", Color.Transparent);
-            int sectors;
             if (data != null)
             {
                 data = MiscUtils.padArray(data, SECTOR_SIZE);
                 sectors = data.Length / SECTOR_SIZE;
-            }
-            else
-            {
-                sectors = 1;
             }
             logger.setProgress(0, sectors);
             if (data != null)
