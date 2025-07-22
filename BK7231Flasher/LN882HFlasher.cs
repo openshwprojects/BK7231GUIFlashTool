@@ -34,9 +34,66 @@ namespace BK7231Flasher
         }
         public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
         {
-         
+
+            upload_ram_loader("LN882H_RAM_BIN.bin");
+            flash_program("");
             return false;
         }
+        public void change_baudrate(int baudrate)
+        {
+            Console.WriteLine("change_baudrate: Change baudrate " + baudrate);
+            serial.Write("baudrate " + baudrate + "\r\n");
+            serial.ReadExisting();
+            serial.BaudRate = baudrate;
+            Console.WriteLine("change_baudrate: Wait 5 seconds for change");
+            Thread.Sleep(5000);
+            flush_com();
+
+            string msg = "";
+            while (!msg.Contains("RAMCODE"))
+            {
+                Console.WriteLine("change_baudrate: send version... wait for:  RAMCODE");
+                Thread.Sleep(1000);
+                flush_com();
+                serial.Write("version\r\n");
+                try
+                {
+                    msg = serial.ReadLine();
+                    Console.WriteLine(msg);
+                    msg = serial.ReadLine();
+                    Console.WriteLine(msg);
+                }
+                catch (TimeoutException) { msg = ""; }
+            }
+
+            Console.WriteLine("change_baudrate: Baudrate change done");
+        }
+
+        public void flash_program(string filename)
+        {
+            Console.WriteLine("flash_program: will flash " + filename);
+            change_baudrate(921600);
+            Console.WriteLine("flash_program: sending startaddr");
+            serial.Write("startaddr 0x0\r\n");
+            Console.WriteLine(serial.ReadLine().Trim());
+            Console.WriteLine(serial.ReadLine().Trim());
+
+            Console.WriteLine("flash_program: sending update command");
+            serial.Write("upgrade\r\n");
+            serial.Read(new byte[7], 0, 7);
+
+            Console.WriteLine("flash_program: sending file via ymodem");
+            YModem modem = new YModem(serial);
+            modem.send_file(filename, true, 3);
+            Console.WriteLine("flash_program: sending file done");
+
+            serial.Write("filecount\r\n");
+            Console.WriteLine(serial.ReadLine().Trim());
+            Console.WriteLine(serial.ReadLine().Trim());
+
+            change_baudrate(115200);
+        }
+
 
         public override void doRead(int startSector = 0x000, int sectors = 10)
         {
@@ -120,6 +177,81 @@ namespace BK7231Flasher
                 return true;
             }
             return false;
+        }
+        public bool upload_ram_loader(string fname)
+        {
+            addLogLine("upload_ram_loader will upload " + fname + "!");
+            if (File.Exists(fname) == false)
+            {
+                addLogLine("Can't open " + fname + "!");
+                return true;
+            }
+
+            addLogLine("Sync with LN882H... wait 5 seconds");
+            serial.DiscardInBuffer();
+            Thread.Sleep(5000);
+
+            string msg = "";
+            while (msg != "Mar 14 2021/00:23:32\r")
+            {
+                Thread.Sleep(2000);
+                flush_com();
+                addLogLine("send version... wait for:  Mar 14 2021/00:23:32");
+                serial.Write("version\r\n");
+                try
+                {
+                    msg = serial.ReadLine();
+                    addLogLine(msg);
+                }
+                catch (TimeoutException)
+                {
+                    msg = "";
+                }
+            }
+
+            addLogLine("Connect to bootloader...");
+            serial.Write("download [rambin] [0x20000000] [37872]\r\n");
+            addLogLine("Will send file via YModem");
+
+            YModem modem = new YModem(serial);
+            modem.send_file(fname, false, 3);
+
+            addLogLine("Start program. Wait 5 seconds");
+            Thread.Sleep(5000);
+
+            msg = "";
+            while (msg != "RAMCODE\r")
+            {
+                Thread.Sleep(5000);
+                serial.DiscardInBuffer();
+                addLogLine("send version... wait for:  RAMCODE");
+                serial.Write("version\r\n");
+                try
+                {
+                    msg = serial.ReadLine();
+                    addLogLine(msg);
+                    msg = serial.ReadLine();
+                    addLogLine(msg);
+                }
+                catch (TimeoutException)
+                {
+                    msg = "";
+                }
+            }
+
+            serial.Write("flash_uid\r\n");
+            try
+            {
+                msg = serial.ReadLine();
+                msg = serial.ReadLine();
+                addLogLine(msg.Trim());
+            }
+            catch (TimeoutException)
+            {
+                addLogLine("Timeout on flash_uid");
+            }
+
+            return true;
         }
         public bool doReadInternal() { 
             byte[] RAMCODE = LN882H_RamDumper.RAMCODE;
@@ -233,11 +365,6 @@ namespace BK7231Flasher
             logger.setState("Reading complete!", Color.Green);
             addLogLine($"\ndone in {t.Elapsed.TotalSeconds}s");
 
-            addLogLine("Saving read result...");
-            if (saveReadResult(0) == false)
-            {
-                return false;
-            }
             return result;
         }
         MemoryStream ms;

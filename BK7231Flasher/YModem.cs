@@ -67,6 +67,11 @@ public class YModem
         }
         return 0;
     }
+    public int send(byte[] data, string data_name, long data_size, bool packet_size_16k = true, int retry = 20, object callback = null)
+    {
+        MemoryStream ms = new MemoryStream(data, 0, (int)data_size);
+        return send(ms, data_name, data_size, packet_size_16k, retry, callback);
+    }
 
     public int send(Stream data_stream, string data_name, long data_size, bool packet_size_16k = true, int retry = 20, object callback = null)
     {
