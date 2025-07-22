@@ -1,3 +1,4 @@
+using BK7231Flasher;
 using System;
 using System.IO;
 using System.IO.Ports;
@@ -8,7 +9,7 @@ public class YModem
     SerialPort port;
     byte header_pad = 0x00;
     byte data_pad = 0x1A;
-
+    ILogListener logger;
     const byte SOH = 0x01;
     const byte STX = 0x02;
     const byte EOT = 0x04;
@@ -17,9 +18,10 @@ public class YModem
     const byte CAN = 0x18;
     const byte CRC = (byte)'C';
 
-    public YModem(SerialPort port)
+    public YModem(SerialPort port, ILogListener logger)
     {
         this.port = port;
+        this.logger = logger;
     }
 
     public void abort(int count = 2)
@@ -40,7 +42,7 @@ public class YModem
         }
         catch (IOException e)
         {
-            Console.WriteLine("ERROR: " + e.Message);
+            logger.addLog("ERROR: " + e.Message+Environment.NewLine,System.Drawing.Color.Red);
             return -1;
         }
         finally
@@ -73,10 +75,13 @@ public class YModem
         return send(ms, data_name, data_size, packet_size_16k, retry, callback);
     }
 
-    public int send(Stream data_stream, string data_name, long data_size, bool packet_size_16k = true, int retry = 20, object callback = null)
+    public int send(Stream data_stream, 
+        string data_name, long data_size, 
+        bool packet_size_16k = true,
+        int retry = 20, object callback = null)
     {
         int packet_size = packet_size_16k ? 4096 * 4 : 1024;
-
+        string tg = "";
         Console.WriteLine("YModem::send: v2 will wait for CRC...");
         if (wait_for_next(CRC) != 0)
         {
@@ -124,10 +129,11 @@ public class YModem
         int sequence = 1;
         byte[] buffer = new byte[packet_size];
 
+        logger.setState("Writing " + tg + "...", System.Drawing.Color.White);
         while (true)
         {
-            Console.Write("Sending at " + data_stream.Position+"... ");
-
+            logger.setProgress((int)data_stream.Position, (int)data_stream.Length);
+            logger.addLog("" + data_stream.Position + "... ", System.Drawing.Color.Black);
             int read = data_stream.Read(buffer, 0, packet_size);
             if (read == 0)
                 break;
@@ -163,7 +169,9 @@ public class YModem
 
             sequence = (sequence + 1) % 0x100;
         }
-        Console.WriteLine("Done!");
+        logger.setProgress((int)data_stream.Length, (int)data_stream.Length);
+        logger.addLog("Done!"+Environment.NewLine,System.Drawing.Color.Black);
+        logger.setState("Finalizing " + tg + " write...", System.Drawing.Color.White);
         Console.WriteLine("YModem::send: sending loop done!");
 
         port.Write(new byte[] { EOT }, 0, 1);
@@ -179,6 +187,8 @@ public class YModem
         port.Write(data_for_send, 0, data_for_send.Length);
         if (wait_for_next(ACK) != 0) return -1;
 
+        logger.addLog("Done!" + Environment.NewLine, System.Drawing.Color.Black);
+        logger.setState("Writing " + tg + " done!", System.Drawing.Color.White);
         return (int)data_size;
     }
 
