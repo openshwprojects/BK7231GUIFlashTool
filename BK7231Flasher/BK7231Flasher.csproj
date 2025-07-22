@@ -116,6 +116,7 @@
     </Compile>
     <Compile Include="ILogListener.cs" />
     <Compile Include="LN882HFlasher.cs" />
+    <Compile Include="LN882H_RamDumper.cs" />
     <Compile Include="MiscUtils.cs" />
     <Compile Include="ModifyProgressBarColor.cs" />
     <Compile Include="MySettings.cs" />
@@ -136,6 +137,7 @@
     <Compile Include="RichTextUtil.cs" />
     <Compile Include="SecurityProtocolTypeExtensions.cs" />
     <Compile Include="TuyaModules.cs" />
+    <Compile Include="YModem.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
       <SubType>Designer</SubType>
