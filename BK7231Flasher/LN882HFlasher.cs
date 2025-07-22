@@ -184,12 +184,19 @@ namespace BK7231Flasher
             serial.DiscardInBuffer();
 
             string msg = "";
+            int loops = 0;
             while (msg != "Mar 14 2021/00:23:32\r")
             {
                 Thread.Sleep(1000);
                 flush_com();
                 addLogLine("sending version... waiting for:  Mar 14 2021/00:23:32");
                 serial.Write("version\r\n");
+                loops++;
+                if (loops % 10 == 0 && loops>9)
+                {
+                    addLogLine("Still no reply - maybe you need to pull BOOT pin down or do full power off/on before next attempt");
+                    
+                }
                 try
                 {
                     msg = serial.ReadLine();
@@ -341,10 +348,17 @@ namespace BK7231Flasher
             int packetsize = 512 + 2;
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);
+            addLog("Reading..");
+            int loops = 0;
             ms = new MemoryStream();
             {
                 while (addr < total_flash_size)
                 {
+                    loops++;
+                    if (loops % 50 == 0)
+                    {
+                        addLog(addr + "... ");
+                    }
                     logger.setProgress(addr, total_flash_size);
                     byte[] buf = new byte[packetsize];
                     byte[] nocrc = new byte[packetsize - 2];
