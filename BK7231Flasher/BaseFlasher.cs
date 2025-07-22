@@ -20,6 +20,7 @@ namespace BK7231Flasher
         BK7238,
         BK7252,
         RTL8720DN,
+        LN882H,
         Detect,
         Invalid,
     }

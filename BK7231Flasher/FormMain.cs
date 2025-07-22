@@ -167,6 +167,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(BKType.BK7238);
             comboBoxChipType.Items.Add(BKType.BK7252);
             comboBoxChipType.Items.Add(BKType.RTL8720DN);
+            comboBoxChipType.Items.Add(BKType.LN882H);
             
             comboBoxChipType.SelectedIndex = 0;
 
@@ -423,6 +424,10 @@ namespace BK7231Flasher
             if(curType == BKType.RTL8720DN)
             {
                 flasher = new RTLFlasher();
+            }
+            else if (curType == BKType.LN882H)
+            {
+                flasher = new LN882HFlasher();
             }
             else
             {
@@ -683,6 +688,10 @@ namespace BK7231Flasher
             {
                 return ("OpenRTL8720D_");
             }
+            if (t == BKType.LN882H)
+            {
+                return ("OpenLN882H_");
+            }
             return "Error_Firmware";
         }
         public bool checkFirmwareForCurType(string s)
@@ -746,7 +755,14 @@ namespace BK7231Flasher
                     return true;
                 }
             }
-            
+            if (curType == BKType.LN882H)
+            {
+                if (s.StartsWith("OpenLN882H_"))
+                {
+                    return true;
+                }
+            }
+
             /*string prefix = getFirmwarePrefix(curType);
             if (s.StartsWith(prefix))
             {
