@@ -16,7 +16,7 @@ namespace BK7231Flasher
     public class LN882HFlasher : BaseFlasher
     {
         private SerialPort serial;
-        int timeoutMs = 200;
+        int timeoutMs = 10000;
 
 
         bool doGenericSetup()
@@ -24,13 +24,12 @@ namespace BK7231Flasher
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
-            if (openPort())
-            {
-                addLog("Failed to open port" + Environment.NewLine);
-                return false;
-            }
+            serial = new SerialPort(serialName, 115200);
             serial.ReadTimeout = timeoutMs;
-           // serial.WriteTimeout = timeoutMs;
+            serial.WriteTimeout = timeoutMs;
+            serial.Open();
+            serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
             addLog("Port ready!" + Environment.NewLine);
             return true;
         }
@@ -53,8 +52,7 @@ namespace BK7231Flasher
             serial.Write("baudrate " + baudrate + "\r\n");
             serial.ReadExisting();
             serial.BaudRate = baudrate;
-           addLogLine("change_baudrate: Wait 5 seconds for change");
-            Thread.Sleep(5000);
+           addLogLine("change_baudrate: Waiting for change...");
             flush_com();
 
             string msg = "";
@@ -107,6 +105,8 @@ namespace BK7231Flasher
 
             change_baudrate(115200);
             addLogLine("flash_program: flashed " + len + " bytes!");
+            addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
+
         }
 
 
@@ -130,7 +130,6 @@ namespace BK7231Flasher
             {
                 return true;
             }
-
             addLogLine("Connect to bootloader...");
             serial.Write($"download [rambin] [0x20000000] [{RAMCODE.Length}]\r\n");
             addLogLine("Will send RAMCODE");
@@ -159,8 +158,8 @@ namespace BK7231Flasher
             }
             try
             {
-                serial.ReadBufferSize = 4096 * 2;
-                serial.ReadBufferSize = 3000000;
+              //  serial.ReadBufferSize = 4096 * 2;
+        //     serial.ReadBufferSize = 3000000;
             }
             catch (Exception ex)
             {
@@ -229,13 +228,11 @@ namespace BK7231Flasher
             YModem modem = new YModem(serial, logger);
             modem.send_file(fname, false, 3);
 
-            addLogLine("Start program. Wait 5 seconds");
-            Thread.Sleep(5000);
-
+            addLogLine("Starting program. Wait....");
             string msg = "";
             while (msg != "RAMCODE\r")
             {
-                Thread.Sleep(5000);
+                Thread.Sleep(1000);
                 serial.DiscardInBuffer();
                 addLogLine("send version... wait for:  RAMCODE");
                 serial.Write("version\r\n");
@@ -334,17 +331,20 @@ namespace BK7231Flasher
                addLogLine("read_flash_to_file: failed to upload RAMCODE");
                 return false;
             }
+            //flush_com();
             serial.BaudRate = baudrate;
             byte[] flashsize = new byte[4];
             var addr = 0;
             var read = 0;
             var result = true;
+            int toRead = serial.BytesToRead;
             while (read < 4)
             {
                 read += serial.Read(flashsize, read, 4 - read);
             }
             int total_flash_size = flashsize[3] << 24 | flashsize[2] << 16 | flashsize[1] << 8 | flashsize[0];
-            addLogLine($"Reading flash at baud " + serial.BaudRate + $", flash size is {total_flash_size / 0x100000} MB");
+            int mbs = total_flash_size / 0x100000;
+            addLogLine($"Reading flash at baud " + serial.BaudRate + $", flash size is {mbs} MB");
             int packetsize = 512 + 2;
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);

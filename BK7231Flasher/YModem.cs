@@ -59,7 +59,8 @@ public class YModem
         {
             int c = read_byte_timeout(10000);
             if (c == -1) return -1;
-            if (c == ch) break;
+            if (c == ch)
+                break;
             else if (c == CAN)
             {
                 cancel_count++;
