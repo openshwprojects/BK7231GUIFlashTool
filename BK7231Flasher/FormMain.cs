@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using LN882HTool;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -102,6 +103,7 @@ namespace BK7231Flasher
 ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
+
             ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
             ServicePointManager.Expect100Continue = true;
@@ -595,6 +597,7 @@ namespace BK7231Flasher
         }
         void readThread(object oParm)
         {
+            Program2.Main3(null);
             CustomParms parms = null;
             if(oParm != null)
             {
@@ -973,6 +976,7 @@ namespace BK7231Flasher
 
         private void buttonRead_Click(object sender, EventArgs e)
         {
+          Program2.Main3(null);
             if (doGenericOperationPreparations() == false)
             {
                 return;
@@ -1242,12 +1246,14 @@ namespace BK7231Flasher
         {
             setButtonStates(false);
             worker = new Thread(ts);
+            worker.Priority = ThreadPriority.Highest;
             worker.Start(customArg);
         }
         void startWorkerThread(ThreadStart ts)
         {
             setButtonStates(false);
             worker = new Thread(ts);
+            worker.Priority = ThreadPriority.Highest;
             worker.Start();
         }
         private void buttonStartScan_Click(object sender, EventArgs e)
