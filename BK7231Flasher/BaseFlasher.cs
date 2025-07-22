@@ -58,6 +58,10 @@ namespace BK7231Flasher
         {
             logger.addLog(s, Color.Black);
         }
+        public void addLogLine(string s)
+        {
+            logger.addLog(s+Environment.NewLine, Color.Black);
+        }
         public void addError(string s)
         {
             logger.addLog(s, Color.Red);
