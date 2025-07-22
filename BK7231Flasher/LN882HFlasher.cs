@@ -337,7 +337,7 @@ namespace BK7231Flasher
                 read += serial.Read(flashsize, read, 4 - read);
             }
             int total_flash_size = flashsize[3] << 24 | flashsize[2] << 16 | flashsize[1] << 8 | flashsize[0];
-           addLogLine($"Reading flash at baud " + serial.BaudRate + ", flash size is {total_flash_size / 0x100000} MB");
+            addLogLine($"Reading flash at baud " + serial.BaudRate + ", flash size is {total_flash_size / 0x100000} MB");
             int packetsize = 512 + 2;
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);
