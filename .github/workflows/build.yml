@@ -72,6 +72,11 @@ jobs:
           move *.exe BuildOutput/Release/
           move *.dll BuildOutput/Release/
 
+      - name: Copy loaders directory into release
+        run: |
+          echo "Copying /loaders/ into BuildOutput/Release..."
+          xcopy loaders BuildOutput\Release\loaders /E /I /Y
+
       - name: Debug Downloaded Artifacts
         run: |
           echo "Downloaded artifacts in BuildOutput/Release:"
