@@ -226,12 +226,18 @@ namespace BK7231Flasher
                         break;
                     }
                     addr += packetsize - 2;
-                    fs.Write(buf, 0, packetsize - 2);
+                    ms.Write(buf, 0, packetsize - 2);
                 }
             }
             t.Stop();
             logger.setState("Reading complete!", Color.Green);
             addLogLine($"\ndone in {t.Elapsed.TotalSeconds}s");
+
+            addLogLine("Saving read result...");
+            if (saveReadResult(0) == false)
+            {
+                return false;
+            }
             return result;
         }
         MemoryStream ms;
@@ -261,7 +267,16 @@ namespace BK7231Flasher
         }
         bool saveReadResult(string fileName)
         {
-          
+            if (ms == null)
+            {
+                addError("There was no result to save." + Environment.NewLine);
+                return false;
+            }
+            byte[] dat = ms.ToArray();
+            string fullPath = "backups/" + fileName;
+            File.WriteAllBytes(fullPath, dat);
+            addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
+            logger.onReadResultQIOSaved(dat, "", fullPath);
             return true;
         }
         public override bool saveReadResult(int startOffset)

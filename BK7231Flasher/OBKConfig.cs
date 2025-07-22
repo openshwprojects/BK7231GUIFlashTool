@@ -549,6 +549,10 @@ namespace BK7231Flasher
         {
             if (raw == null)
                 return false;
+            if(raw.Length < extraOfs + 5)
+            {
+                return false;
+            }
             byte crc = 0;
             if (raw[extraOfs+0] != (byte)'C' || raw[extraOfs + 1] != (byte)'F' || raw[extraOfs + 2] != (byte)'G')
             {

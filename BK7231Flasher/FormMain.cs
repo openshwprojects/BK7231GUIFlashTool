@@ -170,8 +170,9 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(BKType.LN882H);
             
             comboBoxChipType.SelectedIndex = 0;
-
+            
             comboBoxBaudRate.Items.Add(115200);
+            comboBoxBaudRate.Items.Add(460800); // added for ln882h
             comboBoxBaudRate.Items.Add(921600);
             comboBoxBaudRate.Items.Add(1500000);
 
