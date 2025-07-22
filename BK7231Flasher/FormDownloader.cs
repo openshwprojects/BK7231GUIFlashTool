@@ -101,16 +101,29 @@ namespace BK7231Flasher
             addLog("Now will search page for binary link...");
             string pfx = FormMain.getFirmwarePrefix(bkType);
             addLog("Searching for: " +pfx+"!");
-            int ofs = contents.IndexOf(pfx);
-            if(ofs == -1)
+            string firmware_binary_url = "";
+            int start = 0;
+            while (true)
             {
-                setState("Failed to find binary link!", Color.Red);
-                addError("Failed to find binary link in "+list_url+"!");
-                return;
+                int ofs = contents.IndexOf(pfx, start);
+                if (ofs == -1)
+                {
+                    setState("Failed to find binary link!", Color.Red);
+                    addError("Failed to find binary link in " + list_url + "!");
+                    return;
+                }
+                setState("Searching downloaded page...", Color.Transparent);
+                Thread.Sleep(100);
+                firmware_binary_url = pickQuotedString(contents, ofs);
+                if(firmware_binary_url.Contains("OTA") || firmware_binary_url.Contains("ota"))
+                {
+                    start = ofs + firmware_binary_url.Length;
+                }
+                else
+                {
+                    break;//OK!
+                }
             }
-            setState("Searching downloaded page...", Color.Transparent);
-            Thread.Sleep(200);
-            string firmware_binary_url = pickQuotedString(contents,ofs);
             addLog("Found link: " + firmware_binary_url + "!");
             string fileName = Path.GetFileName(firmware_binary_url);
             string dir = fm.getFirmwareDir();
