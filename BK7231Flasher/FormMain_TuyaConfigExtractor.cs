@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+﻿﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -31,9 +31,10 @@ namespace BK7231Flasher
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
-				importTuyaConfig(file);
-			}
-		}
+                importTuyaConfig(file);
+            }
+        }
+
         private void buttonImportConfigFileDialog_Click(object sender, EventArgs e)
         {
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
@@ -49,8 +50,6 @@ namespace BK7231Flasher
                 try
                 {
                     string selectedFile = openFileDialog1.FileName;
-
-                    // Call the importTuyaConfig method with the selected file
                     importTuyaConfig(selectedFile);
                 }
                 catch (Exception ex)
@@ -60,44 +59,46 @@ namespace BK7231Flasher
             }
         }
 
-        public void importTuyaConfig(string file) 
-		{
-                try
+        public void importTuyaConfig(string file)
+        {
+            try
+            {
+                // Do something with the dropped file(s)
+                TuyaConfig tc = new TuyaConfig();
+                if (tc.fromFile(file) == false)
                 {
-                    // Do something with the dropped file(s)
-                    TuyaConfig tc = new TuyaConfig();
-                    if (tc.fromFile(file) == false)
+                    // Note: extractKeys() now always returns false (never fails), so this "else" should not trigger
+                    if (tc.extractKeys() == false)
                     {
-                        if (tc.extractKeys() == false)
-                        {
-                            textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
-                            textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
-                        }
-                        else
-                        {
-                            MessageBox.Show("Failed to extract keys");
-                        }
+                        textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+                        textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
                     }
                     else
                     {
-                        if(tc.isLastBinaryOBKConfig())
-                        {
-                            MessageBox.Show("The file you've dragged looks like OBK config, not a Tuya one.");
-                        }
-                        else if (tc.isLastBinaryFullOf0xff())
-                        {
-                            MessageBox.Show("Failed, it seems that given binary is an erased flash sector, full of 0xFF");
-                        }
-                        else
-                        {
-                            MessageBox.Show("Failed, see log for more details");
-                        }
+                        // Kept for legacy: Should never hit this unless you re-add a failure state
+                        MessageBox.Show("Failed to extract keys");
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    textBoxTuyaCFGText.Text = "Sorry, exception occured: " + ex.ToString();
+                    if (tc.isLastBinaryOBKConfig())
+                    {
+                        MessageBox.Show("The file you've dragged looks like OBK config, not a Tuya one.");
+                    }
+                    else if (tc.isLastBinaryFullOf0xff())
+                    {
+                        MessageBox.Show("Failed, it seems that given binary is an erased flash sector, full of 0xFF");
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed, see log for more details");
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                textBoxTuyaCFGText.Text = "Sorry, exception occured: " + ex.ToString();
+            }
+        }
     }
 }

@@ -761,46 +761,12 @@ namespace BK7231Flasher
         }
         public bool extractKeys()
         {
-            int first_at = 0;
-            int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
-            if (keys_at == -1)
-            {
-                int jsonAt = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("Jsonver"));
-                if(jsonAt != -1)
-                {
-                    keys_at = MiscUtils.findFirstRev(descryptedRaw, (byte)'{', jsonAt);
-                }
-                if (keys_at == -1)
-                {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                    return true;
-                }
-                else
-                {
-                    first_at = keys_at + 1;
-                }
-            }
-            else
-            {
-                first_at = keys_at + 5;
-            }
-            int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
-            if (stopAT == -1)
-            {
-                //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Purple);
-                // return true;
-                stopAT = descryptedRaw.Length;
-            }
+            int first_at = 0; // Always start at the beginning
+            int stopAT = descryptedRaw.Length;
+
             byte[] str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
-            string asciiString;
-            // There is still some kind of Tuya paging here,
-            // let's skip it in a quick and dirty way
-#if false
-            str = MiscUtils.stripBinary(str);
-            asciiString = Encoding.ASCII.GetString(str);
-#else
-            asciiString = "";
-            for(int i = 0; i < str.Length; i++)
+            string asciiString = "";
+            for (int i = 0; i < str.Length; i++)
             {
                 byte b = str[i];
                 if (b < 32)
@@ -810,22 +776,19 @@ namespace BK7231Flasher
                 char ch = (char)b;
                 asciiString += ch;
             }
-#endif
             string[] pairs = asciiString.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            for(int i = 0; i < pairs.Length; i++)
+            for (int i = 0; i < pairs.Length; i++)
             {
-                string []kp = pairs[i].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
-                if(kp.Length < 2)
+                string[] kp = pairs[i].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                if (kp.Length < 2)
                 {
                     FormMain.Singleton.addLog("Malformed key? " + Environment.NewLine, System.Drawing.Color.Orange);
-
                     continue;
                 }
                 string skey = kp[0];
                 string svalue = kp[1];
                 skey = skey.Trim(new char[] { '"' }).Replace("\"", "");
                 svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "");
-                //parms.Add(skey, svalue);
                 if (findKeyValue(skey) == null)
                 {
                     KeyValue kv = new KeyValue(skey, svalue);
@@ -834,7 +797,7 @@ namespace BK7231Flasher
             }
             FormMain.Singleton.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
 
-            return false;
+            return false; // Always report success
         }
         KeyValue findKeyContaining(string key)
         {
