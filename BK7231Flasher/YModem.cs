@@ -30,7 +30,7 @@ public class YModem
             port.Write(new byte[] { CAN }, 0, 1);
     }
 
-    public int send_file(string file_path, bool packet_size_16k = true, int retry = 20, object callback = null)
+    public int send_file(string file_path, bool packet_size_16k = true, int retry = 20)
     {
         FileStream file_stream = null;
         try
@@ -38,7 +38,7 @@ public class YModem
             file_stream = new FileStream(file_path, FileMode.Open, FileAccess.Read);
             string file_name = Path.GetFileName(file_path);
             long file_size = new FileInfo(file_path).Length;
-            return send(file_stream, file_name, file_size, packet_size_16k, retry, callback);
+            return send(file_stream, file_name, file_size, packet_size_16k, retry);
         }
         catch (IOException e)
         {
@@ -70,16 +70,16 @@ public class YModem
         }
         return 0;
     }
-    public int send(byte[] data, string data_name, long data_size, bool packet_size_16k = true, int retry = 20, object callback = null)
+    public int send(byte[] data, string data_name, long data_size, bool packet_size_16k = true, int retry = 20)
     {
         MemoryStream ms = new MemoryStream(data, 0, (int)data_size);
-        return send(ms, data_name, data_size, packet_size_16k, retry, callback);
+        return send(ms, data_name, data_size, packet_size_16k, retry);
     }
 
     public int send(Stream data_stream, 
         string data_name, long data_size, 
         bool packet_size_16k = true,
-        int retry = 20, object callback = null)
+        int retry = 20, int baudToSet = -1)
     {
         int packet_size = packet_size_16k ? 4096 * 4 : 1024;
         string tg = "";
@@ -187,7 +187,10 @@ public class YModem
         data_for_send = BuildPacket(header, final);
         port.Write(data_for_send, 0, data_for_send.Length);
         if (wait_for_next(ACK) != 0) return -1;
-
+        if(baudToSet != -1)
+        {
+            port.BaudRate = baudToSet;
+        }
         logger.addLog("Done!" + Environment.NewLine, System.Drawing.Color.Black);
         logger.setState("Writing " + tg + " done!", System.Drawing.Color.White);
         return (int)data_size;

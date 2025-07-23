@@ -124,7 +124,7 @@ namespace BK7231Flasher
             serial.DiscardOutBuffer();
         }
 
-        public bool upload_ram_loader_for_read(byte[] RAMCODE)
+        public bool upload_ram_loader_for_read(byte[] RAMCODE, int baudToSet)
         {
             if (prepareForLoaderSend())
             {
@@ -136,7 +136,7 @@ namespace BK7231Flasher
             YModem modem = new YModem(serial, logger);
 
             var stream = new MemoryStream(RAMCODE);
-            int ret = modem.send(stream, "RAMCODE", stream.Length, false);
+            int ret = modem.send(stream, "RAMCODE", stream.Length, false,20, baudToSet);
             if (ret != stream.Length)
             {
                addLogLine("Ramcode upload failed, expected " + stream.Length + ", got " + ret + "!");
@@ -325,14 +325,13 @@ namespace BK7231Flasher
                     RAMCODE[8227] = 0x20;
                     break;
             }
-            var isUploaded = upload_ram_loader_for_read(RAMCODE);
+            var isUploaded = upload_ram_loader_for_read(RAMCODE, baudrate);
             if (!isUploaded)
             {
                addLogLine("read_flash_to_file: failed to upload RAMCODE");
                 return false;
             }
             //flush_com();
-            serial.BaudRate = baudrate;
             byte[] flashsize = new byte[4];
             var addr = 0;
             var read = 0;
