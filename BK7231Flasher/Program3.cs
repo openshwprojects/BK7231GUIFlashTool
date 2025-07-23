@@ -24,10 +24,10 @@ namespace LN882HTool
             // Read: SharpLN882HTool.exe -p COM3 -rf 460800 dump.bin
             // Write: SharpLN882HTool.exe -p COM3 -wf obk.bin
             
-            baud = 230400;
-            port = "COM13";
-            //toRead = "dump.bin";
-            toWrite = "OpenLN882H_1.18.135.bin";
+            baud = 460800;
+            port = "COM3";
+            toRead = "dump.bin";
+            //toWrite = "OpenLN882H_1.18.135.bin";
             if (bInfo)
             {
                 LN882HFlasher f = new LN882HFlasher(port, 115200);

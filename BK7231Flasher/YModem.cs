@@ -188,8 +188,8 @@ public class YModem
         port.Write(data_for_send, 0, data_for_send.Length);
         if (wait_for_next(ACK) != 0) return -1;
 
-        logger.addLog("Done!" + Environment.NewLine, System.Drawing.Color.Black);
-        logger.setState("Writing " + tg + " done!", System.Drawing.Color.White);
+        //logger.addLog("Done!" + Environment.NewLine, System.Drawing.Color.Black);
+       // logger.setState("Writing " + tg + " done!", System.Drawing.Color.White);
         return (int)data_size;
     }
 
