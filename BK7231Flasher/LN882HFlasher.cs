@@ -43,14 +43,14 @@ namespace BK7231Flasher
             {
                 return true;
             }
-            flash_program(data,0,data.Length, "");
+            flash_program(data,0,data.Length, "", false);
             return false;
         }
         public void change_baudrate(int baudrate)
         {
            addLogLine("change_baudrate: Change baudrate " + baudrate);
             serial.Write("baudrate " + baudrate + "\r\n");
-            serial.ReadExisting();
+            Thread.Sleep(500);
             serial.BaudRate = baudrate;
            addLogLine("change_baudrate: Waiting for change...");
             flush_com();
@@ -75,8 +75,9 @@ namespace BK7231Flasher
            addLogLine("change_baudrate: Baudrate change done");
         }
 
-        public void flash_program(byte [] data, int ofs, int len, string filename)
+        public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud)
         {
+            logger.setState("Prepare write...", Color.White);
            addLogLine("flash_program: will flash " + len + " bytes " + filename);
             change_baudrate(this.baudrate);
            addLogLine("flash_program: sending startaddr");
@@ -103,7 +104,10 @@ namespace BK7231Flasher
            addLogLine(serial.ReadLine().Trim());
            addLogLine(serial.ReadLine().Trim());
 
-            change_baudrate(115200);
+            if(bRestoreBaud)
+            {
+                change_baudrate(115200);
+            }
             addLogLine("flash_program: flashed " + len + " bytes!");
             addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
 
