@@ -193,15 +193,14 @@ namespace BK7231Flasher
                 Thread.Sleep(1000);
                 flush_com();
                 addLogLine("sending version... waiting for:  Mar 14 2021/00:23:32");
-                serial.Write("version\r\n");
                 loops++;
                 if (loops % 10 == 0 && loops>9)
                 {
                     addLogLine("Still no reply - maybe you need to pull BOOT pin down or do full power off/on before next attempt");
-                    
                 }
                 try
                 {
+                    serial.Write("version\r\n");
                     msg = serial.ReadLine();
                     addLogLine(msg);
                 }
