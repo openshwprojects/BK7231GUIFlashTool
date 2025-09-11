@@ -18,8 +18,11 @@ namespace BK7231Flasher
         BK7231N,
         BK7231M,
         BK7238,
+        BK7236,
         BK7252,
-        RTL8720DN,
+        BK7252N,
+        BK7258,
+        RTL8720D,
         LN882H,
         Detect,
         Invalid,
@@ -30,6 +33,24 @@ namespace BK7231Flasher
         OnlyWrite,
         OnlyOBKConfig,
         OnlyErase
+    }
+
+    public class ChipType
+    {
+        public BKType Type { get; }
+
+        public string Name { get; }
+
+        public ChipType(BKType type, string name)
+        {
+            Type = type;
+            Name = name;
+        }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 
     public class BaseFlasher
@@ -125,7 +146,7 @@ namespace BK7231Flasher
         {
 
         }
-        public virtual void doRead(int startSector = 0x000, int sectors = 10)
+        public virtual void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
 
         }

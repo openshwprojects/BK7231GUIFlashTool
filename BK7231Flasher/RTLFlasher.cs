@@ -796,7 +796,7 @@ namespace BK7231Flasher
             return tempResult;
         }
         MemoryStream ms;
-        public override void doRead(int startSector = 0x000, int sectors = 10)
+        public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
             logger.setProgress(0, sectors);
             addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);

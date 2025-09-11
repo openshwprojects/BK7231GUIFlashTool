@@ -779,11 +779,11 @@ namespace BK7231Flasher
             }
             return true;
         }
-        public override void doRead(int startSector = 0x000, int sectors = 10)
+        public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
             try
             {
-                doReadInternal(startSector, sectors);
+                doReadInternal(startSector, sectors, fullRead);
             }
             catch(Exception ex)
             {
@@ -889,7 +889,7 @@ namespace BK7231Flasher
             }
             // make sure it's clear
             lastEncryptionKey = "";
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
             {
                 if (doUnprotect())
                 {
@@ -908,28 +908,29 @@ namespace BK7231Flasher
                         otherMode = "BK7231M";
                         expectedKey = TUYA_ENCRYPTION_KEY;
                     }
-                    else
+                    else if(chipType == BKType.BK7231M)
                     {
                         otherMode = "BK7231N";
                         expectedKey = EMPTY_ENCRYPTION_KEY;
                     }
-                    if (key != expectedKey)
+                    else
+                    {
+                        otherMode = "";
+                        expectedKey = EMPTY_ENCRYPTION_KEY;
+                    }
+                    if(key != expectedKey)
                     {
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                         addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
                         addError("If it's all zero, it may also mean that read is disabled." + Environment.NewLine);
                         addError("Please report to forum https://www.elektroda.com/rtvforum/forum51.html " + Environment.NewLine);
 
-                        if (chipType == BKType.BK7231N)
+                        if(chipType == BKType.BK7231N || chipType == BKType.BK7231M)
                         {
-                            addError("Or just try using BK7231M mode " + Environment.NewLine);
-                        }
-                        else
-                        {
-
+                            addError($"Or just try using {otherMode} mode " + Environment.NewLine);
                         }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
-                        if (bSkipKeyCheck == false)
+                        if(bSkipKeyCheck == false)
                         {
                             return false;
                         }
@@ -986,6 +987,9 @@ namespace BK7231Flasher
             }
             addSuccess("Flash def found! For: " + deviceMID.ToString("X2") + Environment.NewLine);
             addLog("Flash information: " + flashInfo.ToString() + Environment.NewLine);
+            FLASH_SIZE = flashInfo.szMem;
+            TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
+            addLog("Flash size is " + FLASH_SIZE / 1024 / 1024 + "MB" + Environment.NewLine);
             if (setProtectState(true))
             {
                 return false;
@@ -1172,7 +1176,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
             {
                 if (doUnprotect())
                 {
@@ -1305,14 +1309,14 @@ namespace BK7231Flasher
                 int addr = startSector + step * i;
                 addLog("Reading " + formatHex(addr) + "... ");
                 // BK7231T does not allow bootloader read, but we can use a wrap-around hack
-                if(chipType == BKType.BK7252)
+                if(chipType == BKType.BK7231T)
                 {
-                    // wrap around breaks stuff here, maybe it has 4MB flash?
-                    //addr += 0x400000;// not working for BK7252 as well
+                    addr += FLASH_SIZE;
                 }
                 else
                 {
-                    addr += FLASH_SIZE;
+                    // wrap around breaks stuff here, maybe it has 4MB flash?
+                    //addr += 0x400000;// not working for BK7252 as well
                 }
                 bool bOk = readSectorTo(addr, tempResult);
                 if (bOk == false)
@@ -1482,7 +1486,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
             {
                 if (doUnprotect())
                 {
@@ -1498,7 +1502,7 @@ namespace BK7231Flasher
             //File.WriteAllBytes("lastRead.bin", ms.ToArray());
             return true;
         }
-        void doReadInternal(int startSector = 0x000, int sectors = 10)
+        void doReadInternal(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
             logger.setProgress(0, sectors);
             addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
@@ -1512,7 +1516,12 @@ namespace BK7231Flasher
             {
                 return;
             }
+            if(fullRead)
+                sectors = TOTAL_SECTORS; 
             ms = readChunk(startSector, sectors);
+            // reset flash size
+            FLASH_SIZE = 0x200000;
+            TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
             if (ms == null)
             {
                 return;
@@ -1726,7 +1735,7 @@ namespace BK7231Flasher
         }
         uint calcCRC(int start, int end)
         {
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
             {
                 end = end - 1;
             }
@@ -1760,7 +1769,7 @@ namespace BK7231Flasher
                 return false;
             }
             addr %= FLASH_SIZE;
-            if (chipType == BKType.BK7231N || chipType == BKType.BK7231M || chipType == BKType.BK7238) 
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7252) 
                 return true;
             if (addr >= 0 && addr < BOOTLOADER_SIZE)
             {
