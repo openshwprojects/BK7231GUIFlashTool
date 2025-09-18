@@ -9,7 +9,7 @@ namespace BK7231Flasher
     {
         public static int getConfigLocation(BKType type, out int sectors)
         {
-            if (type == BKType.BK7231T || type == BKType.BK7238 || type == BKType.BK7252 || type == BKType.BK7252N)
+            if (type == BKType.BK7231T || type == BKType.BK7231U || type == BKType.BK7238 || type == BKType.BK7252 || type == BKType.BK7252N)
             {
                 sectors = 1;
                 return 0x1e1000;

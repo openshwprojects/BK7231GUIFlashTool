@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
@@ -114,6 +115,30 @@ namespace BK7231Flasher
             cp.sourceFileName = openFileDialog.FileName;
             this.Close();
             fm.doCustomWrite(cp);
+        }
+
+        private void btnRestoreRF_Click(object sender, EventArgs e)
+        {
+            if(doSharedPrepare())
+            {
+                return;
+            }
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "Bin files (*.bin)|*.bin|All files (*.*)|*.*",
+                Title = "Select a backup file"
+            };
+
+            if(openFileDialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+            this.Close();
+            var file = new FileStream(openFileDialog.FileName, FileMode.Open);
+            var data = new byte[file.Length];
+            file.Read(data, 0, data.Length);
+            file.Dispose();
+            fm.restoreRFfromBackup(data);
         }
     }
 }

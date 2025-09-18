@@ -889,7 +889,7 @@ namespace BK7231Flasher
             }
             // make sure it's clear
             lastEncryptionKey = "";
-            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
                 if (doUnprotect())
                 {
@@ -1137,7 +1137,7 @@ namespace BK7231Flasher
             {
                 addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
             }
-            logger.setState("Write success!", Color.Green);
+            logger.setState("Write success!" + Environment.NewLine, Color.Green);
             return true;
         }
         bool doTestReadWriteInternal(int startSector = 0x11000, int sectors = 10)
@@ -1176,7 +1176,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
                 if (doUnprotect())
                 {
@@ -1309,7 +1309,7 @@ namespace BK7231Flasher
                 int addr = startSector + step * i;
                 addLog("Reading " + formatHex(addr) + "... ");
                 // BK7231T does not allow bootloader read, but we can use a wrap-around hack
-                if(chipType == BKType.BK7231T)
+                if(chipType == BKType.BK7231T || chipType == BKType.BK7231U)
                 {
                     addr += FLASH_SIZE;
                 }
@@ -1463,7 +1463,7 @@ namespace BK7231Flasher
                         startSector = BK7231Flasher.BOOTLOADER_SIZE;
                         bSkipBootloader = true;
                     }
-                    if(this.chipType == BKType.BK7231T)
+                    if(this.chipType == BKType.BK7231T || chipType == BKType.BK7231U)
                     {
                         startSector = BK7231Flasher.BOOTLOADER_SIZE;
                         bSkipBootloader = true;
@@ -1486,7 +1486,7 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
                 if (doUnprotect())
                 {
@@ -1735,7 +1735,7 @@ namespace BK7231Flasher
         }
         uint calcCRC(int start, int end)
         {
-            if (chipType != BKType.BK7231T && chipType != BKType.BK7252)
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
                 end = end - 1;
             }
@@ -1769,7 +1769,7 @@ namespace BK7231Flasher
                 return false;
             }
             addr %= FLASH_SIZE;
-            if (chipType != BKType.BK7231T && chipType != BKType.BK7252) 
+            if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252) 
                 return true;
             if (addr >= 0 && addr < BOOTLOADER_SIZE)
             {

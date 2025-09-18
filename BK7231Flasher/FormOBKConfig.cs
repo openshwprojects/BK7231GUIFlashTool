@@ -284,13 +284,45 @@ namespace BK7231Flasher
                 {
                     type = BKType.BK7231T;
                 }
+                if (fname.Contains("BK7231U"))
+                {
+                    type = BKType.BK7231U;
+                }
                 if (fname.Contains("BK7231N"))
                 {
                     type = BKType.BK7231N;
                 }
+                if (fname.Contains("BK7231M"))
+                {
+                    type = BKType.BK7231M;
+                }
+                if (fname.Contains("BK7236"))
+                {
+                    type = BKType.BK7236;
+                }
                 if (fname.Contains("BK7238"))
                 {
                     type = BKType.BK7238;
+                }
+                if (fname.Contains("BK7252"))
+                {
+                    type = BKType.BK7252;
+                }
+                if (fname.Contains("BK7252N"))
+                {
+                    type = BKType.BK7252N;
+                }
+                if (fname.Contains("BK7258"))
+                {
+                    type = BKType.BK7258;
+                }
+                if (fname.Contains("RTL8720D"))
+                {
+                    type = BKType.RTL8720D;
+                }
+                if (fname.Contains("LN882H"))
+                {
+                    type = BKType.LN882H;
                 }
             }
             bool bError = cfg.loadFrom(fname, type);
@@ -368,13 +400,20 @@ namespace BK7231Flasher
         }
         string getTypeLetter(BKType t)
         {
-            if (t == BKType.BK7231N)
-                return "N";
-            if (t == BKType.BK7231M)
-                return "M";
-            if (t == BKType.BK7231T)
-                return "T";
-            return "";
+            switch(t)
+            {
+                case BKType.BK7231T:
+                    return "T";
+                case BKType.BK7231U:
+                    return "U";
+                case BKType.BK7231M:
+                    return "M";
+                case BKType.BK7231N:
+                case BKType.BK7252N:
+                    return "N";
+                default:
+                    return "";
+            }
         }
         void generateNamesForMAC(byte [] mac, BKType curType)
         {

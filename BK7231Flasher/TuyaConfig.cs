@@ -708,7 +708,7 @@ namespace BK7231Flasher
             {
                 BKType type = TuyaModules.getTypeForModuleName(kp.Value);
                 desc += "Device seems to be using " + kp.Value + " module";
-                if(type == BKType.BK7231N || type == BKType.BK7231T)
+                if(type != BKType.Invalid)
                 {
                     desc += ", which is using " + type + ".";
                 }

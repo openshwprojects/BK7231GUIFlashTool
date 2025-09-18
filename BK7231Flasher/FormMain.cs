@@ -162,6 +162,7 @@ namespace BK7231Flasher
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
 
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7231T, "BK7231T"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231U, "BK7231U"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7231N, "BK7231N (T2)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7231M, "BK7231M"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7236, "BK7236 (T3)"));
@@ -549,6 +550,7 @@ namespace BK7231Flasher
             switch(curType)
             {
                 case BKType.BK7231T:
+                case BKType.BK7231U:
                 case BKType.BK7252:
                     return BK7231Flasher.BOOTLOADER_SIZE;
                 default:
@@ -574,12 +576,46 @@ namespace BK7231Flasher
             createFlasher();
             int startOfs = RFPartitionUtil.getRFOffset(curType);
             byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
+            if(startOfs < 0 || data.Length == 0)
+            {
+                clearUp();
+                addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
+                return;
+            }
             flasher.doWrite(startOfs, data);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
             setButtonStates(true);
         }
+        internal void restoreRFfromBackup(byte[] fileData)
+        {
+            clearUp();
+            if(doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            startWorkerThread(restoreRF, fileData);
+        }
+        void restoreRF(object fileData)
+        {
+            createFlasher();
+            int startOfs = RFPartitionUtil.getRFOffset(curType);
+            byte[] data = RFPartitionUtil.getRFFromBackup((byte[])fileData, curType, out int addr);
+            if(startOfs < 0 || data.Length == 0)
+            {
+                clearUp();
+                addLog("RF partition not found in backup" + Environment.NewLine, Color.DarkOrange);
+                return;
+            }
+            addLog($"RF partition found at 0x{addr:X2}" + Environment.NewLine, Color.Green);
+            flasher.doWrite(startOfs, data);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+
         void eraseAll()
         {
             clearUp();
@@ -675,6 +711,7 @@ namespace BK7231Flasher
                 case BKType.BK7258:
                     return $"Open{t}_QIO_";
                 case BKType.BK7231T:
+                case BKType.BK7231U:
                 case BKType.BK7252:
                     return $"Open{t}_UA_";
                 case BKType.RTL8720D:
@@ -693,6 +730,7 @@ namespace BK7231Flasher
             switch(curType)
             {
                 case BKType.BK7231T:
+                case BKType.BK7231U:
                 case BKType.BK7231N:
                 case BKType.BK7231M:
                 case BKType.BK7236:

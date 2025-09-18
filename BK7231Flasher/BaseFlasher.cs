@@ -15,6 +15,7 @@ namespace BK7231Flasher
     public enum BKType
     {
         BK7231T,
+        BK7231U,
         BK7231N,
         BK7231M,
         BK7238,
