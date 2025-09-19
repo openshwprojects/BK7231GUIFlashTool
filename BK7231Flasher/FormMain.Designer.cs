@@ -972,6 +972,8 @@
             this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
             this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGText.TabIndex = 9;
+            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+
             // 
             // label17
             // 
