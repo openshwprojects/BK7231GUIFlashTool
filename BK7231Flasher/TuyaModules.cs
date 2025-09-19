@@ -17,10 +17,34 @@ namespace BK7231Flasher
             if (s.Length == 0)
                 return BKType.Invalid;
             s = s.ToUpper();
-            if (s[0] == 'W')
-                return BKType.BK7231T;
-            if (s[0] == 'C')
-                return BKType.BK7231N;
+            switch(s[0])
+            {
+                case 'W':
+                    if(s[2] != 'R')
+                        return BKType.BK7231T;
+                    else if(s[2] == 'R')
+                        return BKType.RTL8720C;
+                    else
+                        break;
+
+                case 'C':
+                    return BKType.BK7231N;
+
+                case 'T':
+                    if(s == "T34")
+                        return BKType.BK7231N;
+                    switch(s[1])
+                    {
+                        case '1': return BKType.BK7238;
+                        case '2': return BKType.BK7231N;
+                        case '3': return BKType.BK7236;
+                        case '4': return BKType.BK7252N;
+                        case '5': return BKType.BK7258;
+                        default: break;
+                    }
+                    break;
+                default: break;
+            }
             return BKType.Invalid;
         }
     }

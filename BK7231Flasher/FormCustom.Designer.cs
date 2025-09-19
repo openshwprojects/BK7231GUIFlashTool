@@ -34,6 +34,7 @@
             this.label4 = new System.Windows.Forms.Label();
             this.buttonCustomRead = new System.Windows.Forms.Button();
             this.buttonCustomWrite = new System.Windows.Forms.Button();
+            this.btnRestoreRF = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // textBoxCh0
@@ -90,11 +91,22 @@
             this.buttonCustomWrite.UseVisualStyleBackColor = true;
             this.buttonCustomWrite.Click += new System.EventHandler(this.buttonCustomWrite_Click);
             // 
+            // btnRestoreRF
+            // 
+            this.btnRestoreRF.Location = new System.Drawing.Point(181, 107);
+            this.btnRestoreRF.Name = "btnRestoreRF";
+            this.btnRestoreRF.Size = new System.Drawing.Size(170, 23);
+            this.btnRestoreRF.TabIndex = 9;
+            this.btnRestoreRF.Text = "Restore RF from backup";
+            this.btnRestoreRF.UseVisualStyleBackColor = true;
+            this.btnRestoreRF.Click += new System.EventHandler(this.btnRestoreRF_Click);
+            // 
             // FormCustom
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(361, 171);
+            this.Controls.Add(this.btnRestoreRF);
             this.Controls.Add(this.buttonCustomWrite);
             this.Controls.Add(this.buttonCustomRead);
             this.Controls.Add(this.label4);
@@ -116,5 +128,6 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Button buttonCustomRead;
         private System.Windows.Forms.Button buttonCustomWrite;
+        private System.Windows.Forms.Button btnRestoreRF;
     }
 }

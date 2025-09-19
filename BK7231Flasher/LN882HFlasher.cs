@@ -114,7 +114,7 @@ namespace BK7231Flasher
         }
 
 
-        public override void doRead(int startSector = 0x000, int sectors = 10)
+        public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
             if (doGenericSetup() == false)
             {

@@ -39,7 +39,7 @@ namespace BK7231Flasher
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
 
             // Set the file dialog properties
-            openFileDialog1.InitialDirectory = "c:\\";
+            //openFileDialog1.InitialDirectory = "c:\\";
             openFileDialog1.Filter = "All files (*.*)|*.*";
             openFileDialog1.FilterIndex = 1;
             openFileDialog1.RestoreDirectory = true;

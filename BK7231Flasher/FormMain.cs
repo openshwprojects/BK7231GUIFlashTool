@@ -161,13 +161,17 @@ namespace BK7231Flasher
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
 
-            comboBoxChipType.Items.Add(BKType.BK7231T);
-            comboBoxChipType.Items.Add(BKType.BK7231N);
-            comboBoxChipType.Items.Add(BKType.BK7231M);
-            comboBoxChipType.Items.Add(BKType.BK7238);
-            comboBoxChipType.Items.Add(BKType.BK7252);
-            comboBoxChipType.Items.Add(BKType.RTL8720DN);
-            comboBoxChipType.Items.Add(BKType.LN882H);
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231T, "BK7231T"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231U, "BK7231U"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231N, "BK7231N (T2)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231M, "BK7231M"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7236, "BK7236 (T3)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7238, "BK7238 (T1)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7252, "BK7252"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7252N, "BK7252N (T4)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7258, "BK7258 (T5)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
             
             comboBoxChipType.SelectedIndex = 0;
             
@@ -176,7 +180,8 @@ namespace BK7231Flasher
             comboBoxBaudRate.Items.Add(460800); // added for ln882h
             comboBoxBaudRate.Items.Add(921600);
             comboBoxBaudRate.Items.Add(1500000);
-            
+            comboBoxBaudRate.Items.Add(2000000);
+
             comboBoxBaudRate.SelectedIndex = 1;
 
             try
@@ -355,7 +360,7 @@ namespace BK7231Flasher
         BKType curType;
         void refreshType()
         {
-            curType = (BKType)Enum.Parse(typeof(BKType), comboBoxChipType.SelectedItem.ToString(), true);
+            curType = ((ChipType)comboBoxChipType.SelectedItem).Type;
         }
         bool interruptIfRequired()
         {
@@ -423,7 +428,7 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            if(curType == BKType.RTL8720DN)
+            if(curType == BKType.RTL8720D)
             {
                 flasher = new RTLFlasher();
             }
@@ -542,20 +547,16 @@ namespace BK7231Flasher
         }
         int getBackupStartSectorForCurrentPlatform()
         {
-            int startSector;
-            if (curType == BKType.BK7231N || curType == BKType.BK7231M || curType == BKType.BK7238)
+            switch(curType)
             {
-                startSector = 0;
+                case BKType.BK7231T:
+                case BKType.BK7231U:
+                case BKType.BK7252:
+                    return BK7231Flasher.BOOTLOADER_SIZE;
+                default:
+                    return 0;
+
             }
-            else if(curType == BKType.RTL8720DN)
-            {
-                startSector = 0;
-            }
-            else
-            {
-                startSector = BK7231Flasher.BOOTLOADER_SIZE;
-            }
-            return startSector;
         }
         int getBackupSectorCountForCurrentPlatform()
         {
@@ -575,12 +576,52 @@ namespace BK7231Flasher
             createFlasher();
             int startOfs = RFPartitionUtil.getRFOffset(curType);
             byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
+            if(startOfs < 0 || data.Length == 0)
+            {
+                worker = null;
+                clearUp();
+                setButtonStates(true);
+                if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
+                else addLog("Generated RF partition is empty, not supported?" + Environment.NewLine, Color.DarkOrange);
+                return;
+            }
             flasher.doWrite(startOfs, data);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
             setButtonStates(true);
         }
+        internal void restoreRFfromBackup(byte[] fileData)
+        {
+            clearUp();
+            if(doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            startWorkerThread(restoreRFbkp, fileData);
+        }
+        void restoreRFbkp(object fileData)
+        {
+            createFlasher();
+            int startOfs = RFPartitionUtil.getRFOffset(curType);
+            byte[] data = RFPartitionUtil.getRFFromBackup((byte[])fileData, curType, out int addr);
+            if(startOfs < 0 || data.Length == 0)
+            {
+                worker = null;
+                clearUp();
+                setButtonStates(true);
+                if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
+                else addLog("RF partition not found in backup" + Environment.NewLine, Color.DarkOrange);
+                return;
+            }
+            addLog($"RF partition found at 0x{addr:X2}" + Environment.NewLine, Color.Green);
+            flasher.doWrite(startOfs, data);
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+
         void eraseAll()
         {
             clearUp();
@@ -609,7 +650,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720DN) startSector /= BK7231Flasher.SECTOR_SIZE;
+                if(curType == BKType.RTL8720D) startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
             }
             else if(curType == BKType.BK7252)
@@ -625,7 +666,7 @@ namespace BK7231Flasher
                 startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
-            flasher.doRead(startSector, sectors);
+            flasher.doRead(startSector, sectors, true);
             flasher.saveReadResult(startSector);
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -639,7 +680,7 @@ namespace BK7231Flasher
             // thanks to wrap around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
 
-            if(curType == BKType.RTL8720DN /*|| type == BKType.RTL8710B */)
+            if(curType == BKType.RTL8720D /*|| type == BKType.RTL8710B */)
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
@@ -666,35 +707,24 @@ namespace BK7231Flasher
         }
         public static string getFirmwarePrefix(BKType t)
         {
-            if (t == BKType.BK7231N)
+            switch(t)
             {
-                return ("OpenBK7231N_QIO_");
+                case BKType.BK7231N:
+                case BKType.BK7231M:
+                case BKType.BK7236:
+                case BKType.BK7238:
+                case BKType.BK7252N:
+                case BKType.BK7258:
+                    return $"Open{t}_QIO_";
+                case BKType.BK7231T:
+                case BKType.BK7231U:
+                case BKType.BK7252:
+                    return $"Open{t}_UA_";
+                case BKType.RTL8720D:
+                    return "Open_";
+                default:
+                    return $"Open{t}_";
             }
-            if (t == BKType.BK7238)
-            {
-                return ("OpenBK7238_QIO_");
-            }
-            if (t == BKType.BK7231T)
-            {
-                return ("OpenBK7231T_UA_");
-            }
-            if (t == BKType.BK7231M)
-            {
-                return ("OpenBK7231M_QIO_");
-            }
-            if(t == BKType.BK7252)
-            {
-                return ("OpenBK7252_UA_");
-            }
-            if (t == BKType.RTL8720DN)
-            {
-                return ("OpenRTL8720D_");
-            }
-            if (t == BKType.LN882H)
-            {
-                return ("OpenLN882H_");
-            }
-            return "Error_Firmware";
         }
         public bool checkFirmwareForCurType(string s)
         {
@@ -703,66 +733,28 @@ namespace BK7231Flasher
                 s = s.Substring("readResult_".Length);
                 s = "Open" + s;
             }
-            if (curType == BKType.BK7231N)
+            switch(curType)
             {
-                if (s.StartsWith("OpenBK7231N_QIO_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.BK7238)
-            {
-                if (s.StartsWith("OpenBK7238_QIO_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.BK7252)
-            {
-                if (s.StartsWith("OpenBK7252_QIO_"))
-                {
-                    return true;
-                }
-                if (s.StartsWith("OpenBK7252_UA_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.BK7231T)
-            {
-                if (s.StartsWith("OpenBK7231T_UA_"))
-                {
-                    return true;
-                }
-                if (s.StartsWith("OpenBK7231T_QIO_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.BK7231M)
-            {
-                if (s.StartsWith("OpenBK7231M_UA_"))
-                {
-                    return true;
-                }
-                if (s.StartsWith("OpenBK7231M_QIO_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.RTL8720DN)
-            {
-                if (s.StartsWith("OpenRTL8720D_"))
-                {
-                    return true;
-                }
-            }
-            if (curType == BKType.LN882H)
-            {
-                if (s.StartsWith("OpenLN882H_"))
-                {
-                    return true;
-                }
+                case BKType.BK7231T:
+                case BKType.BK7231U:
+                case BKType.BK7231N:
+                case BKType.BK7231M:
+                case BKType.BK7236:
+                case BKType.BK7238:
+                case BKType.BK7252:
+                case BKType.BK7252N:
+                case BKType.BK7258:
+                    if(s.StartsWith($"Open{curType}_QIO_") || s.StartsWith($"Open{curType}_UA_"))
+                    {
+                        return true;
+                    }
+                    break;
+                default:
+                    if(s.StartsWith($"Open{curType}_"))
+                    {
+                        return true;
+                    }
+                    break;
             }
 
             /*string prefix = getFirmwarePrefix(curType);
@@ -788,7 +780,7 @@ namespace BK7231Flasher
         {
             if (checkBoxReadOBKConfig.Checked)
             {
-                addLog("Backup 2MB created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
+                addLog("Backup created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
                 if(formObkCfg.tryToLoadOBKConfig(dat, curType))
                 {
                     addLog("OBK config not found." + Environment.NewLine, Color.DarkRed);
@@ -800,16 +792,16 @@ namespace BK7231Flasher
             }
             else
             {
-                addLog("Backup 2MB created, but OBK config reading is disabled on GUI, skipping extraction." + Environment.NewLine, Color.Gray);
+                addLog("Backup created, but OBK config reading is disabled on GUI, skipping extraction." + Environment.NewLine, Color.Gray);
             }
 
             if (checkBoxAutoReadTuya.Checked == false)
             {
-                addLog("Backup 2MB created, but Tuya config reading is disabled on GUI, skipping extraction."+Environment.NewLine, Color.Gray);
+                addLog("Backup created, but Tuya config reading is disabled on GUI, skipping extraction."+Environment.NewLine, Color.Gray);
             }
             else
             {
-                addLog("Backup 2MB created, now will attempt to extract Tuya config." + Environment.NewLine, Color.Gray);
+                addLog("Backup created, now will attempt to extract Tuya config." + Environment.NewLine, Color.Gray);
                 try
                 {
                     TuyaConfig tc = new TuyaConfig();

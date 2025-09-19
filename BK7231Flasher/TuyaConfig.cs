@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BK7231Flasher
@@ -390,7 +391,7 @@ namespace BK7231Flasher
                         tg.setPinChannel(value, number);
                     }
                 }
-                else if (key == "bt_pin")
+                else if (key == "bt_pin" || key == "bt")
                 {
                     int number = 0;
                     desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
@@ -451,7 +452,7 @@ namespace BK7231Flasher
                         tg.setPinRole(value, PinRole.dInput);
                     }
                 }
-                else if (key == "netled_pin")
+                else if (key == "netled_pin" || key == "wfst")
                 {
                     // some devices have netled1_pin, some have netled_pin
                     desc += "- WiFi LED on P" + value + Environment.NewLine;
@@ -460,23 +461,23 @@ namespace BK7231Flasher
                         tg.setPinRole(value, PinRole.WifiLED_n);
                     }
                 }
-                else if(key == "ele_pin")
+                else if(key == "ele_pin" || key == "epin")
                 {
-                    desc += "- BL0937 ELE on P" + value + Environment.NewLine;
+                    desc += "- BL0937 ELE (CF) on P" + value + Environment.NewLine;
                     if (tg != null)
                     {
                         tg.setPinRole(value, PinRole.BL0937CF);
                     }
                 }
-                else if (key == "vi_pin")
+                else if (key == "vi_pin" || key == "ivpin")
                 {
-                    desc += "- BL0937 VI on P" + value + Environment.NewLine;
+                    desc += "- BL0937 VI (CF1) on P" + value + Environment.NewLine;
                     if (tg != null)
                     {
                         tg.setPinRole(value, PinRole.BL0937CF1);
                     }
                 }
-                else if (key == "sel_pin_pin")
+                else if (key == "sel_pin_pin" || key == "ivcpin")
                 {
                     desc += "- BL0937 SEL on P" + value + Environment.NewLine;
                     if (tg != null)
@@ -639,29 +640,46 @@ namespace BK7231Flasher
                 string map = "" + iicr + " " + iicg + " " + iicb + " " + iicc + " " + iicw;
                 string ledType = "Unknown";
                 string iicccur = getKeyValue("iicccur");
+                string iicwcur = getKeyValue("iicwcur");
+                string campere = getKeyValue("campere");
                 string wampere = getKeyValue("wampere");
                 string ehccur = getKeyValue("ehccur");
+                string ehwcur = getKeyValue("ehwcur");
+                string drgbcur = getKeyValue("drgbcur");
+                string dwcur = getKeyValue("dwcur");
                 string dccur = getKeyValue("dccur");
                 string cjwcur = getKeyValue("cjwcur");
+                string cjccur = getKeyValue("cjccur");
                 string _2235ccur = getKeyValue("2235ccur");
+                string _2235wcur = getKeyValue("2235wcur");
                 string _2335ccur = getKeyValue("2335ccur");
                 string kp58wcur = getKeyValue("kp58wcur");
+                string currents = string.Empty;
                 // use current (color/cw) setting
                 if (ehccur.Length>0 || wampere.Length > 0 || iicccur.Length > 0)
                 {
                     ledType = "SM2135";
+                    currents =  $"- RGB current is {(ehccur.Length > 0 ? ehccur : iicccur.Length > 0 ? iicccur : campere.Length > 0 ? campere : "Unknown")}mA{Environment.NewLine}";
+                    currents += $"- White current is {(ehwcur.Length > 0 ? ehwcur : iicwcur.Length > 0 ? iicwcur : wampere.Length > 0 ? wampere : "Unknown")}mA{Environment.NewLine}";
                 }
                 else if (dccur.Length > 0)
                 {
                     ledType = "BP5758D_";
+                    currents =  $"- RGB current is {(drgbcur.Length > 0 ? drgbcur : "Unknown")}mA{Environment.NewLine}";
+                    currents += $"- Warm white current is {(dwcur.Length > 0 ? dwcur : "Unknown")}mA{Environment.NewLine}";
+                    currents += $"- Cold white current is {(dccur.Length > 0 ? dccur : "Unknown")}mA{Environment.NewLine}";
                 }
                 else if (cjwcur.Length > 0)
                 {
                     ledType = "BP1658CJ_";
+                    currents =  $"- RGB current is {(cjccur.Length > 0 ? cjccur : "Unknown")}mA{Environment.NewLine}";
+                    currents += $"- White current is {(cjwcur.Length > 0 ? cjwcur : "Unknown")}mA{Environment.NewLine}";
                 }
                 else if (_2235ccur.Length > 0)
                 {
                     ledType = "SM2235";
+                    currents =  $"- RGB current is {(_2235ccur.Length > 0 ? _2235ccur : "Unknown")}mA{Environment.NewLine}";
+                    currents += $"- White current is {(_2235wcur.Length > 0 ? _2235wcur : "Unknown")}mA{Environment.NewLine}";
                 }
                 else if (_2335ccur.Length > 0)
                 {
@@ -681,6 +699,7 @@ namespace BK7231Flasher
                 desc += "- " + dat_name + " on P" + iicsda + Environment.NewLine;
                 desc += "- " + clk_name + " on P" + iicscl + Environment.NewLine;
                 desc += "- LED remap is " + map + Environment.NewLine;
+                desc += currents;
             }
             if (desc.Length > 0)
             {
@@ -708,7 +727,7 @@ namespace BK7231Flasher
             {
                 BKType type = TuyaModules.getTypeForModuleName(kp.Value);
                 desc += "Device seems to be using " + kp.Value + " module";
-                if(type == BKType.BK7231N || type == BKType.BK7231T)
+                if(type != BKType.Invalid)
                 {
                     desc += ", which is using " + type + ".";
                 }
@@ -762,7 +781,8 @@ namespace BK7231Flasher
         public bool extractKeys()
         {
             int first_at = 0;
-            int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
+            int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("user_param_key"));
+            //var t = Encoding.ASCII.GetString(descryptedRaw.Where(x => x != 0).ToArray());
             if (keys_at == -1)
             {
                 int jsonAt = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("Jsonver"));
@@ -772,8 +792,25 @@ namespace BK7231Flasher
                 }
                 if (keys_at == -1)
                 {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                    return true;
+                    keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
+
+                    if(keys_at == -1)
+                    {
+                        keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("baud_cfg"));
+                        if(keys_at == -1)
+                        {
+                            FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                            return true;
+                        }
+                        while(descryptedRaw[keys_at] != '{')
+                            keys_at++;
+                        keys_at++;
+                        first_at = keys_at;
+                    }
+                    else
+                    {
+                        first_at = keys_at + 5;
+                    }
                 }
                 else
                 {
@@ -782,7 +819,10 @@ namespace BK7231Flasher
             }
             else
             {
-                first_at = keys_at + 5;
+                while(descryptedRaw[keys_at] != '{')
+                    keys_at++;
+                keys_at++;
+                first_at = keys_at;
             }
             int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
             if (stopAT == -1)
@@ -822,9 +862,9 @@ namespace BK7231Flasher
                     continue;
                 }
                 string skey = kp[0];
-                string svalue = kp[1];
+                string svalue = kp[kp.Length - 1];
                 skey = skey.Trim(new char[] { '"' }).Replace("\"", "");
-                svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "");
+                svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "").Replace("}", "");
                 //parms.Add(skey, svalue);
                 if (findKeyValue(skey) == null)
                 {
