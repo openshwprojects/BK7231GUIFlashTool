@@ -578,8 +578,11 @@ namespace BK7231Flasher
             byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
             if(startOfs < 0 || data.Length == 0)
             {
+                worker = null;
                 clearUp();
-                addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
+                setButtonStates(true);
+                if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
+                else addLog("Generated RF partition is empty, not supported?" + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             flasher.doWrite(startOfs, data);
@@ -595,17 +598,20 @@ namespace BK7231Flasher
             {
                 return;
             }
-            startWorkerThread(restoreRF, fileData);
+            startWorkerThread(restoreRFbkp, fileData);
         }
-        void restoreRF(object fileData)
+        void restoreRFbkp(object fileData)
         {
             createFlasher();
             int startOfs = RFPartitionUtil.getRFOffset(curType);
             byte[] data = RFPartitionUtil.getRFFromBackup((byte[])fileData, curType, out int addr);
             if(startOfs < 0 || data.Length == 0)
             {
+                worker = null;
                 clearUp();
-                addLog("RF partition not found in backup" + Environment.NewLine, Color.DarkOrange);
+                setButtonStates(true);
+                if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
+                else addLog("RF partition not found in backup" + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             addLog($"RF partition found at 0x{addr:X2}" + Environment.NewLine, Color.Green);

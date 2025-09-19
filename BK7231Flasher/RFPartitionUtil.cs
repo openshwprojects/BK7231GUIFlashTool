@@ -20,7 +20,7 @@ namespace BK7231Flasher
         {
             addr = -1;
             if(data.Length < 0x1000)
-                return new byte[0];
+                data = MiscUtils.padArray(data, BK7231Flasher.SECTOR_SIZE);
             for(int i = data.Length - 0x1000; i >= 0; i -= 0x1000)
             {
                 if(data[i] == 0x54 && data[i + 1] == 0x4c && data[i + 2] == 0x56 && data[i + 3] == 0x00)
