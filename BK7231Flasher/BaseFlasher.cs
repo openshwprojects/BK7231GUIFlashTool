@@ -23,6 +23,8 @@ namespace BK7231Flasher
         BK7252,
         BK7252N,
         BK7258,
+        RTL8710B,
+        RTL8720C,
         RTL8720D,
         LN882H,
         Detect,

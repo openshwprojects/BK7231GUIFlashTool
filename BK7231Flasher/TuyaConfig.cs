@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BK7231Flasher
@@ -762,7 +763,8 @@ namespace BK7231Flasher
         public bool extractKeys()
         {
             int first_at = 0;
-            int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
+            int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("user_param_key"));
+            //var t = Encoding.ASCII.GetString(descryptedRaw.Where(x => x != 0).ToArray());
             if (keys_at == -1)
             {
                 int jsonAt = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("Jsonver"));
@@ -772,8 +774,25 @@ namespace BK7231Flasher
                 }
                 if (keys_at == -1)
                 {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                    return true;
+                    keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
+
+                    if(keys_at == -1)
+                    {
+                        keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("baud_cfg"));
+                        if(keys_at == -1)
+                        {
+                            FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                            return true;
+                        }
+                        while(descryptedRaw[keys_at] != '{')
+                            keys_at++;
+                        keys_at++;
+                        first_at = keys_at;
+                    }
+                    else
+                    {
+                        first_at = keys_at + 5;
+                    }
                 }
                 else
                 {
@@ -782,7 +801,10 @@ namespace BK7231Flasher
             }
             else
             {
-                first_at = keys_at + 5;
+                while(descryptedRaw[keys_at] != '{')
+                    keys_at++;
+                keys_at++;
+                first_at = keys_at;
             }
             int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
             if (stopAT == -1)
@@ -822,9 +844,9 @@ namespace BK7231Flasher
                     continue;
                 }
                 string skey = kp[0];
-                string svalue = kp[1];
+                string svalue = kp[kp.Length - 1];
                 skey = skey.Trim(new char[] { '"' }).Replace("\"", "");
-                svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "");
+                svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "").Replace("}", "");
                 //parms.Add(skey, svalue);
                 if (findKeyValue(skey) == null)
                 {
