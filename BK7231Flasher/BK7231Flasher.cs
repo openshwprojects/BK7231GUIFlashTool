@@ -1458,7 +1458,7 @@ namespace BK7231Flasher
                 bool bSkipBootloader = false;
                 if (sourceFileName.Contains("_QIO_"))
                 {
-                    if(bOverwriteBootloader == false)
+                    if(bOverwriteBootloader == false && (chipType == BKType.BK7231N || chipType == BKType.BK7231M))
                     {
                         startSector = BK7231Flasher.BOOTLOADER_SIZE;
                         bSkipBootloader = true;

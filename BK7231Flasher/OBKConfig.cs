@@ -105,7 +105,7 @@ namespace BK7231Flasher
             {
                 subArray = dat;
             }
-            if(type == BKType.RTL8720D /*|| type == BKType.RTL8710B */)
+            if(type == BKType.RTL8720D || type == BKType.RTL87X0C || type == BKType.RTL8710B)
             {
                 _ = OBKFlashLayout.getConfigLocation(type, out var sectors);
                 dat = EasyFlash.LoadFromData(subArray, sectors * BK7231Flasher.SECTOR_SIZE, out efdata);

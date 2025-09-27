@@ -96,6 +96,9 @@
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.lblKeyInfo = new System.Windows.Forms.Label();
+            this.txtKey = new System.Windows.Forms.TextBox();
+            this.chkChangeKey = new System.Windows.Forms.CheckBox();
             this.buttonImportConfigFileDialog = new System.Windows.Forms.Button();
             this.linkLabel5 = new System.Windows.Forms.LinkLabel();
             this.label32 = new System.Windows.Forms.Label();
@@ -885,6 +888,9 @@
             // tabPage2
             // 
             this.tabPage2.AllowDrop = true;
+            this.tabPage2.Controls.Add(this.lblKeyInfo);
+            this.tabPage2.Controls.Add(this.txtKey);
+            this.tabPage2.Controls.Add(this.chkChangeKey);
             this.tabPage2.Controls.Add(this.buttonImportConfigFileDialog);
             this.tabPage2.Controls.Add(this.linkLabel5);
             this.tabPage2.Controls.Add(this.label32);
@@ -904,6 +910,37 @@
             this.tabPage2.UseVisualStyleBackColor = true;
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
+            // 
+            // lblKeyInfo
+            // 
+            this.lblKeyInfo.AutoSize = true;
+            this.lblKeyInfo.Location = new System.Drawing.Point(419, 48);
+            this.lblKeyInfo.Name = "lblKeyInfo";
+            this.lblKeyInfo.Size = new System.Drawing.Size(328, 13);
+            this.lblKeyInfo.TabIndex = 20;
+            this.lblKeyInfo.Text = "Default Tuya key is 8710_2M, but on RTL8720D devices it\'s 8721D";
+            this.lblKeyInfo.Visible = false;
+            // 
+            // txtKey
+            // 
+            this.txtKey.Location = new System.Drawing.Point(323, 45);
+            this.txtKey.Name = "txtKey";
+            this.txtKey.Size = new System.Drawing.Size(90, 20);
+            this.txtKey.TabIndex = 19;
+            this.txtKey.Text = "8710_2M";
+            this.txtKey.Visible = false;
+            this.txtKey.TextChanged += new System.EventHandler(this.txtKey_TextChanged);
+            // 
+            // chkChangeKey
+            // 
+            this.chkChangeKey.AutoSize = true;
+            this.chkChangeKey.Location = new System.Drawing.Point(234, 47);
+            this.chkChangeKey.Name = "chkChangeKey";
+            this.chkChangeKey.Size = new System.Drawing.Size(83, 17);
+            this.chkChangeKey.TabIndex = 18;
+            this.chkChangeKey.Text = "Change key";
+            this.chkChangeKey.UseVisualStyleBackColor = true;
+            this.chkChangeKey.CheckedChanged += new System.EventHandler(this.chkChangeKey_CheckedChanged);
             // 
             // buttonImportConfigFileDialog
             // 
@@ -972,8 +1009,6 @@
             this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
             this.textBoxTuyaCFGText.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGText.TabIndex = 9;
-            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-
             // 
             // label17
             // 
@@ -1000,6 +1035,7 @@
             this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(18, 113);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
+            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
@@ -1745,6 +1781,9 @@
         private System.Windows.Forms.Label label34;
         private System.Windows.Forms.ComboBox comboBox1;
         private System.Windows.Forms.CheckBox chkIgnoreCRCErr;
+        private System.Windows.Forms.CheckBox chkChangeKey;
+        private System.Windows.Forms.TextBox txtKey;
+        private System.Windows.Forms.Label lblKeyInfo;
     }
 }
 

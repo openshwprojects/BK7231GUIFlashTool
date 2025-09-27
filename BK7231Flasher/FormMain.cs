@@ -428,7 +428,7 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            if(curType == BKType.RTL8720D)
+            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
             {
                 flasher = new RTLFlasher();
             }
@@ -650,7 +650,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D) startSector /= BK7231Flasher.SECTOR_SIZE;
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B) startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
             }
             else if(curType == BKType.BK7252)
@@ -680,7 +680,7 @@ namespace BK7231Flasher
             // thanks to wrap around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
 
-            if(curType == BKType.RTL8720D /*|| type == BKType.RTL8710B */)
+            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
@@ -720,8 +720,6 @@ namespace BK7231Flasher
                 case BKType.BK7231U:
                 case BKType.BK7252:
                     return $"Open{t}_UA_";
-                case BKType.RTL8720D:
-                    return "Open_";
                 default:
                     return $"Open{t}_";
             }
