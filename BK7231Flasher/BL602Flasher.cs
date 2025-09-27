@@ -266,11 +266,16 @@ namespace BK7231Flasher
             _port.DiscardOutBuffer();
             addLog("Port ready!" + Environment.NewLine);
 
-            this.Sync();
+            if(this.Sync() == false)
+            {
+                // failed
+                return true;
+            }
             if (this.getAndPrintInfo() == null)
             {
                 addErrorLine("Initial get info failed.");
                 addErrorLine("This may happen if you don't reset between flash operations");
+                addErrorLine("So, make sure that BOOT is connected, do reset (or power off/on) and try again");
                 return false;
             }
             this.loadAndRunPreprocessedImage("loaders/eflash_loader_rc32m.bin");
@@ -374,27 +379,6 @@ namespace BK7231Flasher
             _port.DiscardOutBuffer();
         }
 
-        public bool upload_ram_loader_for_read(byte[] RAMCODE, int baudToSet)
-        {
-            if (prepareForLoaderSend())
-            {
-                return true;
-            }
-           // addLogLine("Connect to bootloader...");
-           // _port.Write($"download [rambin] [0x20000000] [{RAMCODE.Length}]\r\n");
-           // addLogLine("Will send RAMCODE");
-           // YModem modem = new YModem(_port, logger);
-
-           // var stream = new MemoryStream(RAMCODE);
-           // int ret = modem.send(stream, "RAMCODE", stream.Length, false,20, baudToSet);
-           // if (ret != stream.Length)
-           // {
-           //    addLogLine("Ramcode upload failed, expected " + stream.Length + ", got " + ret + "!");
-           //     return false;
-           // }
-           //addLogLine("RAMCODE send ok, starting immediately");
-            return true;
-        }
         bool openPort()
         {
             try
@@ -426,105 +410,20 @@ namespace BK7231Flasher
             }
             return false;
         }
-        bool prepareForLoaderSend()
-        {
-            //logger.setState("Connecting...", Color.White);
-            //addLogLine("Sync with LN882H...");
-            //_port.DiscardInBuffer();
-
-            //string msg = "";
-            //int loops = 0;
-            //while (msg != "Mar 14 2021/00:23:32\r")
-            //{
-            //    Thread.Sleep(1000);
-            //    flush_com();
-            //    addLogLine("sending version... waiting for:  Mar 14 2021/00:23:32");
-            //    loops++;
-            //    if (loops % 10 == 0 && loops>9)
-            //    {
-            //        addLogLine("Still no reply - maybe you need to pull BOOT pin down or do full power off/on before next attempt");
-            //    }
-            //    try
-            //    {
-            //        _port.Write("version\r\n");
-            //        msg = _port.ReadLine();
-            //        addLogLine(msg);
-            //    }
-            //    catch (TimeoutException)
-            //    {
-            //        msg = "";
-            //    }
-            //}
-
-            //addLogLine("Connect to bootloader...");
-            return false;
-        }
-        public bool upload_ram_loader(string fname)
-        {
-            //addLogLine("upload_ram_loader will upload " + fname + "!");
-            //if (File.Exists(fname) == false)
-            //{
-            //    addLogLine("Can't open " + fname + "!");
-            //    return true;
-            //}
-            //if(prepareForLoaderSend())
-            //{
-            //    return true;
-            //}
-            //_port.Write("download [rambin] [0x20000000] [37872]\r\n");
-            //addLogLine("Will send file via YModem");
-
-            //YModem modem = new YModem(_port, logger);
-            //modem.send_file(fname, false, 3);
-
-            //addLogLine("Starting program. Wait....");
-            //string msg = "";
-            //while (msg != "RAMCODE\r")
-            //{
-            //    Thread.Sleep(1000);
-            //    _port.DiscardInBuffer();
-            //    addLogLine("send version... wait for:  RAMCODE");
-            //    _port.Write("version\r\n");
-            //    try
-            //    {
-            //        msg = _port.ReadLine();
-            //        addLogLine(msg);
-            //        msg = _port.ReadLine();
-            //        addLogLine(msg);
-            //    }
-            //    catch (TimeoutException)
-            //    {
-            //        msg = "";
-            //    }
-            //}
-
-            //_port.Write("flash_uid\r\n");
-            //try
-            //{
-            //    msg = _port.ReadLine();
-            //    msg = _port.ReadLine();
-            //    addLogLine(msg.Trim());
-            //}
-            //catch (TimeoutException)
-            //{
-            //    addLogLine("Timeout on flash_uid");
-            //    return true;
-            //}
-            //addLogLine("upload_ram_loader complete for " + fname + "!");
-
-            return false;
-        }
         internal byte[] readFlash(int addr = 0, int amount = 4096)
         {
+            int startAmount = amount;
             byte[] ret = new byte[amount];
-            Console.Write("Starting read...");
+            logger.setProgress(0, startAmount);
+            logger.setState("Reading", Color.White);
+            addLogLine("Starting read...");
             while (amount > 0)
             {
                 int length = 512;
                 if (amount < length)
                     length = amount;
 
-                Console.Write(".");
+                addLog(".");
 
                 byte[] cmdBuffer = new byte[8];
                 cmdBuffer[0] = (byte)(addr & 0xFF);
@@ -542,27 +441,32 @@ namespace BK7231Flasher
 
                 if (result == null)
                 {
-                    addLog("Read fail - no reply");
+                    logger.setState("Read error", Color.Red);
+                    addErrorLine("Read fail - no reply");
                     return null;
                 }
 
                 int dataLen = result.Length - 2;
                 if (dataLen != length)
                 {
-                    addLog("Read fail - size mismatch");
+                    logger.setState("Read error", Color.Red);
+                    addErrorLine("Read fail - size mismatch");
                     return null;
                 }
                 Array.Copy(result, 2, ret, addr, dataLen);
 
                 addr += dataLen;
                 amount -= dataLen;
+                logger.setProgress(addr, startAmount);
             }
-            addLog("Read complete!");
+            logger.setState("Read done", Color.DarkGreen);
+            addLogLine("Read complete!");
             return ret;
         }
 
-        public bool doReadInternal() { 
-           
+        public bool doReadInternal() {
+            byte[] res = readFlash(0, 2097152);
+            ms = new MemoryStream(res);
             return false;
         }
         MemoryStream ms;
