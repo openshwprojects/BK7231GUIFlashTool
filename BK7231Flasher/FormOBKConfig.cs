@@ -320,6 +320,14 @@ namespace BK7231Flasher
                 {
                     type = BKType.RTL8720D;
                 }
+                if (fname.Contains("RTL87X0C"))
+                {
+                    type = BKType.RTL87X0C;
+                }
+                if (fname.Contains("RTL8710B"))
+                {
+                    type = BKType.RTL8710B;
+                }
                 if (fname.Contains("LN882H"))
                 {
                     type = BKType.LN882H;

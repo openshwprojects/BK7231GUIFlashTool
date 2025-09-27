@@ -23,7 +23,7 @@ namespace BK7231Flasher
                     if(s[2] != 'R')
                         return BKType.BK7231T;
                     else if(s[2] == 'R')
-                        return BKType.RTL8720C;
+                        return BKType.RTL87X0C;
                     else
                         break;
 

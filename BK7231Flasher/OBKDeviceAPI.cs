@@ -90,7 +90,8 @@ namespace BK7231Flasher
         }
         internal void sendGetFlashChunk_TuyaCFGFromOBKDevice(ProcessBytesReply cb, ProcessProgress cb_progress)
         {
-            this.sendGetFlashChunk(cb, cb_progress, TuyaConfig.getMagicOffset(), TuyaConfig.getMagicSize());
+            var bkType = this.getBKType();
+            this.sendGetFlashChunk(cb, cb_progress, TuyaConfig.getMagicOffset(bkType), TuyaConfig.getMagicSize(bkType));
         }
         internal void sendGetFlashChunk_OBKConfig(ProcessBytesReply cb, ProcessProgress cb_progress)
         {

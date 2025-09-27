@@ -19,22 +19,72 @@ namespace BK7231Flasher
         static int SECTOR_SIZE = 4096;
         static uint MAGIC_FIRST_BLOCK = 0x13579753;
         static uint MAGIC_NEXT_BLOCK = 0x98761234;
-        static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
+        // 8721D for RTL8720D devices, 8711AM_4M for WRG1. Not known for W800, ECR6600, RTL8720CM, BK7252...
+        public static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
         static byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
         static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
         // TODO: check more bins with this offset
         // hex 0x1EE000
         // While flash is 0x200000, so we have at most 0x12000 bytes there...
         // So it's 0x12 sectors (18 sectors)
-        static int USUAL_MAGIC_POSITION = 2023424;
+        const int USUAL_BK7231_MAGIC_POSITION = 2023424;
+        const int USUAL_BK_NEW_XR806_MAGIC_POSITION = 2052096;
+        const int USUAL_RTLB_XR809_MAGIC_POSITION = 2011136;
+        const int USUAL_RTLC_MAGIC_POSITION = 1933312;
+        const int USUAL_RTLD_MAGIC_POSITION = 3989504;
+        const int USUAL_WBRG1_MAGIC_POSITION = 8220672;
+        const int USUAL_T3_MAGIC_POSITION = 3997696;
+        // offset is 'incorrect'. data begins at 0x7dd000, but magic is after it, at 0x7fd000. Same situation is in WBR1D dump and W800 config dump.
+        const int USUAL_T5_MAGIC_POSITION = 8245248;//8376320;
+        const int USUAL_LN882H_MAGIC_POSITION = 2015232;
+        const int USUAL_TR6260_MAGIC_POSITION = 860160;
+        const int USUAL_ECR6600_MAGIC_POSITION = 1921024;
+        const int USUAL_W800_MAGIC_POSITION = 1835008;
 
-        internal static int getMagicOffset()
+        internal static int getMagicOffset(BKType type)
         {
-            return USUAL_MAGIC_POSITION;
+            // pretty useless for RTLs, since littlefs overwrites it.
+            switch(type)
+            {
+                case BKType.RTL8710B:
+                    return USUAL_RTLB_XR809_MAGIC_POSITION;
+                case BKType.RTL87X0C:
+                    return USUAL_RTLC_MAGIC_POSITION;
+                case BKType.RTL8720D:
+                    return USUAL_RTLD_MAGIC_POSITION;
+                case BKType.LN882H:
+                    return USUAL_LN882H_MAGIC_POSITION;
+                case BKType.BK7236:
+                    return USUAL_T3_MAGIC_POSITION;
+                case BKType.BK7238:
+                    return USUAL_BK_NEW_XR806_MAGIC_POSITION;
+                case BKType.BK7258:
+                    return USUAL_T5_MAGIC_POSITION;
+                default:
+                    return USUAL_BK7231_MAGIC_POSITION;
+            }
         }
-        public static int getMagicSize()
+        public static int getMagicSize(BKType type)
         {
-            return 0x200000-USUAL_MAGIC_POSITION;
+            switch(type)
+            {
+                case BKType.RTL8710B:
+                    return 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION;
+                case BKType.RTL87X0C:
+                    return 0x200000 - USUAL_RTLC_MAGIC_POSITION;
+                case BKType.RTL8720D:
+                    return 0x400000 - USUAL_RTLD_MAGIC_POSITION;
+                case BKType.LN882H:
+                    return 0x200000 - USUAL_LN882H_MAGIC_POSITION;
+                case BKType.BK7236:
+                    return 0x400000 - USUAL_T3_MAGIC_POSITION;
+                case BKType.BK7238:
+                    return 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION;
+                case BKType.BK7258:
+                    return 0x800000 - USUAL_T5_MAGIC_POSITION;
+                default:
+                    return 0x200000 - USUAL_BK7231_MAGIC_POSITION;
+            }
         }
         public static string getMagicConstantStartString()
         {
@@ -659,27 +709,27 @@ namespace BK7231Flasher
                 if (ehccur.Length>0 || wampere.Length > 0 || iicccur.Length > 0)
                 {
                     ledType = "SM2135";
-                    currents =  $"- RGB current is {(ehccur.Length > 0 ? ehccur : iicccur.Length > 0 ? iicccur : campere.Length > 0 ? campere : "Unknown")}mA{Environment.NewLine}";
-                    currents += $"- White current is {(ehwcur.Length > 0 ? ehwcur : iicwcur.Length > 0 ? iicwcur : wampere.Length > 0 ? wampere : "Unknown")}mA{Environment.NewLine}";
+                    currents =  $"- RGB current is {(ehccur.Length > 0 ? ehccur : iicccur.Length > 0 ? iicccur : campere.Length > 0 ? campere : "Unknown")} mA{Environment.NewLine}";
+                    currents += $"- White current is {(ehwcur.Length > 0 ? ehwcur : iicwcur.Length > 0 ? iicwcur : wampere.Length > 0 ? wampere : "Unknown")} mA{Environment.NewLine}";
                 }
                 else if (dccur.Length > 0)
                 {
                     ledType = "BP5758D_";
-                    currents =  $"- RGB current is {(drgbcur.Length > 0 ? drgbcur : "Unknown")}mA{Environment.NewLine}";
-                    currents += $"- Warm white current is {(dwcur.Length > 0 ? dwcur : "Unknown")}mA{Environment.NewLine}";
-                    currents += $"- Cold white current is {(dccur.Length > 0 ? dccur : "Unknown")}mA{Environment.NewLine}";
+                    currents =  $"- RGB current is {(drgbcur.Length > 0 ? drgbcur : "Unknown")} mA{Environment.NewLine}";
+                    currents += $"- Warm white current is {(dwcur.Length > 0 ? dwcur : "Unknown")} mA{Environment.NewLine}";
+                    currents += $"- Cold white current is {(dccur.Length > 0 ? dccur : "Unknown")} mA{Environment.NewLine}";
                 }
                 else if (cjwcur.Length > 0)
                 {
                     ledType = "BP1658CJ_";
-                    currents =  $"- RGB current is {(cjccur.Length > 0 ? cjccur : "Unknown")}mA{Environment.NewLine}";
-                    currents += $"- White current is {(cjwcur.Length > 0 ? cjwcur : "Unknown")}mA{Environment.NewLine}";
+                    currents =  $"- RGB current is {(cjccur.Length > 0 ? cjccur : "Unknown")} mA{Environment.NewLine}";
+                    currents += $"- White current is {(cjwcur.Length > 0 ? cjwcur : "Unknown")} mA{Environment.NewLine}";
                 }
                 else if (_2235ccur.Length > 0)
                 {
                     ledType = "SM2235";
-                    currents =  $"- RGB current is {(_2235ccur.Length > 0 ? _2235ccur : "Unknown")}mA{Environment.NewLine}";
-                    currents += $"- White current is {(_2235wcur.Length > 0 ? _2235wcur : "Unknown")}mA{Environment.NewLine}";
+                    currents =  $"- RGB current is {(_2235ccur.Length > 0 ? _2235ccur : "Unknown")} mA{Environment.NewLine}";
+                    currents += $"- White current is {(_2235wcur.Length > 0 ? _2235wcur : "Unknown")} mA{Environment.NewLine}";
                 }
                 else if (_2335ccur.Length > 0)
                 {
@@ -741,13 +791,52 @@ namespace BK7231Flasher
                 desc += "No module information found.";
             }
             desc += Environment.NewLine;
-            if(magicPosition != USUAL_MAGIC_POSITION)
+            void printposdevice(string device)
             {
-                desc += "And the Tuya section starts at UNCOMMON POSITION " + magicPosition + Environment.NewLine;
+                desc += $"And the Tuya section starts at {magicPosition}, which is a default {device} offset." + Environment.NewLine;
             }
-            else
+            switch(magicPosition)
             {
-                desc += "And the Tuya section starts, as usual, at " + magicPosition + Environment.NewLine;
+                case USUAL_BK7231_MAGIC_POSITION:
+                    desc += $"And the Tuya section starts, as usual, at {magicPosition}" + Environment.NewLine;
+                    break;
+                case USUAL_BK_NEW_XR806_MAGIC_POSITION:
+                    printposdevice("T1/XR806 and some T34");
+                    break;
+                case USUAL_RTLC_MAGIC_POSITION:
+                    printposdevice("RTL8720C");
+                    break;
+                case USUAL_RTLB_XR809_MAGIC_POSITION:
+                    printposdevice("RTL8710B/XR809");
+                    break;
+                case USUAL_T3_MAGIC_POSITION:
+                    printposdevice("T3/BK7236");
+                    break;
+                case USUAL_T5_MAGIC_POSITION:
+                    printposdevice("T5/BK7258");
+                    break;
+                case USUAL_RTLD_MAGIC_POSITION:
+                    printposdevice("4MB RTL8720D");
+                    break;
+                case USUAL_WBRG1_MAGIC_POSITION:
+                    printposdevice("8MB RTL8720D/WBRG1");
+                    break;
+                case USUAL_LN882H_MAGIC_POSITION:
+                    printposdevice("LN882H");
+                    break;
+                case USUAL_TR6260_MAGIC_POSITION:
+                    printposdevice("TR6260");
+                    break;
+                case USUAL_ECR6600_MAGIC_POSITION:
+                    printposdevice("ECR6600");
+                    break;
+                case USUAL_W800_MAGIC_POSITION:
+                    printposdevice("W800");
+                    break;
+                default:
+                    desc += "And the Tuya section starts at an UNCOMMON POSITION " + magicPosition + Environment.NewLine;
+                    break;
+
             }
             return desc;
         }
@@ -799,10 +888,15 @@ namespace BK7231Flasher
                         keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("baud_cfg"));
                         if(keys_at == -1)
                         {
-                            FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                            return true;
+                            // extract at least something
+                            keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
+                            if(keys_at == -1)
+                            {
+                                FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                                return true;
+                            }
                         }
-                        while(descryptedRaw[keys_at] != '{')
+                        while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
                             keys_at++;
                         keys_at++;
                         first_at = keys_at;
@@ -819,7 +913,7 @@ namespace BK7231Flasher
             }
             else
             {
-                while(descryptedRaw[keys_at] != '{')
+                while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
                     keys_at++;
                 keys_at++;
                 first_at = keys_at;
