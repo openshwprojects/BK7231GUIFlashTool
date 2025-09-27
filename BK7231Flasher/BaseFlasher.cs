@@ -27,6 +27,8 @@ namespace BK7231Flasher
         RTL87X0C,
         RTL8720D,
         LN882H,
+        BL602,
+
         Detect,
         Invalid,
     }
@@ -78,13 +80,27 @@ namespace BK7231Flasher
             this.chipType = bkType;
             this.baudrate = baudrate;
         }
+        public void addLog(string format, params object[] args)
+        {
+            string s = string.Format(format, args);
+            logger.addLog(s, Color.Black);
+        }
         public void addLog(string s)
         {
             logger.addLog(s, Color.Black);
         }
+        public void addLogLine(string format, params object[] args)
+        {
+            string s = string.Format(format, args);
+            logger.addLog(s + Environment.NewLine, Color.Black);
+        }
         public void addLogLine(string s)
         {
             logger.addLog(s+Environment.NewLine, Color.Black);
+        }
+        public void addErrorLine(string s)
+        {
+            logger.addLog(s + Environment.NewLine, Color.Red);
         }
         public void addError(string s)
         {
@@ -97,6 +113,10 @@ namespace BK7231Flasher
         public void addWarning(string s)
         {
             logger.addLog(s, Color.Orange);
+        }
+        public void addWarningLine(string s)
+        {
+            logger.addLog(s + Environment.NewLine, Color.Orange);
         }
         public void setBackupName(string newName)
         {

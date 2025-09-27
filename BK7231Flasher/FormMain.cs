@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -172,7 +173,8 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7258, "BK7258 (T5)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
-            
+            comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602 (read)"));
+
             comboBoxChipType.SelectedIndex = 0;
             
             comboBoxBaudRate.Items.Add(115200);
@@ -435,6 +437,10 @@ namespace BK7231Flasher
             else if (curType == BKType.LN882H)
             {
                 flasher = new LN882HFlasher();
+            }
+            else if (curType == BKType.BL602)
+            {
+                flasher = new BL602Flasher();
             }
             else
             {
