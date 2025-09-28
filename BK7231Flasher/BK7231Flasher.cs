@@ -895,7 +895,7 @@ namespace BK7231Flasher
                 {
                     return false;
                 }
-                if (chipType != BKType.BK7238)
+                if (chipType != BKType.BK7238 && chipType != BKType.BK7252N)
                 {
                     addLog("Going to read encryption key..." + Environment.NewLine);
                     string key = readEncryptionKey();
