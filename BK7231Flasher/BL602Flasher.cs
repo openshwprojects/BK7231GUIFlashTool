@@ -264,7 +264,7 @@ namespace BK7231Flasher
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
-            _port = new SerialPort(serialName, 115200);
+            _port = new SerialPort(serialName, baudrate);
             _port.Open();
             _port.DiscardInBuffer();
             _port.DiscardOutBuffer();
