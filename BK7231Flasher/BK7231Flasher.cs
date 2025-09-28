@@ -1468,6 +1468,13 @@ namespace BK7231Flasher
                         startSector = BK7231Flasher.BOOTLOADER_SIZE;
                         bSkipBootloader = true;
                     }
+                    if (
+                        bOverwriteBootloader == false &&
+                        this.chipType == BKType.BK7252)
+                    {
+                        startSector = BK7231Flasher.BOOTLOADER_SIZE;
+                        bSkipBootloader = true;
+                    }
                 }
                 if (bSkipBootloader && startSector == BK7231Flasher.BOOTLOADER_SIZE)
                 {
