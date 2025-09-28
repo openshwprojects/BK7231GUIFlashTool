@@ -2,6 +2,12 @@
 
 BK7231 GUI Flash Tool a simple Windows application that allows you to flash the OpenBK firmware and ports to various IoT chips, mainly Beken chipset (BK7231T or BK7231N, can also flash BK7231M, BL2028N and [BK7238](https://www.elektroda.com/rtvforum/topic4092465.html)) based devices without having extensive programming knowledge.
 
+Supported families:
+- Beken
+- LN882H (basic)
+- RTL8720DN (basic?)
+- BL602 (WIP)
+
 Futhermore, it automatically creates an original firmware backup, and uses it to extract GPIO configuration that you can later import in OBK Web Application (Import Tab).
 
 ❗ NOTE: The flash dump may contain your SSID and pass if the device was paired at the time of the backup
