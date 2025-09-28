@@ -24,7 +24,7 @@ namespace BK7231Flasher
         {
             for (int i = 0; i < 1000; i++)
             {
-                addLogLine("Sync attempt " + i + "... please ground BOOT and reset...");
+                addLogLine("Sync attempt " + i + "... please pull high BOOT/IO8 and reset...");
                 if (internalSync())
                 {
                     addLogLine("Sync OK!");
@@ -220,9 +220,11 @@ namespace BK7231Flasher
             int ofs = 0;
             addLogLine("Starting flash write " + len);
             byte[] buffer = new byte[4096];
+            logger.setProgress(0, len);
+            logger.setState("Writing", Color.White);
             while (ofs < len)
             {
-                Console.Write("." + ofs + ".");
+                addLog("." + ofs + ".");
                 int chunk = len - ofs;
                 if (chunk > 4092)
                     chunk = 4092;
@@ -235,7 +237,9 @@ namespace BK7231Flasher
                 this.executeCommand(0x31, buffer, 0, bufferLen, true, 10);
                 ofs += chunk;
                 adr += chunk;
+                logger.setProgress(ofs, len);
             }
+            logger.setState("Writing done", Color.DarkGreen);
             addLogLine("Done flash write " + len);
         }
         void executeCommandChunked(int type, byte[] parms = null, int start = 0, int len = 0)
@@ -326,43 +330,6 @@ namespace BK7231Flasher
             return false;
         }
 
-        public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud)
-        {
-           // logger.setState("Prepare write...", Color.White);
-           //addLogLine("flash_program: will flash " + len + " bytes " + filename);
-           // change_baudrate(this.baudrate);
-           //addLogLine("flash_program: sending startaddr");
-           // _port.Write("startaddr 0x0\r\n");
-           //addLogLine(_port.ReadLine().Trim());
-           //addLogLine(_port.ReadLine().Trim());
-
-           //addLogLine("flash_program: sending update command");
-           // _port.Write("upgrade\r\n");
-           // _port.Read(new byte[7], 0, 7);
-
-           //addLogLine("flash_program: sending file via ymodem");
-           // YModem modem = new YModem(_port, logger);
-           //int res = modem.send(data, filename, len, true, 3);
-           // if(res != len)
-           // {
-           //     addLogLine("flash_program: failed to flash, flashed only " +
-           //         res +  " out of " + len + " bytes!");
-           //     return;
-           // }
-           //addLogLine("flash_program: sending file done");
-
-           // _port.Write("filecount\r\n");
-           //addLogLine(_port.ReadLine().Trim());
-           //addLogLine(_port.ReadLine().Trim());
-
-           // if(bRestoreBaud)
-           // {
-           //     change_baudrate(115200);
-           // }
-           // addLogLine("flash_program: flashed " + len + " bytes!");
-           // addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
-
-        }
 
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
@@ -492,22 +459,16 @@ namespace BK7231Flasher
 
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-            //byte[] data = null;
-            //if (rwMode != WriteMode.OnlyOBKConfig)
-            //{
-            //    addLog("Reading file " + sourceFileName + "..." + Environment.NewLine);
-            //    data = File.ReadAllBytes(sourceFileName);
-            //    if (data == null)
-            //    {
-            //        addError("Failed to open " + sourceFileName + "..." + Environment.NewLine);
-            //        return;
-            //    }
-            //    addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
-
-            //    startSector = 0;
-            //    doWrite(startSector, 0, data, rwMode);
-
-            //}
+            if (doGenericSetup() == false)
+            {
+                return;
+            }
+            if(rwMode == WriteMode.ReadAndWrite)
+            {
+                doReadInternal();
+            }
+            byte[] x = File.ReadAllBytes(sourceFileName);
+            this.writeFlash(x, 0);
         }
         bool saveReadResult(string fileName)
         {
