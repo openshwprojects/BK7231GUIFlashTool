@@ -328,7 +328,7 @@ namespace BK7231Flasher
             addLogLine("Test passed!");
             return true;
         }
-        virtual bool Sync()
+        public virtual bool Sync()
         {
             int loop = 0;
             while (true)
