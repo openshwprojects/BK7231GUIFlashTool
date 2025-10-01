@@ -88,20 +88,45 @@ namespace BK7231Flasher
             addLogLine($"Detected flash size: {size / 1024} KB");
             return size;
         }
-
-        public byte[] ReadFlash(uint address, int size)
+        
+        public bool CheckFlashEmpty(uint address, int size)
+        {
+            byte[] d = ReadFlash(address, size , true);
+            for (int i = 0; i < size; i++)
+            {
+                if (d[i] != 0xff)
+                    return false;
+            }
+            return true;
+        }
+        public bool CheckFlash(uint address, int size, byte[] data) {
+            byte[] d = ReadFlash(address, size);
+            for(int i = 0; i < data.Length; i++)
+            {
+                if (d[i] != data[i])
+                    return false;
+            }
+            return true;
+        }
+        public byte[] ReadFlash(uint address, int size, bool bSilent = false)
         {
             const int pageSize = 256;
             byte[] result = new byte[size];
             byte[] cmd = new byte[4 + pageSize];
-            addLogLine("Starting flash read, ofs 0x" + address.ToString("X") + ", len 0x" + size.ToString("X"));
+            if (bSilent == false)
+            {
+                addLogLine("Starting flash read, ofs 0x" + address.ToString("X") + ", len 0x" + size.ToString("X"));
 
-            logger.setProgress(0, size);
-            logger.setState("Reading", Color.White);
+                logger.setProgress(0, size);
+                logger.setState("Reading", Color.White);
+            }
             for (uint addr = address; addr < address + size; addr += pageSize)
             {;
                 int offset = (int)(addr - address);
-                logger.setProgress(offset, size);
+                if (bSilent == false)
+                {
+                    logger.setProgress(offset, size);
+                }
                 int readSize = Math.Min(pageSize, size - offset);
 
                 cmd[0] = 0x03; // Read Data
@@ -117,13 +142,19 @@ namespace BK7231Flasher
                 }
                 else
                 {
-                    addLogLine($" Failed to read 0x{addr:X6}");
+                    if (bSilent == false)
+                    {
+                        addLogLine($" Failed to read 0x{addr:X6}");
+                    }
                     return null;
                 }
             }
 
-            logger.setState("Reading done", Color.DarkGreen);
-            addLogLine($"Done!");
+            if (bSilent == false)
+            {
+                logger.setState("Reading done", Color.DarkGreen);
+                addLogLine($"Done!");
+            }
             return result;
         }
         public byte ReadStatus()
@@ -180,6 +211,7 @@ namespace BK7231Flasher
 
             addLogLine("Starting flash erase, ofs 0x" + ofs.ToString("X") + ", len 0x" + len.ToString("X"));
 
+            int loops = 0;
             logger.setProgress(0, len);
             logger.setState("Erasing", Color.White);
             for (uint addr = ofs; addr < ofs + len; addr += sectorSize)
@@ -196,6 +228,17 @@ namespace BK7231Flasher
                 hd.Ch341SPI4Stream(cmd);
                 if (!WaitWriteComplete(5000))
                     return false;
+
+                if((loops % 50) == 0)
+                {
+                    if (CheckFlashEmpty(addr, sectorSize) == false)
+                    {
+                        addLogLine("Erase failed");
+                        logger.setState("Erase fail", Color.Red);
+                        return false;
+                    }
+                }
+                loops++;
             }
             logger.setState("Erase done", Color.DarkGreen);
             return true;
@@ -240,7 +283,7 @@ namespace BK7231Flasher
         {
             if (!WriteFlash(ofs, len, buffer)) return false;
 
-            byte[] readBack = ReadFlash(ofs, len);
+            byte[] readBack = ReadFlash(ofs, len, true);
             if (readBack == null) return false;
 
             for (int i = 0; i < len; i++)
@@ -288,8 +331,11 @@ namespace BK7231Flasher
         }
         bool Sync()
         {
+            int loop = 0;
             while (true)
             {
+                addLogLine("CH341 Beken sync attempt " + loop);
+                loop++;
                 ChipReset();
                 bool bOk = BK_EnterSPIMode(0xD2);
                 if (bOk)
@@ -394,6 +440,25 @@ namespace BK7231Flasher
         {
             return false;
         }
+        public bool UnprotectFlash()
+        {
+            // Enable writes
+            if (!WriteEnable())
+                return false;
+
+            // Write 0x00 to Status Register (clear BP bits)
+            byte[] cmd = new byte[2] { 0x01, 0x00 };
+            hd.Ch341SPI4Stream(cmd);
+
+            if (!WaitWriteComplete(5000))
+                return false;
+
+            // Verify unprotected: check status register has BP=0
+            byte status = ReadStatus();
+            addLogLine("Unprotect done, SR1=0x" + status.ToString("X2"));
+
+            return (status & 0x1C) == 0; // BP0..BP3 = 0
+        }
         public override void closePort()
         {
 
@@ -412,8 +477,17 @@ namespace BK7231Flasher
             {
                 doReadInternal();
             }
+            if (UnprotectFlash() == false)
+            {
+                return;
+            }
+            addLogLine("Reading " + sourceFileName + "...");
             byte[] x = File.ReadAllBytes(sourceFileName);
-            EraseFlash(0, x.Length);
+            if(EraseFlash(0, x.Length)==false)
+            {
+
+                return;
+            }
             WriteFlash(0, x.Length,x);
             ChipReset();
         }
