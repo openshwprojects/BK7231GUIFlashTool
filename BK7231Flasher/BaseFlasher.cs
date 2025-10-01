@@ -29,6 +29,8 @@ namespace BK7231Flasher
         LN882H,
         BL602,
 
+        BekenSPI,
+
         Detect,
         Invalid,
     }

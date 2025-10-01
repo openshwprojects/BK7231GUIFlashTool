@@ -99,10 +99,34 @@ namespace BK7231Flasher
             return false;
         }
         string backupsPath = "backups";
-       // string label_startRead = "Start Read Flash (Full backup)";
-///string label_stopRead = "Stop Read Flash";
+        private void Control_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effect = DragDropEffects.Copy;
+            else
+                e.Effect = DragDropEffects.None;
+        }
+
+        private void Control_DragDrop(object sender, DragEventArgs e)
+        {
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            foreach (string file in files)
+            {
+                //MessageBox.Show("Dropped file: " + file);
+                CustomParms cp = new CustomParms();
+                cp.sourceFileName = file;
+                cp.ofs = 0;
+                cp.len = File.ReadAllBytes(file).Length;
+                doCustomWrite(cp);
+            }
+        }
+        // string label_startRead = "Start Read Flash (Full backup)";
+        ///string label_stopRead = "Stop Read Flash";
         private void Form1_Load(object sender, EventArgs e)
         {
+            this.DragEnter += new DragEventHandler(Control_DragEnter);
+            this.DragDrop += new DragEventHandler(Control_DragDrop);
+
             ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
             ServicePointManager.Expect100Continue = true;
@@ -174,6 +198,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602 (read)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
 
             comboBoxChipType.SelectedIndex = 0;
             
@@ -363,6 +388,14 @@ namespace BK7231Flasher
         void refreshType()
         {
             curType = ((ChipType)comboBoxChipType.SelectedItem).Type;
+            if(curType == BKType.BekenSPI)
+            {
+                comboBoxUART.Enabled = false;
+            }
+            else
+            {
+                comboBoxUART.Enabled = true;
+            }
         }
         bool interruptIfRequired()
         {
@@ -441,6 +474,10 @@ namespace BK7231Flasher
             else if (curType == BKType.BL602)
             {
                 flasher = new BL602Flasher();
+            }
+            else if (curType == BKType.BekenSPI)
+            {
+                flasher = new SPIFlasher();
             }
             else
             {
@@ -535,6 +572,7 @@ namespace BK7231Flasher
                 startSector = getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
+            startSector = 0;
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
             worker = null;
             //setButtonReadLabel(label_startRead);

@@ -14,7 +14,7 @@
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -59,6 +59,7 @@
     <Compile Include="BK7231Flasher.cs" />
     <Compile Include="BKFlashList.cs" />
     <Compile Include="BL602Flasher.cs" />
+    <Compile Include="CH341DEV.cs" />
     <Compile Include="Colors.cs" />
     <Compile Include="ConfigBase.cs" />
     <Compile Include="CRC.cs" />
@@ -133,6 +134,7 @@
     <Compile Include="Rand.cs" />
     <Compile Include="RequiredLibrariesCheck.cs" />
     <Compile Include="RTLFlasher.cs" />
+    <Compile Include="SPIFlasher.cs" />
     <Compile Include="TuyaConfig.cs" />
     <Compile Include="RFPartitionUtil.cs" />
     <Compile Include="RichTextUtil.cs" />
