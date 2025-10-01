@@ -391,10 +391,12 @@ namespace BK7231Flasher
             if(curType == BKType.BekenSPI)
             {
                 comboBoxUART.Enabled = false;
+                comboBoxBaudRate.Enabled = false;
             }
             else
             {
                 comboBoxUART.Enabled = true;
+                comboBoxBaudRate.Enabled = true;
             }
         }
         bool interruptIfRequired()

@@ -18,7 +18,7 @@ namespace BK7231Flasher
         CH341DEV hd;
 
 
-
+        // Beken-specific
         public void GPIO_CEN_SET()
         {
             CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x04);
@@ -27,7 +27,6 @@ namespace BK7231Flasher
         {
             CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x00);
         }
-
         public void ChipReset()
         {
             GPIO_CEN_CLR();
@@ -329,7 +328,7 @@ namespace BK7231Flasher
             addLogLine("Test passed!");
             return true;
         }
-        bool Sync()
+        virtual bool Sync()
         {
             int loop = 0;
             while (true)
