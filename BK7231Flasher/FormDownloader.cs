@@ -97,6 +97,34 @@ namespace BK7231Flasher
                 addError("Failed to download HTML page, receiver empty buffer?!");
                 return;
             }
+            string marker = "openshwprojects/OpenBK7231T_App/releases/tag/";
+            int pos = contents.IndexOf(marker);
+            string link = null;
+
+            if (pos >= 0)
+            {
+                // walk back to the first quote before the marker
+                int sx = contents.LastIndexOf('"', pos);
+                if (sx >= 0)
+                {
+                    sx++;
+                    int end = contents.IndexOf('"', pos);
+                    if (end > sx)
+                        link = contents.Substring(sx, end - sx);
+                }
+            }
+            if (string.IsNullOrEmpty(link) == false)
+            {
+                link = "https://github.com" + link;
+                contents = webClient.DownloadString(link);
+                if (contents.Length <= 1)
+                {
+                    setState("Failed to download HTML page, receiver empty buffer?!", Color.Red);
+                    addError("Failed to download HTML page, receiver empty buffer?!");
+                    return;
+                }
+            }
+
             addLog("Got reply length " + contents.Length);
             addLog("Now will search page for binary link...");
             string pfx = FormMain.getFirmwarePrefix(bkType);
@@ -115,9 +143,10 @@ namespace BK7231Flasher
                 setState("Searching downloaded page...", Color.Transparent);
                 Thread.Sleep(100);
                 firmware_binary_url = pickQuotedString(contents, ofs);
-                if(firmware_binary_url.Contains("OTA") || firmware_binary_url.Contains("ota"))
+                int len = firmware_binary_url.Length;
+                if (firmware_binary_url.Contains("OTA") || firmware_binary_url.Contains("ota"))
                 {
-                    start = ofs + firmware_binary_url.Length;
+                    start = ofs + len;
                 }
                 else
                 {
