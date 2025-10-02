@@ -24,12 +24,20 @@ namespace BK7231Flasher
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
-            serial = new SerialPort(serialName, 115200);
-            serial.ReadTimeout = timeoutMs;
-            serial.WriteTimeout = timeoutMs;
-            serial.Open();
-            serial.DiscardInBuffer();
-            serial.DiscardOutBuffer();
+            try
+            {
+                serial = new SerialPort(serialName, 115200);
+                serial.ReadTimeout = timeoutMs;
+                serial.WriteTimeout = timeoutMs;
+                serial.Open();
+                serial.DiscardInBuffer();
+                serial.DiscardOutBuffer();
+            }
+            catch(Exception ex)
+            {
+                addLog("Port setup failed with "+ex.Message+"!" + Environment.NewLine);
+                return false;
+            }
             addLog("Port ready!" + Environment.NewLine);
             return true;
         }
