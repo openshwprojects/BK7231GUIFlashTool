@@ -9,20 +9,28 @@ namespace BK7231Flasher
     class SPIFlasher_Beken : SPIFlasher
     {
         // Beken-specific
-        public void GPIO_CEN_SET()
+        public bool GPIO_CEN_SET()
         {
-            CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x04);
+            bool b = CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x04);
+            return b;
         }
-        public void GPIO_CEN_CLR()
+        public bool GPIO_CEN_CLR()
         {
-            CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x00);
+            bool b = CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x00);
+            return b;
         }
-        public override void ChipReset()
+        public override bool ChipReset()
         {
             addLogLine("Performing a Beken CEN reset on D2 of CH341...");
-            GPIO_CEN_CLR();
+            bool bOk = GPIO_CEN_CLR();
+            if(bOk == false)
+            {
+                addLogLine("Failed to toggle CEN - is CH341 connected and ok?");
+                return false;
+            }
             Thread.Sleep(100);
             GPIO_CEN_SET();
+            return true;
         }
         public override bool Sync()
         {
@@ -31,14 +39,21 @@ namespace BK7231Flasher
             {
                 addLogLine("CH341 Beken sync attempt " + loop);
                 loop++;
-                ChipReset();
-                bool bOk = BK_EnterSPIMode(0xD2);
-                if (bOk)
+                bool bResetOk = ChipReset();
+                if(bResetOk)
                 {
-                    addLogLine("CH341 Beken sync OK!");
-                    return true;
+                    bool bOk = BK_EnterSPIMode(0xD2);
+                    if (bOk)
+                    {
+                        addLogLine("CH341 Beken sync OK!");
+                        return true;
+                    }
                 }
-                Thread.Sleep(100);
+                else
+                {
+                    // already printed errior in ChipReset
+                }
+                Thread.Sleep(1000);
             }
             return false;
         }

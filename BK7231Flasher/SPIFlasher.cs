@@ -75,6 +75,8 @@ namespace BK7231Flasher
         public bool CheckFlashEmpty(uint address, int size)
         {
             byte[] d = ReadFlash(address, size , true);
+            if (d == null)
+                return false;
             for (int i = 0; i < size; i++)
             {
                 if (d[i] != 0xff)
@@ -120,6 +122,11 @@ namespace BK7231Flasher
                 byte[] resp = hd.Ch341SPI4Stream(cmd);
                 if (resp != null)
                 {
+                    //if(resp[0] != 0x03)
+                    //{
+                    //    addLogLine($" Failed to read 0x{addr:X6}");
+                    //    return null;
+                    //}
                     //Console.Write($"0x{addr:X6}...");
                     Array.Copy(resp, 4, result, offset, readSize);
                 }
@@ -197,6 +204,27 @@ namespace BK7231Flasher
             addLogLine("Full chip erase completed successfully.");
             return true;
         }
+        bool eraseSector(uint addr, bool bVerify)
+        {
+            const int sectorSize = 4096;
+            if (!WriteEnable())
+                return false;
+
+            byte[] cmd = new byte[4];
+            cmd[0] = 0x20; // Sector Erase
+            cmd[1] = (byte)((addr >> 16) & 0xFF);
+            cmd[2] = (byte)((addr >> 8) & 0xFF);
+            cmd[3] = (byte)(addr & 0xFF);
+
+            hd.Ch341SPI4Stream(cmd);
+            if (!WaitWriteComplete(5000))
+                return false;
+            if (CheckFlashEmpty(addr, sectorSize) == false)
+            {
+                return false;
+            }
+            return true;
+        }
         public bool EraseFlash(uint ofs, int len)
         {
             const int sectorSize = 4096;
@@ -204,34 +232,28 @@ namespace BK7231Flasher
 
             addLogLine("Starting flash erase, ofs 0x" + ofs.ToString("X") + ", len 0x" + len.ToString("X"));
 
-            int loops = 0;
             logger.setProgress(0, len);
             logger.setState("Erasing", Color.White);
             for (uint addr = ofs; addr < ofs + len; addr += sectorSize)
             {
-                if (!WriteEnable())
-                    return false;
-
-                logger.setProgress((int)addr -(int)ofs, len);
-                cmd[0] = 0x20; // Sector Erase
-                cmd[1] = (byte)((addr >> 16) & 0xFF);
-                cmd[2] = (byte)((addr >> 8) & 0xFF);
-                cmd[3] = (byte)(addr & 0xFF);
-
-                hd.Ch341SPI4Stream(cmd);
-                if (!WaitWriteComplete(5000))
-                    return false;
-
-                if((loops % 50) == 0)
+                logger.setProgress((int)addr - (int)ofs, len);
+                int errors = 0;
+                while (true)
                 {
-                    if (CheckFlashEmpty(addr, sectorSize) == false)
+                    bool bOk = eraseSector(addr, true);
+                    if(bOk)
                     {
-                        addLogLine("Erase failed");
-                        logger.setState("Erase fail", Color.Red);
-                        return false;
+                        break;
                     }
+                    errors++;
+                    if (errors > 10)
+                    {
+                        addLogLine("Erase verfication failed at " + addr);
+                        logger.setState("Erase fail", Color.Red);
+                        return true;
+                    }
+                    addLogLine("Error at " + addr + ", retry "+ errors);
                 }
-                loops++;
             }
             logger.setState("Erase done", Color.DarkGreen);
             return true;
@@ -245,6 +267,7 @@ namespace BK7231Flasher
 
             logger.setProgress(0, len);
             logger.setState("Writing", Color.White);
+            int loops = 0;
             for (int offset = 0; offset < len; offset += pageSize)
             {
                 int writeSize = Math.Min(pageSize, len - offset);
@@ -267,6 +290,25 @@ namespace BK7231Flasher
                 {
                     return false;
                 }
+                if (loops % 50 == 0)
+                {
+                    byte[] readBack = ReadFlash(addr, writeSize, true);
+                    if (readBack == null)
+                    {
+                        logger.setState("Writing error", Color.Red);
+                        return false;
+                    }
+                    for (int i = 0; i < writeSize; i++)
+                    {
+                        if (readBack[i] != buffer[offset + i])
+                        {
+                            logger.setState("Writing error", Color.Red);
+                            return false;
+                        }
+                    }
+                }
+                loops++;
+
             }
             logger.setState("Writing done", Color.DarkGreen);
             return true;
@@ -356,10 +398,15 @@ namespace BK7231Flasher
             byte[] jedec = this.ReadJEDECID();
             if(jedec == null)
             {
+                addErrorLine("Failed to read JEDEC ID!");
                 return true;
             }
             flashSize = this.GetFlashSize(jedec);
-
+            if(flashSize <= 0 || flashSize >= 64 * 1024 * 1024)
+            {
+                addErrorLine("Failed to extract flash size!");
+                return true;
+            }
           
             return false;
         }
@@ -367,7 +414,7 @@ namespace BK7231Flasher
         {
             if (File.Exists(fname) == false)
             {
-                addErrorLine("File " + fname + " bnot found!");
+                addErrorLine("File " + fname + " not found!");
                 return false;
             }
             byte[] loaderBinary = File.ReadAllBytes(fname);
@@ -399,9 +446,9 @@ namespace BK7231Flasher
             doReadInternal();
             ChipReset();
         }
-        public virtual void ChipReset()
+        public virtual bool ChipReset()
         {
-
+            return false;
         }
 
         bool openPort()
@@ -412,7 +459,14 @@ namespace BK7231Flasher
         public bool doReadInternal()
         {
             byte[] res = ReadFlash(0, flashSize);
-            ms = new MemoryStream(res);
+            if(res != null)
+            {
+                ms = new MemoryStream(res);
+            }
+            else
+            {
+                ms = null;
+            }
             return false;
         }
         MemoryStream ms;
