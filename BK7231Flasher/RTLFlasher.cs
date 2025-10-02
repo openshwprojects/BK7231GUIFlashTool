@@ -848,6 +848,11 @@ namespace BK7231Flasher
 
             if(rwMode != WriteMode.OnlyOBKConfig)
             {
+                if (string.IsNullOrEmpty(sourceFileName))
+                {
+                    addErrorLine("No source file set!");
+                    return;
+                }
                 data = File.ReadAllBytes(sourceFileName);
             }
             else
