@@ -171,20 +171,30 @@ namespace BK7231Flasher
 
         public bool ChipErase()
         {
+            addLogLine("Full chip erase - enabling chip...");
             if (!WriteEnable())
                 return false;
 
+            addLogLine("Full chip erase - sending erase...");
             byte[] cmd = new byte[1] { 0xC7 };
             hd.Ch341SPI4Stream(cmd);
 
+            addLogLine("Full chip erase - awaiting erase complete...");
             // Poll WIP bit until erase completes
             if (!WaitWriteComplete(120_000)) // typical full chip erase can take up to 120s
             {
-                addLogLine("Error: Chip erase timed out.");
+                addLogLine("Error: Full chip erase timed out.");
                 return false;
             }
+            addLogLine("Full chip erase done - checking is first sector empty (just to be sure)");
 
-            addLogLine("Chip erase completed successfully.");
+            if (CheckFlashEmpty(0, 4096) == false)
+            {
+                addLogLine("Full chip erase failed");
+                logger.setState("Erase fail", Color.Red);
+                return false;
+            }
+            addLogLine("Full chip erase completed successfully.");
             return true;
         }
         public bool EraseFlash(uint ofs, int len)
@@ -410,8 +420,24 @@ namespace BK7231Flasher
         {
             return ms.GetBuffer();
         }
-        public override bool doErase(int startSector = 0x000, int sectors = 10)
+        public override bool doErase(int startSector, int sectors, bool bAll)
         {
+            if (doGenericSetup() == false)
+            {
+                return false;
+            }
+            if (UnprotectFlash() == false)
+            {
+                return false;
+            }
+            if (bAll)
+            {
+                if (!ChipErase())
+                {
+                    return false;
+                }
+                return true;
+            }
             return false;
         }
         public bool UnprotectFlash()

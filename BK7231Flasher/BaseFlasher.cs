@@ -180,7 +180,7 @@ namespace BK7231Flasher
         {
             return null;
         }
-        public virtual bool doErase(int startSector = 0x000, int sectors = 10)
+        public virtual bool doErase(int startSector = 0x000, int sectors = 10, bool bAll = false)
         {
             return false;
         }

@@ -826,7 +826,7 @@ namespace BK7231Flasher
                 return null;
             return ms.ToArray();
         }
-        public override bool doErase(int startSector = 0x000, int sectors = 10)
+        public override bool doErase(int startSector, int sectors, bool bAll)
         {
             return doWrite(startSector, sectors, null, WriteMode.OnlyErase);
         }

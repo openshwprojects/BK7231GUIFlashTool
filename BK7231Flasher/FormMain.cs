@@ -679,7 +679,7 @@ namespace BK7231Flasher
             createFlasher();
             int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
             int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
-            flasher.doErase(startOfs, sectors);
+            flasher.doErase(startOfs, sectors, true);
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();

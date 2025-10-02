@@ -758,7 +758,7 @@ namespace BK7231Flasher
             }
         }
         
-        public override bool doErase(int startSector = 0x000, int sectors = 10)
+        public override bool doErase(int startSector, int sectors, bool bAll)
         {
             try
             {

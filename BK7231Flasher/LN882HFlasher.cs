@@ -397,7 +397,7 @@ namespace BK7231Flasher
         {
                 return ms.GetBuffer();
         }
-        public override bool doErase(int startSector = 0x000, int sectors = 10)
+        public override bool doErase(int startSector, int sectors, bool bAll)
         {
             return false;
         }
