@@ -467,8 +467,14 @@ namespace BK7231Flasher
             {
                 doReadInternal();
             }
-            byte[] x = File.ReadAllBytes(sourceFileName);
-            this.writeFlash(x, 0);
+            if (string.IsNullOrEmpty(sourceFileName))
+            {
+                addLogLine("No filename given!");
+                return;
+            }
+            addLogLine("Reading " + sourceFileName + "...");
+            byte[] data = File.ReadAllBytes(sourceFileName);
+            this.writeFlash(data, 0);
         }
         bool saveReadResult(string fileName)
         {

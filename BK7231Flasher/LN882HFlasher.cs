@@ -426,6 +426,11 @@ namespace BK7231Flasher
             byte[] data = null;
             if (rwMode != WriteMode.OnlyOBKConfig)
             {
+                if (string.IsNullOrEmpty(sourceFileName))
+                {
+                    addLogLine("No filename given!");
+                    return;
+                }
                 addLog("Reading file " + sourceFileName + "..." + Environment.NewLine);
                 data = File.ReadAllBytes(sourceFileName);
                 if (data == null)

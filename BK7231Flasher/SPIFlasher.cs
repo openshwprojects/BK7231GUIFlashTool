@@ -535,6 +535,11 @@ namespace BK7231Flasher
             {
                 return;
             }
+            if(string.IsNullOrEmpty(sourceFileName))
+            {
+                addLogLine("No filename given!");
+                return;
+            }
             addLogLine("Reading " + sourceFileName + "...");
             byte[] x = File.ReadAllBytes(sourceFileName);
             if(EraseFlash(0, x.Length)==false)
