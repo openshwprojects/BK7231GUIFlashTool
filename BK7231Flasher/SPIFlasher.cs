@@ -15,24 +15,8 @@ namespace BK7231Flasher
 {
     public class SPIFlasher : BaseFlasher
     {
-        CH341DEV hd;
+        protected CH341DEV hd;
 
-
-        // Beken-specific
-        public void GPIO_CEN_SET()
-        {
-            CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x04);
-        }
-        public void GPIO_CEN_CLR()
-        {
-            CH341.CH341SetOutput(hd.usb_id, 0xFF, 0x04, 0x00);
-        }
-        public void ChipReset()
-        {
-            GPIO_CEN_CLR();
-            Thread.Sleep(100);
-            GPIO_CEN_SET();
-        }
 
         public bool BK_EnterSPIMode(byte data)
         {
@@ -330,20 +314,7 @@ namespace BK7231Flasher
         }
         public virtual bool Sync()
         {
-            int loop = 0;
-            while (true)
-            {
-                addLogLine("CH341 Beken sync attempt " + loop);
-                loop++;
-                ChipReset();
-                bool bOk = BK_EnterSPIMode(0xD2);
-                if (bOk)
-                {
-                    return true;
-                }
-                Thread.Sleep(100);
-            }
-            return false;
+             return true;
         }
         bool doGenericSetup()
         {
@@ -417,6 +388,10 @@ namespace BK7231Flasher
             }
             doReadInternal();
             ChipReset();
+        }
+        public virtual void ChipReset()
+        {
+
         }
 
         bool openPort()

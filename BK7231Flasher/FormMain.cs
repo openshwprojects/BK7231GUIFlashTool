@@ -199,6 +199,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602 (read)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
 
             comboBoxChipType.SelectedIndex = 0;
             
@@ -477,9 +478,13 @@ namespace BK7231Flasher
             {
                 flasher = new BL602Flasher();
             }
-            else if (curType == BKType.BekenSPI)
+            else if (curType == BKType.GenericSPI)
             {
                 flasher = new SPIFlasher();
+            }
+            else if (curType == BKType.BekenSPI)
+            {
+                flasher = new SPIFlasher_Beken();
             }
             else
             {

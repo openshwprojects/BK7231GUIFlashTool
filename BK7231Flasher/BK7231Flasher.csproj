@@ -135,6 +135,7 @@
     <Compile Include="RequiredLibrariesCheck.cs" />
     <Compile Include="RTLFlasher.cs" />
     <Compile Include="SPIFlasher.cs" />
+    <Compile Include="SPIFlasher_Beken.cs" />
     <Compile Include="TuyaConfig.cs" />
     <Compile Include="RFPartitionUtil.cs" />
     <Compile Include="RichTextUtil.cs" />

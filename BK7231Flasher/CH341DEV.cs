@@ -4,7 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
-    class CH341DEV
+   public class CH341DEV
     {
         public int usb_id;
         public int open_status;

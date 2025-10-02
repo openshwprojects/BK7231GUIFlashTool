@@ -30,6 +30,7 @@ namespace BK7231Flasher
         BL602,
 
         BekenSPI,
+        GenericSPI,
 
         Detect,
         Invalid,
