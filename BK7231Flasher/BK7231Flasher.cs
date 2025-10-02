@@ -1451,7 +1451,7 @@ namespace BK7231Flasher
                 if (string.IsNullOrEmpty(sourceFileName))
                 {
                     addLogLine("No filename given!");
-                    return;
+                    return false;
                 }
                 addLog("Reading file " + sourceFileName + "..." + Environment.NewLine);
                 data = File.ReadAllBytes(sourceFileName);
