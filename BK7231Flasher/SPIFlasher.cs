@@ -374,8 +374,12 @@ namespace BK7231Flasher
             addLog("Flasher mode: " + chipType + Environment.NewLine);
 
             hd = new CH341DEV(0);
+            if (hd.Ch341Open() == -1)
+            {
+                addError("CH341 error " + hd.getLastError() + Environment.NewLine);
+                return true;
+            }
             hd.Ch341SetI2CSpeed(3);
-
             addLog("CH341 ready!" + Environment.NewLine);
 
             if (this.Sync() == false)
