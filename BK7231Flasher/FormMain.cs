@@ -696,29 +696,36 @@ namespace BK7231Flasher
         }
         void verifyThread(object oParm)
         {
-            byte[] verifyWith = File.ReadAllBytes(chosenSourceFile);
-            int sectors = (verifyWith.Length / 4096) + 1;
-            clearUp();
-            createFlasher();
-            int startSector = 0;
-            flasher.doRead(startSector, sectors, false);
+            if (!string.IsNullOrEmpty(chosenSourceFile))
+            {
+                byte[] verifyWith = File.ReadAllBytes(chosenSourceFile);
+                int sectors = (verifyWith.Length / 4096) + 1;
+                clearUp();
+                createFlasher();
+                int startSector = 0;
+                flasher.doRead(startSector, sectors, false);
 
-            byte[] data = flasher.getReadResult();
-            int errors = 0;
-            for (int i = 0; i < verifyWith.Length; i++)
-            {
-                if (data[i] != verifyWith[i])
+                byte[] data = flasher.getReadResult();
+                int errors = 0;
+                for (int i = 0; i < verifyWith.Length; i++)
                 {
-                    errors++;
+                    if (data[i] != verifyWith[i])
+                    {
+                        errors++;
+                    }
                 }
-            }
-            if (errors == 0)
-            {
-                setState("Verify OK", Color.Green);
+                if (errors == 0)
+                {
+                    setState("Verify OK", Color.Green);
+                }
+                else
+                {
+                    setState("Verify bad", Color.Red);
+                }
             }
             else
             {
-                setState("Verify bad", Color.Red);
+                setState("No file", Color.Red);
             }
             worker = null;
             //setButtonReadLabel(label_startRead);
