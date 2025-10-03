@@ -701,7 +701,8 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B) startSector /= BK7231Flasher.SECTOR_SIZE;
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
+                    startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
             }
             else if(curType == BKType.BK7252)
@@ -718,7 +719,28 @@ namespace BK7231Flasher
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
             flasher.doRead(startSector, sectors, true);
-            flasher.saveReadResult(startSector);
+            if (parms != null && parms.bBlankCheck) {
+                bool bBlank = true;
+                int nonBlank = 0;
+                byte[] data = flasher.getReadResult();
+                for (int i = 0; i < data.Length; i++) {
+                    if(data[i] != 0xff)
+                    {
+                        bBlank = false;
+                        nonBlank++;
+                    }
+                }
+                if (bBlank)
+                {
+                    setState("Blank", Color.Green);
+                }
+                else
+                {
+                    setState("Not blank", Color.Yellow);
+                }
+            } else {
+                flasher.saveReadResult(startSector);
+            }
             worker = null;
             //setButtonReadLabel(label_startRead);
             clearUp();
@@ -1025,6 +1047,16 @@ namespace BK7231Flasher
             // setButtonReadLabel(label_stopRead);
             startWorkerThread(readThread,null);
         }
+        private void buttonBlankCheck_Click(object sender, EventArgs e)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            CustomParms cp = new CustomParms();
+            cp.bBlankCheck = true;
+            startWorkerThread(readThread, cp);
+        }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
         {
             if (true)
@@ -1139,6 +1171,7 @@ namespace BK7231Flasher
             buttonTestWrite.Visible = b;
             buttonEraseAll.Visible = b;
             buttonRestoreRF.Visible = b;
+            buttonBlankCheck.Visible = b;
             checkBoxAllowBackup.Visible = b;
             checkBoxOverwriteBootloader.Visible = b;
             checkBoxSkipKeyCheck.Visible = b;
@@ -1265,6 +1298,7 @@ namespace BK7231Flasher
         {
             public int ofs, len;
             public string sourceFileName;
+            internal bool bBlankCheck;
         }
         public void doCustomRead(CustomParms customRead)
         {
@@ -1627,5 +1661,6 @@ namespace BK7231Flasher
         {
 
         }
+
     }
 }

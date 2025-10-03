@@ -861,7 +861,7 @@ namespace BK7231Flasher
             }
             doWrite(startSector, sectors, data, rwMode);
         }
-        bool saveReadResult(string fileName)
+        internal bool saveReadResult(string fileName)
         {
             if (ms == null)
             {

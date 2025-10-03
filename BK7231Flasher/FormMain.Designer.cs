@@ -168,6 +168,7 @@
             this.buttonOTAFlash = new System.Windows.Forms.Button();
             this.textBoxOTATarget = new System.Windows.Forms.TextBox();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
+            this.buttonBlankCheck = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -277,6 +278,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonBlankCheck);
             this.tabPage1.Controls.Add(this.chkIgnoreCRCErr);
             this.tabPage1.Controls.Add(this.buttonCustomOperation);
             this.tabPage1.Controls.Add(this.checkBoxSkipKeyCheck);
@@ -454,7 +456,7 @@
             // 
             this.buttonEraseAll.Location = new System.Drawing.Point(658, 68);
             this.buttonEraseAll.Name = "buttonEraseAll";
-            this.buttonEraseAll.Size = new System.Drawing.Size(127, 23);
+            this.buttonEraseAll.Size = new System.Drawing.Size(64, 23);
             this.buttonEraseAll.TabIndex = 25;
             this.buttonEraseAll.Text = "Erase all";
             this.buttonEraseAll.UseVisualStyleBackColor = true;
@@ -1609,6 +1611,16 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
+            // buttonBlankCheck
+            // 
+            this.buttonBlankCheck.Location = new System.Drawing.Point(728, 68);
+            this.buttonBlankCheck.Name = "buttonBlankCheck";
+            this.buttonBlankCheck.Size = new System.Drawing.Size(57, 23);
+            this.buttonBlankCheck.TabIndex = 38;
+            this.buttonBlankCheck.Text = "Is Blank";
+            this.buttonBlankCheck.UseVisualStyleBackColor = true;
+            this.buttonBlankCheck.Click += new System.EventHandler(this.buttonBlankCheck_Click);
+            // 
             // FormMain
             // 
             this.AllowDrop = true;
@@ -1785,6 +1797,7 @@
         private System.Windows.Forms.CheckBox chkChangeKey;
         private System.Windows.Forms.TextBox txtKey;
         private System.Windows.Forms.Label lblKeyInfo;
+        private System.Windows.Forms.Button buttonBlankCheck;
     }
 }
 
