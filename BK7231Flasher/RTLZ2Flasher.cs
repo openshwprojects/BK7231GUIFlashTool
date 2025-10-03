@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -40,6 +41,7 @@ namespace BK7231Flasher
 
 		bool Link()
 		{
+			LinkFallback();
 			Command("ping");
 			byte[] bytes = { 0, 0, 0, 0 };
 			Thread.Sleep(25);
@@ -286,7 +288,6 @@ namespace BK7231Flasher
 			{
 				return false;
 			}
-			LinkFallback();
 			return true;
 		}
 
@@ -416,21 +417,34 @@ namespace BK7231Flasher
 			}
 			if(fullRead)
 			{
-				while(sectors < 4096)
-				{
-					DumpBytes((uint)sectors * 0x1000 | FLASH_MMAP_BASE, 16, out var bytes);
-					if(bytes[0] != 0x99 && bytes[1] != 0x99 && bytes[2] != 0x96 && bytes[3] != 0x96)
-					{
-						sectors *= 2;
-					}
-					else
-						break;
-					if(sectors == 8192)
-					{
-						sectors = 512;
-						break;
-					}
-				}
+				FlashInit();
+				// read flash id
+				Command($"EW 0x40020004 3");
+				Command($"EB 0x40020060 0x9F");
+				Command($"EW 0x40020008 1");
+				Command($"EW 0x40020008 0");
+				Thread.Sleep(10);
+				Flush();
+				DumpBytes(0x40020060, 16, out var bytes);
+				var fsize = (1 << (bytes[1] - 0x11)) / 8;
+				addLogLine($"Flash ID: 0x{bytes[0]:X}{bytes[4]:X}{bytes[1]:X}");
+				addLogLine($"{fsize}MB flash size detected");
+				sectors = fsize * 256;
+				//while(sectors < 4096)
+				//{
+				//	DumpBytes((uint)sectors * 0x1000 | FLASH_MMAP_BASE, 16, out var bytes);
+				//	if(bytes[0] != 0x99 && bytes[1] != 0x99 && bytes[2] != 0x96 && bytes[3] != 0x96)
+				//	{
+				//		sectors *= 2;
+				//	}
+				//	else
+				//		break;
+				//	if(sectors == 8192)
+				//	{
+				//		sectors = 512;
+				//		break;
+				//	}
+				//}
 			}
 			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
 			ms = res != null ? new MemoryStream(res) : null;
