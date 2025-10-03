@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -19,11 +20,11 @@ namespace BK7231Flasher
 		};
 		readonly uint FLASH_MMAP_BASE = 0x98000000;
 		readonly int DumpAmount = 0x1000;
-		uint chipVer;
 		uint? FuncPtr = null;
 		string FuncName = string.Empty;
 		int? FlashMode;
 		uint? FlashHashOffset;
+		bool IsInFallbackMode = false;
 
 		void Flush()
 		{
@@ -37,10 +38,13 @@ namespace BK7231Flasher
 			//addLogLine($">>> {cmd}");
 			var cmdascii = Encoding.ASCII.GetBytes($"{cmd}\n");
 			serial.Write(cmdascii, 0, cmdascii.Length);
+			if(IsInFallbackMode)
+				serial.ReadLine();
 		}
 
 		bool Link()
 		{
+			LinkFallback();
 			Command("ping");
 			byte[] bytes = { 0, 0, 0, 0 };
 			Thread.Sleep(25);
@@ -56,7 +60,7 @@ namespace BK7231Flasher
 			if(extra.Length > 0)
 			{
 				//addLogLine($"<<< {extra}");
-				if(extra == "$8710c")
+				if(extra.Contains("$8710c"))
 				{
 					addLogLine("Ping fallback");
 					addLogLine("Link failed!");
@@ -69,11 +73,18 @@ namespace BK7231Flasher
 		bool LinkFallback()
 		{
 			Command("Rtk8710C");
-			chipVer = (uint)((RegisterRead(0x400001F0) >> 4) & 0xF);
-			if(chipVer > 2)
-				MemoryBoot(0);
-			else
-				MemoryBoot(0x1443C);
+			Thread.Sleep(100);
+			var resp = serial.ReadExisting();
+			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
+			{
+				IsInFallbackMode = true;
+				var chipVer = (uint)((RegisterRead(0x400001F0) >> 4) & 0xF);
+				if(chipVer > 2)
+					MemoryBoot(0);
+				else
+					MemoryBoot(0x1443C);
+				IsInFallbackMode = false;
+			}
 			return true;
 		}
 
@@ -191,12 +202,12 @@ namespace BK7231Flasher
 			if(FuncPtr == null)
 			{
 				var cmds = RegisterRead(0x1002F054);
-				for(uint i = (uint)cmds; i < cmds + 8 * 4 * 3; i += 4 * 3)
+				for(uint i = (uint)cmds; i < cmds + 8 * 12; i += 12)
 				{
 					var namePtr = RegisterRead(i);
 					if(namePtr == 0)
 						break;
-					DumpBytes(i, 16, out var nameBytes);
+					DumpBytes((uint)namePtr, 16, out var nameBytes);
 					var fname = Encoding.ASCII.GetString(nameBytes).Split('\0')[0];
 					if(USED_COMMANDS.Contains(fname))
 						continue;
@@ -207,7 +218,7 @@ namespace BK7231Flasher
 			}
 			if(FuncPtr == null)
 				throw new Exception($"{nameof(FuncPtr)} is null!");
-			RegisterWrite(addr, FuncPtr.Value);
+			RegisterWrite(FuncPtr.Value, addr);
 			addLogLine($"Jump to 0x{FuncPtr.Value:X} using '{FuncName}'");
 			Command($"{FuncName}");
 			return true;
@@ -282,7 +293,6 @@ namespace BK7231Flasher
 			{
 				return false;
 			}
-			LinkFallback();
 			return true;
 		}
 
@@ -401,6 +411,8 @@ namespace BK7231Flasher
 			{
 				addError(ex.ToString() + Environment.NewLine);
 			}
+			serial.Dispose();
+			serial = null;
 			return true;
 		}
 
@@ -410,8 +422,39 @@ namespace BK7231Flasher
 			{
 				return;
 			}
+			if(fullRead)
+			{
+				FlashInit();
+				// read flash id
+				Command($"EW 0x40020004 3");
+				Command($"EB 0x40020060 0x9F");
+				Command($"EW 0x40020008 1");
+				Command($"EW 0x40020008 0");
+				Thread.Sleep(10);
+				Flush();
+				DumpBytes(0x40020060, 16, out var bytes);
+				var fsize = (1 << (bytes[1] - 0x11)) / 8;
+				addLogLine($"Flash ID: 0x{bytes[0]:X}{bytes[4]:X}{bytes[1]:X}");
+				addLogLine($"{fsize}MB flash size detected");
+				sectors = fsize * 256;
+				//while(sectors < 4096)
+				//{
+				//	DumpBytes((uint)sectors * 0x1000 | FLASH_MMAP_BASE, 16, out var bytes);
+				//	if(bytes[0] != 0x99 && bytes[1] != 0x99 && bytes[2] != 0x96 && bytes[3] != 0x96)
+				//	{
+				//		sectors *= 2;
+				//	}
+				//	else
+				//		break;
+				//	if(sectors == 8192)
+				//	{
+				//		sectors = 512;
+				//		break;
+				//	}
+				//}
+			}
 			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
-			ms = new MemoryStream(res);
+			ms = res != null ? new MemoryStream(res) : null;
 		}
 
 		internal byte[] readFlash(int addr = 0, int amount = 4096)
@@ -430,7 +473,10 @@ namespace BK7231Flasher
 					+ " (" + amount / BK7231Flasher.SECTOR_SIZE + " sectors)"
 					+ Environment.NewLine);
 				FlashInit();
-				ChangeBaud(baudrate);
+				if(ChangeBaud(baudrate) == false)
+				{
+					return null;
+				}
 				uint startAddr = (uint)addr;
 				int progress = 0;
 				while(startAmount > 0)
@@ -466,19 +512,21 @@ namespace BK7231Flasher
 				addError(ex.ToString() + Environment.NewLine);
 				ChangeBaud(115200);
 			}
-			return new byte[0];
+			serial.Dispose();
+			serial = null;
+			return null;
 		}
 
 		public bool doReadInternal(int startSector, int sectors)
 		{
-			byte[] res = readFlash(startSector * 0x1000, sectors * 1000);
+			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
 			ms = new MemoryStream(res);
 			return false;
 		}
 
 		public override byte[] getReadResult()
 		{
-			return ms.ToArray();
+			return ms?.ToArray() ?? null;
 		}
 
 		public override bool doErase(int startSector, int sectors, bool bAll)
@@ -497,6 +545,7 @@ namespace BK7231Flasher
 
 		public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
 		{
+
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
@@ -560,7 +609,7 @@ namespace BK7231Flasher
 
 		private bool WaitResp(byte code)
 		{
-			int retries = 1000;
+			int retries = 200;
 			while(retries-- > 0)
 			{
 				try
