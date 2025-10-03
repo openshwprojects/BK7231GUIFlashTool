@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonBlankCheck = new System.Windows.Forms.Button();
             this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
             this.buttonCustomOperation = new System.Windows.Forms.Button();
             this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
@@ -168,7 +169,7 @@
             this.buttonOTAFlash = new System.Windows.Forms.Button();
             this.textBoxOTATarget = new System.Windows.Forms.TextBox();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonBlankCheck = new System.Windows.Forms.Button();
+            this.buttonVerify = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -184,11 +185,11 @@
             // 
             // buttonRead
             // 
-            this.buttonRead.Location = new System.Drawing.Point(169, 126);
+            this.buttonRead.Location = new System.Drawing.Point(139, 127);
             this.buttonRead.Name = "buttonRead";
-            this.buttonRead.Size = new System.Drawing.Size(164, 23);
+            this.buttonRead.Size = new System.Drawing.Size(148, 23);
             this.buttonRead.TabIndex = 1;
-            this.buttonRead.Text = "Do firmware backup (read) only";
+            this.buttonRead.Text = "Firmware backup (read) only";
             this.buttonRead.UseVisualStyleBackColor = true;
             this.buttonRead.Click += new System.EventHandler(this.buttonRead_Click);
             // 
@@ -278,6 +279,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonVerify);
             this.tabPage1.Controls.Add(this.buttonBlankCheck);
             this.tabPage1.Controls.Add(this.chkIgnoreCRCErr);
             this.tabPage1.Controls.Add(this.buttonCustomOperation);
@@ -323,6 +325,16 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonBlankCheck
+            // 
+            this.buttonBlankCheck.Location = new System.Drawing.Point(728, 68);
+            this.buttonBlankCheck.Name = "buttonBlankCheck";
+            this.buttonBlankCheck.Size = new System.Drawing.Size(57, 23);
+            this.buttonBlankCheck.TabIndex = 38;
+            this.buttonBlankCheck.Text = "Is Blank";
+            this.buttonBlankCheck.UseVisualStyleBackColor = true;
+            this.buttonBlankCheck.Click += new System.EventHandler(this.buttonBlankCheck_Click);
             // 
             // chkIgnoreCRCErr
             // 
@@ -503,9 +515,9 @@
             // 
             // buttonWriteOnly
             // 
-            this.buttonWriteOnly.Location = new System.Drawing.Point(339, 126);
+            this.buttonWriteOnly.Location = new System.Drawing.Point(293, 127);
             this.buttonWriteOnly.Name = "buttonWriteOnly";
-            this.buttonWriteOnly.Size = new System.Drawing.Size(180, 23);
+            this.buttonWriteOnly.Size = new System.Drawing.Size(162, 23);
             this.buttonWriteOnly.TabIndex = 20;
             this.buttonWriteOnly.Text = "Do firmware write (no backup!)";
             this.buttonWriteOnly.UseVisualStyleBackColor = true;
@@ -544,11 +556,11 @@
             // 
             // buttonDoBackupAndFlashNew
             // 
-            this.buttonDoBackupAndFlashNew.Location = new System.Drawing.Point(11, 126);
+            this.buttonDoBackupAndFlashNew.Location = new System.Drawing.Point(11, 127);
             this.buttonDoBackupAndFlashNew.Name = "buttonDoBackupAndFlashNew";
-            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(152, 23);
+            this.buttonDoBackupAndFlashNew.Size = new System.Drawing.Size(122, 23);
             this.buttonDoBackupAndFlashNew.TabIndex = 16;
-            this.buttonDoBackupAndFlashNew.Text = "Do backup and flash new firmware";
+            this.buttonDoBackupAndFlashNew.Text = "Backup and flash new firmware";
             this.buttonDoBackupAndFlashNew.UseVisualStyleBackColor = true;
             this.buttonDoBackupAndFlashNew.Click += new System.EventHandler(this.button4_Click);
             // 
@@ -1611,15 +1623,15 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonBlankCheck
+            // buttonVerify
             // 
-            this.buttonBlankCheck.Location = new System.Drawing.Point(728, 68);
-            this.buttonBlankCheck.Name = "buttonBlankCheck";
-            this.buttonBlankCheck.Size = new System.Drawing.Size(57, 23);
-            this.buttonBlankCheck.TabIndex = 38;
-            this.buttonBlankCheck.Text = "Is Blank";
-            this.buttonBlankCheck.UseVisualStyleBackColor = true;
-            this.buttonBlankCheck.Click += new System.EventHandler(this.buttonBlankCheck_Click);
+            this.buttonVerify.Location = new System.Drawing.Point(461, 127);
+            this.buttonVerify.Name = "buttonVerify";
+            this.buttonVerify.Size = new System.Drawing.Size(58, 23);
+            this.buttonVerify.TabIndex = 39;
+            this.buttonVerify.Text = "Verify";
+            this.buttonVerify.UseVisualStyleBackColor = true;
+            this.buttonVerify.Click += new System.EventHandler(this.buttonVerify_Click);
             // 
             // FormMain
             // 
@@ -1798,6 +1810,7 @@
         private System.Windows.Forms.TextBox txtKey;
         private System.Windows.Forms.Label lblKeyInfo;
         private System.Windows.Forms.Button buttonBlankCheck;
+        private System.Windows.Forms.Button buttonVerify;
     }
 }
 

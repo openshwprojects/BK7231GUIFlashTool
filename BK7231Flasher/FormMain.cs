@@ -112,12 +112,16 @@ namespace BK7231Flasher
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
-                //MessageBox.Show("Dropped file: " + file);
-                CustomParms cp = new CustomParms();
-                cp.sourceFileName = file;
-                cp.ofs = 0;
-                cp.len = File.ReadAllBytes(file).Length;
-                doCustomWrite(cp);
+                ////MessageBox.Show("Dropped file: " + file);
+                //CustomParms cp = new CustomParms();
+                //cp.sourceFileName = file;
+                //cp.ofs = 0;
+                //cp.len = File.ReadAllBytes(file).Length;
+                //doCustomWrite(cp);
+                comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDown;
+                comboBoxFirmware.Text = file;
+                chosenSourceFile = file;
+                addLog("You drag and dropped file " + file + "...",Color.Black);
             }
         }
         // string label_startRead = "Start Read Flash (Full backup)";
@@ -685,6 +689,37 @@ namespace BK7231Flasher
             clearUp();
             setButtonStates(true);
         }
+        void verifyThread(object oParm)
+        {
+            byte[] verifyWith = File.ReadAllBytes(chosenSourceFile);
+            int sectors = (verifyWith.Length / 4096) + 1;
+            clearUp();
+            createFlasher();
+            int startSector = 0;
+            flasher.doRead(startSector, sectors, false);
+
+            byte[] data = flasher.getReadResult();
+            int errors = 0;
+            for (int i = 0; i < verifyWith.Length; i++)
+            {
+                if (data[i] != verifyWith[i])
+                {
+                    errors++;
+                }
+            }
+            if (errors == 0)
+            {
+                setState("Verify OK", Color.Green);
+            }
+            else
+            {
+                setState("Verify bad", Color.Red);
+            }
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
         void readThread(object oParm)
         {
             CustomParms parms = null;
@@ -719,27 +754,38 @@ namespace BK7231Flasher
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
             flasher.doRead(startSector, sectors, true);
-            if (parms != null && parms.bBlankCheck) {
-                bool bBlank = true;
-                int nonBlank = 0;
-                byte[] data = flasher.getReadResult();
-                for (int i = 0; i < data.Length; i++) {
-                    if(data[i] != 0xff)
-                    {
-                        bBlank = false;
-                        nonBlank++;
-                    }
-                }
-                if (bBlank)
+            
+            flasher.saveReadResult(startSector);
+
+            worker = null;
+            //setButtonReadLabel(label_startRead);
+            clearUp();
+            setButtonStates(true);
+        }
+        void blankThread(object oParm)
+        {
+            clearUp();
+            createFlasher();
+            flasher.doRead(0, 0, true);
+
+            bool bBlank = true;
+            int nonBlank = 0;
+            byte[] data = flasher.getReadResult();
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (data[i] != 0xff)
                 {
-                    setState("Blank", Color.Green);
+                    bBlank = false;
+                    nonBlank++;
                 }
-                else
-                {
-                    setState("Not blank", Color.Yellow);
-                }
-            } else {
-                flasher.saveReadResult(startSector);
+            }
+            if (bBlank)
+            {
+                setState("Blank", Color.Green);
+            }
+            else
+            {
+                setState("Not blank", Color.Yellow);
             }
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -1053,9 +1099,7 @@ namespace BK7231Flasher
             {
                 return;
             }
-            CustomParms cp = new CustomParms();
-            cp.bBlankCheck = true;
-            startWorkerThread(readThread, cp);
+            startWorkerThread(blankThread, null);
         }
         private void buttonTestReadWrite_Click(object sender, EventArgs e)
         {
@@ -1662,5 +1706,19 @@ namespace BK7231Flasher
 
         }
 
+        private void buttonVerify_Click(object sender, EventArgs e)
+        {
+            if (doGenericOperationPreparations() == false)
+            {
+                return;
+            }
+            if(curType != BKType.BekenSPI
+                && curType != BKType.GenericSPI)
+            {
+                MessageBox.Show("Not implemented yet.");
+                return;
+            }
+            startWorkerThread(verifyThread, null);
+        }
     }
 }

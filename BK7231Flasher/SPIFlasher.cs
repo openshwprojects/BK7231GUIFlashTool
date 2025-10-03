@@ -443,7 +443,14 @@ namespace BK7231Flasher
             {
                 return;
             }
-            doReadInternal();
+            if(fullRead)
+            {
+                doReadInternal(0, flashSize);
+            }
+            else
+            {
+                doReadInternal((uint)startSector * 4096, sectors * 4096);
+            }
             ChipReset();
         }
         public virtual bool ChipReset()
@@ -456,9 +463,9 @@ namespace BK7231Flasher
             return false;
         }
 
-        public bool doReadInternal()
+        public bool doReadInternal(uint addr, int len)
         {
-            byte[] res = ReadFlash(0, flashSize);
+            byte[] res = ReadFlash(addr, len);
             if(res != null)
             {
                 ms = new MemoryStream(res);
@@ -529,7 +536,7 @@ namespace BK7231Flasher
             }
             if (rwMode == WriteMode.ReadAndWrite)
             {
-                doReadInternal();
+                doReadInternal(0, flashSize);
             }
             if (UnprotectFlash() == false)
             {
