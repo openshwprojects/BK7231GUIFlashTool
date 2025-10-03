@@ -65,7 +65,7 @@ namespace BK7231Flasher
 
         public int GetFlashSize(byte[] jedec)
         {
-            if (jedec == null || jedec.Length < 3)
+            if (jedec == null || jedec.Length < 4)
                 return 0;
             int size = 1 << jedec[3]; // common formula: 2^N bytes
             addLogLine($"Detected flash size: {size / 1024} KB");
