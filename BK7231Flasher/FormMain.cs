@@ -199,6 +199,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7252, "BK7252"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7252N, "BK7252N (T4)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7258, "BK7258 (T5)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.RTL87X0C, "RTL87X0C"));
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602 (read)"));
@@ -470,9 +471,13 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
+            if(curType == BKType.RTL8720D || curType == BKType.RTL8710B)
             {
                 flasher = new RTLFlasher();
+            }
+            else if(curType == BKType.RTL87X0C)
+            {
+                flasher = new RTLZ2Flasher();
             }
             else if (curType == BKType.LN882H)
             {
