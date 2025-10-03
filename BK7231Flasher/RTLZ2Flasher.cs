@@ -24,6 +24,7 @@ namespace BK7231Flasher
 		string FuncName = string.Empty;
 		int? FlashMode;
 		uint? FlashHashOffset;
+		bool IsInFallbackMode = false;
 
 		void Flush()
 		{
@@ -37,6 +38,8 @@ namespace BK7231Flasher
 			//addLogLine($">>> {cmd}");
 			var cmdascii = Encoding.ASCII.GetBytes($"{cmd}\n");
 			serial.Write(cmdascii, 0, cmdascii.Length);
+			if(IsInFallbackMode)
+				serial.ReadLine();
 		}
 
 		bool Link()
@@ -74,11 +77,13 @@ namespace BK7231Flasher
 			var resp = serial.ReadExisting();
 			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
 			{
+				IsInFallbackMode = true;
 				var chipVer = (uint)((RegisterRead(0x400001F0) >> 4) & 0xF);
 				if(chipVer > 2)
 					MemoryBoot(0);
 				else
 					MemoryBoot(0x1443C);
+				IsInFallbackMode = false;
 			}
 			return true;
 		}
@@ -197,12 +202,12 @@ namespace BK7231Flasher
 			if(FuncPtr == null)
 			{
 				var cmds = RegisterRead(0x1002F054);
-				for(uint i = (uint)cmds; i < cmds + 8 * 4 * 3; i += 4 * 3)
+				for(uint i = (uint)cmds; i < cmds + 8 * 12; i += 12)
 				{
 					var namePtr = RegisterRead(i);
 					if(namePtr == 0)
 						break;
-					DumpBytes(i, 16, out var nameBytes);
+					DumpBytes((uint)namePtr, 16, out var nameBytes);
 					var fname = Encoding.ASCII.GetString(nameBytes).Split('\0')[0];
 					if(USED_COMMANDS.Contains(fname))
 						continue;
@@ -213,7 +218,7 @@ namespace BK7231Flasher
 			}
 			if(FuncPtr == null)
 				throw new Exception($"{nameof(FuncPtr)} is null!");
-			RegisterWrite(addr, FuncPtr.Value);
+			RegisterWrite(FuncPtr.Value, addr);
 			addLogLine($"Jump to 0x{FuncPtr.Value:X} using '{FuncName}'");
 			Command($"{FuncName}");
 			return true;
@@ -406,6 +411,8 @@ namespace BK7231Flasher
 			{
 				addError(ex.ToString() + Environment.NewLine);
 			}
+			serial.Dispose();
+			serial = null;
 			return true;
 		}
 
@@ -505,6 +512,8 @@ namespace BK7231Flasher
 				addError(ex.ToString() + Environment.NewLine);
 				ChangeBaud(115200);
 			}
+			serial.Dispose();
+			serial = null;
 			return null;
 		}
 
