@@ -19,7 +19,6 @@ namespace BK7231Flasher
 		};
 		readonly uint FLASH_MMAP_BASE = 0x98000000;
 		readonly int DumpAmount = 0x1000;
-		uint chipVer;
 		uint? FuncPtr = null;
 		string FuncName = string.Empty;
 		int? FlashMode;
@@ -56,7 +55,7 @@ namespace BK7231Flasher
 			if(extra.Length > 0)
 			{
 				//addLogLine($"<<< {extra}");
-				if(extra == "$8710c")
+				if(extra.Contains("$8710c"))
 				{
 					addLogLine("Ping fallback");
 					addLogLine("Link failed!");
@@ -69,11 +68,16 @@ namespace BK7231Flasher
 		bool LinkFallback()
 		{
 			Command("Rtk8710C");
-			chipVer = (uint)((RegisterRead(0x400001F0) >> 4) & 0xF);
-			if(chipVer > 2)
-				MemoryBoot(0);
-			else
-				MemoryBoot(0x1443C);
+			Thread.Sleep(100);
+			var resp = serial.ReadExisting();
+			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
+			{
+				var chipVer = (uint)((RegisterRead(0x400001F0) >> 4) & 0xF);
+				if(chipVer > 2)
+					MemoryBoot(0);
+				else
+					MemoryBoot(0x1443C);
+			}
 			return true;
 		}
 
@@ -410,8 +414,26 @@ namespace BK7231Flasher
 			{
 				return;
 			}
+			if(fullRead)
+			{
+				while(sectors < 4096)
+				{
+					DumpBytes((uint)sectors * 0x1000 | FLASH_MMAP_BASE, 16, out var bytes);
+					if(bytes[0] != 0x99 && bytes[1] != 0x99 && bytes[2] != 0x96 && bytes[3] != 0x96)
+					{
+						sectors *= 2;
+					}
+					else
+						break;
+					if(sectors == 8192)
+					{
+						sectors = 512;
+						break;
+					}
+				}
+			}
 			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
-			ms = new MemoryStream(res);
+			ms = res != null ? new MemoryStream(res) : null;
 		}
 
 		internal byte[] readFlash(int addr = 0, int amount = 4096)
@@ -430,7 +452,10 @@ namespace BK7231Flasher
 					+ " (" + amount / BK7231Flasher.SECTOR_SIZE + " sectors)"
 					+ Environment.NewLine);
 				FlashInit();
-				ChangeBaud(baudrate);
+				if(ChangeBaud(baudrate) == false)
+				{
+					return null;
+				}
 				uint startAddr = (uint)addr;
 				int progress = 0;
 				while(startAmount > 0)
@@ -466,19 +491,19 @@ namespace BK7231Flasher
 				addError(ex.ToString() + Environment.NewLine);
 				ChangeBaud(115200);
 			}
-			return new byte[0];
+			return null;
 		}
 
 		public bool doReadInternal(int startSector, int sectors)
 		{
-			byte[] res = readFlash(startSector * 0x1000, sectors * 1000);
+			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
 			ms = new MemoryStream(res);
 			return false;
 		}
 
 		public override byte[] getReadResult()
 		{
-			return ms.ToArray();
+			return ms?.ToArray() ?? null;
 		}
 
 		public override bool doErase(int startSector, int sectors, bool bAll)
@@ -497,6 +522,7 @@ namespace BK7231Flasher
 
 		public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
 		{
+
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
@@ -560,7 +586,7 @@ namespace BK7231Flasher
 
 		private bool WaitResp(byte code)
 		{
-			int retries = 1000;
+			int retries = 200;
 			while(retries-- > 0)
 			{
 				try
