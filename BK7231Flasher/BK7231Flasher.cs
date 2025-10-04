@@ -1427,8 +1427,8 @@ namespace BK7231Flasher
             int realLen = TOTAL_SECTORS;
             if(chipType == BKType.BK7252)
             {
-                //realStart = 0x11000;
-                //realLen = TOTAL_SECTORS - (0x11000 / 0x1000);
+                realStart = 0x11000;
+                realLen = TOTAL_SECTORS - (0x11000 / 0x1000);
             }
             if (rwMode == WriteMode.ReadAndWrite)
             {
@@ -1481,7 +1481,6 @@ namespace BK7231Flasher
                         bSkipBootloader = true;
                     }
                 }
-                startSector = 0;
                 if (bSkipBootloader && startSector == BK7231Flasher.BOOTLOADER_SIZE)
                 {
                     // very hacky, but skip bootloader
