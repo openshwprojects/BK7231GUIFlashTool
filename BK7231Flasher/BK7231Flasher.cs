@@ -1094,7 +1094,6 @@ namespace BK7231Flasher
                 for (int sec = 0; sec < sectors; sec++)
                 {
                     int secAddr = startSector + SECTOR_SIZE * sec;
-                    secAddr += 0x200000;
                     // 4K write
                     bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                     //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
@@ -1777,19 +1776,19 @@ namespace BK7231Flasher
         }
         bool isSectorModificationAllowed(int addr)
         {
-            //if (addr >= FLASH_SIZE)
-            //{
-            //    addError("ERROR: Out of range write/erase attempt detected, this could break bootloader");
-            //    return false;
-            //}
+            if (addr >= FLASH_SIZE)
+            {
+                addError("ERROR: Out of range write/erase attempt detected, this could break bootloader");
+                return false;
+            }
             addr %= FLASH_SIZE;
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252) 
                 return true;
-            //if (addr >= 0 && addr < BOOTLOADER_SIZE)
-            //{
-            //    addError("ERROR: T bootloader overwriting attempt detected, interrupting.");
-            //    return false;
-            //}
+            if (addr >= 0 && addr < BOOTLOADER_SIZE)
+            {
+                addError("ERROR: T bootloader overwriting attempt detected, interrupting.");
+                return false;
+            }
             return true;
         }
         bool eraseSector4K(int addr)
