@@ -25,6 +25,8 @@ namespace BK7231Flasher
 		int? FlashMode;
 		uint? FlashHashOffset;
 		bool IsInFallbackMode = false;
+		int flashSizeMB = 2;
+		byte[] flashID = { 0, 0, 0 };
 
 		void Flush()
 		{
@@ -48,12 +50,16 @@ namespace BK7231Flasher
 			Command("ping");
 			byte[] bytes = { 0, 0, 0, 0 };
 			Thread.Sleep(25);
-			serial.Read(bytes, 0, 4);
+			try
+			{
+				serial.Read(bytes, 0, 4);
+			}
+			catch { }
 
 			if(Encoding.ASCII.GetString(bytes) != "ping")
 			{
-				addLogLine("Ping response is incorrect");
-				addLogLine("Link failed!");
+				addErrorLine("Ping response is incorrect");
+				addErrorLine("Link failed!");
 				return false;
 			}
 			var extra = serial.ReadExisting();
@@ -62,8 +68,8 @@ namespace BK7231Flasher
 				//addLogLine($"<<< {extra}");
 				if(extra.Contains("$8710c"))
 				{
-					addLogLine("Ping fallback");
-					addLogLine("Link failed!");
+					addErrorLine("Ping fallback");
+					addErrorLine("Link failed!");
 					return false;
 				}
 			}
@@ -90,6 +96,8 @@ namespace BK7231Flasher
 
 		bool ChangeBaud(int baud)
 		{
+			if(baud != baudrate)
+				return Link();
 			addLogLine($"Setting baud rate to {baud}");
 			Command($"ucfg {baud} 0 0");
 			Thread.Sleep(500);
@@ -122,6 +130,8 @@ namespace BK7231Flasher
 				uint addr;
 				try
 				{
+					if(parts[0] == "\r")
+						continue;
 					addr = Convert.ToUInt32(parts[0].Trim(':', '\r', '\n'), 16);
 				}
 				catch { continue; }
@@ -161,6 +171,8 @@ namespace BK7231Flasher
 				uint addr;
 				try
 				{
+					if(parts[0] == "\r")
+						continue;
 					addr = Convert.ToUInt32(parts[0].Trim(':', '\r', '\n'), 16);
 				}
 				catch { continue; }
@@ -323,15 +335,18 @@ namespace BK7231Flasher
 					(size).ToString("X2")
 					+ " (" + startSector + " sectors)"
 					+ Environment.NewLine);
-				if(doGenericSetup() == false)
-				{
-					return true;
-				}
 				Console.WriteLine("Connected");
 				if(mode == WriteMode.ReadAndWrite)
 				{
-					doRead(startSector, numSectors);
+					doRead(startSector, numSectors, true);
 					if(ms == null)
+					{
+						return true;
+					}
+				}
+				else
+				{
+					if(doGenericSetup() == false)
 					{
 						return true;
 					}
@@ -411,9 +426,27 @@ namespace BK7231Flasher
 			{
 				addError(ex.ToString() + Environment.NewLine);
 			}
-			serial.Dispose();
-			serial = null;
+			closePort();
 			return true;
+		}
+
+		public void ReadFlashId()
+		{
+			FlashInit();
+			// read flash id
+			Command($"EW 0x40020004 3");
+			Command($"EB 0x40020060 0x9F");
+			Command($"EW 0x40020008 1");
+			Command($"EW 0x40020008 0");
+			Thread.Sleep(10);
+			Flush();
+			DumpBytes(0x40020060, 16, out var bytes);
+			flashSizeMB = (1 << (bytes[1] - 0x11)) / 8;
+			flashID[0] = bytes[0];
+			flashID[1] = bytes[4];
+			flashID[2] = bytes[1];
+			addLogLine($"Flash ID: 0x{flashID[0]:X}{flashID[1]:X}{flashID[2]:X}");
+			addLogLine($"{flashSizeMB}MB flash size detected");
 		}
 
 		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
@@ -424,19 +457,8 @@ namespace BK7231Flasher
 			}
 			if(fullRead)
 			{
-				FlashInit();
-				// read flash id
-				Command($"EW 0x40020004 3");
-				Command($"EB 0x40020060 0x9F");
-				Command($"EW 0x40020008 1");
-				Command($"EW 0x40020008 0");
-				Thread.Sleep(10);
-				Flush();
-				DumpBytes(0x40020060, 16, out var bytes);
-				var fsize = (1 << (bytes[1] - 0x11)) / 8;
-				addLogLine($"Flash ID: 0x{bytes[0]:X}{bytes[4]:X}{bytes[1]:X}");
-				addLogLine($"{fsize}MB flash size detected");
-				sectors = fsize * 256;
+				ReadFlashId();
+				sectors = flashSizeMB * 256;
 				//while(sectors < 4096)
 				//{
 				//	DumpBytes((uint)sectors * 0x1000 | FLASH_MMAP_BASE, 16, out var bytes);
@@ -512,8 +534,7 @@ namespace BK7231Flasher
 				addError(ex.ToString() + Environment.NewLine);
 				ChangeBaud(115200);
 			}
-			serial.Dispose();
-			serial = null;
+			closePort();
 			return null;
 		}
 
