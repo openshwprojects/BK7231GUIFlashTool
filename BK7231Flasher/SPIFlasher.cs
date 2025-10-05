@@ -483,6 +483,8 @@ namespace BK7231Flasher
         MemoryStream ms;
         public override byte[] getReadResult()
         {
+            if (ms == null)
+                return null;
             return ms.ToArray();
         }
         public override bool doErase(int startSector, int sectors, bool bAll)
