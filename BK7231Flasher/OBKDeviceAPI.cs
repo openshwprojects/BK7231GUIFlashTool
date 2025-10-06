@@ -1,20 +1,17 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using System;
 using System.IO;
 using System.Net;
 using System.Net.Configuration;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 
 namespace BK7231Flasher
 {
     public delegate void ProcessJSONReply(OBKDeviceAPI self);
-    public delegate void ProcessCMDReply(OBKDeviceAPI self, JObject reply, string replyText);
+    public delegate void ProcessCMDReply(OBKDeviceAPI self, JsonObject reply, string replyText);
     public delegate void ProcessBytesReply(byte[] data, int dataLen);
     public delegate void ProcessProgress(int done, int total);
 
@@ -22,9 +19,9 @@ namespace BK7231Flasher
     {
         int userIndex;
         string adr;
-        JObject info;
-        JObject status;
-        JObject statusSTS;
+        JsonObject info;
+        JsonObject status;
+        JsonObject statusSTS;
         bool bGetInfoFailed;
         bool bTasmota;
         bool bGetInfoSuccess = false;
@@ -54,7 +51,7 @@ namespace BK7231Flasher
            r += "MQTTHost = " + this.getMQTTHost() + Environment.NewLine;
            r += "IP = " + this.getAdr() + Environment.NewLine;
            r += "MQTTTopic = " + this.getMQTTTopic() + Environment.NewLine;
-            JObject json = this.getInfo();
+            JsonObject json = this.getInfo();
             if (json != null)
             {
                r += "MAC = " + json["mac"] + Environment.NewLine;
@@ -289,27 +286,25 @@ namespace BK7231Flasher
         {
             return adr;
         }
-        internal string getJObjectSafe(JObject o, string parent, string key, string def = "")
+        internal string getJsonObjectSafe(JsonObject o, string parent, string key, string def = "")
         {
             if (o == null)
                 return def;
-            JObject o2;
-            JToken o2t;
+            JsonObject o2;
             if(parent.Length == 0)
             {
                 o2 = o;
             }
             else
             {
-                if (o.TryGetValue(parent, out o2t) == false)
+                if (o.TryGetPropertyValue(parent, out var o2t) == false)
                 {
                     return def;
                 }
-                o2 = (JObject)o2t;
+                o2 = (JsonObject)o2t;
             }
 
-            JToken shortNameToken;
-            if (o2.TryGetValue(key, out shortNameToken))
+            if (o2.TryGetPropertyValue(key, out var shortNameToken))
             {
                 return shortNameToken.ToString();
             }
@@ -322,8 +317,7 @@ namespace BK7231Flasher
         {
             if (info == null)
                 return def;
-            JToken shortNameToken;
-            if (info.TryGetValue(key, out shortNameToken))
+            if (info.TryGetPropertyValue(key, out var shortNameToken))
             {
                 return shortNameToken.ToString();
             }
@@ -344,7 +338,7 @@ namespace BK7231Flasher
         {
             if (info == null)
             {
-                return getJObjectSafe(status, "Status", "Topic");
+                return getJsonObjectSafe(status, "Status", "Topic");
             }
             return getInfoObjectSafe("mqtttopic");
         }
@@ -352,7 +346,7 @@ namespace BK7231Flasher
         {
             if(info == null)
             {
-                return getJObjectSafe(status,"Status","DeviceName");
+                return getJsonObjectSafe(status,"Status","DeviceName");
             }
             return getInfoObjectSafe("shortName");
         }
@@ -365,13 +359,13 @@ namespace BK7231Flasher
         }
         internal string getSDK()
         {
-            return getJObjectSafe(status, "StatusFWR", "SDK");
+            return getJsonObjectSafe(status, "StatusFWR", "SDK");
         }
         internal string getChipSet()
         {
             if (info == null)
             {
-                return getJObjectSafe(status, "StatusFWR", "Hardware");
+                return getJsonObjectSafe(status, "StatusFWR", "Hardware");
             }
             return getInfoObjectSafe("chipset");
         }
@@ -388,7 +382,7 @@ namespace BK7231Flasher
         {
             if (info == null)
             {
-                return getJObjectSafe(status, "StatusNET", "Mac");
+                return getJsonObjectSafe(status, "StatusNET", "Mac");
             }
             return getInfoObjectSafe("mac");
         }
@@ -402,8 +396,8 @@ namespace BK7231Flasher
         {
             if (info == null)
             {
-                return getJObjectSafe(status, "StatusFWR", "BuildDateTime")
-                    + " " + getJObjectSafe(status, "StatusFWR", "Core");
+                return getJsonObjectSafe(status, "StatusFWR", "BuildDateTime")
+                    + " " + getJsonObjectSafe(status, "StatusFWR", "Core");
             }
             string r = getInfoObjectSafe("build");
             r = r.Replace("Build on ","");
@@ -419,7 +413,7 @@ namespace BK7231Flasher
         {
             return bGetInfoFailed;
         }
-        internal JObject getInfo()
+        internal JsonObject getInfo()
         {
             return info;
         }
@@ -447,10 +441,10 @@ namespace BK7231Flasher
             }
             return sResult;
         }
-        private JObject sendGenericJSONGet(string path, out string jsonText)
+        private JsonObject sendGenericJSONGet(string path, out string jsonText)
         {
             jsonText = sendGet(path);
-            JObject jsonObject = null;
+            JsonObject jsonObject = null;
             try
             {
                 int lastBraceIndex = jsonText.LastIndexOf('}');
@@ -459,7 +453,10 @@ namespace BK7231Flasher
                     jsonText = jsonText.Substring(0, lastBraceIndex + 1);
                 }
                 File.WriteAllText("lastHTTPJSONtext.txt", jsonText);
-                jsonObject = JObject.Parse(jsonText);
+                // RTL8710B returns 0. for %f printf
+                jsonText = jsonText.Replace("0.,", "0.0,");
+                jsonText = jsonText.Replace("0.}", "0.0}");
+                jsonObject = (JsonObject)JsonNode.Parse(jsonText);
             }
             catch (Exception ex)
             {
@@ -533,7 +530,7 @@ namespace BK7231Flasher
             SendCmndArguments arg = (SendCmndArguments)o;
             // format cm?cmnd= string 
             string replyStr;
-            JObject jsonObject = sendGenericJSONGet("/" + getBaseCmndString ()+ escape(arg.cmnd), out replyStr);
+            JsonObject jsonObject = sendGenericJSONGet("/" + getBaseCmndString ()+ escape(arg.cmnd), out replyStr);
             if (arg.cb != null)
             {
                 arg.cb(this, jsonObject, replyStr);
@@ -554,18 +551,17 @@ namespace BK7231Flasher
             }
             else
             {
-                JToken o;
-                if (status.TryGetValue("StatusSTS", out o) == false)
+                if (status.TryGetPropertyValue("StatusSTS", out var o) == false)
                 {
                 }
-                statusSTS = (JObject)o;
+                statusSTS = (JsonObject)o;
 
                 if(statusSTS != null)
                 {
-                    foreach (var property in statusSTS.Properties())
+                    foreach (var property in statusSTS)
                     {
-                        string key = property.Name;
-                        JToken value = property.Value;
+                        string key = property.Key;
+                        //var value = property.Value.ToString();
                         if (key.StartsWith("POWER"))
                         {
                             powerCount++;
@@ -577,7 +573,7 @@ namespace BK7231Flasher
                     this.bTasmota = true;
                     for (int att = 0; att < 4; att++)
                     {
-                        JObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
+                        JsonObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
                         this.info = jsonObject;
                         if (this.info == null)
                         {

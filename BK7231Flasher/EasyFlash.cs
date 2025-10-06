@@ -10,19 +10,19 @@ namespace BK7231Flasher
 		{
 			const string Dll = "WinEF_x86.dll";
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern uint easyflash_init();
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern uint set_env_size(uint size);
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe byte* get_env_area();
 		}
 
@@ -30,26 +30,26 @@ namespace BK7231Flasher
 		{
 			const string Dll = "WinEF_x64.dll";
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern uint easyflash_init();
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern uint set_env_size(uint size);
 
-			[DllImport(Dll)]
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe byte* get_env_area();
 		}
 
-		[DllImport("msvcrt.dll", SetLastError = false)]
+		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
 		private static extern IntPtr memcpy(IntPtr dest, IntPtr src, int count);
 		
-		[DllImport("msvcrt.dll", SetLastError = false)]
+		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
 		public static extern IntPtr memset(IntPtr dest, int c, int count);
 
 		public static unsafe byte[] LoadFromData(byte[] data, int size, out byte[] efdata)

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using System.IO;
 using System.Windows.Forms;
 
 namespace BK7231Flasher
@@ -16,11 +12,11 @@ namespace BK7231Flasher
             if (bDone)
                 return false;
             bDone = true;
-            if (File.Exists("Newtonsoft.Json.dll") == false)
-            {
-                MessageBox.Show("Newtonsoft.Json.dll seems to be missing. This functionality may crash.");
-                return true;
-            }
+            //if (File.Exists("Newtonsoft.Json.dll") == false)
+            //{
+            //    MessageBox.Show("Newtonsoft.Json.dll seems to be missing. This functionality may crash.");
+            //    return true;
+            //}
             return false;
         }
     }

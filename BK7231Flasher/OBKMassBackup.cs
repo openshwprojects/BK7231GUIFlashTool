@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading;
-using Newtonsoft.Json.Linq;
 
 namespace BK7231Flasher
 {
@@ -84,7 +82,7 @@ namespace BK7231Flasher
             processDeviceTASCommand(index, "Status 0", DownloadTarget.TasmotaStatus0);
             processDeviceTASCommand(index, "Status 1", DownloadTarget.TasmotaStatus1);
         }
-        private void onTasReplyTemplate(OBKDeviceAPI self, JObject reply, string replyText)
+        private void onTasReplyTemplate(OBKDeviceAPI self, JsonObject reply, string replyText)
         {
             if (reply != null)
             {
