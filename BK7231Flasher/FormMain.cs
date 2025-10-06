@@ -240,6 +240,8 @@ namespace BK7231Flasher
             bWithinSettingSet = false;
             applySettings();
             refreshAdvancedOptions();
+            refreshType();
+            refreshFirmwaresList();
 
             //foreach(var c in this.Controls)
             //{
@@ -395,7 +397,7 @@ namespace BK7231Flasher
         void refreshType()
         {
             curType = ((ChipType)comboBoxChipType.SelectedItem).Type;
-            if(curType == BKType.BekenSPI)
+            if(curType == BKType.BekenSPI || curType == BKType.GenericSPI)
             {
                 comboBoxUART.Enabled = false;
                 comboBoxBaudRate.Enabled = false;
@@ -439,11 +441,18 @@ namespace BK7231Flasher
                 MessageBox.Show("Please enter a correct number for a baud rate.");
                 return false;
             }
-            serialName = getSelectedSerialName();
-            if (serialName.Length <= 0)
+            if(comboBoxUART.Enabled)
             {
-                MessageBox.Show("Please choose a correct serial port or connect one if not present.");
-                return false;
+                serialName = getSelectedSerialName();
+                if (serialName.Length <= 0)
+                {
+                    MessageBox.Show("Please choose a correct serial port or connect one if not present.");
+                    return false;
+                }
+            }
+            else
+            {
+                serialName = "";
             }
             float.TryParse(textBox_cfg_readTimeOutMultForLoop.Text.Replace(',','.'),  NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out cfg_readTimeOutMultForLoop);
             float.TryParse(textBox_cfg_readTimeOutMultForSerialClass.Text.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out cfg_readTimeOutMultForSerialClass);

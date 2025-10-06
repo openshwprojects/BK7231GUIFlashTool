@@ -32,6 +32,40 @@ namespace BK7231Flasher
             GPIO_CEN_SET();
             return true;
         }
+
+        public bool BK_EnterSPIMode(byte data)
+        {
+            for (int x = 0; x < 10; x++)
+            {
+                byte[] sendBuf = new byte[25];
+                for (int i = 0; i < 25; i++) sendBuf[i] = data;
+                hd.Ch341SPI4Stream(sendBuf);
+            }
+
+            byte[] buf1 = new byte[4] { 0x9F, 0x00, 0x00, 0x00 };
+            byte[] resp = hd.Ch341SPI4Stream(buf1);
+            if (resp == null)
+                return false;
+
+            int zeroCount = 0;
+            for (int i = 1; i < 4; i++)
+                if (resp[i] == 0x00) zeroCount++;
+
+            addLogLine("SPI Response: " + BitConverter.ToString(resp));
+            bool bOk = resp[0] != 0x00 && zeroCount == 3;
+            if (bOk)
+            {
+                // flush
+                for (int x = 0; x < 1000; x++)
+                {
+                    byte[] sendBuf = new byte[25];
+                    for (int i = 0; i < 25; i++)
+                        sendBuf[i] = 0;
+                    hd.Ch341SPI4Stream(sendBuf);
+                }
+            }
+            return bOk;
+        }
         public override bool Sync()
         {
             int loop = 0;
