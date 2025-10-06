@@ -45,6 +45,7 @@ jobs:
           path: |
             BK7231Flasher/BuildOutput/Release/*.exe
             BK7231Flasher/BuildOutput/Release/*.dll
+            BK7231Flasher/BuildOutput/Release/*.so
           if-no-files-found: warn
 
       - name: Debug Build Output Directory
