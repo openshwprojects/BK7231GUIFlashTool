@@ -79,7 +79,12 @@ namespace BK7231Flasher
 		{
 			Command("Rtk8710C");
 			Thread.Sleep(100);
-			var resp = serial.ReadExisting();
+			string resp = string.Empty;
+			try
+			{
+				resp = serial.ReadExisting();
+			}
+			catch { }
 			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
 			{
 				IsInFallbackMode = true;

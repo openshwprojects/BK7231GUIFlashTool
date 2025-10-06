@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -46,6 +47,26 @@ namespace BK7231Flasher
 			public static extern unsafe byte* get_env_area();
 		}
 
+		static class EFLinux
+		{
+			const string Dll = "libef.so";
+
+			[DllImport(Dll)]
+			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
+
+			[DllImport(Dll)]
+			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
+
+			[DllImport(Dll)]
+			public static extern uint easyflash_init();
+
+			[DllImport(Dll)]
+			public static extern uint set_env_size(uint size);
+
+			[DllImport(Dll)]
+			public static extern unsafe byte* get_env_area();
+		}
+
 		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
 		private static extern IntPtr memcpy(IntPtr dest, IntPtr src, int count);
 		
@@ -57,18 +78,24 @@ namespace BK7231Flasher
 			efdata = data;
 			if(data == null)
 				return null;
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				EFLinux.set_env_size((uint)size);
+			else if(IntPtr.Size == 8)
 				EF64.set_env_size((uint)size);
 			else
 				EF32.set_env_size((uint)size);
 			byte* env;
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				env = EFLinux.get_env_area();
+			else if(IntPtr.Size == 8)
 				env = EF64.get_env_area();
 			else
 				env = EF32.get_env_area();
 
 			fixed(byte* pdata = data) memcpy((IntPtr)env, (IntPtr)pdata, size);
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				EFLinux.easyflash_init();
+			else if(IntPtr.Size == 8)
 				EF64.easyflash_init();
 			else
 				EF32.easyflash_init();
@@ -78,7 +105,9 @@ namespace BK7231Flasher
 				var test = stackalloc byte[1];
 				uint savedlen = 0;
 				uint res2;
-				if(IntPtr.Size == 8)
+				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+					res2 = EFLinux.ef_get_env_blob((char*)name, &test, 1, &savedlen);
+				else if(IntPtr.Size == 8)
 					res2 = EF64.ef_get_env_blob((char*)name, &test, 1, &savedlen);
 				else
 					res2 = EF32.ef_get_env_blob((char*)name, &test, 1, &savedlen);
@@ -88,7 +117,9 @@ namespace BK7231Flasher
 					return null;
 				}
 				var config = stackalloc byte[(int)savedlen];
-				if(IntPtr.Size == 8)
+				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+					res2 = EFLinux.ef_get_env_blob((char*)name, config, savedlen, &savedlen);
+				else if(IntPtr.Size == 8)
 					res2 = EF64.ef_get_env_blob((char*)name, config, savedlen, &savedlen);
 				else
 					res2 = EF32.ef_get_env_blob((char*)name, config, savedlen, &savedlen);
@@ -103,18 +134,24 @@ namespace BK7231Flasher
 
 		public static unsafe byte[] SaveCfgToNewEasyFlash(OBKConfig cfg, int areaSize)
 		{
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				EFLinux.set_env_size((uint)areaSize);
+			else if(IntPtr.Size == 8)
 				EF64.set_env_size((uint)areaSize);
 			else
 				EF32.set_env_size((uint)areaSize);
 			byte* env;
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				env = EFLinux.get_env_area();
+			else if(IntPtr.Size == 8)
 				env = EF64.get_env_area();
 			else
 				env = EF32.get_env_area();
 
 			memset((IntPtr)env, 0xFF, areaSize);
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				EFLinux.easyflash_init();
+			else if(IntPtr.Size == 8)
 				EF64.easyflash_init();
 			else
 				EF32.easyflash_init();
@@ -127,7 +164,9 @@ namespace BK7231Flasher
 				fixed(byte* pdata = cfgData)
 				{
 					uint res;
-					if(IntPtr.Size == 8)
+					if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+						res = EFLinux.ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length);
+					else if(IntPtr.Size == 8)
 						res = EF64.ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length);
 					else
 						res = EF32.ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length);
@@ -149,17 +188,23 @@ namespace BK7231Flasher
 			{
 				throw new Exception("Saved EF data length != target EF length");
 			}
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				EFLinux.set_env_size((uint)areaSize);
+			else if(IntPtr.Size == 8)
 				EF64.set_env_size((uint)areaSize);
 			else
 				EF32.set_env_size((uint)areaSize);
 			byte* env;
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				env = EFLinux.get_env_area();
+			else if(IntPtr.Size == 8)
 				env = EF64.get_env_area();
 			else
 				env = EF32.get_env_area();
 			fixed(byte* pdata = cfg.efdata) memcpy((IntPtr)env, (IntPtr)pdata, areaSize);
-			if(IntPtr.Size == 8)
+			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				EFLinux.easyflash_init();
+			else if(IntPtr.Size == 8)
 				EF64.easyflash_init();
 			else
 				EF32.easyflash_init();
@@ -172,7 +217,9 @@ namespace BK7231Flasher
 				fixed(byte* pdata = cfgData)
 				{
 					uint res;
-					if(IntPtr.Size == 8)
+					if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+						res = EFLinux.ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length);
+					else if(IntPtr.Size == 8)
 						res = EF64.ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length);
 					else
 						res = EF32.ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length);
