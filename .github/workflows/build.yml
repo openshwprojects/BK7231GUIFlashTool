@@ -72,6 +72,7 @@ jobs:
           mkdir -p BuildOutput/Release
           move *.exe BuildOutput/Release/
           move *.dll BuildOutput/Release/
+          move *.so BuildOutput/Release/
 
       - name: Copy loaders directory into release
         run: |

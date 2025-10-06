@@ -61,7 +61,12 @@ namespace BK7231Flasher
 				addErrorLine("Link failed!");
 				return false;
 			}
-			var extra = serial.ReadExisting();
+			var extra = string.Empty;
+			try
+			{
+				extra = serial.ReadExisting();
+			}
+			catch { }
 			if(extra.Length > 0)
 			{
 				//addLogLine($"<<< {extra}");
