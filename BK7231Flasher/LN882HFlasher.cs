@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -11,7 +12,8 @@ namespace BK7231Flasher
     {
         private SerialPort serial;
         int timeoutMs = 10000;
-
+        int flashSizeMB = 2;
+        byte[] flashID;
 
         bool doGenericSetup()
         {
@@ -41,15 +43,25 @@ namespace BK7231Flasher
             {
                 return true;
             }
-            if(upload_ram_loader("loaders/LN882H_RAM_BIN.bin"))
+            if(upload_ram_loader())
             {
                 return true;
             }
-            flash_program(data,0,data.Length, "", false);
+            if(mode == WriteMode.ReadAndWrite)
+            {
+                doReadInternal(startSector, 0, true);
+                if(saveReadResult(startSector) == false)
+                {
+                    return true;
+                }
+            }
+            flash_program(data,0,data?.Length ?? 0, "", false, mode);
             return false;
         }
         public void change_baudrate(int baudrate)
         {
+            if(baudrate == serial.BaudRate)
+                return;
            addLogLine("change_baudrate: Change baudrate " + baudrate);
             serial.Write("baudrate " + baudrate + "\r\n");
             Thread.Sleep(500);
@@ -77,41 +89,83 @@ namespace BK7231Flasher
            addLogLine("change_baudrate: Baudrate change done");
         }
 
-        public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud)
+        public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud, WriteMode mode)
         {
-            logger.setState("Prepare write...", Color.White);
-           addLogLine("flash_program: will flash " + len + " bytes " + filename);
-            change_baudrate(this.baudrate);
-           addLogLine("flash_program: sending startaddr");
-            serial.Write("startaddr 0x0\r\n");
-           addLogLine(serial.ReadLine().Trim());
-           addLogLine(serial.ReadLine().Trim());
-
-           addLogLine("flash_program: sending update command");
-            serial.Write("upgrade\r\n");
-            serial.Read(new byte[7], 0, 7);
-
-           addLogLine("flash_program: sending file via ymodem");
-            YModem modem = new YModem(serial, logger);
-           int res = modem.send(data, filename, len, true, 3);
-            if(res != len)
+            OBKConfig cfg;
+            if(mode == WriteMode.OnlyOBKConfig)
             {
-                addLogLine("flash_program: failed to flash, flashed only " +
-                    res +  " out of " + len + " bytes!");
-                return;
+                cfg = logger.getConfig();
             }
-           addLogLine("flash_program: sending file done");
+            else
+            {
+                cfg = logger.getConfigToWrite();
+            }
+            logger.setState("Prepare write...", Color.White);
+            change_baudrate(this.baudrate);
+            if(mode != WriteMode.OnlyOBKConfig)
+            {
+                addLogLine("flash_program: will flash " + len + " bytes " + filename);
+                addLogLine("flash_program: sending startaddr");
+                serial.Write($"startaddr 0x{ofs:X}\r\n");
+                addLogLine(serial.ReadLine().Trim());
+                addLogLine(serial.ReadLine().Trim());
 
+                addLogLine("flash_program: sending update command");
+                serial.Write("upgrade\r\n");
+                serial.Read(new byte[7], 0, 7);
+
+                addLogLine("flash_program: sending file via ymodem");
+                YModem modem = new YModem(serial, logger);
+                int res = modem.send(data, filename, len, true, 3);
+                if(res != len)
+                {
+                    addLogLine("flash_program: failed to flash, flashed only " +
+                        res + " out of " + len + " bytes!");
+                    return;
+                }
+                addLogLine("flash_program: sending file done");
+
+                addLogLine("flash_program: flashed " + len + " bytes!");
+                addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
+            }
+            if(cfg != null)
+            {
+                var offset = (uint)OBKFlashLayout.getConfigLocation(chipType, out var sectors);
+                var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+                cfg.saveConfig(chipType);
+                byte[] wd = MiscUtils.padArray(cfg.getData(), BK7231Flasher.SECTOR_SIZE);
+                ms?.Dispose();
+                ms = new MemoryStream(wd);
+                addLog("Now will also write OBK config..." + Environment.NewLine);
+                addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                serial.Write($"startaddr 0x{offset:X}\r\n");
+                addLogLine(serial.ReadLine().Trim());
+                addLogLine(serial.ReadLine().Trim());
+                serial.Write("upgrade\r\n");
+                serial.Read(new byte[7], 0, 7);
+                YModem modem = new YModem(serial, logger);
+                var res = modem.send(wd, "ObkCfg", wd.Length, true, 3);
+                if(res != wd.Length)
+                {
+                    logger.setState("Writing error!", Color.Red);
+                    addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                    return;
+                }
+                logger.setState("OBK config write success!", Color.Green);
+            }
+            else
+            {
+                addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+            }
             serial.Write("filecount\r\n");
-           addLogLine(serial.ReadLine().Trim());
-           addLogLine(serial.ReadLine().Trim());
-
+            addLogLine(serial.ReadLine().Trim());
+            addLogLine(serial.ReadLine().Trim());
             if(bRestoreBaud)
             {
                 change_baudrate(115200);
             }
-            addLogLine("flash_program: flashed " + len + " bytes!");
-            addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
 
         }
 
@@ -122,34 +176,16 @@ namespace BK7231Flasher
             {
                 return ;
             }
-            doReadInternal();
+            if(upload_ram_loader())
+            {
+                return;
+            }
+            doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE, fullRead);
         }
         public void flush_com()
         {
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
-        }
-
-        public bool upload_ram_loader_for_read(byte[] RAMCODE, int baudToSet)
-        {
-            if (prepareForLoaderSend())
-            {
-                return true;
-            }
-            addLogLine("Connect to bootloader...");
-            serial.Write($"download [rambin] [0x20000000] [{RAMCODE.Length}]\r\n");
-            addLogLine("Will send RAMCODE");
-            YModem modem = new YModem(serial, logger);
-
-            var stream = new MemoryStream(RAMCODE);
-            int ret = modem.send(stream, "RAMCODE", stream.Length, false,20, baudToSet);
-            if (ret != stream.Length)
-            {
-               addLogLine("Ramcode upload failed, expected " + stream.Length + ", got " + ret + "!");
-                return false;
-            }
-           addLogLine("RAMCODE send ok, starting immediately");
-            return true;
         }
         bool openPort()
         {
@@ -182,8 +218,9 @@ namespace BK7231Flasher
             }
             return false;
         }
-        bool prepareForLoaderSend()
+        bool prepareForLoaderSend(out bool isRamcode)
         {
+            isRamcode = false;
             logger.setState("Connecting...", Color.White);
             addLogLine("Sync with LN882H...");
             serial.DiscardInBuffer();
@@ -204,6 +241,13 @@ namespace BK7231Flasher
                 {
                     serial.Write("version\r\n");
                     msg = serial.ReadLine();
+                    if(msg.Equals("\r"))
+                        msg = serial.ReadLine();
+                    if(msg.Equals("RAMCODE\r"))
+                    {
+                        isRamcode = true;
+                        break;
+                    }
                     addLogLine(msg);
                 }
                 catch (TimeoutException)
@@ -215,43 +259,52 @@ namespace BK7231Flasher
             addLogLine("Connect to bootloader...");
             return false;
         }
-        public bool upload_ram_loader(string fname)
+        public bool upload_ram_loader()
         {
-            addLogLine("upload_ram_loader will upload " + fname + "!");
-            if (File.Exists(fname) == false)
+            //addLogLine("upload_ram_loader will upload " + fname + "!");
+            //if (File.Exists(fname) == false)
+            //{
+            //    addLogLine("Can't open " + fname + "!");
+            //    return true;
+            //}
+            if(prepareForLoaderSend(out var isRamcode))
             {
-                addLogLine("Can't open " + fname + "!");
                 return true;
             }
-            if(prepareForLoaderSend())
-            {
-                return true;
-            }
-            serial.Write("download [rambin] [0x20000000] [37872]\r\n");
-            addLogLine("Will send file via YModem");
-
-            YModem modem = new YModem(serial, logger);
-            modem.send_file(fname, false, 3);
-
-            addLogLine("Starting program. Wait....");
             string msg = "";
-            while (msg != "RAMCODE\r")
+            if(!isRamcode)
             {
-                Thread.Sleep(1000);
-                serial.DiscardInBuffer();
-                addLogLine("send version... wait for:  RAMCODE");
-                serial.Write("version\r\n");
-                try
+                byte[] dat = Convert.FromBase64String(FLoaders.LN882H_RamCode);
+                serial.Write($"download [rambin] [0x20000000] [{dat.Length}]\r\n");
+                addLogLine("Will send file via YModem");
+
+                YModem modem = new YModem(serial, logger);
+                modem.send(dat, "RAMCODE", dat.Length, false);
+
+                addLogLine("Starting program. Wait....");
+                while (msg != "RAMCODE\r")
                 {
-                    msg = serial.ReadLine();
-                    addLogLine(msg);
-                    msg = serial.ReadLine();
-                    addLogLine(msg);
+                    Thread.Sleep(1000);
+                    serial.DiscardInBuffer();
+                    addLogLine("send version... wait for:  RAMCODE");
+                    serial.Write("version\r\n");
+                    try
+                    {
+                        msg = serial.ReadLine();
+                        addLogLine(msg);
+                        msg = serial.ReadLine();
+                        addLogLine(msg);
+                    }
+                    catch (TimeoutException)
+                    {
+                        msg = "";
+                    }
                 }
-                catch (TimeoutException)
-                {
-                    msg = "";
-                }
+            }
+            else
+            {
+                addLogLine("RAMCODE already uploaded");
+                return false;
             }
 
             serial.Write("flash_uid\r\n");
@@ -266,109 +319,56 @@ namespace BK7231Flasher
                 addLogLine("Timeout on flash_uid");
                 return true;
             }
-            addLogLine("upload_ram_loader complete for " + fname + "!");
+            addLogLine("upload_ram_loader complete!");
 
             return false;
         }
-        public bool doReadInternal() { 
-            byte[] RAMCODE = LN882H_RamDumper.RAMCODE;
-            switch (baudrate)
+        public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false) {
+            serial.Write("flash_id\r\n");
+            try
             {
-                default:
-                   addLogLine("Not supported baud - defaulting to 115200");
-                    baudrate = 115200; goto case 115200;
-                case 115200:
-                   addLogLine("Setting up baud 115200");
-                    RAMCODE[8] = 0x6F;
-                    RAMCODE[9] = 0xD8;
-                    RAMCODE[10] = 0xCB;
-                    RAMCODE[11] = 0x1A;
-                    RAMCODE[20] = 0xC5;
-                    RAMCODE[21] = 0xDA;
-                    RAMCODE[22] = 0x90;
-                    RAMCODE[23] = 0x00;
-                    RAMCODE[8226] = 0xE1;
-                    RAMCODE[8227] = 0x30;
-                    break;
-                case 230400:
-                   addLogLine("Setting up baud 230400");
-                    RAMCODE[8] = 0xCF;
-                    RAMCODE[9] = 0x53;
-                    RAMCODE[10] = 0x27;
-                    RAMCODE[11] = 0xAF;
-                    RAMCODE[20] = 0x2B;
-                    RAMCODE[21] = 0xB4;
-                    RAMCODE[22] = 0x8B;
-                    RAMCODE[23] = 0x03;
-                    RAMCODE[8226] = 0x61;
-                    RAMCODE[8227] = 0x30;
-                    break;
-                case 460800:
-                   addLogLine("Setting up baud 460800");
-                    RAMCODE[8] = 0xB0;
-                    RAMCODE[9] = 0xE9;
-                    RAMCODE[10] = 0x95;
-                    RAMCODE[11] = 0xCB;
-                    RAMCODE[20] = 0x05;
-                    RAMCODE[21] = 0x07;
-                    RAMCODE[22] = 0xFD;
-                    RAMCODE[23] = 0x63;
-                    RAMCODE[8226] = 0xE1;
-                    RAMCODE[8227] = 0x20;
-                    break;
-                case 921600:
-                   addLogLine("Setting up baud 921600");
-                    RAMCODE[8] = 0x10;
-                    RAMCODE[9] = 0x62;
-                    RAMCODE[10] = 0x79;
-                    RAMCODE[11] = 0x7E;
-                    RAMCODE[20] = 0xEB;
-                    RAMCODE[21] = 0x69;
-                    RAMCODE[22] = 0xE6;
-                    RAMCODE[23] = 0x60;
-                    RAMCODE[8226] = 0x61;
-                    RAMCODE[8227] = 0x20;
-                    break;
+                Thread.Sleep(5);
+                var flashIdStr = serial.ReadExisting().Remove(0, 2);
+                flashID = Enumerable.Range(0, flashIdStr.Length)
+                    .Where(x => x % 2 == 0)
+                    .Select(x => Convert.ToByte(flashIdStr.Substring(x, 2), 16))
+                    .ToArray();
             }
-            var isUploaded = upload_ram_loader_for_read(RAMCODE, baudrate);
-            if (!isUploaded)
+            catch
             {
-               addLogLine("read_flash_to_file: failed to upload RAMCODE");
+                addLogLine("Error on flash_id");
                 return false;
             }
-            //flush_com();
-            byte[] flashsize = new byte[4];
-            var addr = 0;
-            var read = 0;
-            var result = true;
-            int toRead = serial.BytesToRead;
-            while (read < 4)
+            flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
+            addLog("Flash ID: 0x" + flashID[0].ToString("X2") + flashID[1].ToString("X2") + flashID[2].ToString("X2")+Environment.NewLine);
+            addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
+            if(fullRead)
             {
-                read += serial.Read(flashsize, read, 4 - read);
+                size = flashSizeMB * 0x100000;
             }
-            int total_flash_size = flashsize[3] << 24 | flashsize[2] << 16 | flashsize[1] << 8 | flashsize[0];
-            int mbs = total_flash_size / 0x100000;
-            int ava = serial.BytesToRead;
-            addLogLine($"Reading flash at baud " + serial.BaudRate + $", flash size is {mbs} MB, available data {ava}");
-            int packetsize = 512 + 2;
+            change_baudrate(baudrate);
+
+            var addr = 0;
+            var result = true;
+            int packetsize = 0x200 + 2;
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);
             addLog("Reading..");
             int loops = 0;
+            serial.Write($"fdump 0x{startSector:X} 0x{size:X}\r\n");
             ms = new MemoryStream();
             {
-                while (addr < total_flash_size)
+                while (addr < size)
                 {
                     loops++;
                     if (loops % 50 == 0)
                     {
-                        addLog(addr + "... ");
+                        addLog(startSector + "... ");
                     }
-                    logger.setProgress(addr, total_flash_size);
                     byte[] buf = new byte[packetsize];
                     byte[] nocrc = new byte[packetsize - 2];
                     byte[] crc = new byte[2];
-                    read = 0;
+                    var read = 0;
                     while (read < packetsize)
                     {
                         read += serial.Read(buf, read, packetsize - read);
@@ -380,24 +380,28 @@ namespace BK7231Flasher
                     if (sentcrc != calc_crc)
                     {
                         logger.setState("CRC ERROR", Color.Red);
-                        addLogLine($"CRC FAIL at {addr}, try lower baud?");
+                        addLogLine($"CRC FAIL at {startSector}, try lower baud?");
                         result = false;
                         break;
                     }
+                    startSector += packetsize - 2;
                     addr += packetsize - 2;
+                    logger.setProgress(addr, size);
+
                     ms.Write(buf, 0, packetsize - 2);
                 }
             }
             t.Stop();
             logger.setState("Reading complete!", Color.Green);
             addLogLine($"\ndone in {t.Elapsed.TotalSeconds}s");
-
+            
+            change_baudrate(115200);
             return result;
         }
         MemoryStream ms;
         public override byte[] getReadResult()
         {
-                return ms.GetBuffer();
+                return ms?.GetBuffer();
         }
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
@@ -437,6 +441,11 @@ namespace BK7231Flasher
                 startSector = 0;
                 doWrite(startSector, 0, data, rwMode);
 
+            }
+            else
+            {
+                startSector = OBKFlashLayout.getConfigLocation(chipType, out sectors);
+                doWrite(startSector, sectors, data, rwMode);
             }
         }
         bool saveReadResult(string fileName)

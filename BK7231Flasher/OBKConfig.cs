@@ -563,7 +563,7 @@ namespace BK7231Flasher
                 return false;
             }
             int useLen = getLenForVersion(version);
-            crc = type == BKType.RTL8720D ? CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4) : CRC.Tiny_CRC8(raw, extraOfs + 4, useLen - 4);
+            crc = (type == BKType.RTL8720D || type == BKType.LN882H) ? CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4) : CRC.Tiny_CRC8(raw, extraOfs + 4, useLen - 4);
             if(raw[extraOfs + 3] != crc)
             {
                 FormMain.Singleton.addLog("OBK config has wrong checksum? Skipping" + Environment.NewLine, System.Drawing.Color.Purple);
@@ -579,7 +579,7 @@ namespace BK7231Flasher
             }
             return 3584;
         }
-        public void saveConfig(BKType? type = null)
+        public void saveConfig(BKType type = BKType.Invalid)
         {
             byte crc = 0;
             raw[0] = (byte)'C';
@@ -587,9 +587,9 @@ namespace BK7231Flasher
             raw[2] = (byte)'G';
             version = 4;
             int realLen = getLenForVersion(version);
-            crc = type == BKType.RTL8720D ? CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4) : CRC.Tiny_CRC8(raw, 4, realLen - 4);
+            crc = (type == BKType.RTL8720D || type == BKType.LN882H) ? CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4) : CRC.Tiny_CRC8(raw, 4, realLen - 4);
             raw[3] = (byte)crc;
-            if (isValid(raw) == false)
+            if (isValid(raw, type: type) == false)
             {
                 Console.WriteLine("Error in checksum recalculation");
             }
