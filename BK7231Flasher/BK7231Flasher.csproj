@@ -121,7 +121,6 @@
     </Compile>
     <Compile Include="ILogListener.cs" />
     <Compile Include="LN882HFlasher.cs" />
-    <Compile Include="LN882H_RamDumper.cs" />
     <Compile Include="MiscUtils.cs" />
     <Compile Include="ModifyProgressBarColor.cs" />
     <Compile Include="MySettings.cs" />
