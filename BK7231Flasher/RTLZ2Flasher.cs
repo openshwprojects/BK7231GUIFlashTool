@@ -395,18 +395,18 @@ namespace BK7231Flasher
 					{
 						try
 						{
-							efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize);
+							efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize, chipType);
 						}
 						catch(Exception ex)
 						{
 							addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
 							addLog(ex.Message + Environment.NewLine);
-							efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+							efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
 						}
 					}
 					else
 					{
-						efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+						efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
 					}
 					ms?.Dispose();
 					ms = new MemoryStream(efdata);

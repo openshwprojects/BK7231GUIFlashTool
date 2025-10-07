@@ -1113,7 +1113,7 @@ namespace BK7231Flasher
             if (cfg != null)
             {
                 addLog("Now will also write OBK config..." + Environment.NewLine);
-                cfg.saveConfig();
+                cfg.saveConfig(chipType);
                 addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
                 addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
                 addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);

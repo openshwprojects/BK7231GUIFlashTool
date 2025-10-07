@@ -102,13 +102,13 @@ namespace BK7231Flasher
             {
                 subArray = dat;
             }
-            if(type == BKType.RTL8720D || type == BKType.RTL87X0C || type == BKType.RTL8710B)
+            if(type == BKType.RTL8720D || type == BKType.RTL87X0C || type == BKType.RTL8710B || type == BKType.BL602)
             {
                 _ = OBKFlashLayout.getConfigLocation(type, out var sectors);
-                dat = EasyFlash.LoadFromData(subArray, sectors * BK7231Flasher.SECTOR_SIZE, out efdata);
+                dat = EasyFlash.LoadFromData(subArray, sectors * BK7231Flasher.SECTOR_SIZE, type, out efdata);
                 subArray = dat;
             }
-            if (isValid(subArray))
+            if (isValid(subArray, type: type))
             {
                 this.raw = subArray;
                 return false;
@@ -542,7 +542,7 @@ namespace BK7231Flasher
             this.longDeviceName = "OpenBekenX_" + randomSuffix;
         }
 
-        public static bool isValid(byte [] raw, int extraOfs = 0)
+        public static bool isValid(byte [] raw, int extraOfs = 0, BKType type = BKType.Invalid)
         {
             if (raw == null)
                 return false;
@@ -563,7 +563,7 @@ namespace BK7231Flasher
                 return false;
             }
             int useLen = getLenForVersion(version);
-            crc = CRC.Tiny_CRC8(raw, extraOfs + 4, useLen - 4);
+            crc = type == BKType.RTL8720D ? CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4) : CRC.Tiny_CRC8(raw, extraOfs + 4, useLen - 4);
             if(raw[extraOfs + 3] != crc)
             {
                 FormMain.Singleton.addLog("OBK config has wrong checksum? Skipping" + Environment.NewLine, System.Drawing.Color.Purple);
@@ -579,7 +579,7 @@ namespace BK7231Flasher
             }
             return 3584;
         }
-        public void saveConfig()
+        public void saveConfig(BKType? type = null)
         {
             byte crc = 0;
             raw[0] = (byte)'C';
@@ -587,7 +587,7 @@ namespace BK7231Flasher
             raw[2] = (byte)'G';
             version = 4;
             int realLen = getLenForVersion(version);
-            crc = CRC.Tiny_CRC8(raw, 4, realLen - 4);
+            crc = type == BKType.RTL8720D ? CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4) : CRC.Tiny_CRC8(raw, 4, realLen - 4);
             raw[3] = (byte)crc;
             if (isValid(raw) == false)
             {

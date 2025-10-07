@@ -73,7 +73,7 @@ namespace BK7231Flasher
 		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
 		public static extern IntPtr memset(IntPtr dest, int c, int count);
 
-		public static unsafe byte[] LoadFromData(byte[] data, int size, out byte[] efdata)
+		public static unsafe byte[] LoadFromData(byte[] data, int size, BKType type, out byte[] efdata)
 		{
 			efdata = data;
 			if(data == null)
@@ -99,7 +99,7 @@ namespace BK7231Flasher
 				EF64.easyflash_init();
 			else
 				EF32.easyflash_init();
-			byte[] bname = Encoding.ASCII.GetBytes("ObkCfg");
+			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
 			fixed(byte* name = bname)
 			{
 				var test = stackalloc byte[1];
@@ -132,7 +132,7 @@ namespace BK7231Flasher
 			}
 		}
 
-		public static unsafe byte[] SaveCfgToNewEasyFlash(OBKConfig cfg, int areaSize)
+		public static unsafe byte[] SaveCfgToNewEasyFlash(OBKConfig cfg, int areaSize, BKType type)
 		{
 			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 				EFLinux.set_env_size((uint)areaSize);
@@ -156,10 +156,10 @@ namespace BK7231Flasher
 			else
 				EF32.easyflash_init();
 
-			byte[] bname = Encoding.ASCII.GetBytes("ObkCfg");
+			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
 			fixed(byte* name = bname)
 			{
-				cfg.saveConfig();
+				cfg.saveConfig(type);
 				var cfgData = cfg.getData();
 				fixed(byte* pdata = cfgData)
 				{
@@ -182,7 +182,7 @@ namespace BK7231Flasher
 			}
 		}
 
-		public static unsafe byte[] SaveCfgToExistingEasyFlash(OBKConfig cfg, int areaSize)
+		public static unsafe byte[] SaveCfgToExistingEasyFlash(OBKConfig cfg, int areaSize, BKType type)
 		{
 			if(cfg.efdata.Length != areaSize)
 			{
@@ -209,10 +209,10 @@ namespace BK7231Flasher
 			else
 				EF32.easyflash_init();
 
-			byte[] bname = Encoding.ASCII.GetBytes("ObkCfg");
+			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
 			fixed(byte* name = bname)
 			{
-				cfg.saveConfig();
+				cfg.saveConfig(type);
 				var cfgData = cfg.getData();
 				fixed(byte* pdata = cfgData)
 				{

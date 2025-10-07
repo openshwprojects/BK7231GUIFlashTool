@@ -333,7 +333,7 @@ namespace BK7231Flasher
             {
                 return ;
             }
-            doReadInternal();
+            doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
         }
         public void flush_com()
         {
@@ -379,6 +379,7 @@ namespace BK7231Flasher
             logger.setProgress(0, startAmount);
             logger.setState("Reading", Color.White);
             addLogLine("Starting read...");
+            int destAddr = 0;
             while (amount > 0)
             {
                 int length = 512;
@@ -415,10 +416,11 @@ namespace BK7231Flasher
                     addErrorLine("Read fail - size mismatch");
                     return null;
                 }
-                Array.Copy(result, 2, ret, addr, dataLen);
+                Array.Copy(result, 2, ret, destAddr, dataLen);
 
                 addr += dataLen;
                 amount -= dataLen;
+                destAddr += dataLen;
                 logger.setProgress(addr, startAmount);
             }
             logger.setState("Read done", Color.DarkGreen);
@@ -426,15 +428,15 @@ namespace BK7231Flasher
             return ret;
         }
 
-        public bool doReadInternal() {
-            byte[] res = readFlash(0, 2097152);
+        public bool doReadInternal(int addr = 0, int amount = 0x200000) {
+            byte[] res = readFlash(addr, amount);
             ms = new MemoryStream(res);
             return false;
         }
         MemoryStream ms;
         public override byte[] getReadResult()
         {
-                return ms.GetBuffer();
+                return ms?.ToArray();
         }
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
@@ -460,7 +462,7 @@ namespace BK7231Flasher
             }
             if(rwMode == WriteMode.ReadAndWrite)
             {
-                doReadInternal();
+                doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
             }
             if (string.IsNullOrEmpty(sourceFileName))
             {

@@ -328,6 +328,10 @@ namespace BK7231Flasher
                 {
                     type = BKType.LN882H;
                 }
+                if (fname.Contains("BL602"))
+                {
+                    type = BKType.BL602;
+                }
             }
             bool bError = cfg.loadFrom(fname, type);
             if (bError == true)
