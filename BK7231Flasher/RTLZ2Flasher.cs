@@ -352,6 +352,10 @@ namespace BK7231Flasher
 					{
 						return true;
 					}
+					if(saveReadResult(startSector) == false)
+					{
+						return true;
+					}
 				}
 				else
 				{

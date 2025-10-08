@@ -752,6 +752,10 @@ namespace BK7231Flasher
                 {
                     return true;
                 }
+                if(saveReadResult(startSector) == false)
+                {
+                    return true;
+                }
             }
             int address = startSector * BK7231Flasher.SECTOR_SIZE;
             int count = (size + 4095) / 4096;
