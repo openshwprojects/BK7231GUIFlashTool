@@ -197,7 +197,7 @@ namespace BK7231Flasher
                     return null;
                 }
             }
-            addLogLine("Command timed out!");
+            if(expectedReplyLen != 0) addLogLine("Command timed out!");
             return null;
         }
         internal BLInfo getAndPrintInfo()
@@ -211,11 +211,12 @@ namespace BK7231Flasher
             return inf;
         }
 
-        internal void writeFlash(byte[] data, int adr, int len = -1)
+        internal bool writeFlash(byte[] data, int adr, int len = -1)
         {
             if (len < 0)
                 len = data.Length;
             int ofs = 0;
+            int startAddr = adr;
             logger.setProgress(0, len);
             addLogLine("Erasing...");
             doErase(adr, (len + 4095) / 4096);
@@ -239,8 +240,15 @@ namespace BK7231Flasher
                 adr += chunk;
                 logger.setProgress(ofs, len);
             }
+            addLogLine("");
+            if(!CheckSHA256(startAddr, len, data))
+            {
+                logger.setState("SHA mismatch!", Color.Red);
+                return false;
+            }
             logger.setState("Writing done", Color.DarkGreen);
             addLogLine("Done flash write " + len);
+            return true;
         }
         void executeCommandChunked(int type, byte[] parms = null, int start = 0, int len = 0)
         {
@@ -385,6 +393,7 @@ namespace BK7231Flasher
         }
         internal byte[] readFlash(int addr = 0, int amount = 4096)
         {
+            var startAddr = addr;
             int startAmount = amount;
             byte[] ret = new byte[amount];
             logger.setProgress(0, startAmount);
@@ -434,14 +443,56 @@ namespace BK7231Flasher
                 destAddr += dataLen;
                 logger.setProgress(addr, startAmount);
             }
+            addLogLine("");
+            if(!CheckSHA256(startAddr, startAmount, ret))
+            {
+                logger.setState("SHA mismatch!", Color.Red);
+                return null;
+            }
             logger.setState("Read done", Color.DarkGreen);
             addLogLine("Read complete!");
             return ret;
         }
 
+        public bool CheckSHA256(int addr, int length, byte[] data)
+        {
+            byte[] sha256cmd = new byte[8];
+            sha256cmd[0] = (byte)(addr & 0xFF);
+            sha256cmd[1] = (byte)((addr >> 8) & 0xFF);
+            sha256cmd[2] = (byte)((addr >> 16) & 0xFF);
+            sha256cmd[3] = (byte)((addr >> 24) & 0xFF);
+            sha256cmd[4] = (byte)(length & 0xFF);
+            sha256cmd[5] = (byte)((length >> 8) & 0xFF);
+            sha256cmd[6] = (byte)((length >> 16) & 0xFF);
+            sha256cmd[7] = (byte)((length >> 24) & 0xFF);
+            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, 100, 2 + 32);
+            if(sha256result == null)
+            {
+                addErrorLine($"Failed to get hash");
+                return false;
+            }
+            string sha256read;
+            using(var hasher = SHA256.Create())
+            {
+                var sha = hasher.ComputeHash(data);
+                sha256read = RTLZ2Flasher.HashToStr(sha);
+            }
+            var sha256flash = RTLZ2Flasher.HashToStr(sha256result.Skip(2).ToArray());
+            if(sha256flash != sha256read)
+            {
+                addErrorLine($"Hash mismatch!\r\nexpected\t{sha256read}\r\ngot\t{sha256flash}");
+                return false;
+            }
+            else
+            {
+                addSuccess($"Hash matches {sha256read}!" + Environment.NewLine);
+                return true;
+            }
+        }
+
         public bool doReadInternal(int addr = 0, int amount = 0x200000) {
             byte[] res = readFlash(addr, amount);
-            ms = new MemoryStream(res);
+            if(res != null) ms = new MemoryStream(res);
             return false;
         }
         MemoryStream ms;
@@ -473,8 +524,21 @@ namespace BK7231Flasher
                 cmdBuffer[5] = (byte)((length >> 8) & 0xFF);
                 cmdBuffer[6] = (byte)((length >> 16) & 0xFF);
                 cmdBuffer[7] = (byte)((length >> 24) & 0xFF);
-                executeCommand(0x30,cmdBuffer,0,cmdBuffer.Length,true, 5);
-                Thread.Sleep(250 + length / 250);
+                executeCommand(0x30,cmdBuffer,0,cmdBuffer.Length,true, 15, 0);
+                Thread.Sleep(150);
+                int errcount = 500;
+                while(errcount-- > 0)
+                {
+                    var buf = new byte[2];
+                    try
+                    {
+                        serial.Read(buf, 0, 2);
+                    }
+                    catch { }
+                    if(buf[0] == 'O' && buf[1] == 'K')
+                        break;
+                    Thread.Sleep(2);
+                }
                 serial.DiscardInBuffer();
             }
             return true;
@@ -526,7 +590,7 @@ namespace BK7231Flasher
                     byte[] partitions = Convert.FromBase64String(FLoaders.BL602_Partitions);
                     boot = MiscUtils.padArray(boot, 0xE000);
                     boot = boot.Concat(partitions).ToArray();
-                    writeFlash(boot, 0);
+                    if(!writeFlash(boot, 0)) return;
                     addLogLine("Reading " + sourceFileName + "...");
                     byte[] data = File.ReadAllBytes(sourceFileName);
                     data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
@@ -549,11 +613,11 @@ namespace BK7231Flasher
                     apphdr[apphdr.Length - 1] = (byte)(crc32 >> 24);
                     byte[] wd = MiscUtils.padArray(apphdr, BK7231Flasher.SECTOR_SIZE);
                     data = wd.Concat(data).ToArray();
-                    this.writeFlash(data, 0x10000);
+                    if(!writeFlash(data, 0x10000)) return;
 
                     addLogLine("Writing dts...");
                     byte[] dts = Convert.FromBase64String(FLoaders.BL602_Dts);
-                    this.writeFlash(dts, 0x1FC000);
+                    if(!writeFlash(dts, 0x1FC000)) return;
                 }
                 else
                 {

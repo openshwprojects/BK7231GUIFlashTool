@@ -531,6 +531,10 @@ namespace BK7231Flasher
 				if(readHash != expectedHash)
 				{
 					addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
+					logger.setState("SHA mismatch!", Color.Red);
+					sha256Hash.Clear();
+					ChangeBaud(115200);
+					return null;
 				}
 				else
 				{
