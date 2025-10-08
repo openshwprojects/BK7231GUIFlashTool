@@ -740,6 +740,7 @@ namespace BK7231Flasher
         }
         void readThread(object oParm)
         {
+            bool isFullRead = true;
             CustomParms parms = null;
             if(oParm != null)
             {
@@ -757,6 +758,7 @@ namespace BK7231Flasher
                 if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
+                isFullRead = false;
             }
             else if(curType == BKType.BK7252)
             {
@@ -771,7 +773,7 @@ namespace BK7231Flasher
                 startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
-            flasher.doRead(startSector, sectors, true);
+            flasher.doRead(startSector, sectors, isFullRead);
             
             flasher.saveReadResult(startSector);
 
