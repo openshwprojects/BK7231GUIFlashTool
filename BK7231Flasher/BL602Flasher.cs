@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -457,6 +459,7 @@ namespace BK7231Flasher
                 }
                 executeCommand(0x3C,null,0,0,true, 15);
                 Thread.Sleep(10 + flashSizeMB * 0x100000 / 300);
+                serial.DiscardInBuffer();
             }
             else
             {
@@ -471,7 +474,7 @@ namespace BK7231Flasher
                 cmdBuffer[6] = (byte)((length >> 16) & 0xFF);
                 cmdBuffer[7] = (byte)((length >> 24) & 0xFF);
                 executeCommand(0x30,cmdBuffer,0,cmdBuffer.Length,true, 5);
-                Thread.Sleep(10 + length / 300);
+                Thread.Sleep(250 + length / 250);
                 serial.DiscardInBuffer();
             }
             return true;
@@ -516,18 +519,41 @@ namespace BK7231Flasher
                 }
                 if(!sourceFileName.Contains("readResult"))
                 {
-                    //addLogLine("Writing boot...");
-                    //byte[] boot = Convert.FromBase64String(FLoaders.BL602_Boot);
-                    //this.writeFlash(boot, 0x2000);
-                    addLogLine("Writing partitions...");
+                    addLogLine("Erasing...");
+                    doErase(0, 0x1A2000 / BK7231Flasher.SECTOR_SIZE);
+                    addLogLine("Writing boot...");
+                    byte[] boot = Convert.FromBase64String(FLoaders.BL602_Boot);
                     byte[] partitions = Convert.FromBase64String(FLoaders.BL602_Partitions);
-                    this.writeFlash(partitions, 0xE000);
+                    boot = MiscUtils.padArray(boot, 0xE000);
+                    boot = boot.Concat(partitions).ToArray();
+                    writeFlash(boot, 0);
+                    addLogLine("Reading " + sourceFileName + "...");
+                    byte[] data = File.ReadAllBytes(sourceFileName);
+                    data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
+                    byte[] apphdr = Convert.FromBase64String(FLoaders.BL602_AppHdr);
+                    apphdr[120] = (byte)(data.Length & 0xFF);
+                    apphdr[121] = (byte)((data.Length >> 8) & 0xFF);
+                    apphdr[122] = (byte)((data.Length >> 16) & 0xFF);
+                    apphdr[123] = (byte)((data.Length >> 24) & 0xFF);
+                    using(var hasher = SHA256.Create())
+                    {
+                        var sha = hasher.ComputeHash(data);
+                        Array.Copy(sha, 0, apphdr, 132, 32);
+                    }
+                    var apphdrnocrc = new byte[apphdr.Length - 4];
+                    Array.Copy(apphdr, 0, apphdrnocrc, 0, apphdrnocrc.Length);
+                    var crc32 = CRC.crc32_ver2(0xFFFFFFFF, apphdrnocrc) ^ 0xFFFFFFFF;
+                    apphdr[apphdr.Length - 1 - 3] = (byte)crc32;
+                    apphdr[apphdr.Length - 1 - 2] = (byte)(crc32 >> 8);
+                    apphdr[apphdr.Length - 1 - 1] = (byte)(crc32 >> 16);
+                    apphdr[apphdr.Length - 1] = (byte)(crc32 >> 24);
+                    byte[] wd = MiscUtils.padArray(apphdr, BK7231Flasher.SECTOR_SIZE);
+                    data = wd.Concat(data).ToArray();
+                    this.writeFlash(data, 0x10000);
+
                     addLogLine("Writing dts...");
                     byte[] dts = Convert.FromBase64String(FLoaders.BL602_Dts);
                     this.writeFlash(dts, 0x1FC000);
-                    //addLogLine("Reading " + sourceFileName + "...");
-                    //byte[] data = File.ReadAllBytes(sourceFileName);
-                    //this.writeFlash(data, 0x11000); // header at 0x10000
                 }
                 else
                 {
