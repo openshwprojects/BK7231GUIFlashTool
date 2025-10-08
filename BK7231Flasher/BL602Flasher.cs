@@ -10,10 +10,9 @@ namespace BK7231Flasher
 {
     public class BL602Flasher : BaseFlasher
     {
-        private SerialPort _port;
         int timeoutMs = 10000;
-
-
+        int flashSizeMB = 2;
+        byte[] flashID;
 
         public bool Sync()
         {
@@ -35,25 +34,25 @@ namespace BK7231Flasher
         bool internalSync()
         {
             // Flush input buffer
-            while (_port.BytesToRead > 0)
+            while (serial.BytesToRead > 0)
             {
-                _port.ReadByte();
+                serial.ReadByte();
             }
 
             // Write initialization sequence
             byte[] syncRequest = new byte[70];
             for (int i = 0; i < syncRequest.Length; i++) syncRequest[i] = (byte)'U';
-            _port.Write(syncRequest, 0, syncRequest.Length);
+            serial.Write(syncRequest, 0, syncRequest.Length);
 
             for (int i = 0; i < 500; i++)
             {
                 Thread.Sleep(1);
 
                 // Check for 2-byte response
-                if (_port.BytesToRead >= 2)
+                if (serial.BytesToRead >= 2)
                 {
                     byte[] response = new byte[2];
-                    _port.Read(response, 0, 2);
+                    serial.Read(response, 0, 2);
                     if (response[0] == 'O' && response[1] == 'K')
                     {
                         return true;
@@ -116,6 +115,8 @@ namespace BK7231Flasher
             if (res.Length >= 6)
             {
                 addLogLine("Flash ID: {0:X2}{1:X2}{2:X2}{3:X2}", res[2], res[3], res[4], res[5]);
+                flashSizeMB = (1 << (res[4] - 0x11)) / 8;
+                addLogLine($"Flash size is {flashSizeMB}MB");
             }
             else
             {
@@ -125,8 +126,8 @@ namespace BK7231Flasher
         }
         byte[] readFully()
         {
-            byte[] r = new byte[_port.BytesToRead];
-            _port.Read(r, 0, r.Length);
+            byte[] r = new byte[serial.BytesToRead];
+            serial.Read(r, 0, r.Length);
             return r;
         }
         byte[] executeCommand(int type, byte[] parms = null,
@@ -150,10 +151,10 @@ namespace BK7231Flasher
                 chksum = (byte)(chksum & 0xFF);
             }
             byte[] raw = new byte[] { (byte)type, chksum, (byte)(len & 0xFF), (byte)(len >> 8) };
-            _port.Write(raw, 0, raw.Length);
+            serial.Write(raw, 0, raw.Length);
             if (parms != null)
             {
-                _port.Write(parms, start, len);
+                serial.Write(parms, start, len);
             }
             byte[] ret = null;
             int timeoutMS = (int)(timeout * 1000);
@@ -161,7 +162,7 @@ namespace BK7231Flasher
         Thread.Sleep(100);
         while (timeoutMS > 0)
         {
-            if (_port.BytesToRead >= expectedReplyLen)
+            if (serial.BytesToRead >= expectedReplyLen)
             {
                 break;
             }
@@ -173,14 +174,14 @@ namespace BK7231Flasher
             Stopwatch sw = Stopwatch.StartNew();
             while (sw.ElapsedMilliseconds < timeoutMS)
             {
-                if (_port.BytesToRead >= expectedReplyLen)
+                if (serial.BytesToRead >= expectedReplyLen)
                     break;
             }
 #endif
-            if (_port.BytesToRead >= 2)
+            if (serial.BytesToRead >= 2)
             {
                 byte[] rep = new byte[2];
-                _port.Read(rep, 0, 2);
+                serial.Read(rep, 0, 2);
                 if (rep[0] == 'O' && rep[1] == 'K')
                 {
                     // Console.Write(".ok.");
@@ -213,9 +214,11 @@ namespace BK7231Flasher
             if (len < 0)
                 len = data.Length;
             int ofs = 0;
+            logger.setProgress(0, len);
+            addLogLine("Erasing...");
+            doErase(adr, (len + 4095) / 4096);
             addLogLine("Starting flash write " + len);
             byte[] buffer = new byte[4096];
-            logger.setProgress(0, len);
             logger.setState("Writing", Color.White);
             while (ofs < len)
             {
@@ -259,10 +262,13 @@ namespace BK7231Flasher
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
-            _port = new SerialPort(serialName, baudrate);
-            _port.Open();
-            _port.DiscardInBuffer();
-            _port.DiscardOutBuffer();
+            if(serial == null)
+            {
+                serial = new SerialPort(serialName, baudrate);
+                serial.Open();
+            }
+            serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
             addLog("Port ready!" + Environment.NewLine);
 
             if(this.Sync() == false)
@@ -272,28 +278,30 @@ namespace BK7231Flasher
             }
             if (this.getAndPrintInfo() == null)
             {
+                flashID = readFlashID();
+                if(flashID != null)
+                {
+                    addLogLine("Eflash loader is already uploaded!");
+                    return true;
+                }
                 addErrorLine("Initial get info failed.");
                 addErrorLine("This may happen if you don't reset between flash operations");
                 addErrorLine("So, make sure that BOOT is connected, do reset (or power off/on) and try again");
                 return false;
             }
-            this.loadAndRunPreprocessedImage("loaders/eflash_loader_rc32m.bin");
+            this.loadAndRunPreprocessedImage();
+            Thread.Sleep(100);
             //resync in eflash
             this.Sync();
-            this.readFlashID();
+            flashID = readFlashID();
 
             return true;
         }
-        public bool loadAndRunPreprocessedImage(string fname)
+        public bool loadAndRunPreprocessedImage()
         {
-            if (File.Exists(fname) == false)
-            {
-                addErrorLine("File " + fname + " bnot found!");
-                return false;
-            }
-            byte[] loaderBinary = File.ReadAllBytes(fname);
+            byte[] loaderBinary = Convert.FromBase64String(FLoaders.BL602Floader);
 
-            return loadAndRunPreprocessedImage(loaderBinary); ;
+            return loadAndRunPreprocessedImage(loaderBinary);
         }
         public bool loadAndRunPreprocessedImage(byte[] file)
         {
@@ -333,19 +341,20 @@ namespace BK7231Flasher
             {
                 return ;
             }
+            if(fullRead) sectors = flashSizeMB * 256;
             doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
         }
         public void flush_com()
         {
-            _port.DiscardInBuffer();
-            _port.DiscardOutBuffer();
+            serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
         }
 
         bool openPort()
         {
             try
             {
-                _port = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
+                serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
             }
             catch (Exception ex)
             {
@@ -354,16 +363,16 @@ namespace BK7231Flasher
             }
             try
             {
-              //  _port.ReadBufferSize = 4096 * 2;
-        //     _port.ReadBufferSize = 3000000;
+              //  serial.ReadBufferSize = 4096 * 2;
+        //     serial.ReadBufferSize = 3000000;
             }
             catch (Exception ex)
             {
-                addWarning("Setting _port port buffer size exception: " + ex.ToString() + Environment.NewLine);
+                addWarning("Setting serial port buffer size exception: " + ex.ToString() + Environment.NewLine);
             }
             try
             {
-                _port.Open();
+                serial.Open();
             }
             catch (Exception ex)
             {
@@ -436,18 +445,43 @@ namespace BK7231Flasher
         MemoryStream ms;
         public override byte[] getReadResult()
         {
-                return ms?.ToArray();
+            return ms?.ToArray();
         }
-        public override bool doErase(int startSector, int sectors, bool bAll)
+        public override bool doErase(int startSector, int sectors, bool bAll = false)
         {
-            return false;
+            if(bAll)
+            {
+                if (doGenericSetup() == false)
+                {
+                    return false;
+                }
+                executeCommand(0x3C,null,0,0,true, 15);
+                Thread.Sleep(10 + flashSizeMB * 0x100000 / 300);
+            }
+            else
+            {
+                var length = sectors * BK7231Flasher.SECTOR_SIZE;
+                byte[] cmdBuffer = new byte[8];
+                cmdBuffer[0] = (byte)(startSector & 0xFF);
+                cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
+                cmdBuffer[2] = (byte)((startSector >> 16) & 0xFF);
+                cmdBuffer[3] = (byte)((startSector >> 24) & 0xFF);
+                cmdBuffer[4] = (byte)(length & 0xFF);
+                cmdBuffer[5] = (byte)((length >> 8) & 0xFF);
+                cmdBuffer[6] = (byte)((length >> 16) & 0xFF);
+                cmdBuffer[7] = (byte)((length >> 24) & 0xFF);
+                executeCommand(0x30,cmdBuffer,0,cmdBuffer.Length,true, 5);
+                Thread.Sleep(10 + length / 300);
+                serial.DiscardInBuffer();
+            }
+            return true;
         }
         public override void closePort()
         {
-            if (_port != null)
+            if (serial != null)
             {
-                _port.Close();
-                _port.Dispose();
+                serial.Close();
+                serial.Dispose();
             }
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
@@ -462,16 +496,47 @@ namespace BK7231Flasher
             }
             if(rwMode == WriteMode.ReadAndWrite)
             {
+                sectors = flashSizeMB * 256;
                 doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+                if (ms == null)
+                {
+                    return;
+                }
+                if(saveReadResult(startSector) == false)
+                {
+                    return;
+                }
             }
-            if (string.IsNullOrEmpty(sourceFileName))
+            if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
             {
-                addLogLine("No filename given!");
+                if(string.IsNullOrEmpty(sourceFileName))
+                {
+                    addLogLine("No filename given!");
+                    return;
+                }
+                if(!sourceFileName.Contains("readResult"))
+                {
+                    //addLogLine("Writing boot...");
+                    //byte[] boot = Convert.FromBase64String(FLoaders.BL602_Boot);
+                    //this.writeFlash(boot, 0x2000);
+                    addLogLine("Writing partitions...");
+                    byte[] partitions = Convert.FromBase64String(FLoaders.BL602_Partitions);
+                    this.writeFlash(partitions, 0xE000);
+                    addLogLine("Writing dts...");
+                    byte[] dts = Convert.FromBase64String(FLoaders.BL602_Dts);
+                    this.writeFlash(dts, 0x1FC000);
+                    //addLogLine("Reading " + sourceFileName + "...");
+                    //byte[] data = File.ReadAllBytes(sourceFileName);
+                    //this.writeFlash(data, 0x11000); // header at 0x10000
+                }
+                else
+                {
+                    addLogLine("Reading " + sourceFileName + "...");
+                    byte[] data = File.ReadAllBytes(sourceFileName);
+                    this.writeFlash(data, 0);
+                }
                 return;
             }
-            addLogLine("Reading " + sourceFileName + "...");
-            byte[] data = File.ReadAllBytes(sourceFileName);
-            this.writeFlash(data, 0);
         }
         bool saveReadResult(string fileName)
         {
