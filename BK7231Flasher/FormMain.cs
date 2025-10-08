@@ -199,7 +199,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL87X0C, "RTL87X0C"));
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602 (read)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
             comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
 

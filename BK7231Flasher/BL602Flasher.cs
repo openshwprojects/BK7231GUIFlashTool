@@ -20,14 +20,19 @@ namespace BK7231Flasher
         {
             for (int i = 0; i < 1000; i++)
             {
-                addLogLine("Sync attempt " + i + "... please pull high BOOT/IO8 and reset...");
+                addLog($"Sync attempt {i}/1000 ");
                 if (internalSync())
                 {
-                    addLogLine("Sync OK!");
+                    logger.addLog("... OK!" + Environment.NewLine, Color.Green);
                     return true;
                 }
-                addWarningLine("Sync failed, will retry!");
-                Thread.Sleep(500);
+                addWarningLine("... failed, will retry!");
+                if(i % 10 == 1)
+                {
+                    addLogLine($"If doing something immediately after another operation, it might not sync for about half a minute");
+                    addLogLine($"Otherwise, please pull high BOOT/IO8 and reset.");
+                }
+                Thread.Sleep(50);
             }
             return false;
         }
@@ -35,18 +40,14 @@ namespace BK7231Flasher
 
         bool internalSync()
         {
-            // Flush input buffer
-            while (serial.BytesToRead > 0)
-            {
-                serial.ReadByte();
-            }
+            serial.DiscardInBuffer();
 
             // Write initialization sequence
             byte[] syncRequest = new byte[70];
             for (int i = 0; i < syncRequest.Length; i++) syncRequest[i] = (byte)'U';
             serial.Write(syncRequest, 0, syncRequest.Length);
 
-            for (int i = 0; i < 500; i++)
+            for (int i = 0; i < 75; i++)
             {
                 Thread.Sleep(1);
 
@@ -218,7 +219,6 @@ namespace BK7231Flasher
             int ofs = 0;
             int startAddr = adr;
             logger.setProgress(0, len);
-            addLogLine("Erasing...");
             doErase(adr, (len + 4095) / 4096);
             addLogLine("Starting flash write " + len);
             byte[] buffer = new byte[4096];
@@ -235,7 +235,7 @@ namespace BK7231Flasher
                 buffer[3] = (byte)((adr >> 24) & 0xFF);
                 Array.Copy(data, ofs, buffer, 4, chunk);
                 int bufferLen = chunk + 4;
-                this.executeCommand(0x31, buffer, 0, bufferLen, true, 10);
+                executeCommand(0x31, buffer, 0, bufferLen, true, 2);
                 ofs += chunk;
                 adr += chunk;
                 logger.setProgress(ofs, len);
@@ -420,7 +420,7 @@ namespace BK7231Flasher
 
                 // executeCommand returns byte[]: response including at least 2 bytes header + length data
                 int rawReplyLen = 2 + 2 + length; // OK + lenght 2 bytes + bytes
-                byte[] result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, 100, rawReplyLen);
+                byte[] result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, 5, rawReplyLen);
 
                 if (result == null)
                 {
@@ -502,19 +502,20 @@ namespace BK7231Flasher
         }
         public override bool doErase(int startSector, int sectors, bool bAll = false)
         {
+            logger.setState("Erasing...", Color.White);
             if(bAll)
             {
                 if (doGenericSetup() == false)
                 {
                     return false;
                 }
-                executeCommand(0x3C,null,0,0,true, 15);
-                Thread.Sleep(10 + flashSizeMB * 0x100000 / 300);
-                serial.DiscardInBuffer();
+                addLogLine("Erasing...");
+                executeCommand(0x3C, null, 0, 0, true, 0, 0);
             }
             else
             {
                 var length = sectors * BK7231Flasher.SECTOR_SIZE;
+                addLogLine($"Erasing at 0x{startSector:X} len 0x{length:X}");
                 byte[] cmdBuffer = new byte[8];
                 cmdBuffer[0] = (byte)(startSector & 0xFF);
                 cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
@@ -524,23 +525,29 @@ namespace BK7231Flasher
                 cmdBuffer[5] = (byte)((length >> 8) & 0xFF);
                 cmdBuffer[6] = (byte)((length >> 16) & 0xFF);
                 cmdBuffer[7] = (byte)((length >> 24) & 0xFF);
-                executeCommand(0x30,cmdBuffer,0,cmdBuffer.Length,true, 15, 0);
-                Thread.Sleep(150);
-                int errcount = 500;
-                while(errcount-- > 0)
-                {
-                    var buf = new byte[2];
-                    try
-                    {
-                        serial.Read(buf, 0, 2);
-                    }
-                    catch { }
-                    if(buf[0] == 'O' && buf[1] == 'K')
-                        break;
-                    Thread.Sleep(2);
-                }
-                serial.DiscardInBuffer();
+                executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 0, 0);
             }
+            Thread.Sleep(150);
+            int errcount = 1000;
+            while(errcount-- > 0)
+            {
+                var buf = new byte[2];
+                try
+                {
+                    serial.Read(buf, 0, 2);
+                }
+                catch { }
+                if(buf[0] == 'O' && buf[1] == 'K')
+                    break;
+                Thread.Sleep(2);
+            }
+            if(errcount > 0) logger.setState("Erase done", Color.DarkGreen);
+            else
+            {
+                logger.setState("Erase failed!", Color.Red);
+                return false;
+            }
+            serial.DiscardInBuffer();
             return true;
         }
         public override void closePort()
@@ -586,14 +593,17 @@ namespace BK7231Flasher
                     if(flashSizeMB > 1)
                     {
                         addLogLine("Erasing...");
-                        doErase(0, (flashSizeMB > 1 ? 0x1A2000 : 0xEC000) / BK7231Flasher.SECTOR_SIZE);
-                        addLogLine("Writing boot...");
-                        byte[] boot = Convert.FromBase64String(FLoaders.BL602_Boot);
-                        byte[] partitions = Convert.FromBase64String(flashSizeMB > 1 ? FLoaders.BL602_Partitions : FLoaders.BL602_1MBPartitions);
-                        boot = MiscUtils.padArray(boot, 0xE000);
-                        boot = boot.Concat(partitions).ToArray();
-                        if(!writeFlash(boot, 0))
-                            return;
+                        doErase(0x10000, (flashSizeMB > 1 ? 0x1A2000 : 0xEC000) / BK7231Flasher.SECTOR_SIZE);
+                        //if(bOverwriteBootloader)
+                        {
+                            addLogLine("Writing boot...");
+                            byte[] boot = Convert.FromBase64String(FLoaders.BL602_Boot);
+                            byte[] partitions = Convert.FromBase64String(flashSizeMB > 1 ? FLoaders.BL602_Partitions : FLoaders.BL602_1MBPartitions);
+                            boot = MiscUtils.padArray(boot, 0xE000);
+                            boot = boot.Concat(partitions).ToArray();
+                            if(!writeFlash(boot, 0))
+                                return;
+                        }
                         addLogLine("Reading " + sourceFileName + "...");
                         byte[] data = File.ReadAllBytes(sourceFileName);
                         data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
@@ -619,10 +629,13 @@ namespace BK7231Flasher
                         if(!writeFlash(data, 0x10000))
                             return;
 
-                        addLogLine("Writing dts...");
-                        byte[] dts = Convert.FromBase64String(FLoaders.BL602_Dts);
-                        if(!writeFlash(dts, flashSizeMB > 1 ? 0x1FC000 : 0xFC000))
-                            return;
+                        //if(bOverwriteBootloader)
+                        {
+                            addLogLine("Writing dts...");
+                            byte[] dts = Convert.FromBase64String(FLoaders.BL602_Dts);
+                            if(!writeFlash(dts, flashSizeMB > 1 ? 0x1FC000 : 0xFC000))
+                                return;
+                        }
                     }
                 }
                 else

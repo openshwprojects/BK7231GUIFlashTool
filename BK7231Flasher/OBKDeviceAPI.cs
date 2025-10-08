@@ -172,6 +172,8 @@ namespace BK7231Flasher
                     return BKType.RTL8720D;
                 case "LN882H":
                     return BKType.LN882H;
+                case "BL602":
+                    return BKType.BL602;
                 default:
                     return BKType.Invalid;
             }
