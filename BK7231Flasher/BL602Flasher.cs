@@ -516,6 +516,7 @@ namespace BK7231Flasher
             {
                 var length = sectors * BK7231Flasher.SECTOR_SIZE;
                 addLogLine($"Erasing at 0x{startSector:X} len 0x{length:X}");
+                length += startSector; //end addr
                 byte[] cmdBuffer = new byte[8];
                 cmdBuffer[0] = (byte)(startSector & 0xFF);
                 cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
@@ -590,8 +591,6 @@ namespace BK7231Flasher
                 }
                 if(!sourceFileName.Contains("readResult"))
                 {
-                    addLogLine("Erasing...");
-                    doErase(0x10000, (flashSizeMB > 1 ? 0x1A2000 : 0xEC000) / BK7231Flasher.SECTOR_SIZE);
                     //if(bOverwriteBootloader)
                     {
                         addLogLine("Writing boot...");
