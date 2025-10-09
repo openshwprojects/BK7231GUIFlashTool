@@ -20,19 +20,28 @@ namespace BK7231Flasher
         {
             for (int i = 0; i < 1000; i++)
             {
-                addLog($"Sync attempt {i}/1000 ");
-                if (internalSync())
+                try
                 {
-                    logger.addLog("... OK!" + Environment.NewLine, Color.Green);
-                    return true;
+                    addLog($"Sync attempt {i}/1000 ");
+                    if(internalSync())
+                    {
+                        logger.addLog("... OK!" + Environment.NewLine, Color.Green);
+                        return true;
+                    }
+                    addWarningLine("... failed, will retry!");
+                    if(i % 10 == 1)
+                    {
+                        addLogLine($"If doing something immediately after another operation, it might not sync for about half a minute");
+                        addLogLine($"Otherwise, please pull high BOOT/IO8 and reset.");
+                    }
+                    Thread.Sleep(50);
                 }
-                addWarningLine("... failed, will retry!");
-                if(i % 10 == 1)
+                catch(Exception ex)
                 {
-                    addLogLine($"If doing something immediately after another operation, it might not sync for about half a minute");
-                    addLogLine($"Otherwise, please pull high BOOT/IO8 and reset.");
+                    addLogLine("");
+                    addErrorLine(ex.ToString());
+                    return false;
                 }
-                Thread.Sleep(50);
             }
             return false;
         }
@@ -284,7 +293,7 @@ namespace BK7231Flasher
             if(this.Sync() == false)
             {
                 // failed
-                return true;
+                return false;
             }
             if (this.getAndPrintInfo() == null)
             {
@@ -302,7 +311,10 @@ namespace BK7231Flasher
             this.loadAndRunPreprocessedImage();
             Thread.Sleep(100);
             //resync in eflash
-            this.Sync();
+            if(this.Sync() == false)
+            {
+                return false;
+            }
             flashID = readFlashID();
 
             return true;
@@ -516,7 +528,7 @@ namespace BK7231Flasher
             {
                 var length = sectors * BK7231Flasher.SECTOR_SIZE;
                 addLogLine($"Erasing at 0x{startSector:X} len 0x{length:X}");
-                length += startSector; //end addr
+                length += startSector - 1; //end addr
                 byte[] cmdBuffer = new byte[8];
                 cmdBuffer[0] = (byte)(startSector & 0xFF);
                 cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
