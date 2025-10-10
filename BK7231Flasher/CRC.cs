@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace BK7231Flasher
+﻿namespace BK7231Flasher
 {
     public class CRC
     {
@@ -47,6 +43,31 @@ namespace BK7231Flasher
                         crc >>= 1;
                         if (sum != 0)
                             crc ^= (sbyte)0x8C;
+                        extract >>= 1;
+                    }
+                }
+            }
+            return (byte)crc;
+        }
+        public static byte Tiny_CRC8_unsigned(byte[] data, int start, int length)
+        {
+            byte crc = 0x00;
+            byte extract;
+            byte sum;
+            int i;
+            byte tempI;
+
+            unchecked
+            {
+                for(i = 0; i < length; i++)
+                {
+                    extract = (byte)data[start + i];
+                    for(tempI = 8; tempI != 0; tempI--)
+                    {
+                        sum = (byte)((crc ^ extract) & 0x01);
+                        crc >>= 1;
+                        if(sum != 0)
+                            crc ^= (byte)0x8C;
                         extract >>= 1;
                     }
                 }

@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-
-namespace BK7231Flasher
+﻿namespace BK7231Flasher
 {
     internal class RFPartitionUtil
     {

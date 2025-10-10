@@ -24,7 +24,9 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Restore NuGet packages
-        run: nuget restore BK7231Flasher/BK7231Flasher.csproj -SolutionDirectory .
+        run: |
+          #nuget restore BK7231Flasher/BK7231Flasher.csproj -SolutionDirectory .
+          dotnet tool install -g dotnet-ilrepack
 
       - name: Create Output Directory
         run: mkdir -p BuildOutput/Release
@@ -38,13 +40,26 @@ jobs:
           dir BuildOutput
           dir BuildOutput\Release
 
+      - name: Pack the project
+        run: >
+          ilrepack /ver:1.0.${{ github.run_number }} /out:BK7231Flasher.exe
+          /target:winexe /parallel /wildcards
+          BK7231Flasher/BuildOutput/Release/BK7231Flasher.exe
+          BK7231Flasher/BuildOutput/Release/*.dll
+
+      - name: Replace the project with packed one
+        run: |
+          del BK7231Flasher\BuildOutput\Release\BK7231Flasher.exe
+          move BK7231Flasher.exe BK7231Flasher\BuildOutput\Release\
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: BK7231GUIFlashTool
           path: |
             BK7231Flasher/BuildOutput/Release/*.exe
-            BK7231Flasher/BuildOutput/Release/*.dll
+            BK7231Flasher/BuildOutput/Release/easyflash/*.dll
+            BK7231Flasher/BuildOutput/Release/easyflash/*.so
           if-no-files-found: warn
 
       - name: Debug Build Output Directory
@@ -62,7 +77,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: BK7231GUIFlashTool
 
@@ -71,19 +86,19 @@ jobs:
           echo "Recreating BuildOutput directory..."
           mkdir -p BuildOutput/Release
           move *.exe BuildOutput/Release/
-          move *.dll BuildOutput/Release/
+          move easyflash BuildOutput/Release
 
-      - name: Copy loaders directory into release
-        run: |
-          echo "Copying /loaders/ into BuildOutput/Release..."
-          xcopy loaders BuildOutput\Release\loaders /E /I /Y
+      #- name: Copy loaders directory into release
+      #  run: |
+      #    echo "Copying /loaders/ into BuildOutput/Release..."
+      #    xcopy loaders BuildOutput\Release\loaders /E /I /Y
 
       - name: Debug Downloaded Artifacts
         run: |
           echo "Downloaded artifacts in BuildOutput/Release:"
           dir BuildOutput/Release
-          echo "Contents of loaders:"
-          dir BuildOutput/Release/loaders
+          #echo "Contents of loaders:"
+          #dir BuildOutput/Release/loaders
 
       - name: Create ZIP File
         run: |

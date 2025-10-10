@@ -1,4 +1,3 @@
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -62,7 +61,12 @@ namespace BK7231Flasher
 				addErrorLine("Link failed!");
 				return false;
 			}
-			var extra = serial.ReadExisting();
+			var extra = string.Empty;
+			try
+			{
+				extra = serial.ReadExisting();
+			}
+			catch { }
 			if(extra.Length > 0)
 			{
 				//addLogLine($"<<< {extra}");
@@ -80,7 +84,12 @@ namespace BK7231Flasher
 		{
 			Command("Rtk8710C");
 			Thread.Sleep(100);
-			var resp = serial.ReadExisting();
+			string resp = string.Empty;
+			try
+			{
+				resp = serial.ReadExisting();
+			}
+			catch { }
 			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
 			{
 				IsInFallbackMode = true;
@@ -312,15 +321,7 @@ namespace BK7231Flasher
 		{
 			try
 			{
-				OBKConfig cfg;
-				if(mode == WriteMode.OnlyOBKConfig)
-				{
-					cfg = logger.getConfig();
-				}
-				else
-				{
-					cfg = logger.getConfigToWrite();
-				}
+				OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 
 				int size = numSectors * BK7231Flasher.SECTOR_SIZE;
 				if(data != null)
@@ -340,6 +341,10 @@ namespace BK7231Flasher
 				{
 					doRead(startSector, numSectors, true);
 					if(ms == null)
+					{
+						return true;
+					}
+					if(saveReadResult(startSector) == false)
 					{
 						return true;
 					}
@@ -386,18 +391,18 @@ namespace BK7231Flasher
 					{
 						try
 						{
-							efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize);
+							efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize, chipType);
 						}
 						catch(Exception ex)
 						{
 							addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
 							addLog(ex.Message + Environment.NewLine);
-							efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+							efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
 						}
 					}
 					else
 					{
-						efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+						efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
 					}
 					ms?.Dispose();
 					ms = new MemoryStream(efdata);
@@ -518,6 +523,10 @@ namespace BK7231Flasher
 				if(readHash != expectedHash)
 				{
 					addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
+					logger.setState("SHA mismatch!", Color.Red);
+					sha256Hash.Clear();
+					ChangeBaud(115200);
+					return null;
 				}
 				else
 				{
@@ -575,6 +584,11 @@ namespace BK7231Flasher
 
 			if(rwMode != WriteMode.OnlyOBKConfig)
 			{
+				if(string.IsNullOrEmpty(sourceFileName))
+				{
+					addErrorLine("No source file set!");
+					return;
+				}
 				data = File.ReadAllBytes(sourceFileName);
 			}
 			else

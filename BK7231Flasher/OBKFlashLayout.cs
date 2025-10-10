@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace BK7231Flasher
 {
@@ -31,6 +28,12 @@ namespace BK7231Flasher
                 case BKType.RTL8710B:
                     sectors = 0x8000 / BK7231Flasher.SECTOR_SIZE;
                     return 0x195000;
+                case BKType.BL602: // this is for new toml
+                    sectors = 0x13000 / BK7231Flasher.SECTOR_SIZE;
+                    return 0x1E9000;
+                case BKType.LN882H:
+                    sectors = 1;
+                    return 0x1FF000;
                 //case BKType.XR809:
                 //    sectors = 0x10000 / BK7231Flasher.SECTOR_SIZE;
                 //    return 0x1E0000;

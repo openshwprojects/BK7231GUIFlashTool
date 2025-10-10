@@ -1,9 +1,6 @@
 ﻿
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -12,7 +9,6 @@ using System.IO.Ports;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -203,7 +199,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL87X0C, "RTL87X0C"));
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602 (read)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
             comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
 
@@ -481,33 +477,30 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            if(curType == BKType.RTL8720D || curType == BKType.RTL8710B)
+            switch(curType)
             {
-                flasher = new RTLFlasher();
-            }
-            else if(curType == BKType.RTL87X0C)
-            {
-                flasher = new RTLZ2Flasher();
-            }
-            else if (curType == BKType.LN882H)
-            {
-                flasher = new LN882HFlasher();
-            }
-            else if (curType == BKType.BL602)
-            {
-                flasher = new BL602Flasher();
-            }
-            else if (curType == BKType.GenericSPI)
-            {
-                flasher = new SPIFlasher();
-            }
-            else if (curType == BKType.BekenSPI)
-            {
-                flasher = new SPIFlasher_Beken();
-            }
-            else
-            {
-                flasher = new BK7231Flasher();
+                case BKType.RTL8710B:
+                case BKType.RTL8720D:
+                    flasher = new RTLFlasher();
+                    break;
+                case BKType.RTL87X0C:
+                    flasher = new RTLZ2Flasher();
+                    break;
+                case BKType.LN882H:
+                    flasher = new LN882HFlasher();
+                    break;
+                case BKType.BL602:
+                    flasher = new BL602Flasher();
+                    break;
+                case BKType.BekenSPI:
+                    flasher = new SPIFlasher_Beken();
+                    break;
+                case BKType.GenericSPI:
+                    flasher = new SPIFlasher();
+                    break;
+                default:
+                    flasher = new BK7231Flasher();
+                    break;
             }
             flasher.setBasic(this, serialName, curType, chosenBaudRate);
             flasher.setReadReplyStyle(cfg_readReplyStyle);
@@ -744,6 +737,7 @@ namespace BK7231Flasher
         }
         void readThread(object oParm)
         {
+            bool isFullRead = true;
             CustomParms parms = null;
             if(oParm != null)
             {
@@ -761,6 +755,7 @@ namespace BK7231Flasher
                 if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
+                isFullRead = false;
             }
             else if(curType == BKType.BK7252)
             {
@@ -775,7 +770,7 @@ namespace BK7231Flasher
                 startSector = 0x0;// getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
-            flasher.doRead(startSector, sectors, true);
+            flasher.doRead(startSector, sectors, isFullRead);
             
             flasher.saveReadResult(startSector);
 
@@ -833,7 +828,7 @@ namespace BK7231Flasher
             bool bError = formObkCfg.tryToLoadOBKConfig(res, curType, false);
             if(bError)
             {
-                addLog("OBK config load failed.", Color.DarkOrange);
+                addLog("OBK config load failed." + Environment.NewLine, Color.DarkOrange);
             }
             else
             {

@@ -1,15 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
-using System.Windows.Forms;
 
 namespace BK7231Flasher
 {
@@ -723,15 +716,7 @@ namespace BK7231Flasher
         }
         public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
         {
-            OBKConfig cfg;
-            if(mode == WriteMode.OnlyOBKConfig)
-            {
-                cfg = logger.getConfig();
-            }
-            else
-            {
-                cfg = logger.getConfigToWrite();
-            }
+            OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 
             int size = numSectors * BK7231Flasher.SECTOR_SIZE;
             if (data != null)
@@ -756,6 +741,10 @@ namespace BK7231Flasher
                 numSectors = flashSizeMB * 256;
                 ms = readChunk(startSector, numSectors);
                 if (ms == null)
+                {
+                    return true;
+                }
+                if(saveReadResult(startSector) == false)
                 {
                     return true;
                 }
@@ -815,18 +804,18 @@ namespace BK7231Flasher
                 {
                     try
                     {
-                        efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize);
+                        efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize, chipType);
                     }
                     catch(Exception ex)
                     {
                         addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
                         addLog(ex.Message + Environment.NewLine);
-                        efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+                        efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
                     }
                 }
                 else
                 {
-                    efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize);
+                    efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
                 }
                 ms?.Dispose();
                 ms = new MemoryStream(efdata);
