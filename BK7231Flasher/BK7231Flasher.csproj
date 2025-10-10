@@ -180,7 +180,7 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.config" />
-    <AdditionalFiles Include="libef.so">
+    <AdditionalFiles Include="easyflash\libef.so">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
     <None Include="packages.config" />
@@ -196,16 +196,16 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="bk_icon.ico" />
-    <AdditionalFiles Include="WinEF_GRAN8_x64.dll">
+    <AdditionalFiles Include="easyflash\WinEF_GRAN8_x64.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
-    <AdditionalFiles Include="WinEF_GRAN8_x86.dll">
+    <AdditionalFiles Include="easyflash\WinEF_GRAN8_x86.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
-    <AdditionalFiles Include="WinEF_x64.dll">
+    <AdditionalFiles Include="easyflash\WinEF_x64.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
-    <AdditionalFiles Include="WinEF_x86.dll">
+    <AdditionalFiles Include="easyflash\WinEF_x86.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
   </ItemGroup>

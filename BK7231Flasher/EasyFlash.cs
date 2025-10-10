@@ -8,7 +8,7 @@ namespace BK7231Flasher
 	{
 		static class EF32
 		{
-			const string Dll = "WinEF_x86.dll";
+			const string Dll = "easyflash/WinEF_x86.dll";
 
 			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -28,7 +28,7 @@ namespace BK7231Flasher
 
 		static class EF64
 		{
-			const string Dll = "WinEF_x64.dll";
+			const string Dll = "easyflash/WinEF_x64.dll";
 
 			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -48,7 +48,7 @@ namespace BK7231Flasher
 
 		static class EF32_GRAN8
 		{
-			const string Dll = "WinEF_GRAN8_x86.dll";
+			const string Dll = "easyflash/WinEF_GRAN8_x86.dll";
 
 			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -68,7 +68,7 @@ namespace BK7231Flasher
 
 		static class EF64_GRAN8
 		{
-			const string Dll = "WinEF_GRAN8_x64.dll";
+			const string Dll = "easyflash/WinEF_GRAN8_x64.dll";
 
 			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -88,7 +88,7 @@ namespace BK7231Flasher
 
 		static class EFLinux
 		{
-			const string Dll = "libef.so";
+			const string Dll = "easyflash/libef.so";
 
 			[DllImport(Dll)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -108,7 +108,7 @@ namespace BK7231Flasher
 
 		static class EFLinux_GRAN8
 		{
-			const string Dll = "libef.so";
+			const string Dll = "easyflash/libef_GRAN8.so";
 
 			[DllImport(Dll)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -132,75 +132,85 @@ namespace BK7231Flasher
 		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
 		public static extern IntPtr memset(IntPtr dest, int c, int count);
 
-		private static unsafe void SetupBase(byte[] data, int size, BKType type, out byte* env)
+		private static unsafe bool SetupBase(byte[] data, int size, BKType type, out byte* env)
 		{
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			try
 			{
-				if(type == BKType.BL602)
-					EFLinux_GRAN8.set_env_size((uint)size);
+				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				{
+					if(type == BKType.BL602)
+						EFLinux_GRAN8.set_env_size((uint)size);
+					else
+						EFLinux.set_env_size((uint)size);
+				}
+				else if(IntPtr.Size == 8)
+				{
+					if(type == BKType.BL602)
+						EF64_GRAN8.set_env_size((uint)size);
+					else
+						EF64.set_env_size((uint)size);
+				}
 				else
-					EFLinux.set_env_size((uint)size);
-			}
-			else if(IntPtr.Size == 8)
-			{
-				if(type == BKType.BL602)
-					EF64_GRAN8.set_env_size((uint)size);
-				else
-					EF64.set_env_size((uint)size);
-			}
-			else
-			{
-				if(type == BKType.BL602)
-					EF32_GRAN8.set_env_size((uint)size);
-				else
-					EF32.set_env_size((uint)size);
-			}
+				{
+					if(type == BKType.BL602)
+						EF32_GRAN8.set_env_size((uint)size);
+					else
+						EF32.set_env_size((uint)size);
+				}
 
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				if(type == BKType.BL602)
-					env = EFLinux_GRAN8.get_env_area();
+				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				{
+					if(type == BKType.BL602)
+						env = EFLinux_GRAN8.get_env_area();
+					else
+						env = EFLinux.get_env_area();
+				}
+				else if(IntPtr.Size == 8)
+				{
+					if(type == BKType.BL602)
+						env = EF64_GRAN8.get_env_area();
+					else
+						env = EF64.get_env_area();
+				}
 				else
-					env = EFLinux.get_env_area();
-			}
-			else if(IntPtr.Size == 8)
-			{
-				if(type == BKType.BL602)
-					env = EF64_GRAN8.get_env_area();
-				else
-					env = EF64.get_env_area();
-			}
-			else
-			{
-				if(type == BKType.BL602)
-					env = EF32_GRAN8.get_env_area();
-				else
-					env = EF32.get_env_area();
-			}
+				{
+					if(type == BKType.BL602)
+						env = EF32_GRAN8.get_env_area();
+					else
+						env = EF32.get_env_area();
+				}
 
-			fixed(byte* pdata = data)
-				memcpy((IntPtr)env, (IntPtr)pdata, size);
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				if(type == BKType.BL602)
-					EFLinux_GRAN8.easyflash_init();
+				fixed(byte* pdata = data)
+					memcpy((IntPtr)env, (IntPtr)pdata, size);
+
+				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				{
+					if(type == BKType.BL602)
+						EFLinux_GRAN8.easyflash_init();
+					else
+						EFLinux.easyflash_init();
+				}
+				else if(IntPtr.Size == 8)
+				{
+					if(type == BKType.BL602)
+						EF64_GRAN8.easyflash_init();
+					else
+						EF64.easyflash_init();
+				}
 				else
-					EFLinux.easyflash_init();
+				{
+					if(type == BKType.BL602)
+						EF32_GRAN8.easyflash_init();
+					else
+						EF32.easyflash_init();
+				}
 			}
-			else if(IntPtr.Size == 8)
+			catch
 			{
-				if(type == BKType.BL602)
-					EF64_GRAN8.easyflash_init();
-				else
-					EF64.easyflash_init();
+				env = null;
+				return false;
 			}
-			else
-			{
-				if(type == BKType.BL602)
-					EF32_GRAN8.easyflash_init();
-				else
-					EF32.easyflash_init();
-			}
+			return true;
 		}
 
 		public static unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len, BKType type)
@@ -258,7 +268,7 @@ namespace BK7231Flasher
 			efdata = data;
 			if(data == null)
 				return null;
-			SetupBase(data, size, type, out var env);
+			if(!SetupBase(data, size, type, out var env)) return null;
 			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
 			fixed(byte* name = bname)
 			{
@@ -285,7 +295,7 @@ namespace BK7231Flasher
 		{
 			var data = new byte[areaSize];
 			fixed (byte* ptr = data) memset((IntPtr)ptr, 0xFF, areaSize);
-			SetupBase(data, areaSize, type, out var env);
+			if(!SetupBase(data, areaSize, type, out var env)) return null;
 
 			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
 			fixed(byte* name = bname)
@@ -306,7 +316,6 @@ namespace BK7231Flasher
 				return efdata;
 			}
 		}
-
 		public static unsafe byte[] SaveCfgToExistingEasyFlash(OBKConfig cfg, int areaSize, BKType type)
 		{
 			if(cfg.efdata.Length != areaSize)
@@ -315,7 +324,7 @@ namespace BK7231Flasher
 			}
 			var data = new byte[areaSize];
 			fixed(byte* pdata = cfg.efdata) fixed (byte* ptr = data) memcpy((IntPtr)ptr, (IntPtr)pdata, areaSize);
-			SetupBase(data, areaSize, type, out var env);
+			if(!SetupBase(data, areaSize, type, out var env)) return null;
 
 			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
 			fixed(byte* name = bname)
