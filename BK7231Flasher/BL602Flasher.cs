@@ -500,9 +500,13 @@ namespace BK7231Flasher
                 {
                     serial.Read(buf, 0, 2);
                 }
-                catch { }
+                catch { continue; }
                 if(buf[0] == 'O' && buf[1] == 'K')
                     break;
+                else if(buf[0] == 'P' && buf[1] == 'D')
+                    addLogLine("Erase pending...");
+                else
+                    addLogLine($"Unknown response, {(char)buf[0]}{(char)buf[1]}");
                 Thread.Sleep(2);
             }
             if(errcount > 0) logger.setState("Erase done", Color.DarkGreen);
