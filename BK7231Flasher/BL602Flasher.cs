@@ -464,6 +464,7 @@ namespace BK7231Flasher
         public override bool doErase(int startSector, int sectors, bool bAll = false)
         {
             logger.setState("Erasing...", Color.White);
+            int errcount = 1000;
             if(bAll)
             {
                 if (doGenericSetup() == false)
@@ -472,6 +473,7 @@ namespace BK7231Flasher
                 }
                 addLogLine("Erasing...");
                 executeCommand(0x3C, null, 0, 0, true, 0, 0);
+                errcount = 30000;
             }
             else
             {
@@ -479,7 +481,7 @@ namespace BK7231Flasher
                     return false;
                 var end = sectors * BK7231Flasher.SECTOR_SIZE;
                 end += startSector - 1; //end addr
-                addLogLine($"Erasing from 0x{startSector:X} to 0x{end:X}");
+                addLogLine($"Erasing from 0x{startSector:X} to 0x{(end + 1):X}");
                 byte[] cmdBuffer = new byte[8];
                 cmdBuffer[0] = (byte)(startSector & 0xFF);
                 cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
@@ -492,7 +494,6 @@ namespace BK7231Flasher
                 executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 0, 0);
             }
             Thread.Sleep(150);
-            int errcount = 1000;
             while(errcount-- > 0)
             {
                 var buf = new byte[2];
