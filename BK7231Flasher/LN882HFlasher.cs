@@ -91,15 +91,7 @@ namespace BK7231Flasher
 
         public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud, WriteMode mode)
         {
-            OBKConfig cfg;
-            if(mode == WriteMode.OnlyOBKConfig)
-            {
-                cfg = logger.getConfig();
-            }
-            else
-            {
-                cfg = logger.getConfigToWrite();
-            }
+            OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
             logger.setState("Prepare write...", Color.White);
             change_baudrate(this.baudrate);
             if(mode != WriteMode.OnlyOBKConfig)

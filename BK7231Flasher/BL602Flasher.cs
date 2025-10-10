@@ -341,21 +341,6 @@ namespace BK7231Flasher
             this.executeCommand(0x1a);
             return false;
         }
-        public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
-        {
-            if (doGenericSetup() == false)
-            {
-                return true;
-            }
-            //if(upload_ram_loader("loaders/LN882H_RAM_BIN.bin"))
-            //{
-            //    return true;
-            //}
-            //flash_program(data,0,data.Length, "", false);
-            return false;
-        }
-
-
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
@@ -366,43 +351,7 @@ namespace BK7231Flasher
             if(fullRead) sectors = flashSizeMB * 256;
             doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
         }
-        public void flush_com()
-        {
-            serial.DiscardInBuffer();
-            serial.DiscardOutBuffer();
-        }
 
-        bool openPort()
-        {
-            try
-            {
-                serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
-            }
-            catch (Exception ex)
-            {
-                addError("Serial port create exception: " + ex.ToString() + Environment.NewLine);
-                return true;
-            }
-            try
-            {
-              //  serial.ReadBufferSize = 4096 * 2;
-        //     serial.ReadBufferSize = 3000000;
-            }
-            catch (Exception ex)
-            {
-                addWarning("Setting serial port buffer size exception: " + ex.ToString() + Environment.NewLine);
-            }
-            try
-            {
-                serial.Open();
-            }
-            catch (Exception ex)
-            {
-                addError("Serial port open exception: " + ex.ToString() + Environment.NewLine);
-                return true;
-            }
-            return false;
-        }
         internal byte[] readFlash(int addr = 0, int amount = 4096)
         {
             var startAddr = addr;
@@ -477,7 +426,7 @@ namespace BK7231Flasher
             sha256cmd[5] = (byte)((length >> 8) & 0xFF);
             sha256cmd[6] = (byte)((length >> 16) & 0xFF);
             sha256cmd[7] = (byte)((length >> 24) & 0xFF);
-            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, 100, 2 + 32);
+            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, 10, 2 + 32);
             if(sha256result == null)
             {
                 addErrorLine($"Failed to get hash");
@@ -526,18 +475,20 @@ namespace BK7231Flasher
             }
             else
             {
-                var length = sectors * BK7231Flasher.SECTOR_SIZE;
-                addLogLine($"Erasing at 0x{startSector:X} len 0x{length:X}");
-                length += startSector - 1; //end addr
+                if(sectors < 1)
+                    return false;
+                var end = sectors * BK7231Flasher.SECTOR_SIZE;
+                end += startSector - 1; //end addr
+                addLogLine($"Erasing from 0x{startSector:X} to 0x{end:X}");
                 byte[] cmdBuffer = new byte[8];
                 cmdBuffer[0] = (byte)(startSector & 0xFF);
                 cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
                 cmdBuffer[2] = (byte)((startSector >> 16) & 0xFF);
                 cmdBuffer[3] = (byte)((startSector >> 24) & 0xFF);
-                cmdBuffer[4] = (byte)(length & 0xFF);
-                cmdBuffer[5] = (byte)((length >> 8) & 0xFF);
-                cmdBuffer[6] = (byte)((length >> 16) & 0xFF);
-                cmdBuffer[7] = (byte)((length >> 24) & 0xFF);
+                cmdBuffer[4] = (byte)(end & 0xFF);
+                cmdBuffer[5] = (byte)((end >> 8) & 0xFF);
+                cmdBuffer[6] = (byte)((end >> 16) & 0xFF);
+                cmdBuffer[7] = (byte)((end >> 24) & 0xFF);
                 executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 0, 0);
             }
             Thread.Sleep(150);
@@ -581,6 +532,7 @@ namespace BK7231Flasher
             {
                 return;
             }
+            OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
             if(rwMode == WriteMode.ReadAndWrite)
             {
                 sectors = flashSizeMB * 256;
@@ -652,8 +604,51 @@ namespace BK7231Flasher
                     byte[] data = File.ReadAllBytes(sourceFileName);
                     this.writeFlash(data, 0);
                 }
-                return;
             }
+            if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
+            {
+                if(cfg != null)
+                {
+                    var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
+                    var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+
+                    byte[] efdata;
+                    if(cfg.efdata != null)
+                    {
+                        try
+                        {
+                            efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize, chipType);
+                        }
+                        catch(Exception ex)
+                        {
+                            addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+                            addLog(ex.Message + Environment.NewLine);
+                            efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
+                        }
+                    }
+                    else
+                    {
+                        efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
+                    }
+                    addLog("Now will also write OBK config..." + Environment.NewLine);
+                    addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                    addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                    addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                    bool bOk = writeFlash(efdata, offset, areaSize);
+                    if(bOk == false)
+                    {
+                        logger.setState("Writing error!", Color.Red);
+                        addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                        return;
+                    }
+                    logger.setState("OBK config write success!", Color.Green);
+                }
+                else
+                {
+                    addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+                }
+            }
+            return;
         }
         bool saveReadResult(string fileName)
         {

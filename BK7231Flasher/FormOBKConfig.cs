@@ -276,61 +276,22 @@ namespace BK7231Flasher
         {
             if(type == BKType.Detect)
             {
-                if (fname.Contains("BK7231T"))
+                switch(fname)
                 {
-                    type = BKType.BK7231T;
-                }
-                if (fname.Contains("BK7231U"))
-                {
-                    type = BKType.BK7231U;
-                }
-                if (fname.Contains("BK7231N"))
-                {
-                    type = BKType.BK7231N;
-                }
-                if (fname.Contains("BK7231M"))
-                {
-                    type = BKType.BK7231M;
-                }
-                if (fname.Contains("BK7236"))
-                {
-                    type = BKType.BK7236;
-                }
-                if (fname.Contains("BK7238"))
-                {
-                    type = BKType.BK7238;
-                }
-                if (fname.Contains("BK7252"))
-                {
-                    type = BKType.BK7252;
-                }
-                if (fname.Contains("BK7252N"))
-                {
-                    type = BKType.BK7252N;
-                }
-                if (fname.Contains("BK7258"))
-                {
-                    type = BKType.BK7258;
-                }
-                if (fname.Contains("RTL8720D"))
-                {
-                    type = BKType.RTL8720D;
-                }
-                if (fname.Contains("RTL87X0C"))
-                {
-                    type = BKType.RTL87X0C;
-                }
-                if (fname.Contains("RTL8710B"))
-                {
-                    type = BKType.RTL8710B;
-                }
-                if (fname.Contains("LN882H"))
-                {
-                    type = BKType.LN882H;
-                }
-                if (fname.Contains("BL602"))
-                {
-                    type = BKType.BL602;
+                    case var name when name.Contains("BK7231T"):  type = BKType.BK7231T;  break;
+                    case var name when name.Contains("BK7231U"):  type = BKType.BK7231U;  break;
+                    case var name when name.Contains("BK7231N"):  type = BKType.BK7231N;  break;
+                    case var name when name.Contains("BK7231M"):  type = BKType.BK7231M;  break;
+                    case var name when name.Contains("BK7236"):   type = BKType.BK7236;   break;
+                    case var name when name.Contains("BK7238"):   type = BKType.BK7238;   break;
+                    case var name when name.Contains("BK7252"):   type = BKType.BK7252;   break;
+                    case var name when name.Contains("BK7252N"):  type = BKType.BK7252N;  break;
+                    case var name when name.Contains("BK7258"):   type = BKType.BK7258;   break;
+                    case var name when name.Contains("RTL8710B"): type = BKType.RTL8710B; break;
+                    case var name when name.Contains("RTL87X0C"): type = BKType.RTL87X0C; break;
+                    case var name when name.Contains("RTL8720D"): type = BKType.RTL8720D; break;
+                    case var name when name.Contains("LN882H"):   type = BKType.LN882H;   break;
+                    case var name when name.Contains("BL602"):    type = BKType.BL602;    break;
                 }
             }
             bool bError = cfg.loadFrom(fname, type);

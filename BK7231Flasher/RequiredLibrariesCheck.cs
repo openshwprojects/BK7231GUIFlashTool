@@ -1,7 +1,4 @@
-﻿using System.IO;
-using System.Windows.Forms;
-
-namespace BK7231Flasher
+﻿namespace BK7231Flasher
 {
     class RequiredLibrariesCheck
     {

@@ -321,15 +321,7 @@ namespace BK7231Flasher
 		{
 			try
 			{
-				OBKConfig cfg;
-				if(mode == WriteMode.OnlyOBKConfig)
-				{
-					cfg = logger.getConfig();
-				}
-				else
-				{
-					cfg = logger.getConfigToWrite();
-				}
+				OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 
 				int size = numSectors * BK7231Flasher.SECTOR_SIZE;
 				if(data != null)

@@ -716,15 +716,7 @@ namespace BK7231Flasher
         }
         public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
         {
-            OBKConfig cfg;
-            if(mode == WriteMode.OnlyOBKConfig)
-            {
-                cfg = logger.getConfig();
-            }
-            else
-            {
-                cfg = logger.getConfigToWrite();
-            }
+            OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 
             int size = numSectors * BK7231Flasher.SECTOR_SIZE;
             if (data != null)
