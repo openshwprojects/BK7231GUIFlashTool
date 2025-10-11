@@ -155,7 +155,14 @@ namespace BK7231Flasher
 
 		public override void doWrite(int startSector, byte[] data)
 		{
-
+			if(doGenericSetup() == false)
+			{
+				return;
+			}
+			if(Sync())
+			{
+				InternalWrite(startSector, data);
+			}
 		}
 
 		byte StubCRC8(byte[] buf, int length)
@@ -434,8 +441,11 @@ namespace BK7231Flasher
 				{
 					return false;
 				}
-				addLogLine("Doing chip erase...");
-				return ExecuteCommand(0x05, null, 10) != null;
+				if(Sync())
+				{
+					addLogLine("Doing chip erase...");
+					return ExecuteCommand(0x05, null, 10) != null;
+				}
 			}
 			else
 			{
@@ -549,23 +559,25 @@ namespace BK7231Flasher
 						var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
 						var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
 
+						cfg.saveConfig(chipType);
+						var cfgData = cfg.getData();
 						byte[] efdata;
 						if(cfg.efdata != null)
 						{
 							try
 							{
-								efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize, chipType);
+								efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
 							}
 							catch(Exception ex)
 							{
 								addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
 								addLog(ex.Message + Environment.NewLine);
-								efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
+								efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
 							}
 						}
 						else
 						{
-							efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
+							efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
 						}
 						addLog("Now will also write OBK config..." + Environment.NewLine);
 						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);

@@ -425,13 +425,13 @@ namespace BK7231Flasher
 			}
 		}
 
-		public static unsafe byte[] LoadFromData(byte[] data, int size, BKType type, out byte[] efdata)
+		public static unsafe byte[] LoadValueFromData(byte[] data, string sname, int size, BKType type, out byte[] efdata)
 		{
 			efdata = data;
 			if(data == null)
 				return null;
 			if(!SetupBase(data, size, type, out var env)) return null;
-			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
+			byte[] bname = Encoding.ASCII.GetBytes(sname);
 			fixed(byte* name = bname)
 			{
 				var test = stackalloc byte[1];
@@ -453,17 +453,15 @@ namespace BK7231Flasher
 			}
 		}
 
-		public static unsafe byte[] SaveCfgToNewEasyFlash(OBKConfig cfg, int areaSize, BKType type)
+		public static unsafe byte[] SaveValueToNewEasyFlash(string sname, byte[] cfgData, int areaSize, BKType type)
 		{
 			var data = new byte[areaSize];
 			fixed (byte* ptr = data) memset((IntPtr)ptr, 0xFF, areaSize);
 			if(!SetupBase(data, areaSize, type, out var env)) return null;
 
-			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
+			byte[] bname = Encoding.ASCII.GetBytes(sname);
 			fixed(byte* name = bname)
 			{
-				cfg.saveConfig(type);
-				var cfgData = cfg.getData();
 				fixed(byte* pdata = cfgData)
 				{
 					uint res = ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length, type);
@@ -479,21 +477,19 @@ namespace BK7231Flasher
 			}
 		}
 
-		public static unsafe byte[] SaveCfgToExistingEasyFlash(OBKConfig cfg, int areaSize, BKType type)
+		public static unsafe byte[] SaveValueToExistingEasyFlash(string sname, byte[] efData, byte[] cfgData, int areaSize, BKType type)
 		{
-			if(cfg.efdata.Length != areaSize)
+			if(efData.Length != areaSize)
 			{
 				throw new Exception("Saved EF data length != target EF length");
 			}
 			var data = new byte[areaSize];
-			fixed(byte* pdata = cfg.efdata) fixed (byte* ptr = data) memcpy((IntPtr)ptr, (IntPtr)pdata, areaSize);
+			fixed(byte* pdata = efData) fixed (byte* ptr = data) memcpy((IntPtr)ptr, (IntPtr)pdata, areaSize);
 			if(!SetupBase(data, areaSize, type, out var env)) return null;
 
-			byte[] bname = type == BKType.BL602 ? Encoding.ASCII.GetBytes("mY0bcFg") : Encoding.ASCII.GetBytes("ObkCfg");
+			byte[] bname = Encoding.ASCII.GetBytes(sname);
 			fixed(byte* name = bname)
 			{
-				cfg.saveConfig(type);
-				var cfgData = cfg.getData();
 				fixed(byte* pdata = cfgData)
 				{
 					uint res = ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length, type);
