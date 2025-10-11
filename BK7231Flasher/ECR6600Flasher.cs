@@ -193,7 +193,7 @@ namespace BK7231Flasher
 			serial.Read(bytes, 0, bytes.Length);
 			if(bytes[0] != 0x5A)
 			{
-				addErrorLine("Command header is incorrect!");
+				if(!isErrorExpected) addErrorLine("Command header is incorrect!");
 				return null;
 			}
 			byte crcret = StubCRC8(bytes, bytes.Length - 1);
@@ -501,14 +501,12 @@ namespace BK7231Flasher
 					{
 						// this is obk (or allinone or stub_cpu_inone), not backup
 						uint offset = 5;
-						uint length = 0;
-						uint flashOffset = 0;
 						while(true)
 						{
 							var header = new byte[9];
 							Array.Copy(data, offset, header, 0, header.Length);
-							flashOffset = BitConverter.ToUInt32(header, 1);
-							length = BitConverter.ToUInt32(header, 5);
+							uint flashOffset = BitConverter.ToUInt32(header, 1);
+							uint length = BitConverter.ToUInt32(header, 5);
 							if(header[0] == 0x00)
 							{
 								addLogLine("Skipping stub...");
@@ -521,7 +519,7 @@ namespace BK7231Flasher
 							{
 								var split = new byte[length];
 								Array.Copy(data, offset + header.Length, split, 0, length);
-								if(!InternalWrite(startSector, split))
+								if(!InternalWrite((int)flashOffset, split))
 								{
 									logger.setState("Write error!", Color.Red);
 									return;
