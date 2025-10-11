@@ -20,6 +20,7 @@ namespace BK7231Flasher
         RTL8720D,
         LN882H,
         BL602,
+        ECR6600,
 
         BekenSPI,
         GenericSPI,
