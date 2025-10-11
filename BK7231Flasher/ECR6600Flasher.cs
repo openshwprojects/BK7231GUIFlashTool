@@ -76,23 +76,29 @@ namespace BK7231Flasher
 				return true;
 			}
 			Connect();
-			int tries = 50;
-			serial.ReadTimeout = 50;
-			serial.DiscardInBuffer();
-			while(tries-- > 0)
+			int attempts = 0;
+			while(attempts++ < 500)
 			{
-				serial.Write("cnys");
-				var t = 0;
-				try
+				addLog($"Sync attempt {attempts}/500 ");
+				int tries = 50;
+				serial.ReadTimeout = 50;
+				serial.DiscardInBuffer();
+				while(tries-- > 0)
 				{
-					t = serial.ReadByte();
+					serial.Write("cnys");
+					var t = 0;
+					try
+					{
+						t = serial.ReadByte();
+					}
+					catch { }
+					if(t == 0x01 || t == 0xFF)
+					{
+						logger.addLog("... OK!" + Environment.NewLine, Color.Green);
+						return UploadStub();
+					}
 				}
-				catch { }
-				if(t == 0x01 || t == 0xFF)
-				{
-					addLogLine("Sync success");
-					return UploadStub();
-				}
+				addWarningLine("... failed, will retry!");
 			}
 			return false;
 		}
