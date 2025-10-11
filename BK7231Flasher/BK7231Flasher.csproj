@@ -56,6 +56,7 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ECR6600Flasher.cs" />
     <Compile Include="BaseFlasher.cs" />
     <Compile Include="BitUtils.cs" />
     <Compile Include="BK7231Flasher.cs" />
@@ -183,6 +184,12 @@
     <AdditionalFiles Include="easyflash\libef.so">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
+    <AdditionalFiles Include="easyflash\libef_ECR.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AdditionalFiles>
+    <AdditionalFiles Include="easyflash\libef_GRAN8.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AdditionalFiles>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -206,6 +213,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
     <AdditionalFiles Include="easyflash\WinEF_x86.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AdditionalFiles>
+    <AdditionalFiles Include="easyflash\WinEF_ECR_x64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AdditionalFiles>
+    <AdditionalFiles Include="easyflash\WinEF_ECR_x86.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
   </ItemGroup>

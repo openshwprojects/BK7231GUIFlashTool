@@ -292,6 +292,7 @@ namespace BK7231Flasher
                     case var name when name.Contains("RTL8720D"): type = BKType.RTL8720D; break;
                     case var name when name.Contains("LN882H"):   type = BKType.LN882H;   break;
                     case var name when name.Contains("BL602"):    type = BKType.BL602;    break;
+                    case var name when name.Contains("ECR6600"):  type = BKType.ECR6600;  break;
                 }
             }
             bool bError = cfg.loadFrom(fname, type);

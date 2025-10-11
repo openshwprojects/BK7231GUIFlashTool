@@ -59,6 +59,8 @@ namespace BK7231Flasher
                     return USUAL_BK_NEW_XR806_MAGIC_POSITION;
                 case BKType.BK7258:
                     return USUAL_T5_MAGIC_POSITION;
+                case BKType.ECR6600:
+                    return USUAL_ECR6600_MAGIC_POSITION;
                 default:
                     return USUAL_BK7231_MAGIC_POSITION;
             }
@@ -81,6 +83,8 @@ namespace BK7231Flasher
                     return 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION;
                 case BKType.BK7258:
                     return 0x800000 - USUAL_T5_MAGIC_POSITION;
+                case BKType.ECR6600:
+                    return 0x200000 - USUAL_ECR6600_MAGIC_POSITION;
                 default:
                     return 0x200000 - USUAL_BK7231_MAGIC_POSITION;
             }
