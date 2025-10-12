@@ -201,6 +201,7 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602"));
             comboBoxChipType.Items.Add(new ChipType(BKType.ECR6600, "ECR6600"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.W800, "W800"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
             comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
 
@@ -501,6 +502,10 @@ namespace BK7231Flasher
                     break;
                 case BKType.ECR6600:
                     flasher = new ECR6600Flasher();
+                    break;
+                case BKType.W600:
+                case BKType.W800:
+                    flasher = new WMFlasher();
                     break;
                 default:
                     flasher = new BK7231Flasher();

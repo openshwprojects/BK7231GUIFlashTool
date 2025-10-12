@@ -241,18 +241,13 @@ namespace BK7231Flasher
             byte[] header;
             if(chipType == BKType.RTL8710B)
             {
-                header = new byte[11];
-                header[0] = 60; // <
-                header[1] = 66; // B
-                header[2] = 72; // H
-                header[3] = 66; // B
-                header[4] = 72; // H
-                header[5] = 0x19; // CMD_RBF 
-                header[6] = (byte)(offset & 0xff);
-                header[7] = (byte)((offset >> 8) & 0xff);
-                header[8] = (byte)(offset / 0x10000 & 0xff);
-                header[9] = (byte)(count & 0xff);
-                header[10] = (byte)((count >> 8) & 0xff);
+                header = new byte[6];
+                header[0] = 0x19; // CMD_RBF 
+                header[1] = (byte)(offset & 0xff);
+                header[2] = (byte)((offset >> 8) & 0xff);
+                header[3] = (byte)(offset / 0x10000 & 0xff);
+                header[4] = (byte)(count & 0xff);
+                header[5] = (byte)((count >> 8) & 0xff);
                 // ensure there is no handshake bytes
                 var quiet = new byte[1];
                 quiet[0] = 0x06;
@@ -469,45 +464,32 @@ namespace BK7231Flasher
             }
         }
 
-        private bool SetBaud(int baud)
+        private bool SetBaud(int baud, bool noCheck = false)
         {
-            if (serial.BaudRate != baud)
+            if(serial.BaudRate != baud)
             {
                 int givenBaud = baud;
                 int x = 0x0D;
                 int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000 };
-                foreach (int el in br)
+                foreach(int el in br)
                 {
-                    if (el >= baud)
+                    if(el >= baud)
                     {
                         baud = el;
                         break;
                     }
                     x++;
                 }
-                addLog("Setting baud rate " + baud + " (given as "+givenBaud+")...");
-                if(chipType == BKType.RTL8720D)
+                addLog("Setting baud rate " + baud + " (given as " + givenBaud + ")...");
+                byte[] pkt = new byte[2];
+                pkt[0] = 0x05;
+                pkt[1] = (byte)x;
+                if(noCheck)
                 {
-                    byte[] pkt = new byte[2];
-                    pkt[0] = 0x05;
-                    pkt[1] = (byte)x;
-                    if(!WriteCmd(pkt))
-                    {
-                        addLog("... ERROR!" + Environment.NewLine);
-                        return false;
-                    }
+                    serial.Write(pkt, 0, pkt.Length);
                 }
                 else
                 {
-                    serial.DiscardInBuffer();
-                    serial.DiscardOutBuffer();
-                    byte[] pkt = new byte[5];
-                    pkt[0] = 60;
-                    pkt[1] = 66;
-                    pkt[2] = 66;
-                    pkt[3] = 0x05;
-                    pkt[4] = (byte)x;
-                    serial.Write(pkt, 0, pkt.Length);
                     if(!WriteCmd(pkt))
                     {
                         addLog("... ERROR!" + Environment.NewLine);
@@ -544,7 +526,7 @@ namespace BK7231Flasher
 
         public bool RestoreBaud()
         {
-            return SetBaud(chipType == BKType.RTL8710B ? 1500000 : 115200);
+            return SetBaud(chipType == BKType.RTL8710B ? 1500000 : 115200, true);
         }
 
         public bool WriteBlockMem(Stream stream, int offset, int size)

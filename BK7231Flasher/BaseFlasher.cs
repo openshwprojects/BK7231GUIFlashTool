@@ -21,6 +21,8 @@ namespace BK7231Flasher
         LN882H,
         BL602,
         ECR6600,
+        W600,
+        W800,
 
         BekenSPI,
         GenericSPI,
