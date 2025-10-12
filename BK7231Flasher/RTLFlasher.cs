@@ -799,23 +799,26 @@ namespace BK7231Flasher
                     RestoreBaud();
                     return true;
                 }
+
+                cfg.saveConfig(chipType);
+                var cfgData = cfg.getData();
                 byte[] efdata;
                 if(cfg.efdata != null)
                 {
                     try
                     {
-                        efdata = EasyFlash.SaveCfgToExistingEasyFlash(cfg, areaSize, chipType);
+                        efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
                     }
                     catch(Exception ex)
                     {
                         addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
                         addLog(ex.Message + Environment.NewLine);
-                        efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
+                        efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
                     }
                 }
                 else
                 {
-                    efdata = EasyFlash.SaveCfgToNewEasyFlash(cfg, areaSize, chipType);
+                    efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
                 }
                 ms?.Dispose();
                 ms = new MemoryStream(efdata);

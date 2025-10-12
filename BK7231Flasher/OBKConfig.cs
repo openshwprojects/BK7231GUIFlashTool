@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace BK7231Flasher
 {
@@ -102,10 +103,11 @@ namespace BK7231Flasher
             {
                 subArray = dat;
             }
-            if(type == BKType.RTL8720D || type == BKType.RTL87X0C || type == BKType.RTL8710B || type == BKType.BL602)
+            if(type == BKType.RTL8720D || type == BKType.RTL87X0C || type == BKType.RTL8710B || type == BKType.BL602 || type == BKType.ECR6600)
             {
                 _ = OBKFlashLayout.getConfigLocation(type, out var sectors);
-                dat = EasyFlash.LoadFromData(subArray, sectors * BK7231Flasher.SECTOR_SIZE, type, out efdata);
+                var sname = type == BKType.BL602 ? "mY0bcFg" : "ObkCfg";
+                dat = EasyFlash.LoadValueFromData(subArray, sname, sectors * BK7231Flasher.SECTOR_SIZE, type, out efdata);
                 subArray = dat;
             }
             if (isValid(subArray, type: type))
