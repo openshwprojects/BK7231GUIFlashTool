@@ -28,7 +28,7 @@ namespace BK7231Flasher
 				serial.Open();
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
-				serial.ReadTimeout = 10000;
+				serial.ReadTimeout = 2000;
 				xm = new XMODEM(serial, XMODEM.Variants.XModem1K)
 				{
 					SendInactivityTimeoutMillisec = 5000,
@@ -46,20 +46,42 @@ namespace BK7231Flasher
 
 		public byte[] ReadFlashId()
 		{
-			var res = ExecuteCommand(0x3c, null, 1, 10);
+			var res = ExecuteCommand(0x3c, null, 1, 10, 0, true);
 			if(res != null && res[0] == 'F' && res[1] == 'I' && res[2] == 'D')
 			{
-				flashID = new byte[]
-				{ 
-					Convert.ToByte($"{(char)res[4]}{(char)res[5]}", 16),
-					Convert.ToByte($"{(char)res[7]}{(char)res[8]}", 16),
-				};
-				addLogLine($"Flash ID: 0x{flashID[0]:X}xx{flashID[1]:X}");
-				flashSizeMB = (1 << (flashID[1] - 0x11)) / 8;
-				addLogLine($"Flash size is {flashSizeMB}MB");
+				if(chipType == BKType.W600)
+				{
+					flashID = new byte[]
+					{
+						Convert.ToByte($"{(char)res[4]}{(char)res[5]}", 16),
+					};
+					addLogLine($"Flash ID: 0x{flashID[0]:X}");
+				}
+				else
+				{
+					flashID = new byte[]
+					{
+						Convert.ToByte($"{(char)res[4]}{(char)res[5]}", 16),
+						Convert.ToByte($"{(char)res[7]}{(char)res[8]}", 16),
+					};
+					addLogLine($"Flash ID: 0x{flashID[0]:X}xx{flashID[1]:X}");
+					flashSizeMB = (1 << (flashID[1] - 0x11)) / 8;
+					addLogLine($"Flash size is {flashSizeMB}MB");
+				}
 			}
-			var romv = ExecuteCommand(0x3e, null, 1, 3);
-			addLogLine($"ROM version: {(char)romv[2]}");
+			else if(chipType == BKType.W600)
+			{
+				addLogLine($"Getting flash id failed, assuming device is in secboot mode.");
+				addLogLine($"Erasing secboot, will resync...");
+				ExecuteCommand(0x3f, null, 1, 2);
+				Sync();
+				return ReadFlashId();
+			}
+			if(chipType != BKType.W600)
+			{
+				var romv = ExecuteCommand(0x3e, null, 1, 3);
+				addLogLine($"ROM version: {(char)romv[2]}");
+			}
 			return flashID;
 		}
 
@@ -82,8 +104,19 @@ namespace BK7231Flasher
 						count++;
 					else
 					{
+						if(chipType == BKType.W600)
+						{
+							if(sync == 'P')
+								continue;
+							for(int i = 0; i < 250; i++)
+							{
+								serial.Write(new byte[] { 0x1B }, 0, 1);
+								Thread.Sleep(1);
+							}
+						}
+						else
+							Thread.Sleep(250);
 						addLogLine($"Sync attempt {attempts}/1000 failed...");
-						Thread.Sleep(250);
 						serial.DiscardInBuffer();
 						count = 0;
 					}
@@ -100,12 +133,13 @@ namespace BK7231Flasher
 
 		private bool UploadStub()
 		{
+			if(chipType == BKType.W600) return true;
 			var stub = Convert.FromBase64String(FLoaders.W800_Stub);
 			addLogLine($"Sending stub...");
 			if(xm.Send(stub) == stub.Length)
 			{
 				addLogLine($"Stub uploaded!");
-				return true;
+				return Sync();
 			}
 			return false;
 		}
@@ -186,7 +220,7 @@ namespace BK7231Flasher
 			msg[1] = (byte)((baud >> 8) & 0xFF);
 			msg[2] = (byte)((baud >> 16) & 0xFF);
 			msg[3] = (byte)((baud >> 24) & 0xFF);
-			ExecuteCommand(0x31, msg, 1, 1, baud);
+			ExecuteCommand(0x31, msg, 1, 1, baud, noResync);
 			return noResync || Sync();
 		}
 
@@ -215,8 +249,7 @@ namespace BK7231Flasher
 				if(response == null)
 				{
 					addWarningLine("Failed to get response! Retrying...");
-					respErrCount++;
-					if(crcErrCount > 10)
+					if(respErrCount++ > 10)
 					{
 						addErrorLine("Response error count exceeded limit, stopping!");
 						return false;
@@ -234,8 +267,7 @@ namespace BK7231Flasher
 				if(crc32 != recvcrc32)
 				{
 					addWarningLine("CRC Error! Retrying...");
-					crcErrCount++;
-					if(crcErrCount > 10)
+					if(crcErrCount++ > 10)
 					{
 						addErrorLine("CRC error count exceeded limit, stopping!");
 						return false;
@@ -325,11 +357,16 @@ namespace BK7231Flasher
 
 		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
 		{
+			if(chipType == BKType.W600)
+			{
+				addErrorLine("W600 doesn't support read");
+				return;
+			}
 			if(doGenericSetup() == false)
 			{
 				return;
 			}
-			if(Sync() && ReadFlashId() != null && UploadStub() && Sync())
+			if(Sync() && ReadFlashId() != null && UploadStub())
 			{
 				try
 				{
@@ -404,18 +441,29 @@ namespace BK7231Flasher
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
 		{
+			if(chipType == BKType.W600 && rwMode == WriteMode.ReadAndWrite)
+			{
+				addErrorLine("W600 doesn't support read");
+				return;
+			}
 			if(doGenericSetup() == false)
 			{
 				return;
 			}
-			if(Sync() && ReadFlashId() != null && UploadStub() && Sync())
+			if(Sync() && ReadFlashId() != null && UploadStub())
 			{
 				try
 				{
+					xm.PacketSent += Xm_PacketSent;
 					SetBaud(baudrate);
 					OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 					if(rwMode == WriteMode.ReadAndWrite)
 					{
+						if(chipType == BKType.W600)
+						{
+							addErrorLine("W600 doesn't support read");
+							return;
+						}
 						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
 						addLogLine($"Flash size detected: {sectors / 256}MB");
 						ms = ReadInternal(startSector | 0x08000000, sectors);
@@ -441,7 +489,6 @@ namespace BK7231Flasher
 						logger.setState("Writing", Color.White);
 						if(sourceFileName.EndsWith(".fls"))
 						{
-							xm.PacketSent += Xm_PacketSent;
 							var res = xm.Send(data);
 							if(res == data.Length)
 							{
@@ -452,16 +499,19 @@ namespace BK7231Flasher
 							{
 								logger.setState("Write error!", Color.Red);
 							}
-							xm.PacketSent -= Xm_PacketSent;
 						}
-						else if(sourceFileName.Contains("readResult") && data.Length >= 0x100000)
+						else if(sourceFileName.Contains("readResult") && data.Length >= 0x100000 && chipType != BKType.W600)
 						{
 							try
 							{
-								xm.PacketSent += Xm_PacketSent;
 								startSector = 0x2400;
 								var secBootHeader = new byte[64];
 								Array.Copy(data, 0x2000, secBootHeader, 0, secBootHeader.Length);
+								if(secBootHeader[0] != 0x9f || secBootHeader[1] != 0xff || secBootHeader[2] != 0xff || secBootHeader[3] != 0xa0)
+								{
+									addErrorLine("Unknown file type, skipping.");
+									return;
+								}
 								var secBootLength = BitConverter.ToUInt32(secBootHeader, 12);
 								var secBoot = new byte[secBootLength];
 								var secBootAddr = BitConverter.ToUInt32(secBootHeader, 8);
@@ -496,10 +546,6 @@ namespace BK7231Flasher
 							{
 								addErrorLine(ex.Message);
 							}
-							finally
-							{
-								xm.PacketSent -= Xm_PacketSent;
-							}
 						}
 						else
 						{
@@ -517,6 +563,7 @@ namespace BK7231Flasher
 				}
 				finally
 				{
+					xm.PacketSent -= Xm_PacketSent;
 					SetBaud(115200, true);
 				}
 			}

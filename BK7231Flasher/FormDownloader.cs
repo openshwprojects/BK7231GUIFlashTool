@@ -138,7 +138,7 @@ namespace BK7231Flasher
                 Thread.Sleep(100);
                 firmware_binary_url = pickQuotedString(contents, ofs);
                 int len = firmware_binary_url.Length;
-                if (firmware_binary_url.Contains("OTA") || firmware_binary_url.Contains("ota"))
+                if (firmware_binary_url.Contains("OTA") || firmware_binary_url.Contains("ota") || firmware_binary_url.Contains("_gz"))
                 {
                     start = ofs + len;
                 }

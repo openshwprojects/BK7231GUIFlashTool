@@ -202,14 +202,15 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602"));
             comboBoxChipType.Items.Add(new ChipType(BKType.ECR6600, "ECR6600"));
             comboBoxChipType.Items.Add(new ChipType(BKType.W800, "W800"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.W600, "W600 (write)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
             comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
 
             comboBoxChipType.SelectedIndex = 0;
             
             comboBoxBaudRate.Items.Add(115200);
-            comboBoxBaudRate.Items.Add(230400); // added for ln882h
-            comboBoxBaudRate.Items.Add(460800); // added for ln882h
+            comboBoxBaudRate.Items.Add(230400);
+            comboBoxBaudRate.Items.Add(460800);
             comboBoxBaudRate.Items.Add(921600);
             comboBoxBaudRate.Items.Add(1500000);
             comboBoxBaudRate.Items.Add(2000000);
@@ -888,6 +889,13 @@ namespace BK7231Flasher
                 case BKType.BK7252N:
                 case BKType.BK7258:
                     if(s.StartsWith($"Open{curType}_QIO_") || s.StartsWith($"Open{curType}_UA_"))
+                    {
+                        return true;
+                    }
+                    break;
+                case BKType.W600:
+                case BKType.W800:
+                    if(s.StartsWith($"Open{curType}_") && s.EndsWith(".fls"))
                     {
                         return true;
                     }
