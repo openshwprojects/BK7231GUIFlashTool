@@ -56,6 +56,8 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Xmodem.cs" />
+    <Compile Include="WMFlasher.cs" />
     <Compile Include="ECR6600Flasher.cs" />
     <Compile Include="BaseFlasher.cs" />
     <Compile Include="BitUtils.cs" />
