@@ -492,6 +492,7 @@ namespace BK7231Flasher
 			{
 				int startAmount = amount;
 				byte[] ret = new byte[amount];
+				var sha256Hash = SHA256.Create();
 				logger.setProgress(0, amount);
 				logger.setState("Reading", Color.White);
 				addLogLine("Starting read...");
@@ -508,18 +509,40 @@ namespace BK7231Flasher
 				}
 				uint startAddr = (uint)addr;
 				int progress = 0;
-				while(startAmount > 0)
+				int errCount = 0;
+				while(startAmount > 0 && errCount < 10)
 				{
-					DumpBytes(startAddr | FLASH_MMAP_BASE, DumpAmount, out var bytes);
+					byte[] bytes = new byte[DumpAmount];
+					addLog($"Reading at 0x{startAddr:X6}... ");
+					try
+					{
+						DumpBytes(startAddr | FLASH_MMAP_BASE, DumpAmount, out bytes);
+						//var treadHash = HashToStr(sha256Hash.ComputeHash(bytes));
+						//var texpectedHash = HashToStr(FlashReadHash(startAddr, DumpAmount));
+						//if(treadHash != texpectedHash)
+						//{
+						//	throw new Exception("Hash mismatch");
+						//}
+						errCount = 0;
+					}
+					catch(Exception ex)
+					{
+						addWarningLine($"Reading at 0x{startAddr:X6} failed with {ex.Message}, retrying... ");
+						Thread.Sleep(250);
+						errCount++;
+						continue;
+					}
 					startAddr += (uint)DumpAmount;
 					startAmount -= DumpAmount;
 					logger.setProgress(amount - startAmount, amount);
 					bytes.CopyTo(ret, progress);
 					progress += DumpAmount;
-					addLog($"Reading at 0x{startAddr:X6}... ");
+				}
+				if(errCount >= 10)
+				{
+					throw new Exception("Error count exceeded limit!");
 				}
 				addLogLine(Environment.NewLine + "Getting hash...");
-				var sha256Hash = SHA256.Create();
 				var readHash = HashToStr(sha256Hash.ComputeHash(ret));
 				var expectedHash = HashToStr(FlashReadHash((uint)addr, amount));
 				if(readHash != expectedHash)
@@ -543,6 +566,7 @@ namespace BK7231Flasher
 			catch(Exception ex)
 			{
 				addError(ex.ToString() + Environment.NewLine);
+				logger.setState("Read error", Color.Red);
 				ChangeBaud(115200);
 			}
 			closePort();

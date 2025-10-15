@@ -894,7 +894,7 @@ namespace BK7231Flasher
                     break;
                 case BKType.W600:
                 case BKType.W800:
-                    if(s.StartsWith($"Open{curType}_") && s.EndsWith(".fls"))
+                    if(s.StartsWith($"Open{curType}_") && (s.EndsWith(".fls") || s.EndsWith(".bin")))
                     {
                         return true;
                     }
