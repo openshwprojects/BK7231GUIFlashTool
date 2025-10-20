@@ -579,6 +579,7 @@ namespace BK7231Flasher
                 case BKType.BL602:
                     crc = CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4);
                     break;
+                case BKType.W600:
                 case BKType.W800:
                     useLen = getLenForVersion(3);
                     crc = CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4);
@@ -617,6 +618,7 @@ namespace BK7231Flasher
                 case BKType.BL602:
                     crc = CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4);
                     break;
+                case BKType.W600:
                 case BKType.W800:
                     realLen = getLenForVersion(3);
                     crc = CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4);
