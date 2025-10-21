@@ -198,11 +198,14 @@ namespace BK7231Flasher
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8710B, "RTL8710B"));
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL87X0C, "RTL87X0C"));
             comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
+            //comboBoxChipType.Items.Add(new ChipType(BKType.RTL8721DA, "RTL8721DA"));
+            //comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720E, "RTL8720E"));
             comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602"));
             comboBoxChipType.Items.Add(new ChipType(BKType.ECR6600, "ECR6600"));
             comboBoxChipType.Items.Add(new ChipType(BKType.W800, "W800"));
             comboBoxChipType.Items.Add(new ChipType(BKType.W600, "W600 (write)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.RDA5981, "RDA5981"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
             comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
 
@@ -484,6 +487,8 @@ namespace BK7231Flasher
             {
                 case BKType.RTL8710B:
                 case BKType.RTL8720D:
+                case BKType.RTL8721DA:
+                case BKType.RTL8720E:
                     flasher = new RTLFlasher();
                     break;
                 case BKType.RTL87X0C:
@@ -507,6 +512,9 @@ namespace BK7231Flasher
                 case BKType.W600:
                 case BKType.W800:
                     flasher = new WMFlasher();
+                    break;
+                case BKType.RDA5981:
+                    flasher = new RDAFlasher();
                     break;
                 default:
                     flasher = new BK7231Flasher();
