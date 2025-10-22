@@ -75,6 +75,7 @@ namespace BK7231Flasher
 
 		private string ExecuteCommand(string command, int timeout = 100)
 		{
+			timeout = timeout < 50 ? 50 : timeout;
 			var response = string.Empty;
 			while(response.Contains("Unknown command") || response.Contains("Usage") || (response.Length < command.Length) || !response.Contains(command))
 			{
@@ -141,8 +142,7 @@ namespace BK7231Flasher
 
 		string FlashReadHash(int offset, int length)
 		{
-			var timeout = length / 500;
-			var resp = ExecuteCommand($"checksum 2 {offset:X} {length}", timeout < 50 ? 50 : timeout);
+			var resp = ExecuteCommand($"checksum 2 {offset:X} {length}", length / 500);
 			if(!resp.Contains("SHA1"))
 			{
 				Thread.Sleep(length / 500);
@@ -357,6 +357,21 @@ namespace BK7231Flasher
 			}
 			return;
 		}
+
+		private void GetFlashSize()
+		{
+			addLogLine($"Detecting flash size...");
+			var start = InternalRead(0x1000, 16, false);
+			flashSizeMB = 1;
+			for(int i = 0x800000; i > 0x100000; i /= 2)
+			{
+				if(!InternalRead(i + 0x1000, 16, false).SequenceEqual(start))
+				{
+					flashSizeMB = i / 0x100000;
+					break;
+				}
+			}
+		}
 		
 		public override byte[] getReadResult()
 		{
@@ -365,6 +380,22 @@ namespace BK7231Flasher
 
 		public override bool doErase(int startSector = 0x000, int sectors = 10, bool bAll = false)
 		{
+			if(bAll)
+			{
+				if(Sync())
+				{
+					GetFlashSize();
+					int len = flashSizeMB * 0x100000;
+					ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len / 0x1000:X}", len / 300);
+					return true;
+				}
+			}
+			else
+			{
+				int len = sectors * 0x1000;
+				ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {sectors:X}", len / 300);
+				return true;
+			}
 			return false;
 		}
 		
@@ -388,17 +419,7 @@ namespace BK7231Flasher
 				OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 				if(rwMode == WriteMode.ReadAndWrite)
 				{
-					addLogLine($"Detecting flash size...");
-					var start = InternalRead(0x1000, 16, false);
-					flashSizeMB = 1;
-					for(int i = 0x800000; i > 0x100000; i /= 2)
-					{
-						if(!InternalRead(i + 0x1000, 16, false).SequenceEqual(start))
-						{
-							flashSizeMB = i / 0x100000;
-							break;
-						}
-					}
+					GetFlashSize();
 					sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
 					addLogLine($"Flash size detected: {sectors / 256}MB");
 					byte[] res = InternalRead(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
