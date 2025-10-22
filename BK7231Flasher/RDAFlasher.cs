@@ -382,7 +382,7 @@ namespace BK7231Flasher
 		{
 			if(bAll)
 			{
-				if(Sync())
+				if(doGenericSetup() && Sync())
 				{
 					GetFlashSize();
 					int len = flashSizeMB * 0x100000;
