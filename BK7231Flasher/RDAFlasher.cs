@@ -141,7 +141,8 @@ namespace BK7231Flasher
 
 		string FlashReadHash(int offset, int length)
 		{
-			var resp = ExecuteCommand($"checksum 2 {offset:X} {length}", length / 500);
+			var timeout = length / 500;
+			var resp = ExecuteCommand($"checksum 2 {offset:X} {length}", timeout < 50 ? 50 : timeout);
 			if(!resp.Contains("SHA1"))
 			{
 				Thread.Sleep(length / 500);
@@ -255,20 +256,11 @@ namespace BK7231Flasher
 				addLogLine("Starting flash write " + len);
 				logger.setState("Writing", Color.White);
 				ExecuteCommand($"flash 1");
-				if(isFirmware)
-				{
-					ExecuteCommand($"flash 5 2 4096 0 1");
-					ExecuteCommand($"flash 3");
-					ExecuteCommand($"flash 6 0 1 rda5991h 0x1000 0x1000 {(len + 0xFFF) & ~0xFFF:X}");
-					ExecuteCommand($"mw 40109020 0x23524441");
-					ExecuteCommand($"flash 3");
-					Thread.Sleep(15);
-				}
-				else
-				{
-					ExecuteCommand($"flash 7 {addr | FLASH_MMAP_BASE:X} {(len + 0xFFF) & ~0xFFF:X}");
-					Thread.Sleep(len / 300);
-				}
+				ExecuteCommand($"flash 5 2 4096 0 1");
+				ExecuteCommand($"flash 3");
+				ExecuteCommand($"flash 6 0 1 rda5991h {(addr + 0xFFF) & ~0xFFF:X} {(addr + 0xFFF) & ~0xFFF:X} {(len + 0xFFF) & ~0xFFF:X}");
+				ExecuteCommand($"mw 40109020 0x23524441");
+				ExecuteCommand($"flash 3");
 				var md = ExecuteCommand("md 4");
 				if(md.Contains("0x0000B0B1"))
 				{
@@ -297,7 +289,7 @@ namespace BK7231Flasher
 					return false;
 				}
 				Thread.Sleep(500);
-				if(isFirmware)
+				if(addr != 0x1000)
 				{
 					ExecuteCommand($"flash 6 0 1 rda5991h 0x1000 0x1000 0x1000");
 					ExecuteCommand($"mw 40109020 0x23524441");
@@ -387,11 +379,6 @@ namespace BK7231Flasher
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
 		{
-			if(rwMode == WriteMode.OnlyOBKConfig)
-			{
-				addErrorLine("Writing only OBK config is disabled for RDA5981, use \"Automatically configure OBK on flash write\".");
-				return;
-			}
 			if(doGenericSetup() == false)
 			{
 				return;
@@ -433,6 +420,21 @@ namespace BK7231Flasher
 						addLogLine("No filename given!");
 						return;
 					}
+					addLogLine("Reading " + sourceFileName + "...");
+					byte[] data = File.ReadAllBytes(sourceFileName);
+					var startAddr = 0x1000;
+					if(data[0] == 0x02 && data[4] == 'A' && data[5] == 'D' && data[6] == 'R')
+					{
+						startAddr = 0x0;
+					}
+					if(!InternalWrite(startAddr, data, -1, true))
+					{
+						logger.setState("Write error!", Color.Red);
+						return;
+					}
+				}
+				if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig)
+				{
 					if(cfg != null)
 					{
 						addLogLine("Writing config first");
@@ -480,18 +482,6 @@ namespace BK7231Flasher
 					else
 					{
 						addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
-					}
-					addLogLine("Reading " + sourceFileName + "...");
-					byte[] data = File.ReadAllBytes(sourceFileName);
-					var startAddr = 0x1000;
-					if(data[0] == 0x02 && data[4] == 'A' && data[5] == 'D' && data[6] == 'R')
-					{
-						startAddr = 0x0;
-					}
-					if(!InternalWrite(startAddr, data, -1, true))
-					{
-						logger.setState("Write error!", Color.Red);
-						return;
 					}
 				}
 			}

@@ -406,6 +406,11 @@ namespace BK7231Flasher
 					{
 						efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
 					}
+					if(efdata == null)
+					{
+						addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+						return false;
+					}
 					ms?.Dispose();
 					ms = new MemoryStream(efdata);
 					addLog("Now will also write OBK config..." + Environment.NewLine);
