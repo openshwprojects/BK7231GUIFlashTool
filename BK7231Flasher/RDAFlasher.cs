@@ -376,7 +376,7 @@ namespace BK7231Flasher
 				{
 					GetFlashSize();
 					int len = flashSizeMB * 0x100000;
-					if(ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len / 0x1000:X}", len / 300).Contains("Erase Flash done!"))
+					if(ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len:X}", len / 300).Contains("Erase Flash done!"))
 					{
 						addLogLine($"Erase done!");
 						return true;
@@ -387,7 +387,7 @@ namespace BK7231Flasher
 			else
 			{
 				int len = sectors * 0x1000;
-				if(ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {sectors:X}", len / 300).Contains("Erase Flash done!"))
+				if(ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {len:X}", len / 300).Contains("Erase Flash done!"))
 				{
 					addLogLine($"Erase done!");
 					return true;
