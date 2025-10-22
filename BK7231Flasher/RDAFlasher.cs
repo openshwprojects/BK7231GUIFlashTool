@@ -337,19 +337,8 @@ namespace BK7231Flasher
 			{
 				if(fullRead)
 				{
-					addLogLine($"Detecting flash size...");
-					var start = InternalRead(0x1000, 16, false);
-					flashSizeMB = 1;
-					for(int i = 0x800000; i > 0x100000; i /= 2)
-					{
-						if(!InternalRead(i + 0x1000, 16, false).SequenceEqual(start))
-						{
-							flashSizeMB = i / 0x100000;
-							break;
-						}
-					}
+					GetFlashSize();
 					sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
-					addLogLine($"Detected flash size: {sectors / 256}MB");
 				}
 				byte[] res = InternalRead(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
 				if(res != null)
@@ -371,6 +360,7 @@ namespace BK7231Flasher
 					break;
 				}
 			}
+			addLogLine($"Detected flash size: {flashSizeMB}MB");
 		}
 		
 		public override byte[] getReadResult()
@@ -386,15 +376,23 @@ namespace BK7231Flasher
 				{
 					GetFlashSize();
 					int len = flashSizeMB * 0x100000;
-					ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len / 0x1000:X}", len / 300);
-					return true;
+					if(ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len / 0x1000:X}", len / 300).Contains("Erase Flash done!"))
+					{
+						addLogLine($"Erase done!");
+						return true;
+					}
+					addErrorLine($"Erase failed!");
 				}
 			}
 			else
 			{
 				int len = sectors * 0x1000;
-				ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {sectors:X}", len / 300);
-				return true;
+				if(ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {sectors:X}", len / 300).Contains("Erase Flash done!"))
+				{
+					addLogLine($"Erase done!");
+					return true;
+				}
+				addErrorLine($"Erase failed!");
 			}
 			return false;
 		}
