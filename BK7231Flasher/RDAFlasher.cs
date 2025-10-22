@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
@@ -74,6 +73,20 @@ namespace BK7231Flasher
 			return false;
 		}
 
+		private string ExecuteCommand(string command, int timeout = 100)
+		{
+			var response = string.Empty;
+			while(response.Contains("Unknown command") || response.Contains("Usage") || (response.Length < command.Length) || !response.Contains(command))
+			{
+				//addLogLine($"Sending command {command}");
+				serial.DiscardInBuffer();
+				serial.Write($"{command}\r");
+				Thread.Sleep(timeout);
+				response = serial.ReadExisting();
+			}
+			return response;
+		}
+
 		bool DumpBytes(int start, int count, out byte[] bytes)
 		{
 			int readCount = 0;
@@ -128,17 +141,17 @@ namespace BK7231Flasher
 
 		string FlashReadHash(int offset, int length)
 		{
-			var oldTimeout = serial.ReadTimeout;
-			serial.ReadTimeout = 5000;
-			serial.WriteLine("");
-			Thread.Sleep(25);
-			serial.DiscardInBuffer();
-			serial.Write($"checksum 2 {offset:X} {length}\r\n");
-			Thread.Sleep(5);
-			var z = serial.ReadLine();
-			var x = serial.ReadLine();
-			serial.ReadTimeout = oldTimeout;
-			return x.Substring(7, 20 * 2);
+			var resp = ExecuteCommand($"checksum 2 {offset:X} {length}", length / 500);
+			if(!resp.Contains("SHA1"))
+			{
+				Thread.Sleep(length / 500);
+				resp = serial.ReadExisting();
+			}
+			else
+			{
+				resp = resp.Substring(resp.IndexOf("SHA1"), 20 * 2 + 7);
+			}
+			return resp.Substring(7, 20 * 2);
 		}
 
 		internal byte[] InternalRead(int addr = 0, int amount = 4096, bool withLog = true)
@@ -241,34 +254,40 @@ namespace BK7231Flasher
 				logger.setProgress(0, len);
 				addLogLine("Starting flash write " + len);
 				logger.setState("Writing", Color.White);
-				serial.DiscardInBuffer();
-				serial.Write($"flash 1\r\n");
-				Thread.Sleep(15);
+				ExecuteCommand($"flash 1");
 				if(isFirmware)
 				{
-					serial.Write($"flash 5 2 4096 0 1\r\n");
+					ExecuteCommand($"flash 5 2 4096 0 1");
+					ExecuteCommand($"flash 3");
+					ExecuteCommand($"flash 6 0 1 rda5991h 0x1000 0x1000 {(len + 0xFFF) & ~0xFFF:X}");
+					ExecuteCommand($"mw 40109020 0x23524441");
+					ExecuteCommand($"flash 3");
 					Thread.Sleep(15);
-					serial.Write($"flash 3\r\n");
-					Thread.Sleep(25);
-					serial.Write($"flash 6 0 1 rda5991h 0x1000 0x1000 {len + (len % 4096):X}\r\n");
-					Thread.Sleep(15);
-					serial.Write($"mw 40109020 0x23524441\r\n");
-					Thread.Sleep(15);
-					serial.Write($"flash 3\r\n");
-					Thread.Sleep(25);
 				}
 				else
 				{
-					serial.Write($"flash 7 {addr | FLASH_MMAP_BASE:X} {len + (len % 4096):X}\r\n");
+					ExecuteCommand($"flash 7 {addr | FLASH_MMAP_BASE:X} {(len + 0xFFF) & ~0xFFF:X}");
 					Thread.Sleep(len / 300);
 				}
-				serial.Write($"mw 40011004 a8e8\r\n");
-				Thread.Sleep(15);
-				serial.Write($"mw 40011024 5b44\r\n");
-				Thread.Sleep(15);
-				serial.Write($"mw 40011000 1\r\n");
-				Thread.Sleep(15);
-				serial.Write($"loadx {addr | FLASH_MMAP_BASE:X}\r\n");
+				var md = ExecuteCommand("md 4");
+				if(md.Contains("0x0000B0B1"))
+				{
+					ExecuteCommand($"mw 40011004 a8b4");
+					ExecuteCommand($"mw 40011024 5b10");
+				}
+				else if(md.Contains("0x0000B12D"))
+				{
+					ExecuteCommand($"mw 40011004 a8e8");
+					ExecuteCommand($"mw 40011024 5b44");
+				}
+				else
+				{
+					addErrorLine($"Error on md 4 command");
+					return false;
+				}
+				ExecuteCommand($"mw 40011000 1");
+				addLogLine("Sending...");
+				ExecuteCommand($"loadx {addr | FLASH_MMAP_BASE:X}");
 				var result = xm.Send(data);
 				if(result != len)
 				{
@@ -280,14 +299,11 @@ namespace BK7231Flasher
 				Thread.Sleep(500);
 				if(isFirmware)
 				{
-					serial.Write($"flash 6 0 1 rda5991h 0x1000 0x1000 0x1000\r\n");
-					Thread.Sleep(15);
-					serial.Write($"mw 40109020 0x23524441\r\n");
-					Thread.Sleep(15);
-					serial.Write($"flash 3\r\n");
-					Thread.Sleep(225);
+					ExecuteCommand($"flash 6 0 1 rda5991h 0x1000 0x1000 0x1000");
+					ExecuteCommand($"mw 40109020 0x23524441");
+					ExecuteCommand($"flash 3");
 				}
-				addLogLine(Environment.NewLine + "Getting hash...");
+				addLogLine("Getting hash...");
 				if(addr < 0x1000)
 				{
 					addr += 0x1000;
@@ -417,9 +433,9 @@ namespace BK7231Flasher
 						addLogLine("No filename given!");
 						return;
 					}
-					addLogLine("Writing config first");
 					if(cfg != null)
 					{
+						addLogLine("Writing config first");
 						var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
 						var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
 
@@ -477,9 +493,6 @@ namespace BK7231Flasher
 						logger.setState("Write error!", Color.Red);
 						return;
 					}
-				}
-				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
-				{
 				}
 			}
 		}
