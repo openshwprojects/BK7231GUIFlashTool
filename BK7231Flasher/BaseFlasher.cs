@@ -59,7 +59,7 @@ namespace BK7231Flasher
         }
     }
 
-    public class BaseFlasher
+    public class BaseFlasher : IDisposable
     {
         protected ILogListener logger;
         protected string backupName;
@@ -184,7 +184,11 @@ namespace BK7231Flasher
         }
         public virtual void closePort()
         {
-
+            if (serial != null)
+            {
+                serial.Close();
+                serial.Dispose();
+            }
         }
         public virtual void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -198,7 +202,7 @@ namespace BK7231Flasher
             return false;
         }
 
-        public void Xm_PacketSent(int sentBytes, int total, int sequence, uint offset)
+        public virtual void Xm_PacketSent(int sentBytes, int total, int sequence, uint offset)
         {
             if((sequence % 4) == 1)
             {
@@ -207,6 +211,8 @@ namespace BK7231Flasher
 
             logger.setProgress(sentBytes, total);
         }
+
+        public virtual void Dispose() { }
     }
 }
 

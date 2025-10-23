@@ -483,6 +483,7 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
+            flasher?.Dispose();
             switch(curType)
             {
                 case BKType.RTL8710B:

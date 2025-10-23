@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.IO;
 using System.IO.Ports;
+using System.Collections.Generic;
 
 // SUMMARY:
 // Desktop version of XMODEM based on the full .NET Framework.
@@ -228,6 +229,8 @@ namespace BK7231Flasher
         }
 
         private uint Offset = 0;
+
+        public byte[] ExtraHeaderBytes = null;
 
         // *********************************** END: COMMON CUSTOMIZABLE PARAMETERS ***********************************
 
@@ -1471,6 +1474,13 @@ namespace BK7231Flasher
 
         private void TransmitPacket()
         {
+            if(ExtraHeaderBytes != null && ExtraHeaderBytes.Length > 0)
+            {
+                var newData = new List<byte>();
+                newData.AddRange(ExtraHeaderBytes);
+                newData.AddRange(DataPacketToSend);
+                DataPacketToSend = newData.ToArray();
+            }
             // Calculate check-value
             byte[] checkValueBytes;
             if (_Variant == Variants.XModemChecksum || _Variant == Variants.XModem1KChecksum)
