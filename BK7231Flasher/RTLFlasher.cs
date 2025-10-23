@@ -665,8 +665,8 @@ namespace BK7231Flasher
             logger.setProgress(0, size);
             addLog(Environment.NewLine + "Starting write!" + Environment.NewLine);
             addLog("Write parms: start 0x" +
-                (startSector * BK7231Flasher.SECTOR_SIZE).ToString("X2")
-                + " (sector " + startSector + "), len 0x" +
+                (startSector).ToString("X2")
+                + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
                 (size).ToString("X2")
                 + " (" + size / BK7231Flasher.SECTOR_SIZE + " sectors)"
                 + Environment.NewLine);
