@@ -1,14 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace BK7231Flasher
 {
     public class RTLFlasher : BaseFlasher
     {
-        private SerialPort serial;
         int timeoutMs = 200;
 
         enum AmbZMode
@@ -21,6 +23,7 @@ namespace BK7231Flasher
         AmbZMode CurrentMode = AmbZMode.MODE_UNK1;
         int flashSizeMB = 2;
         byte[] flashID;
+        bool isInFloaderMode = false;
 
         public bool Connect()
         {
@@ -169,35 +172,50 @@ namespace BK7231Flasher
         }
         public bool Floader(int baud)
         {
-            if (!SetBaud(baud))
+            //if(!SetBaud(baud))
+            //{
+            //    addError("Error Set Baud!" + Environment.NewLine);
+            //    return true;
+            //}
+            byte[] dat = Convert.FromBase64String(FLoaders.AmebaDFLoader);
+            int offset = 0x00082000;
+            bool skipUpload = false;
+            var regSkip = new byte[0];
+            switch(chipType)
             {
-                addError("Error Set Baud!"+Environment.NewLine);
-                return true;
+                case BKType.RTL8710B:
+                    dat = Convert.FromBase64String(FLoaders.AmebaZ_NewFloader);
+                    offset = 0x10002000;
+                    regSkip = new byte[4] { 25, 32, 0, 16 };
+                    break;
+                case BKType.RTL8720D:
+                    Convert.FromBase64String(FLoaders.AmebaDFLoader);
+                    offset = 0x00082000;
+                    regSkip = new byte[4] { 33, 32, 8, 0 };
+                    break;
+                case BKType.RTL8721DA:
+                    Convert.FromBase64String(FLoaders.AmebaDplusFLoader);
+                    offset = 0x00082000;
+                    break;
+                case BKType.RTL8720E:
+                    Convert.FromBase64String(FLoaders.AmebaLiteFloader);
+                    offset = 0x00082000;
+                    break;
             }
-
-            byte[] regs = ReadRegs(0x00082000, 4);
-            if (regs == null || regs.Length != 4 || !(regs[0] == 33 && regs[1] == 32 && regs[2] == 8 && regs[3] == 0))
+            byte[] regs = ReadRegs(offset, 4);
+            if(regs != null && regs.Length == 4 && regs.SequenceEqual(regSkip))
             {
-                //string fname = "loaders/imgtool_flashloader_amebad.bin";
-                //if(File.Exists(fname) == false)
-                //{
-                //    addError("Can't find " + fname);
-                //    return true;
-                //}
-                //FileStream stream = new FileStream(fname, FileMode.Open, FileAccess.Read);
-                byte[] dat = Convert.FromBase64String(FLoaders.AmebaDFLoader);
+                isInFloaderMode = true;
+                skipUpload = true;
+                addLog("RAM code is already uploaded." + Environment.NewLine);
+            }
+            if(!skipUpload)
+            {
+                addLog("Sending RAM code..." + Environment.NewLine);
                 var stream = new MemoryStream(dat);
                 long size = stream.Length;
-                if (size < 1)
-                {
-                    stream.Close();
-                    addError("Error: File size = 0!");
-                    RestoreBaud();
-                    return true;
-                }
-                int offset = 0x00082000;
-                addLog(string.Format("Write Floader to SRAM at 0x{0:X8} to 0x{1:X8}"+Environment.NewLine, offset, offset + (int)size));
-                if (!WriteBlockMem(stream, offset, (int)size))
+                addLog(string.Format("Write Floader to SRAM at 0x{0:X8} to 0x{1:X8}" + Environment.NewLine, offset, offset + (int)size));
+                if(!WriteBlockMem(stream, offset, (int)size))
                 {
                     stream.Close();
                     addError("Error Write!" + Environment.NewLine);
@@ -205,12 +223,14 @@ namespace BK7231Flasher
                     return true;
                 }
                 stream.Close();
-                SetComBaud(115200);
-                if (!SetBaud(baud))
+                RestoreComBaud();
+                isInFloaderMode = true;
+                if(!SetBaud(baud))
                 {
                     addError("Error Set Baud!" + Environment.NewLine);
                     return true;
                 }
+                addLog("RAM code ready!" + Environment.NewLine);
             }
             // See: https://www.elektroda.com/rtvforum/viewtopic.php?p=21606205#21606205
             // NOTE: It will not work without RAM loader
@@ -225,6 +245,7 @@ namespace BK7231Flasher
             addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
             return false;
         }
+
         public bool ReadBlockFlash(MemoryStream stream, int offset, int size)
         {
             int count = (size + 4095) / 4096;
@@ -239,33 +260,13 @@ namespace BK7231Flasher
                 return false;
             }
             byte[] header;
-            if(chipType == BKType.RTL8710B)
-            {
-                header = new byte[6];
-                header[0] = 0x19; // CMD_RBF 
-                header[1] = (byte)(offset & 0xff);
-                header[2] = (byte)((offset >> 8) & 0xff);
-                header[3] = (byte)(offset / 0x10000 & 0xff);
-                header[4] = (byte)(count & 0xff);
-                header[5] = (byte)((count >> 8) & 0xff);
-                // ensure there is no handshake bytes
-                var quiet = new byte[1];
-                quiet[0] = 0x06;
-                serial.Write(quiet, 0, 1);
-                Thread.Sleep(5);
-                serial.DiscardInBuffer();
-                serial.DiscardOutBuffer();
-            }
-            else
-            {
-                header = new byte[6];
-                header[0] = 0x20;
-                header[1] = (byte)(offset & 0xff);
-                header[2] = (byte)((offset >> 8) & 0xff);
-                header[3] = (byte)((offset >> 16) & 0xff);
-                header[4] = (byte)(count & 0xFF);              // ushort (2B) - low byte
-                header[5] = (byte)((count >> 8) & 0xFF);       // ushort (2B) - high byte
-            }
+            header = new byte[6];
+            header[0] = 0x20;
+            header[1] = (byte)(offset & 0xff);
+            header[2] = (byte)((offset >> 8) & 0xff);
+            header[3] = (byte)((offset >> 16) & 0xff);
+            header[4] = (byte)(count & 0xFF);              // ushort (2B) - low byte
+            header[5] = (byte)((count >> 8) & 0xFF);       // ushort (2B) - high byte
 
             try
             {
@@ -285,23 +286,19 @@ namespace BK7231Flasher
                 {
                    addLog(string.Format("Read block at 0x{0:X6}...", offset));
                 }
-                var readSize = 1024;
-                if(chipType == BKType.RTL8720D)
+                if (!WaitResp(0x02)) // STX
                 {
-                    if (!WaitResp(0x02)) // STX
-                    {
-                        addError("Error read block head id!");
-                        return false;
-                    }
-
-                    byte[] hdr = ReadBytes(2);
-                    if (hdr == null || hdr.Length != 2 || hdr[0] != ((i + 1) & 0xff) || ((hdr[0] ^ 0xff) != hdr[1]))
-                    {
-                        addError("Error read block head!");
-                        return false;
-                    }
-                    readSize = 1025;
+                    addError("Error read block head id!");
+                    return false;
                 }
+
+                byte[] hdr = ReadBytes(2);
+                if (hdr == null || hdr.Length != 2 || hdr[0] != ((i + 1) & 0xff) || ((hdr[0] ^ 0xff) != hdr[1]))
+                {
+                    addError("Error read block head!");
+                    return false;
+                }
+                var readSize = 1025;
 
                 byte[] data = ReadBytes(readSize);
                 if (data == null || data.Length != readSize)
@@ -309,8 +306,7 @@ namespace BK7231Flasher
                     return false;
                 }
 
-                // no checksum for AmebaZ
-                if (chipType == BKType.RTL8720D && data[readSize - 1] != CalcChecksum(data, 0, readSize - 1))
+                if (data[readSize - 1] != CalcChecksum(data, 0, readSize - 1))
                 {
                     WriteCmd(new byte[] { 0x18 }); // CAN
                     addError("Bad Checksum!");
@@ -319,15 +315,15 @@ namespace BK7231Flasher
                 if (size > readSize - 1)
                 {
                     serial.Write(new byte[] { 0x06 }, 0, 1); // ACK
-                    stream.Write(data, 0, chipType == BKType.RTL8710B ? readSize : readSize - 1);
+                    stream.Write(data, 0, readSize - 1);
                 }
                 else
                 {
                     stream.Write(data, 0, size);
-                    if(chipType != BKType.RTL8710B) WriteCmd(new byte[] { 0x18 }); // CAN
+                    WriteCmd(new byte[] { 0x18 }); // CAN
                     if ((i & 63) == 0)
                         addLog("ok. ");
-                    return true;
+                    break;
                 }
 
                 totalRead += 1024;
@@ -338,7 +334,7 @@ namespace BK7231Flasher
             }
             
             logger.setProgress(count, count);
-            addLog("All blocks read!" + Environment.NewLine);
+            addLog(Environment.NewLine + "All blocks read!" + Environment.NewLine);
             addLog("Read done for " + totalRead + " bytes!" + Environment.NewLine);
             return true;
         }
@@ -364,9 +360,9 @@ namespace BK7231Flasher
                     return null;
                 }
 
-                if (!WaitResp(0x31))
+                if (!WaitResp(0x31, 5))
                 {
-                    addError("Error read data head id!");
+                    //addError("Error read data head id!");
                     return null;
                 }
 
@@ -413,6 +409,10 @@ namespace BK7231Flasher
                         Thread.Sleep(1);
                     }
                 }
+                catch(TimeoutException)
+                {
+                    continue;
+                }
                 catch
                 {
                     return null;
@@ -425,9 +425,8 @@ namespace BK7231Flasher
             return null;
         }
 
-        private bool WaitResp(byte code)
+        private bool WaitResp(byte code, int retries = 1000)
         {
-            int retries = 1000;
             while (retries-- > 0)
             {
                 try
@@ -468,6 +467,17 @@ namespace BK7231Flasher
         {
             if(serial.BaudRate != baud)
             {
+                //if(isInFloaderMode && (chipType == BKType.RTL8721DA || chipType == BKType.RTL8720E))
+                //{
+                //    byte[] bpkt = new byte[5];
+                //    bpkt[0] = 0x81;
+                //    bpkt[1] = (byte)(baud & 0xFF);
+                //    bpkt[2] = (byte)((baud >> 8) & 0xFF);
+                //    bpkt[3] = (byte)((baud >> 16) & 0xFF);
+                //    bpkt[4] = (byte)((baud >> 24) & 0xFF);
+                //    var t = SendNewCmd(bpkt);
+                //    return SetComBaud(baud);
+                //}
                 int givenBaud = baud;
                 int x = 0x0D;
                 int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000 };
@@ -498,7 +508,19 @@ namespace BK7231Flasher
                 }
                 addLog("... OK!" + Environment.NewLine);
 
-                return SetComBaud(baud);
+                if(chipType == BKType.RTL8721DA || chipType == BKType.RTL8720E)
+                {
+                    SetComBaud(baud);
+                    addLog("Sending baud check...");
+                    if(!WriteCmd(new byte[] { 0x07 }))
+                    {
+                        addLog("... ERROR!" + Environment.NewLine);
+                        return false;
+                    }
+                    addLog("... OK!" + Environment.NewLine);
+                    return true;
+                }
+                else return SetComBaud(baud);
             }
             return true;
         }
@@ -522,6 +544,11 @@ namespace BK7231Flasher
                 Environment.Exit(-1);
             }
             return true;
+        }
+
+        public bool RestoreComBaud()
+        {
+            return SetComBaud(chipType == BKType.RTL8710B ? 1500000 : 115200);
         }
 
         public bool RestoreBaud()
@@ -667,32 +694,19 @@ namespace BK7231Flasher
                 addError("Failed to connect!" + Environment.NewLine);
                 return false;
             }
-            if(chipType == BKType.RTL8720D)
+            RestoreComBaud();
+            if(chipType == BKType.RTL8710B)
             {
-                addLog("Sending RAM code..." + Environment.NewLine);
-                if(Floader(baudrate) == true)
-                {
-                    addError("Failed to setup loader!" + Environment.NewLine);
-                    return false;
-                }
-                addLog("RAM code ready!" + Environment.NewLine);
-            }
-            else
-            {
-                serial.BaudRate = 1500000;
                 if(AmbZSync() == false)
                 {
                     addError("Failed to sync!" + Environment.NewLine);
                     return false;
                 }
-                if (!SetBaud(baudrate))
-                {
-                    addError("Error Set Baud!"+Environment.NewLine);
-                    return true;
-                }
-
-                serial.DiscardInBuffer();
-                serial.DiscardOutBuffer();
+            }
+            if(Floader(baudrate) == true)
+            {
+                addError("Failed to setup loader!" + Environment.NewLine);
+                return false;
             }
             return true;
         }
@@ -801,6 +815,11 @@ namespace BK7231Flasher
                 else
                 {
                     efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                }
+                if(efdata == null)
+                {
+                    addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+                    return false;
                 }
                 ms?.Dispose();
                 ms = new MemoryStream(efdata);

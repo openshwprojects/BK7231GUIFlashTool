@@ -115,7 +115,6 @@ namespace BK7231Flasher
 				{
 					if(parts[0] == "\r")
 						continue;
-					var z = parts[0].Remove(parts[0].IndexOf('-'), 1).Trim(':');
 					addr = Convert.ToUInt32(parts[0].Remove(parts[0].IndexOf('-'), 1).Trim(':'), 16);
 				}
 				catch { continue; }
