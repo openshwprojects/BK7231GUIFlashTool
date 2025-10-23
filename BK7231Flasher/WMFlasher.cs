@@ -32,7 +32,7 @@ namespace BK7231Flasher
 				xm = new XMODEM(serial, XMODEM.Variants.XModem1K)
 				{
 					SendInactivityTimeoutMillisec = 5000,
-					MaxSenderRetries = 3
+					MaxSenderRetries = 5
 				};
 			}
 			catch(Exception ex)
@@ -468,7 +468,7 @@ namespace BK7231Flasher
 									}
 									fls = GenerateW600PseudoFLSFromData(cutData, startSector);
 								}
-								var res = xm.Send(fls);
+								var res = xm.Send(fls, (uint)(startSector ^ 0x08000000));
 								if(res == fls.Length)
 								{
 									logger.setState("Writing done", Color.DarkGreen);
@@ -512,7 +512,7 @@ namespace BK7231Flasher
 						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
 						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
 						var fls = chipType != BKType.W600 ? GenerateW800PseudoFLSFromData(data, offset - 0x303) : GenerateW600PseudoFLSFromData(data, offset);
-						var res = xm.Send(fls);
+						var res = xm.Send(fls, (uint)(offset ^ 0x08000000));
 						if(res == fls.Length)
 						{
 							logger.setState("OBK config write success!", Color.Green);
@@ -538,11 +538,6 @@ namespace BK7231Flasher
 					SetBaud(115200, true);
 				}
 			}
-		}
-
-		private void Xm_PacketSent(int sentBytes, int total)
-		{
-			logger.setProgress(sentBytes, total);
 		}
 
 		byte[] GenerateW800PseudoFLSFromData(byte[] data, int startAddr)

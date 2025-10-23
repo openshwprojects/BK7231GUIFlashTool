@@ -197,6 +197,16 @@ namespace BK7231Flasher
         {
             return false;
         }
+
+        public void Xm_PacketSent(int sentBytes, int total, int sequence, uint offset)
+        {
+            if((sequence % 4) == 1)
+            {
+                addLog($"Writing at 0x{offset:X}... ");
+            }
+
+            logger.setProgress(sentBytes, total);
+        }
     }
 }
 

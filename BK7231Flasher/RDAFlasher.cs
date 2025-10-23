@@ -279,7 +279,7 @@ namespace BK7231Flasher
 				ExecuteCommand($"mw 40011000 1");
 				addLogLine("Sending...");
 				ExecuteCommand($"loadx {addr | FLASH_MMAP_BASE:X}");
-				var result = xm.Send(data);
+				var result = xm.Send(data, (uint)addr);
 				if(result != len)
 				{
 					addErrorLine($"Sent {result} bytes, expected {len}");
@@ -503,11 +503,6 @@ namespace BK7231Flasher
 					}
 				}
 			}
-		}
-
-		private void Xm_PacketSent(int sentBytes, int total)
-		{
-			logger.setProgress(sentBytes, total);
 		}
 
 		bool saveReadResult(string fileName)
