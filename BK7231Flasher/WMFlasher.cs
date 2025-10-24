@@ -32,7 +32,7 @@ namespace BK7231Flasher
 				xm = new XMODEM(serial, XMODEM.Variants.XModem1K)
 				{
 					SendInactivityTimeoutMillisec = 5000,
-					MaxSenderRetries = 3
+					MaxSenderRetries = 5
 				};
 			}
 			catch(Exception ex)
@@ -146,14 +146,7 @@ namespace BK7231Flasher
 
 		public override void doWrite(int startSector, byte[] data)
 		{
-			if(doGenericSetup() == false)
-			{
-				return;
-			}
-			if(Sync())
-			{
-				InternalWrite(startSector, data);
-			}
+			return;
 		}
 
 		byte[] ExecuteCommand(int type, byte[] parms = null,
@@ -300,59 +293,6 @@ namespace BK7231Flasher
 				return null;
 			}
 			return tempResult;
-		}
-
-		private bool InternalWrite(int addr, byte[] data, int len = -1)
-		{
-			try
-			{
-				if(!SetBaud(baudrate))
-					return false;
-				if(len < 0)
-					len = data.Length;
-				int ofs = 0;
-				var bufLen = 0x1000;
-				logger.setProgress(0, len);
-				//doErase(addr, (len + 4095) / 4096);
-				addLogLine("Starting flash write " + len);
-				logger.setState("Writing", Color.White);
-				var cmd = new byte[8];
-				cmd[0] = (byte)(addr & 0xFF);
-				cmd[1] = (byte)((addr >> 8) & 0xFF);
-				cmd[2] = (byte)((addr >> 16) & 0xFF);
-				cmd[3] = (byte)((addr >> 24) & 0xFF);
-				cmd[4] = (byte)(len & 0xFF);
-				cmd[5] = (byte)((len >> 8) & 0xFF);
-				cmd[6] = (byte)((len >> 16) & 0xFF);
-				cmd[7] = (byte)((len >> 24) & 0xFF);
-				byte[] res = null;//ExecuteCommand(0x02, cmd, 5, 0);
-				if(res == null)
-					return false;
-				while(ofs < len)
-				{
-					int chunk = len - ofs;
-					if(chunk > bufLen)
-						chunk = bufLen;
-					var buffer = new byte[chunk + 1];
-					Array.Copy(data, ofs, buffer, 1, chunk);
-					buffer[0] = (byte)(chunk >> 8);
-					//res = ExecuteCommand(0x02, buffer, 5, 0);
-					if(res == null)
-						return false;
-					ofs += chunk;
-					addr += chunk;
-					addLog($"0x{addr:X}...");
-					logger.setProgress(ofs, len);
-				}
-				addLogLine("");
-				logger.setState("Writing done", Color.DarkGreen);
-				addLogLine("Done flash write " + len);
-				return true;
-			}
-			finally
-			{
-				SetBaud(115200);
-			}
 		}
 
 		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
@@ -528,7 +468,7 @@ namespace BK7231Flasher
 									}
 									fls = GenerateW600PseudoFLSFromData(cutData, startSector);
 								}
-								var res = xm.Send(fls);
+								var res = xm.Send(fls, (uint)(startSector ^ 0x08000000));
 								if(res == fls.Length)
 								{
 									logger.setState("Writing done", Color.DarkGreen);
@@ -572,7 +512,7 @@ namespace BK7231Flasher
 						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
 						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
 						var fls = chipType != BKType.W600 ? GenerateW800PseudoFLSFromData(data, offset - 0x303) : GenerateW600PseudoFLSFromData(data, offset);
-						var res = xm.Send(fls);
+						var res = xm.Send(fls, (uint)(offset ^ 0x08000000));
 						if(res == fls.Length)
 						{
 							logger.setState("OBK config write success!", Color.Green);
@@ -598,11 +538,6 @@ namespace BK7231Flasher
 					SetBaud(115200, true);
 				}
 			}
-		}
-
-		private void Xm_PacketSent(int sentBytes, int total)
-		{
-			logger.setProgress(sentBytes, total);
 		}
 
 		byte[] GenerateW800PseudoFLSFromData(byte[] data, int startAddr)
