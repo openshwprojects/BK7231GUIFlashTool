@@ -15,7 +15,6 @@ namespace BK7231Flasher
         int flashSizeMB = 2;
         byte[] flashID;
         bool isInFloaderMode = false;
-        XMODEM xm;
         MemoryStream ms;
         
         private static readonly byte CMD_USB = 0x05; // UART Set Baud
@@ -26,6 +25,10 @@ namespace BK7231Flasher
         private static readonly byte CMD_CRC = 0x27; // Check Flash write checksum
         private static readonly byte CMD_RWA = 0x31; // Read dword <addr, 4 byte> -> 0x31,<dword, 4 byte>,  0x15
         private static readonly byte CMD_ABRT = 0x1B; // User Break (End xmodem mode (write RAM/Flash mode))
+
+        public RTLFlasher(CancellationToken ct) : base(ct)
+        {
+        }
 
         public bool Connect()
         {
@@ -617,7 +620,7 @@ namespace BK7231Flasher
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
-                xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum);
+                xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
                 xm.PacketSent += Xm_PacketSent;
             }
             catch (Exception)
@@ -708,6 +711,8 @@ namespace BK7231Flasher
             {
                 // skip
                 addLog("Erase only finished, nothing more to do!" + Environment.NewLine);
+                logger.setState("Erased!", Color.Transparent);
+                logger.setProgress(1, 1);
             }
             else if(mode != WriteMode.OnlyOBKConfig)
             {
@@ -729,7 +734,7 @@ namespace BK7231Flasher
                 ms?.Dispose();
             }
 
-            if(cfg != null)
+            if(cfg != null && !isCancelled)
             {
                 var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
                 var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
@@ -842,6 +847,10 @@ namespace BK7231Flasher
 
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
+            if(bAll)
+            {
+                sectors = flashSizeMB * 256;
+            }
             return doWrite(startSector, sectors, null, WriteMode.OnlyErase);
         }
 

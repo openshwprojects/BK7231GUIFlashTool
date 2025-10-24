@@ -1,6 +1,8 @@
 using System;
 using System.Drawing;
 using System.IO.Ports;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BK7231Flasher
 {
@@ -73,6 +75,24 @@ namespace BK7231Flasher
         protected string serialName;
         protected BKType chipType = BKType.BK7231N;
         protected int baudrate = 921600;
+        protected CancellationToken cancellationToken;
+        protected XMODEM xm;
+        protected bool isCancelled = false;
+
+        public BaseFlasher(CancellationToken ct)
+        {
+            cancellationToken = ct;
+            ct.Register(() =>
+            {
+                isCancelled = true;
+                if(xm != null)
+                {
+                    xm?.CancelFileTransfer();
+                    xm.InProgress.Wait(500);
+                }
+                closePort();
+            });
+        }
 
         public void setBasic(ILogListener logger, string serialName, BKType bkType, int baudrate = 921600)
         {

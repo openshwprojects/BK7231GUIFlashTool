@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace BK7231Flasher
@@ -21,6 +22,7 @@ namespace BK7231Flasher
         int chosenBaudRate;
         string chosenSourceFile;
         FormCustom formCustom;
+        CancellationTokenSource cts;
 
         public FormMain()
         {
@@ -384,7 +386,7 @@ namespace BK7231Flasher
         //        Singleton.buttonRead.Text = s;
         //    });
         //}
-        Thread worker;
+        Task worker;
         string getSelectedSerialName()
         {
             if (comboBoxUART.SelectedIndex != -1)
@@ -419,7 +421,8 @@ namespace BK7231Flasher
                 {
                     if(worker != null)
                     {
-                        worker.Abort();
+                        cts?.Cancel();
+                        //worker.Abort();
                     }
                     worker = null;
                     //setButtonReadLabel(label_startRead);
@@ -476,49 +479,50 @@ namespace BK7231Flasher
         {
             if (flasher != null)
             {
-                flasher.closePort();
+                cts.Cancel();
+                flasher.Dispose();
+                //flasher.closePort();
                 flasher = null;
             }
         }
         
         void createFlasher()
         {
-            flasher?.Dispose();
             switch(curType)
             {
                 case BKType.RTL8710B:
                 case BKType.RTL8720D:
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
-                    flasher = new RTLFlasher();
+                    flasher = new RTLFlasher(cts.Token);
                     break;
                 case BKType.RTL87X0C:
-                    flasher = new RTLZ2Flasher();
+                    flasher = new RTLZ2Flasher(cts.Token);
                     break;
                 case BKType.LN882H:
-                    flasher = new LN882HFlasher();
+                    flasher = new LN882HFlasher(cts.Token);
                     break;
                 case BKType.BL602:
-                    flasher = new BL602Flasher();
+                    flasher = new BL602Flasher(cts.Token);
                     break;
                 case BKType.BekenSPI:
-                    flasher = new SPIFlasher_Beken();
+                    flasher = new SPIFlasher_Beken(cts.Token);
                     break;
                 case BKType.GenericSPI:
-                    flasher = new SPIFlasher();
+                    flasher = new SPIFlasher(cts.Token);
                     break;
                 case BKType.ECR6600:
-                    flasher = new ECR6600Flasher();
+                    flasher = new ECR6600Flasher(cts.Token);
                     break;
                 case BKType.W600:
                 case BKType.W800:
-                    flasher = new WMFlasher();
+                    flasher = new WMFlasher(cts.Token);
                     break;
                 case BKType.RDA5981:
-                    flasher = new RDAFlasher();
+                    flasher = new RDAFlasher(cts.Token);
                     break;
                 default:
-                    flasher = new BK7231Flasher();
+                    flasher = new BK7231Flasher(cts.Token);
                     break;
             }
             flasher.setBasic(this, serialName, curType, chosenBaudRate);
@@ -1399,16 +1403,20 @@ namespace BK7231Flasher
             startWorkerThread(readThread, customRead);
         }
         
-        void startWorkerThread(ParameterizedThreadStart ts, object customArg)
+        void startWorkerThread(Action<object> ts, object customArg)
         {
+            cts?.Dispose();
+            cts = new CancellationTokenSource();
             setButtonStates(false);
-            worker = new Thread(ts);
-            worker.Start(customArg);
+            worker = new Task(ts, customArg, cts.Token);
+            worker.Start();
         }
-        void startWorkerThread(ThreadStart ts)
+        void startWorkerThread(Action ts)
         {
+            cts?.Dispose();
+            cts = new CancellationTokenSource();
             setButtonStates(false);
-            worker = new Thread(ts);
+            worker = new Task(ts, cts.Token);
             worker.Start();
         }
         private void buttonStartScan_Click(object sender, EventArgs e)

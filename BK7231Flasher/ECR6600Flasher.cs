@@ -12,8 +12,13 @@ namespace BK7231Flasher
 	public class ECR6600Flasher : BaseFlasher
 	{
 		MemoryStream ms;
-		int flashSizeMB = 2;
+
+		public ECR6600Flasher(CancellationToken ct) : base(ct)
+		{
+		}
+
 		//byte[] flashID;
+		//int flashSizeMB = 2;
 
 		bool doGenericSetup()
 		{
@@ -210,10 +215,6 @@ namespace BK7231Flasher
 				return null;
 			}
 			byte crcret = StubCRC8(bytes, bytes.Length - 1);
-			//for(int k = 0; k < bytes.Length - 1; k++)
-			//{
-			//	crcret += bytes[k];
-			//}
 			if(crcret != bytes[bytes.Length - 1])
 			{
 				addErrorLine("Command CRC is incorrect!");
@@ -323,6 +324,7 @@ namespace BK7231Flasher
 					int retries = 5;
 					while(retries-- > 0)
 					{
+						if(isCancelled) return null;
 						addLog($"0x{addr:X}... ");
 						res = ExecuteCommand(0x03, msg, 2, length);
 						if(res != null)
@@ -459,7 +461,7 @@ namespace BK7231Flasher
 				msg[5] = (byte)((length >> 8) & 0xFF);
 				msg[6] = (byte)((length >> 16) & 0xFF);
 				msg[7] = (byte)((length >> 24) & 0xFF);
-				var t = ExecuteCommand(0x04, msg, 10);
+				return ExecuteCommand(0x04, msg, 10) != null;
 			}
 			return false;
 		}
@@ -552,7 +554,7 @@ namespace BK7231Flasher
 						InternalWrite(startSector, data);
 					}
 				}
-				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
+				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
 				{
 					if(cfg != null)
 					{
@@ -578,6 +580,11 @@ namespace BK7231Flasher
 						else
 						{
 							efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+						}
+						if(efdata == null)
+						{
+							addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+							return;
 						}
 						addLog("Now will also write OBK config..." + Environment.NewLine);
 						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);

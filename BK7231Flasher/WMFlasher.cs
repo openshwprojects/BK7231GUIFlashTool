@@ -15,7 +15,10 @@ namespace BK7231Flasher
 		MemoryStream ms;
 		int flashSizeMB = 2;
 		byte[] flashID;
-		XMODEM xm;
+
+		public WMFlasher(CancellationToken ct) : base(ct)
+		{
+		}
 
 		bool doGenericSetup()
 		{
@@ -127,7 +130,7 @@ namespace BK7231Flasher
 					}
 				}
 			}
-			catch { }
+			catch(Exception ex) { addErrorLine(ex.Message); }
 			return false;
 		}
 
@@ -327,7 +330,7 @@ namespace BK7231Flasher
 				}
 				finally
 				{
-					SetBaud(115200);
+					if(!isCancelled) SetBaud(115200, true);
 				}
 			}
 			return;
@@ -419,7 +422,7 @@ namespace BK7231Flasher
 							return;
 						}
 					}
-					if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
+					if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite && !isCancelled)
 					{
 						if(string.IsNullOrEmpty(sourceFileName))
 						{
@@ -441,6 +444,7 @@ namespace BK7231Flasher
 							else
 							{
 								logger.setState("Write error!", Color.Red);
+								addErrorLine("Write error!");
 							}
 						}
 						else if(data.Length >= 0x100000)
@@ -492,7 +496,7 @@ namespace BK7231Flasher
 							return;
 						}
 					}
-					if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
+					if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
 					{
 						var offset = (OBKFlashLayout.getConfigLocation(chipType, out _) | 0x08000000);
 						cfg.saveConfig(chipType);
@@ -535,7 +539,7 @@ namespace BK7231Flasher
 				finally
 				{
 					xm.PacketSent -= Xm_PacketSent;
-					SetBaud(115200, true);
+					if(!isCancelled) SetBaud(115200, true);
 				}
 			}
 		}

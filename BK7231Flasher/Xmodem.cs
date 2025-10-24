@@ -232,6 +232,8 @@ namespace BK7231Flasher
 
         public byte[] ExtraHeaderBytes = null;
 
+        public SemaphoreSlim InProgress = new SemaphoreSlim(1, 1);
+
         // *********************************** END: COMMON CUSTOMIZABLE PARAMETERS ***********************************
 
         /// <summary>
@@ -278,6 +280,7 @@ namespace BK7231Flasher
             }
 
             _TerminationReason = TerminationReasonEnum.UserCancelled;
+            ReceiverUserBlock.Set();
         }
 
         /// <summary>
@@ -458,6 +461,8 @@ namespace BK7231Flasher
             // Attach event handler
             Port.DataReceived += new SerialDataReceivedEventHandler(Port_DataReceived);
 
+            InProgress.Wait();
+
             // Begin file initiation
             if (ReceiverFileInitiationTimer == null)
                 ReceiverFileInitiationTimer = new Timer(ReceiverFileInitiationRoutine, null, 0, ReceiverFileInitiationRetryMillisec);
@@ -468,7 +473,7 @@ namespace BK7231Flasher
             ReceiverUserBlock.Reset();
             ReceiverUserBlock.WaitOne();
             ReceiverUserBlock.Reset();
-
+            InProgress.Release();
             return TerminationReason;
         }
 
@@ -1185,21 +1190,39 @@ namespace BK7231Flasher
             WaitForResponseFromReceiver.Set();
 
             // Deactivate Send and Receive watchdogs
-            if (ReceiverNAKWatchdog != null)
+            if(ReceiverNAKWatchdog != null)
+            {
                 ReceiverNAKWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
-
-            if (ReceiverFileInitiationTimer != null)
+                ReceiverNAKWatchdog.Dispose();
+                ReceiverNAKWatchdog = null;
+            }
+            if(ReceiverFileInitiationTimer != null)
+            {
                 ReceiverFileInitiationTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverFileInitiationTimer.Dispose();
+                ReceiverFileInitiationTimer = null;
+            }
 
-            if (SenderPacketResponseWatchdog != null)
+            if(SenderPacketResponseWatchdog != null)
+            {
                 SenderPacketResponseWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
+                SenderPacketResponseWatchdog.Dispose();
+                SenderPacketResponseWatchdog = null;
+            }
 
-            if (ReceiverStillAliveWatchdog != null)
+            if(ReceiverStillAliveWatchdog != null)
+            {
                 ReceiverStillAliveWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverStillAliveWatchdog.Dispose();
+                ReceiverStillAliveWatchdog = null;
+            }
 
             // Flush serial data so they don't contaminate a future session
-            Port.DiscardInBuffer();
-            Port.DiscardOutBuffer();
+            if(Port.IsOpen)
+            {
+                Port.DiscardInBuffer();
+                Port.DiscardOutBuffer();
+            }
         }
 
         // ************************************* SENDER SENDER SENDER SENDER SENDER SENDER SENDER ***********************************
@@ -1303,6 +1326,8 @@ namespace BK7231Flasher
             Port.DiscardInBuffer();
             Port.DiscardOutBuffer();
 
+            InProgress.Wait();
+
             if (ReceiverStillAliveWatchdog == null)
                 ReceiverStillAliveWatchdog = new Timer(ReceiverStillAliveWatchdogRoutine, null, SendInactivityTimeoutMillisec, SendInactivityTimeoutMillisec);
             else
@@ -1320,16 +1345,19 @@ namespace BK7231Flasher
             WaitForResponseFromReceiver.WaitOne();
             WaitForResponseFromReceiver.Reset();
 
-            if (dataToSend != null && Aborted == false)
+            if(dataToSend != null && Aborted == false)
             {
                 AddToOutboundPacket(dataToSend);
-                if (TerminateSend == false)
+                if(TerminateSend == false)
                     EndFile();
-
+                InProgress.Release();
                 return _TotalUserDataBytesSent;
             }
             else
+            {
+                InProgress.Release();
                 return 0;
+            }
         }
 
         private int _TotalUserDataBytesPacketized = 0;

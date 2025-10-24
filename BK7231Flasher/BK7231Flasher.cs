@@ -962,6 +962,9 @@ namespace BK7231Flasher
         int deviceMID;
         BKFlash flashInfo;
 
+        public BK7231Flasher(CancellationToken ct) : base(ct)
+        {
+        }
 
         bool doUnprotect()
         {

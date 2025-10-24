@@ -13,9 +13,12 @@ namespace BK7231Flasher
 	{
 		MemoryStream ms;
 		int flashSizeMB = 1;
-		XMODEM xm;
 		readonly int FLASH_MMAP_BASE = 0x18000000;
 		readonly int DumpAmount = 0x1000;
+
+		public RDAFlasher(CancellationToken ct) : base(ct)
+		{
+		}
 
 		bool doGenericSetup()
 		{
