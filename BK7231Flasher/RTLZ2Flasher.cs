@@ -28,6 +28,10 @@ namespace BK7231Flasher
 		byte[] flashID = { 0, 0, 0 };
 		XMODEM xm;
 
+		public RTLZ2Flasher(CancellationToken ct) : base(ct)
+		{
+		}
+
 		void Flush()
 		{
 			serial.DiscardInBuffer();
@@ -555,6 +559,11 @@ namespace BK7231Flasher
 						//	throw new Exception("Hash mismatch");
 						//}
 						errCount = 0;
+					}
+					catch(InvalidOperationException ioex)
+					{
+						addErrorLine(ioex.Message);
+						return null;
 					}
 					catch(Exception ex)
 					{

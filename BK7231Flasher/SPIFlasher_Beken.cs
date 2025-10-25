@@ -5,6 +5,10 @@ namespace BK7231Flasher
 {
     class SPIFlasher_Beken : SPIFlasher
     {
+        public SPIFlasher_Beken(CancellationToken ct) : base(ct)
+        {
+        }
+
         // Beken-specific
         public bool GPIO_CEN_SET()
         {

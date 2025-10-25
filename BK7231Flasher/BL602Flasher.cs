@@ -457,6 +457,11 @@ namespace BK7231Flasher
             return false;
         }
         MemoryStream ms;
+
+        public BL602Flasher(CancellationToken ct) : base(ct)
+        {
+        }
+
         public override byte[] getReadResult()
         {
             return ms?.ToArray();
