@@ -840,7 +840,7 @@ namespace BK7231Flasher
             }
             Thread.Sleep(50);
             int attempt = 0;
-            int maxAttempts = 0;
+            int maxAttempts = 10;
             while (true)
             {
                 addSuccess("Going to set baud rate setting (" + baudrate + ")!" + Environment.NewLine);
@@ -943,14 +943,30 @@ namespace BK7231Flasher
             for (int sec = 0; sec < sectors; sec++)
             {
                 int secAddr = startSector + SECTOR_SIZE * sec;
-                // 4K erase
-                bool bOk = eraseSector(secAddr, 0x20);
-                addLog("Erasing sector " + secAddr + "...");
-                if (bOk == false)
+                int tries = 0;
+                while (true)
                 {
-                    logger.setState("Erase failed.", Color.Red);
-                    addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
-                    return false;
+                    tries++;
+                    // 4K erase
+                    bool bOk = eraseSector(secAddr, 0x20);
+                    addLog("Erasing sector " + secAddr + "...");
+                    if (bOk == false)
+                    {
+                        if(tries > 5)
+                        {
+                            logger.setState("Erase failed.", Color.Red);
+                            addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
+                            return false;
+                        }
+                        else
+                        {
+                            addWarning(" failed, will retry! ");
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
                 addLog(" ok! ");
                 logger.setProgress(sec+1, sectors);
@@ -1828,6 +1844,7 @@ namespace BK7231Flasher
 
             }
             Thread.Sleep(delay_ms/2);
+            int prev = serial.BaudRate;
             serial.BaudRate = baudrate;
             byte[] rxbuf = Start_Cmd(null, CalcRxLength_SetBaudRate(), 0.5f);
             if (rxbuf != null)
@@ -1837,6 +1854,7 @@ namespace BK7231Flasher
                     return true;
                 }
             }
+            serial.BaudRate = prev;
             return false;
         }
     }
