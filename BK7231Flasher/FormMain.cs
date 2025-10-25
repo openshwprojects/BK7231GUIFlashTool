@@ -1262,6 +1262,7 @@ namespace BK7231Flasher
             buttonEraseAll.Visible = b;
             buttonRestoreRF.Visible = b;
             buttonBlankCheck.Visible = b;
+            buttonDetect.Visible = b;
             checkBoxAllowBackup.Visible = b;
             checkBoxOverwriteBootloader.Visible = b;
             checkBoxSkipKeyCheck.Visible = b;
@@ -1769,6 +1770,15 @@ namespace BK7231Flasher
                 return;
             }
             startWorkerThread(verifyThread, null);
+        }
+
+        private void buttonDetect_Click(object sender, EventArgs e)
+        {
+            CustomParms cp = new CustomParms();
+            cp.len = 0;
+            cp.ofs = 0;
+            cp.sourceFileName = "";
+            doCustomWrite(cp);
         }
     }
 }

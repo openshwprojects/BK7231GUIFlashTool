@@ -40,6 +40,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonVerify = new System.Windows.Forms.Button();
             this.buttonBlankCheck = new System.Windows.Forms.Button();
             this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
             this.buttonCustomOperation = new System.Windows.Forms.Button();
@@ -169,7 +170,7 @@
             this.buttonOTAFlash = new System.Windows.Forms.Button();
             this.textBoxOTATarget = new System.Windows.Forms.TextBox();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonVerify = new System.Windows.Forms.Button();
+            this.buttonDetect = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -279,6 +280,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.buttonDetect);
             this.tabPage1.Controls.Add(this.buttonVerify);
             this.tabPage1.Controls.Add(this.buttonBlankCheck);
             this.tabPage1.Controls.Add(this.chkIgnoreCRCErr);
@@ -326,6 +328,16 @@
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
+            // buttonVerify
+            // 
+            this.buttonVerify.Location = new System.Drawing.Point(461, 127);
+            this.buttonVerify.Name = "buttonVerify";
+            this.buttonVerify.Size = new System.Drawing.Size(58, 23);
+            this.buttonVerify.TabIndex = 39;
+            this.buttonVerify.Text = "Verify";
+            this.buttonVerify.UseVisualStyleBackColor = true;
+            this.buttonVerify.Click += new System.EventHandler(this.buttonVerify_Click);
+            // 
             // buttonBlankCheck
             // 
             this.buttonBlankCheck.Location = new System.Drawing.Point(728, 68);
@@ -351,7 +363,7 @@
             // 
             this.buttonCustomOperation.Location = new System.Drawing.Point(658, 39);
             this.buttonCustomOperation.Name = "buttonCustomOperation";
-            this.buttonCustomOperation.Size = new System.Drawing.Size(127, 23);
+            this.buttonCustomOperation.Size = new System.Drawing.Size(64, 23);
             this.buttonCustomOperation.TabIndex = 36;
             this.buttonCustomOperation.Text = "Custom operation";
             this.buttonCustomOperation.UseVisualStyleBackColor = true;
@@ -1623,15 +1635,15 @@
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
             // 
-            // buttonVerify
+            // buttonDetect
             // 
-            this.buttonVerify.Location = new System.Drawing.Point(461, 127);
-            this.buttonVerify.Name = "buttonVerify";
-            this.buttonVerify.Size = new System.Drawing.Size(58, 23);
-            this.buttonVerify.TabIndex = 39;
-            this.buttonVerify.Text = "Verify";
-            this.buttonVerify.UseVisualStyleBackColor = true;
-            this.buttonVerify.Click += new System.EventHandler(this.buttonVerify_Click);
+            this.buttonDetect.Location = new System.Drawing.Point(728, 39);
+            this.buttonDetect.Name = "buttonDetect";
+            this.buttonDetect.Size = new System.Drawing.Size(57, 23);
+            this.buttonDetect.TabIndex = 40;
+            this.buttonDetect.Text = "Detect";
+            this.buttonDetect.UseVisualStyleBackColor = true;
+            this.buttonDetect.Click += new System.EventHandler(this.buttonDetect_Click);
             // 
             // FormMain
             // 
@@ -1811,6 +1823,7 @@
         private System.Windows.Forms.Label lblKeyInfo;
         private System.Windows.Forms.Button buttonBlankCheck;
         private System.Windows.Forms.Button buttonVerify;
+        private System.Windows.Forms.Button buttonDetect;
     }
 }
 
