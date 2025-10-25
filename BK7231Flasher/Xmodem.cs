@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.IO;
 using System.IO.Ports;
+using System.Collections.Generic;
 
 // SUMMARY:
 // Desktop version of XMODEM based on the full .NET Framework.
@@ -227,6 +228,12 @@ namespace BK7231Flasher
             }
         }
 
+        private uint Offset = 0;
+
+        public byte[] ExtraHeaderBytes = null;
+
+        public SemaphoreSlim InProgress = new SemaphoreSlim(1, 1);
+
         // *********************************** END: COMMON CUSTOMIZABLE PARAMETERS ***********************************
 
         /// <summary>
@@ -273,6 +280,7 @@ namespace BK7231Flasher
             }
 
             _TerminationReason = TerminationReasonEnum.UserCancelled;
+            ReceiverUserBlock.Set();
         }
 
         /// <summary>
@@ -295,7 +303,8 @@ namespace BK7231Flasher
         {
             XModemChecksum,
             XModemCRC,
-            XModem1K
+            XModem1K,
+            XModem1KChecksum
         };
 
         private Variants _Variant;
@@ -366,7 +375,7 @@ namespace BK7231Flasher
         /// False if the end-of-file byte has not been received, and more packets are still expected.
         /// </param>
         public delegate void PacketReceivedEventHandler(XMODEM sender, byte[] packet, bool endOfFileDetected);
-        public delegate void PacketSentEventHandler(int sentBytes, int total);
+        public delegate void PacketSentEventHandler(int sentBytes, int total, int sequence, uint offset);
 
         /// <summary>
         /// Raised whenever a complete packet has been received.
@@ -428,7 +437,7 @@ namespace BK7231Flasher
             ValidPacketReceived = false;
 
             // Define file initiation byte according to variant
-            if (_Variant == Variants.XModemChecksum)
+            if (_Variant == Variants.XModemChecksum || _Variant == Variants.XModem1KChecksum)
                 FileInitiationByteToSend = NAK;
             else
                 FileInitiationByteToSend = C;
@@ -452,6 +461,8 @@ namespace BK7231Flasher
             // Attach event handler
             Port.DataReceived += new SerialDataReceivedEventHandler(Port_DataReceived);
 
+            InProgress.Wait();
+
             // Begin file initiation
             if (ReceiverFileInitiationTimer == null)
                 ReceiverFileInitiationTimer = new Timer(ReceiverFileInitiationRoutine, null, 0, ReceiverFileInitiationRetryMillisec);
@@ -462,7 +473,7 @@ namespace BK7231Flasher
             ReceiverUserBlock.Reset();
             ReceiverUserBlock.WaitOne();
             ReceiverUserBlock.Reset();
-
+            InProgress.Release();
             return TerminationReason;
         }
 
@@ -578,7 +589,7 @@ namespace BK7231Flasher
                                     Variant = Variants.XModem1K;
 
                                 if (Array.IndexOf(recv, NAK) > -1)
-                                    Variant = Variants.XModemChecksum;
+                                    if(Variant != Variants.XModem1KChecksum) Variant = Variants.XModemChecksum;
 
                                 CurrentState = States.SenderAlertForPossibleCancellation;
                                 WaitForResponseFromReceiver.Set();
@@ -829,7 +840,7 @@ namespace BK7231Flasher
                             continue;
                         }
                     }
-                    else if (_Variant == Variants.XModem1K)
+                    else if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
                     {
                         // XModem-1K can receive 1024 data byte packets headed by <STX> --OR-- 128 data byte packets headed by <SOH>.
                         // The official standard allows a Sender to send a mixture of packet sizes, so a Receiver has to look for both.
@@ -902,7 +913,7 @@ namespace BK7231Flasher
                     {
                         Remainder = new byte[] { BlockNumReceived };   // Initialize remainder
                     }
-                    else if (_Variant == Variants.XModem1K && (BlockNumReceived == SOH || BlockNumReceived == STX))
+                    else if ((_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum) && (BlockNumReceived == SOH || BlockNumReceived == STX))
                     {
                         Remainder = new byte[] { BlockNumReceived };   // Initialize remainder
                     }
@@ -950,7 +961,7 @@ namespace BK7231Flasher
                         {
                             Remainder = CombineArrays(Remainder, new byte[] { BlockNumComplementCandidateReceived });   // Add to remainder
                         }
-                        else if (Remainder.Length > 0 || (_Variant == Variants.XModem1K && (BlockNumReceived == SOH || BlockNumReceived == STX)))
+                        else if (Remainder.Length > 0 || ((_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum) && (BlockNumReceived == SOH || BlockNumReceived == STX)))
                         {
                             Remainder = CombineArrays(Remainder, new byte[] { BlockNumComplementCandidateReceived });   // Add to remainder
                         }
@@ -991,7 +1002,7 @@ namespace BK7231Flasher
 
                 if (CurrentState == States.ReceiverErrorCheckSearch)
                 {
-                    if (_Variant == Variants.XModemChecksum)
+                    if (_Variant == Variants.XModemChecksum || _Variant == Variants.XModem1KChecksum)
                     {
                         // 1 error-check byte expected.
                         ErrorCheck = new byte[] { BytesToParse[searchStartIndex] };
@@ -1104,6 +1115,7 @@ namespace BK7231Flasher
             {
                 // Arithmetic checksum:
                 case Variants.XModemChecksum:
+                case Variants.XModem1KChecksum:
                     byte checksum = CheckSum(DataPacketReceived);
                     if (checksum == ErrorCheck[0])
                         return true;
@@ -1178,21 +1190,39 @@ namespace BK7231Flasher
             WaitForResponseFromReceiver.Set();
 
             // Deactivate Send and Receive watchdogs
-            if (ReceiverNAKWatchdog != null)
+            if(ReceiverNAKWatchdog != null)
+            {
                 ReceiverNAKWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
-
-            if (ReceiverFileInitiationTimer != null)
+                ReceiverNAKWatchdog.Dispose();
+                ReceiverNAKWatchdog = null;
+            }
+            if(ReceiverFileInitiationTimer != null)
+            {
                 ReceiverFileInitiationTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverFileInitiationTimer.Dispose();
+                ReceiverFileInitiationTimer = null;
+            }
 
-            if (SenderPacketResponseWatchdog != null)
+            if(SenderPacketResponseWatchdog != null)
+            {
                 SenderPacketResponseWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
+                SenderPacketResponseWatchdog.Dispose();
+                SenderPacketResponseWatchdog = null;
+            }
 
-            if (ReceiverStillAliveWatchdog != null)
+            if(ReceiverStillAliveWatchdog != null)
+            {
                 ReceiverStillAliveWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverStillAliveWatchdog.Dispose();
+                ReceiverStillAliveWatchdog = null;
+            }
 
             // Flush serial data so they don't contaminate a future session
-            Port.DiscardInBuffer();
-            Port.DiscardOutBuffer();
+            if(Port.IsOpen)
+            {
+                Port.DiscardInBuffer();
+                Port.DiscardOutBuffer();
+            }
         }
 
         // ************************************* SENDER SENDER SENDER SENDER SENDER SENDER SENDER ***********************************
@@ -1239,7 +1269,7 @@ namespace BK7231Flasher
         private void DefineDataPacketTemplate()
         {
             int dataPacketSize;
-            if (_Variant == Variants.XModem1K)
+            if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
                 dataPacketSize = _Packet1024NominalSize;
             else
                 dataPacketSize = _Packet128NominalSize;
@@ -1269,7 +1299,7 @@ namespace BK7231Flasher
         /// <returns>
         /// The number of data bytes successfully transmitted.
         /// </returns>
-        public int Send(byte[] dataToSend = null)
+        public int Send(byte[] dataToSend = null, uint offset = 0)
         {
             // Initialize control variables
             _TerminationReason = TerminationReasonEnum.TransferStillActiveNotTerminated;
@@ -1288,13 +1318,15 @@ namespace BK7231Flasher
 
             WaitForResponseFromReceiver.Reset();
             CurrentState = States.SenderAwaitingFileInitiation;
-
+            Offset = offset;
             // Open port if it isn't open already
             if (Port.IsOpen == false)
                 Port.Open();
 
             Port.DiscardInBuffer();
             Port.DiscardOutBuffer();
+
+            InProgress.Wait();
 
             if (ReceiverStillAliveWatchdog == null)
                 ReceiverStillAliveWatchdog = new Timer(ReceiverStillAliveWatchdogRoutine, null, SendInactivityTimeoutMillisec, SendInactivityTimeoutMillisec);
@@ -1313,16 +1345,19 @@ namespace BK7231Flasher
             WaitForResponseFromReceiver.WaitOne();
             WaitForResponseFromReceiver.Reset();
 
-            if (dataToSend != null && Aborted == false)
+            if(dataToSend != null && Aborted == false)
             {
                 AddToOutboundPacket(dataToSend);
-                if (TerminateSend == false)
+                if(TerminateSend == false)
                     EndFile();
-
+                InProgress.Release();
                 return _TotalUserDataBytesSent;
             }
             else
+            {
+                InProgress.Release();
                 return 0;
+            }
         }
 
         private int _TotalUserDataBytesPacketized = 0;
@@ -1393,6 +1428,8 @@ namespace BK7231Flasher
                 throw new ArgumentException("The XMODEM.Send() method must first be called before XMODEM.AddToOutboundPacket() is used.");
             }
 
+            PacketSent?.Invoke(_TotalUserDataBytesSent, dataToSend.Length, _BlockNumToSend, Offset);
+
             int dataOffset = 0;
             while (dataOffset < dataToSend.Length && TerminateSend == false)
             {
@@ -1400,7 +1437,7 @@ namespace BK7231Flasher
                 // Instantiate outbound data packet if empty
                 if (DataPacketToSend == null)
                 {
-                    if (_Variant == Variants.XModem1K)
+                    if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
                         DataPacketToSend = new byte[_Packet1024NominalSize];
                     else
                         DataPacketToSend = new byte[_Packet128NominalSize];
@@ -1434,8 +1471,8 @@ namespace BK7231Flasher
                         // Only count actual user-provided data. Padding bytes are not counted.
                         _TotalUserDataBytesSent += NumUserDataBytesAddedToCurrentPacket;
                         numUnpaddedDataBytesSentThisCall += NumUserDataBytesAddedToCurrentPacket;
-                        PacketSent?.Invoke(_TotalUserDataBytesSent, dataToSend.Length);
-                        
+                        Offset += (uint)numBytesToAdd;
+                        PacketSent?.Invoke(_TotalUserDataBytesSent, dataToSend.Length, _BlockNumToSend, Offset);
                         // Reset control variables
                         NumUserDataBytesAddedToCurrentPacket = 0;
 
@@ -1465,9 +1502,16 @@ namespace BK7231Flasher
 
         private void TransmitPacket()
         {
+            if(ExtraHeaderBytes != null && ExtraHeaderBytes.Length > 0)
+            {
+                var newData = new List<byte>();
+                newData.AddRange(ExtraHeaderBytes);
+                newData.AddRange(DataPacketToSend);
+                DataPacketToSend = newData.ToArray();
+            }
             // Calculate check-value
             byte[] checkValueBytes;
-            if (_Variant == Variants.XModemChecksum)
+            if (_Variant == Variants.XModemChecksum || _Variant == Variants.XModem1KChecksum)
                 checkValueBytes = new byte[] { CheckSum(DataPacketToSend) };
             else
             {
@@ -1477,7 +1521,7 @@ namespace BK7231Flasher
 
             // Determine packet size header
             byte packetSizeHeader;
-            if (_Variant == Variants.XModem1K)
+            if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
                 packetSizeHeader = STX;
             else
                 packetSizeHeader = SOH;

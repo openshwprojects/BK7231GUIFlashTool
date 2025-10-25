@@ -37,6 +37,9 @@ namespace BK7231Flasher
                 case BKType.ECR6600:
                     sectors = 0x1C000 / BK7231Flasher.SECTOR_SIZE;
                     return 0x1B9000;
+                case BKType.RDA5981:
+                    sectors = 0xA000 / BK7231Flasher.SECTOR_SIZE;
+                    return 0xF4000;
                 //case BKType.XR809:
                 //    sectors = 0x10000 / BK7231Flasher.SECTOR_SIZE;
                 //    return 0x1E0000;

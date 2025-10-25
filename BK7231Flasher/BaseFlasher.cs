@@ -1,6 +1,8 @@
 using System;
 using System.Drawing;
 using System.IO.Ports;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BK7231Flasher
 {
@@ -18,11 +20,14 @@ namespace BK7231Flasher
         RTL8710B,
         RTL87X0C,
         RTL8720D,
+        RTL8721DA,
+        RTL8720E,
         LN882H,
         BL602,
         ECR6600,
         W600,
         W800,
+        RDA5981,
 
         BekenSPI,
         GenericSPI,
@@ -56,7 +61,7 @@ namespace BK7231Flasher
         }
     }
 
-    public class BaseFlasher
+    public class BaseFlasher : IDisposable
     {
         protected ILogListener logger;
         protected string backupName;
@@ -70,6 +75,24 @@ namespace BK7231Flasher
         protected string serialName;
         protected BKType chipType = BKType.BK7231N;
         protected int baudrate = 921600;
+        protected CancellationToken cancellationToken;
+        protected XMODEM xm;
+        protected bool isCancelled = false;
+
+        public BaseFlasher(CancellationToken ct)
+        {
+            cancellationToken = ct;
+            ct.Register(() =>
+            {
+                isCancelled = true;
+                if(xm != null)
+                {
+                    xm?.CancelFileTransfer();
+                    xm.InProgress.Wait(500);
+                }
+                closePort();
+            });
+        }
 
         public void setBasic(ILogListener logger, string serialName, BKType bkType, int baudrate = 921600)
         {
@@ -181,7 +204,11 @@ namespace BK7231Flasher
         }
         public virtual void closePort()
         {
-
+            if (serial != null)
+            {
+                serial.Close();
+                serial.Dispose();
+            }
         }
         public virtual void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -194,6 +221,18 @@ namespace BK7231Flasher
         {
             return false;
         }
+
+        public virtual void Xm_PacketSent(int sentBytes, int total, int sequence, uint offset)
+        {
+            if((sequence % 4) == 1)
+            {
+                addLog($"Writing at 0x{offset:X}... ");
+            }
+
+            logger.setProgress(sentBytes, total);
+        }
+
+        public virtual void Dispose() { }
     }
 }
 

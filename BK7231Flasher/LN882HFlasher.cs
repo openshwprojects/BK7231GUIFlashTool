@@ -10,7 +10,6 @@ namespace BK7231Flasher
 {
     public class LN882HFlasher : BaseFlasher
     {
-        private SerialPort serial;
         int timeoutMs = 10000;
         int flashSizeMB = 2;
         byte[] flashID;
@@ -391,6 +390,11 @@ namespace BK7231Flasher
             return result;
         }
         MemoryStream ms;
+
+        public LN882HFlasher(CancellationToken ct) : base(ct)
+        {
+        }
+
         public override byte[] getReadResult()
         {
                 return ms?.GetBuffer();

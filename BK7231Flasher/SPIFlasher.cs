@@ -440,6 +440,11 @@ namespace BK7231Flasher
             return false;
         }
         MemoryStream ms;
+
+        public SPIFlasher(CancellationToken ct) : base(ct)
+        {
+        }
+
         public override byte[] getReadResult()
         {
             if (ms == null)

@@ -26,6 +26,11 @@ namespace BK7231Flasher
 		bool IsInFallbackMode = false;
 		int flashSizeMB = 2;
 		byte[] flashID = { 0, 0, 0 };
+		XMODEM xm;
+
+		public RTLZ2Flasher(CancellationToken ct) : base(ct)
+		{
+		}
 
 		void Flush()
 		{
@@ -105,7 +110,7 @@ namespace BK7231Flasher
 
 		bool ChangeBaud(int baud)
 		{
-			if(baud != baudrate)
+			if(baud == serial.BaudRate)
 				return Link();
 			addLogLine($"Setting baud rate to {baud}");
 			Command($"ucfg {baud} 0 0");
@@ -245,10 +250,9 @@ namespace BK7231Flasher
 			return true;
 		}
 
-		bool FlashTransmit(Stream data, uint offset)
+		bool FlashTransmit(MemoryStream data, uint offset)
 		{
 			FlashInit(false);
-			//Thread.Sleep(1000);
 			Command($"fwd 0 {FlashMode} {offset:x}");
 			FlashHashOffset = offset;
 			if(data == null)
@@ -265,7 +269,32 @@ namespace BK7231Flasher
 					throw new Exception($"expected CAN, got {new string(bytes)}");
 				return true;
 			}
-			else return SendXmodem(data, offset, (int)data.Length, 3);
+			else
+			{
+				logger.setState("Writing...", Color.Transparent);
+				xm.PacketSent += Xm_PacketSent;
+				try
+				{
+					var res = xm.Send(data.ToArray(), offset ^ FLASH_MMAP_BASE);
+					Thread.Sleep(100);
+					if(res == data.Length)
+					{
+						logger.setProgress(1, 1);
+						addLog("Write complete!" + Environment.NewLine);
+						logger.setState("Write complete!", Color.Transparent);
+						return true;
+					}
+					else
+					{
+						logger.setState("Write error!", Color.Transparent);
+						return false;
+					}
+				}
+				finally
+				{
+					xm.PacketSent -= Xm_PacketSent;
+				}
+			}
 		}
 
 		byte[] FlashReadHash(uint offset, int length)
@@ -310,6 +339,7 @@ namespace BK7231Flasher
 			Flush();
 			serial.ReadTimeout = 5000;
 			addLog("Port ready!" + Environment.NewLine);
+			xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum);
 			if(Link() == false)
 			{
 				return false;
@@ -334,7 +364,7 @@ namespace BK7231Flasher
 					(startSector).ToString("X2")
 					+ " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
 					(size).ToString("X2")
-					+ " (" + startSector + " sectors)"
+					+ " (" + (((size + 0xFFF) & ~0xFFF) / BK7231Flasher.SECTOR_SIZE) + " sectors)"
 					+ Environment.NewLine);
 				Console.WriteLine("Connected");
 				if(mode == WriteMode.ReadAndWrite)
@@ -367,8 +397,8 @@ namespace BK7231Flasher
 				if(mode != WriteMode.OnlyOBKConfig)
 				{
 					uint writeOffset = (uint)(address & 0x00ffffff);
-					writeOffset |= FLASH_MMAP_BASE;
 					addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
+					writeOffset |= FLASH_MMAP_BASE;
 
 					var ms = new MemoryStream(data);
 					if(!FlashTransmit(ms, (uint)(startSector * 0x1000) | FLASH_MMAP_BASE))
@@ -406,6 +436,11 @@ namespace BK7231Flasher
 					{
 						efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
 					}
+					if(efdata == null)
+					{
+						addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+						return false;
+					}
 					ms?.Dispose();
 					ms = new MemoryStream(efdata);
 					addLog("Now will also write OBK config..." + Environment.NewLine);
@@ -441,8 +476,8 @@ namespace BK7231Flasher
 		{
 			FlashInit();
 			// read flash id
-			Command($"EW 0x40020004 3");
 			Command($"EB 0x40020060 0x9F");
+			Command($"EW 0x40020004 3");
 			Command($"EW 0x40020008 1");
 			Command($"EW 0x40020008 0");
 			Thread.Sleep(10);
@@ -492,6 +527,7 @@ namespace BK7231Flasher
 			{
 				int startAmount = amount;
 				byte[] ret = new byte[amount];
+				var sha256Hash = SHA256.Create();
 				logger.setProgress(0, amount);
 				logger.setState("Reading", Color.White);
 				addLogLine("Starting read...");
@@ -508,18 +544,45 @@ namespace BK7231Flasher
 				}
 				uint startAddr = (uint)addr;
 				int progress = 0;
-				while(startAmount > 0)
+				int errCount = 0;
+				while(startAmount > 0 && errCount < 10)
 				{
-					DumpBytes(startAddr | FLASH_MMAP_BASE, DumpAmount, out var bytes);
+					byte[] bytes = new byte[DumpAmount];
+					addLog($"Reading at 0x{startAddr:X6}... ");
+					try
+					{
+						DumpBytes(startAddr | FLASH_MMAP_BASE, DumpAmount, out bytes);
+						//var treadHash = HashToStr(sha256Hash.ComputeHash(bytes));
+						//var texpectedHash = HashToStr(FlashReadHash(startAddr, DumpAmount));
+						//if(treadHash != texpectedHash)
+						//{
+						//	throw new Exception("Hash mismatch");
+						//}
+						errCount = 0;
+					}
+					catch(InvalidOperationException ioex)
+					{
+						addErrorLine(ioex.Message);
+						return null;
+					}
+					catch(Exception ex)
+					{
+						addWarningLine($"Reading at 0x{startAddr:X6} failed with {ex.Message}, retrying... ");
+						Thread.Sleep(250);
+						errCount++;
+						continue;
+					}
 					startAddr += (uint)DumpAmount;
 					startAmount -= DumpAmount;
 					logger.setProgress(amount - startAmount, amount);
 					bytes.CopyTo(ret, progress);
 					progress += DumpAmount;
-					addLog($"Reading at 0x{startAddr:X6}... ");
+				}
+				if(errCount >= 10)
+				{
+					throw new Exception("Error count exceeded limit!");
 				}
 				addLogLine(Environment.NewLine + "Getting hash...");
-				var sha256Hash = SHA256.Create();
 				var readHash = HashToStr(sha256Hash.ComputeHash(ret));
 				var expectedHash = HashToStr(FlashReadHash((uint)addr, amount));
 				if(readHash != expectedHash)
@@ -543,6 +606,7 @@ namespace BK7231Flasher
 			catch(Exception ex)
 			{
 				addError(ex.ToString() + Environment.NewLine);
+				logger.setState("Read error", Color.Red);
 				ChangeBaud(115200);
 			}
 			closePort();
@@ -573,11 +637,6 @@ namespace BK7231Flasher
 				serial.Close();
 				serial.Dispose();
 			}
-		}
-
-		public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
-		{
-
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
@@ -628,142 +687,6 @@ namespace BK7231Flasher
 				sb.Append(b.ToString("X2"));
 
 			return sb.ToString();
-		}
-
-		private bool WriteCmd(byte[] cmd, byte ack = 0x06)
-		{
-			try
-			{
-				Flush();
-				serial.Write(cmd, 0, cmd.Length);
-				return WaitResp(ack); // ACK
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		private bool WaitResp(byte code)
-		{
-			int retries = 200;
-			while(retries-- > 0)
-			{
-				try
-				{
-					int val = serial.ReadByte();
-					if(val == -1 || val == 0x15) // nack
-						return false;
-					if((byte)val == code)
-						return true;
-				}
-				catch
-				{
-					Thread.Sleep(1);
-					// return false;
-				}
-			}
-			return false;
-		}
-		private byte CalcChecksum(byte[] data, int start, int length)
-		{
-			int sum = 0;
-			for(int i = start; i < length; i++)
-			{
-				sum += data[i];
-			}
-			return (byte)(sum & 0xff);
-		}
-
-		private bool SendXmodem(Stream stream, uint offset, int size, int retry)
-		{
-			logger.setProgress(0, size);
-			logger.setState("Writing...", Color.Transparent);
-			serial.ReadTimeout = 100;
-			//this.chk32 = 0;
-			int sequence = 1;
-			int initialSize = size;
-			int localOfs = 0;
-			while(size > 0)
-			{
-				if((sequence % 4) == 1 || sequence == 1)
-				{
-					addLog(string.Format("Writing at 0x{0:X6}...", offset - FLASH_MMAP_BASE));
-				}
-				int packetSize;
-				byte cmd;
-				if(size <= 128)
-				{
-					packetSize = 128;
-					cmd = 0x01; // SOH
-				}
-				else
-				{
-					packetSize = 1024;
-					cmd = 0x02; // STX
-				}
-				localOfs += packetSize;
-				int rdsize = (size < packetSize) ? size : packetSize;
-				byte[] data = new byte[rdsize];
-				int read = stream.Read(data, 0, rdsize);
-				if(read <= 0)
-				{
-					addError("send: at EOF");
-					return false;
-				}
-
-				// Pad data to packetSize with 0xFF
-				byte[] paddedData = new byte[packetSize];
-				for(int i = 0; i < packetSize; i++)
-				{
-					if(i < read)
-						paddedData[i] = data[i];
-					else
-						paddedData[i] = 0xFF;
-				}
-
-				// Construct packet
-				byte[] pkt = new byte[3 + packetSize + 1];
-				pkt[0] = cmd;
-				pkt[1] = (byte)sequence;
-				pkt[2] = (byte)(0xFF - sequence);
-				//pkt[3] = (byte)(offset & 0xFF);
-				//pkt[4] = (byte)((offset >> 8) & 0xFF);
-				//pkt[5] = (byte)((offset >> 16) & 0xFF);
-				//pkt[6] = (byte)((offset >> 24) & 0xFF);
-				for(int i = 0; i < packetSize; i++)
-					pkt[3 + i] = paddedData[i];
-
-				pkt[3 + packetSize] = CalcChecksum(pkt, 3, pkt.Length);
-
-				// Retry logic
-				int errorCount = 0;
-				while(true)
-				{
-					if(WriteCmd(pkt))
-					{
-						Thread.Sleep(1);
-						sequence = (sequence + 1) % 256;
-						offset += (uint)packetSize;
-						size -= rdsize;
-						break;
-					}
-					else
-					{
-						errorCount++;
-						if(errorCount > retry)
-						{
-							logger.setState("Write error!", Color.Transparent);
-							return false;
-						}
-					}
-				}
-				logger.setProgress(localOfs, initialSize);
-			}
-			addLog("Write complete!" + Environment.NewLine);
-			logger.setState("Write complete!", Color.Transparent);
-
-			return WriteCmd(new byte[] { 0x04 }); // EOT
 		}
 	}
 }
