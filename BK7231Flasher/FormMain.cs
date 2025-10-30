@@ -85,7 +85,7 @@ namespace BK7231Flasher
         }
         private static bool ValidateRemoteCertificate(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors error)
         {
-            // If the certificate is a valid, signed certificate, return true.
+            // If the certificate is a valid,90 signed certificate, return true.
             if (error == System.Net.Security.SslPolicyErrors.None)
             {
                 return true;
