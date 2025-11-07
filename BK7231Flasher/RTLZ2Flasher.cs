@@ -26,7 +26,6 @@ namespace BK7231Flasher
 		bool IsInFallbackMode = false;
 		int flashSizeMB = 2;
 		byte[] flashID = { 0, 0, 0 };
-		XMODEM xm;
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -339,7 +338,7 @@ namespace BK7231Flasher
 			Flush();
 			serial.ReadTimeout = 5000;
 			addLog("Port ready!" + Environment.NewLine);
-			xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum);
+			xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
 			if(Link() == false)
 			{
 				return false;
