@@ -81,8 +81,8 @@ namespace BK7231Flasher
 
 		public bool Sync()
 		{
-			var fid = ReadFlashId(true);
-			if(fid != null)
+			flashID = ReadFlashId(true);
+			if(flashID != null)
 			{
 				addLogLine("Stub is already uploaded!");
 				return true;
@@ -159,7 +159,7 @@ namespace BK7231Flasher
 			}
 			Thread.Sleep(10);
 			serial.DiscardInBuffer();
-			ReadFlashId();
+			flashID = ReadFlashId();
 			if(tries == 0 || flashID == null)
 				return false;
 			return true;
@@ -432,8 +432,7 @@ namespace BK7231Flasher
 			{
 				if(fullRead)
 				{
-					sectors = flashSizeMB / BK7231Flasher.SECTOR_SIZE;
-					addLogLine($"Detected flash size: {sectors / 256}MB");
+					sectors = flashSizeMB * 256;
 				}
 				byte[] res = InternalRead(startSector, sectors);
 				if(res != null)
@@ -502,8 +501,7 @@ namespace BK7231Flasher
 				OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 				if(rwMode == WriteMode.ReadAndWrite)
 				{
-					sectors = flashSizeMB / BK7231Flasher.SECTOR_SIZE;
-					addLogLine($"Flash size detected: {sectors / 256}MB");
+					sectors = flashSizeMB * 256;
 					byte[] res = InternalRead(startSector, sectors);
 					if(res != null)
 						ms = new MemoryStream(res);
