@@ -32,7 +32,7 @@ namespace BK7231Flasher
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
 				serial.ReadTimeout = 1000;
-				xm = new XMODEM(serial, XMODEM.Variants.XModemCRC)
+				xm = new XMODEM(serial, XMODEM.Variants.XModemCRC, 0xFF)
 				{
 					SendInactivityTimeoutMillisec = 15000,
 					MaxSenderRetries = 3
