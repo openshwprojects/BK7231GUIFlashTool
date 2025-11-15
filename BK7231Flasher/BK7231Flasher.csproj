@@ -41,6 +41,7 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
     <Reference Include="System.Buffers" />
     <Reference Include="System.Data" />
@@ -56,6 +57,10 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Beken_Crypto.cs" />
+    <Compile Include="FormMain.Decryption.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="RDAFlasher.cs" />
     <Compile Include="Xmodem.cs" />
     <Compile Include="WMFlasher.cs" />
