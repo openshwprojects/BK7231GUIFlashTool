@@ -1,4 +1,7 @@
-﻿namespace BK7231Flasher
+﻿using System;
+using System.Drawing;
+
+namespace BK7231Flasher
 {
     partial class FormMain
     {
@@ -40,6 +43,7 @@
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.buttonDetect = new System.Windows.Forms.Button();
             this.buttonVerify = new System.Windows.Forms.Button();
             this.buttonBlankCheck = new System.Windows.Forms.Button();
             this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
@@ -169,8 +173,33 @@
             this.radioButton1 = new System.Windows.Forms.RadioButton();
             this.buttonOTAFlash = new System.Windows.Forms.Button();
             this.textBoxOTATarget = new System.Windows.Forms.TextBox();
+            this.tabDecryption = new System.Windows.Forms.TabPage();
+            this.chkSkipDecrc = new System.Windows.Forms.CheckBox();
+            this.btnLoadDefaultNPartitions = new System.Windows.Forms.Button();
+            this.dgPartitions = new System.Windows.Forms.DataGridView();
+            this.dgName = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.dgType = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.dgAddress = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.dgLength = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.btnLoadPartitions = new System.Windows.Forms.Button();
+            this.btnEncryptN1013Bootloader = new System.Windows.Forms.Button();
+            this.textBoxDecryptLog = new System.Windows.Forms.RichTextBox();
+            this.btnEncryptFirmware = new System.Windows.Forms.Button();
+            this.btnEncryptN101Bootloader = new System.Windows.Forms.Button();
+            this.btnDecryptFirmware = new System.Windows.Forms.Button();
+            this.btnDecryptBootloader = new System.Windows.Forms.Button();
+            this.lblCoeff4 = new System.Windows.Forms.Label();
+            this.numCoeff4 = new System.Windows.Forms.TextBox();
+            this.lblCoeff3 = new System.Windows.Forms.Label();
+            this.numCoeff3 = new System.Windows.Forms.TextBox();
+            this.lblCoeff2 = new System.Windows.Forms.Label();
+            this.numCoeff2 = new System.Windows.Forms.TextBox();
+            this.lblCoeff1 = new System.Windows.Forms.Label();
+            this.numCoeff1 = new System.Windows.Forms.TextBox();
+            this.btnDecrypt = new System.Windows.Forms.Button();
+            this.lblFirmware = new System.Windows.Forms.Label();
+            this.btnSelectFirmware = new System.Windows.Forms.Button();
             this.timer100ms = new System.Windows.Forms.Timer(this.components);
-            this.buttonDetect = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPagePageTool.SuspendLayout();
@@ -182,6 +211,8 @@
             this.tabPage7.SuspendLayout();
             this.tabPage8.SuspendLayout();
             this.panel1.SuspendLayout();
+            this.tabDecryption.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgPartitions)).BeginInit();
             this.SuspendLayout();
             // 
             // buttonRead
@@ -201,7 +232,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.textBoxLog.Location = new System.Drawing.Point(3, 211);
             this.textBoxLog.Name = "textBoxLog";
-            this.textBoxLog.Size = new System.Drawing.Size(893, 270);
+            this.textBoxLog.Size = new System.Drawing.Size(901, 270);
             this.textBoxLog.TabIndex = 2;
             this.textBoxLog.Text = "";
             // 
@@ -271,11 +302,12 @@
             this.tabControl1.Controls.Add(this.tabPage6);
             this.tabControl1.Controls.Add(this.tabPage7);
             this.tabControl1.Controls.Add(this.tabPage8);
+            this.tabControl1.Controls.Add(this.tabDecryption);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(907, 510);
+            this.tabControl1.Size = new System.Drawing.Size(915, 510);
             this.tabControl1.TabIndex = 9;
             // 
             // tabPage1
@@ -323,10 +355,20 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(899, 484);
+            this.tabPage1.Size = new System.Drawing.Size(907, 484);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Flasher";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // buttonDetect
+            // 
+            this.buttonDetect.Location = new System.Drawing.Point(728, 39);
+            this.buttonDetect.Name = "buttonDetect";
+            this.buttonDetect.Size = new System.Drawing.Size(57, 23);
+            this.buttonDetect.TabIndex = 40;
+            this.buttonDetect.Text = "Detect";
+            this.buttonDetect.UseVisualStyleBackColor = true;
+            this.buttonDetect.Click += new System.EventHandler(this.buttonDetect_Click);
             // 
             // buttonVerify
             // 
@@ -635,9 +677,11 @@
             // 
             // progressBar1
             // 
+            this.progressBar1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.progressBar1.Location = new System.Drawing.Point(6, 182);
             this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(883, 23);
+            this.progressBar1.Size = new System.Drawing.Size(898, 23);
             this.progressBar1.TabIndex = 9;
             // 
             // tabPagePageTool
@@ -651,7 +695,7 @@
             this.tabPagePageTool.Location = new System.Drawing.Point(4, 22);
             this.tabPagePageTool.Name = "tabPagePageTool";
             this.tabPagePageTool.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPagePageTool.Size = new System.Drawing.Size(899, 484);
+            this.tabPagePageTool.Size = new System.Drawing.Size(907, 484);
             this.tabPagePageTool.TabIndex = 1;
             this.tabPagePageTool.Text = "Page Tool";
             this.tabPagePageTool.UseVisualStyleBackColor = true;
@@ -723,7 +767,7 @@
             this.tabPage3.Controls.Add(this.linkLabelOpenBeken);
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(899, 484);
+            this.tabPage3.Size = new System.Drawing.Size(907, 484);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Documentation/Tutorials";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -857,7 +901,7 @@
             this.tabPage4.Controls.Add(this.label13);
             this.tabPage4.Location = new System.Drawing.Point(4, 22);
             this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(899, 484);
+            this.tabPage4.Size = new System.Drawing.Size(907, 484);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "Help contact";
             this.tabPage4.UseVisualStyleBackColor = true;
@@ -930,7 +974,7 @@
             this.tabPage2.Controls.Add(this.label16);
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Size = new System.Drawing.Size(899, 484);
+            this.tabPage2.Size = new System.Drawing.Size(907, 484);
             this.tabPage2.TabIndex = 4;
             this.tabPage2.Text = "Extract Config from Tuya binary";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -1090,7 +1134,7 @@
             this.tabPage5.Location = new System.Drawing.Point(4, 22);
             this.tabPage5.Name = "tabPage5";
             this.tabPage5.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage5.Size = new System.Drawing.Size(899, 484);
+            this.tabPage5.Size = new System.Drawing.Size(907, 484);
             this.tabPage5.TabIndex = 5;
             this.tabPage5.Text = "Get CFG from OBK device on LAN";
             this.tabPage5.UseVisualStyleBackColor = true;
@@ -1221,7 +1265,7 @@
             this.tabPage6.Location = new System.Drawing.Point(4, 22);
             this.tabPage6.Name = "tabPage6";
             this.tabPage6.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage6.Size = new System.Drawing.Size(899, 484);
+            this.tabPage6.Size = new System.Drawing.Size(907, 484);
             this.tabPage6.TabIndex = 6;
             this.tabPage6.Text = "LAN Scanner";
             this.tabPage6.UseVisualStyleBackColor = true;
@@ -1458,7 +1502,7 @@
             this.tabPage7.Location = new System.Drawing.Point(4, 22);
             this.tabPage7.Name = "tabPage7";
             this.tabPage7.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage7.Size = new System.Drawing.Size(899, 484);
+            this.tabPage7.Size = new System.Drawing.Size(907, 484);
             this.tabPage7.TabIndex = 7;
             this.tabPage7.Text = "UART timeouts";
             this.tabPage7.UseVisualStyleBackColor = true;
@@ -1523,7 +1567,7 @@
             this.tabPage8.Location = new System.Drawing.Point(4, 22);
             this.tabPage8.Name = "tabPage8";
             this.tabPage8.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage8.Size = new System.Drawing.Size(899, 484);
+            this.tabPage8.Size = new System.Drawing.Size(907, 484);
             this.tabPage8.TabIndex = 8;
             this.tabPage8.Text = "OTA Tool";
             this.tabPage8.UseVisualStyleBackColor = true;
@@ -1630,27 +1674,296 @@
             this.textBoxOTATarget.TabIndex = 0;
             this.textBoxOTATarget.Text = "192.168.0.165";
             // 
+            // tabDecryption
+            // 
+            this.tabDecryption.Controls.Add(this.chkSkipDecrc);
+            this.tabDecryption.Controls.Add(this.btnLoadDefaultNPartitions);
+            this.tabDecryption.Controls.Add(this.dgPartitions);
+            this.tabDecryption.Controls.Add(this.btnLoadPartitions);
+            this.tabDecryption.Controls.Add(this.btnEncryptN1013Bootloader);
+            this.tabDecryption.Controls.Add(this.textBoxDecryptLog);
+            this.tabDecryption.Controls.Add(this.btnEncryptFirmware);
+            this.tabDecryption.Controls.Add(this.btnEncryptN101Bootloader);
+            this.tabDecryption.Controls.Add(this.btnDecryptFirmware);
+            this.tabDecryption.Controls.Add(this.btnDecryptBootloader);
+            this.tabDecryption.Controls.Add(this.lblCoeff4);
+            this.tabDecryption.Controls.Add(this.numCoeff4);
+            this.tabDecryption.Controls.Add(this.lblCoeff3);
+            this.tabDecryption.Controls.Add(this.numCoeff3);
+            this.tabDecryption.Controls.Add(this.lblCoeff2);
+            this.tabDecryption.Controls.Add(this.numCoeff2);
+            this.tabDecryption.Controls.Add(this.lblCoeff1);
+            this.tabDecryption.Controls.Add(this.numCoeff1);
+            this.tabDecryption.Controls.Add(this.btnDecrypt);
+            this.tabDecryption.Controls.Add(this.lblFirmware);
+            this.tabDecryption.Controls.Add(this.btnSelectFirmware);
+            this.tabDecryption.Location = new System.Drawing.Point(4, 22);
+            this.tabDecryption.Name = "tabDecryption";
+            this.tabDecryption.Padding = new System.Windows.Forms.Padding(3);
+            this.tabDecryption.Size = new System.Drawing.Size(907, 484);
+            this.tabDecryption.TabIndex = 9;
+            this.tabDecryption.Text = "BK7231N Decryption";
+            this.tabDecryption.UseVisualStyleBackColor = true;
+            // 
+            // chkSkipDecrc
+            // 
+            this.chkSkipDecrc.AutoSize = true;
+            this.chkSkipDecrc.Location = new System.Drawing.Point(132, 39);
+            this.chkSkipDecrc.Name = "chkSkipDecrc";
+            this.chkSkipDecrc.Size = new System.Drawing.Size(77, 17);
+            this.chkSkipDecrc.TabIndex = 21;
+            this.chkSkipDecrc.Text = "Skip uncrc";
+            this.chkSkipDecrc.UseVisualStyleBackColor = true;
+            // 
+            // btnLoadDefaultNPartitions
+            // 
+            this.btnLoadDefaultNPartitions.Location = new System.Drawing.Point(444, 36);
+            this.btnLoadDefaultNPartitions.Name = "btnLoadDefaultNPartitions";
+            this.btnLoadDefaultNPartitions.Size = new System.Drawing.Size(168, 23);
+            this.btnLoadDefaultNPartitions.TabIndex = 20;
+            this.btnLoadDefaultNPartitions.Text = "Load default BK7231N partitions";
+            this.btnLoadDefaultNPartitions.UseVisualStyleBackColor = true;
+            this.btnLoadDefaultNPartitions.Click += new System.EventHandler(this.OnBtnLoadDefaultNPartitionsClick);
+            // 
+            // dgPartitions
+            // 
+            this.dgPartitions.AllowUserToOrderColumns = true;
+            this.dgPartitions.AllowUserToResizeColumns = false;
+            this.dgPartitions.AllowUserToResizeRows = false;
+            this.dgPartitions.BackgroundColor = System.Drawing.SystemColors.Control;
+            this.dgPartitions.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgPartitions.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.dgName,
+            this.dgType,
+            this.dgAddress,
+            this.dgLength});
+            this.dgPartitions.Location = new System.Drawing.Point(292, 64);
+            this.dgPartitions.MultiSelect = false;
+            this.dgPartitions.Name = "dgPartitions";
+            this.dgPartitions.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.AutoSizeToDisplayedHeaders;
+            this.dgPartitions.ScrollBars = System.Windows.Forms.ScrollBars.None;
+            this.dgPartitions.Size = new System.Drawing.Size(552, 136);
+            this.dgPartitions.TabIndex = 19;
+            // 
+            // dgName
+            // 
+            this.dgName.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.dgName.HeaderText = "Name";
+            this.dgName.MaxInputLength = 24;
+            this.dgName.MinimumWidth = 176;
+            this.dgName.Name = "dgName";
+            this.dgName.Width = 176;
+            // 
+            // dgType
+            // 
+            this.dgType.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.dgType.HeaderText = "Type";
+            this.dgType.MaxInputLength = 24;
+            this.dgType.MinimumWidth = 176;
+            this.dgType.Name = "dgType";
+            this.dgType.Width = 176;
+            // 
+            // dgAddress
+            // 
+            this.dgAddress.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.dgAddress.HeaderText = "Address";
+            this.dgAddress.MaxInputLength = 10;
+            this.dgAddress.MinimumWidth = 78;
+            this.dgAddress.Name = "dgAddress";
+            this.dgAddress.Width = 78;
+            // 
+            // dgLength
+            // 
+            this.dgLength.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.dgLength.HeaderText = "Length";
+            this.dgLength.MaxInputLength = 10;
+            this.dgLength.MinimumWidth = 78;
+            this.dgLength.Name = "dgLength";
+            this.dgLength.Width = 78;
+            // 
+            // btnLoadPartitions
+            // 
+            this.btnLoadPartitions.Location = new System.Drawing.Point(292, 36);
+            this.btnLoadPartitions.Name = "btnLoadPartitions";
+            this.btnLoadPartitions.Size = new System.Drawing.Size(146, 23);
+            this.btnLoadPartitions.TabIndex = 18;
+            this.btnLoadPartitions.Text = "Load partitions from backup";
+            this.btnLoadPartitions.UseVisualStyleBackColor = true;
+            this.btnLoadPartitions.Click += new System.EventHandler(this.OnBtnLoadPartitionsClick);
+            // 
+            // btnEncryptN1013Bootloader
+            // 
+            this.btnEncryptN1013Bootloader.Location = new System.Drawing.Point(129, 140);
+            this.btnEncryptN1013Bootloader.Name = "btnEncryptN1013Bootloader";
+            this.btnEncryptN1013Bootloader.Size = new System.Drawing.Size(154, 23);
+            this.btnEncryptN1013Bootloader.TabIndex = 17;
+            this.btnEncryptN1013Bootloader.Text = "Encrypt N_1.0.13 bootloader";
+            this.btnEncryptN1013Bootloader.UseVisualStyleBackColor = true;
+            this.btnEncryptN1013Bootloader.Click += new System.EventHandler(this.OnBtnEncryptBKNBootloaderClick);
+            // 
+            // textBoxDecryptLog
+            // 
+            this.textBoxDecryptLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.textBoxDecryptLog.Location = new System.Drawing.Point(3, 211);
+            this.textBoxDecryptLog.Name = "textBoxDecryptLog";
+            this.textBoxDecryptLog.Size = new System.Drawing.Size(901, 270);
+            this.textBoxDecryptLog.TabIndex = 1;
+            this.textBoxDecryptLog.Text = "";
+            // 
+            // btnEncryptFirmware
+            // 
+            this.btnEncryptFirmware.Location = new System.Drawing.Point(129, 166);
+            this.btnEncryptFirmware.Name = "btnEncryptFirmware";
+            this.btnEncryptFirmware.Size = new System.Drawing.Size(154, 34);
+            this.btnEncryptFirmware.TabIndex = 16;
+            this.btnEncryptFirmware.Text = "Encrypt firmware for flashing at 0x11000";
+            this.btnEncryptFirmware.UseVisualStyleBackColor = true;
+            this.btnEncryptFirmware.Click += new System.EventHandler(this.OnBtnEncryptFirmwareClick);
+            // 
+            // btnEncryptN101Bootloader
+            // 
+            this.btnEncryptN101Bootloader.Location = new System.Drawing.Point(129, 114);
+            this.btnEncryptN101Bootloader.Name = "btnEncryptN101Bootloader";
+            this.btnEncryptN101Bootloader.Size = new System.Drawing.Size(154, 23);
+            this.btnEncryptN101Bootloader.TabIndex = 15;
+            this.btnEncryptN101Bootloader.Text = "Encrypt N_1.0.1 bootloader";
+            this.btnEncryptN101Bootloader.UseVisualStyleBackColor = true;
+            this.btnEncryptN101Bootloader.Click += new System.EventHandler(this.OnBtnEncryptBootloaderClick);
+            // 
+            // btnDecryptFirmware
+            // 
+            this.btnDecryptFirmware.Location = new System.Drawing.Point(129, 88);
+            this.btnDecryptFirmware.Name = "btnDecryptFirmware";
+            this.btnDecryptFirmware.Size = new System.Drawing.Size(154, 23);
+            this.btnDecryptFirmware.TabIndex = 14;
+            this.btnDecryptFirmware.Text = "Decrypt firmware";
+            this.btnDecryptFirmware.UseVisualStyleBackColor = true;
+            this.btnDecryptFirmware.Click += new System.EventHandler(this.OnBtnDecryptFirmwareClick);
+            // 
+            // btnDecryptBootloader
+            // 
+            this.btnDecryptBootloader.Location = new System.Drawing.Point(129, 62);
+            this.btnDecryptBootloader.Name = "btnDecryptBootloader";
+            this.btnDecryptBootloader.Size = new System.Drawing.Size(154, 23);
+            this.btnDecryptBootloader.TabIndex = 13;
+            this.btnDecryptBootloader.Text = "Decrypt bootloader";
+            this.btnDecryptBootloader.UseVisualStyleBackColor = true;
+            this.btnDecryptBootloader.Click += new System.EventHandler(this.OnBtnDecryptBootloaderClick);
+            // 
+            // lblCoeff4
+            // 
+            this.lblCoeff4.AutoSize = true;
+            this.lblCoeff4.Location = new System.Drawing.Point(6, 145);
+            this.lblCoeff4.Name = "lblCoeff4";
+            this.lblCoeff4.Size = new System.Drawing.Size(41, 13);
+            this.lblCoeff4.TabIndex = 12;
+            this.lblCoeff4.Text = "Coeff4:";
+            // 
+            // numCoeff4
+            // 
+            this.numCoeff4.Location = new System.Drawing.Point(48, 142);
+            this.numCoeff4.Name = "numCoeff4";
+            this.numCoeff4.Size = new System.Drawing.Size(75, 20);
+            this.numCoeff4.TabIndex = 11;
+            this.numCoeff4.Text = "0";
+            this.numCoeff4.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OnNumCoeffKeyPress);
+            // 
+            // lblCoeff3
+            // 
+            this.lblCoeff3.AutoSize = true;
+            this.lblCoeff3.Location = new System.Drawing.Point(6, 119);
+            this.lblCoeff3.Name = "lblCoeff3";
+            this.lblCoeff3.Size = new System.Drawing.Size(41, 13);
+            this.lblCoeff3.TabIndex = 10;
+            this.lblCoeff3.Text = "Coeff3:";
+            // 
+            // numCoeff3
+            // 
+            this.numCoeff3.Location = new System.Drawing.Point(48, 116);
+            this.numCoeff3.Name = "numCoeff3";
+            this.numCoeff3.Size = new System.Drawing.Size(75, 20);
+            this.numCoeff3.TabIndex = 9;
+            this.numCoeff3.Text = "0";
+            this.numCoeff3.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OnNumCoeffKeyPress);
+            // 
+            // lblCoeff2
+            // 
+            this.lblCoeff2.AutoSize = true;
+            this.lblCoeff2.Location = new System.Drawing.Point(6, 93);
+            this.lblCoeff2.Name = "lblCoeff2";
+            this.lblCoeff2.Size = new System.Drawing.Size(41, 13);
+            this.lblCoeff2.TabIndex = 8;
+            this.lblCoeff2.Text = "Coeff2:";
+            // 
+            // numCoeff2
+            // 
+            this.numCoeff2.Location = new System.Drawing.Point(48, 90);
+            this.numCoeff2.Name = "numCoeff2";
+            this.numCoeff2.Size = new System.Drawing.Size(75, 20);
+            this.numCoeff2.TabIndex = 7;
+            this.numCoeff2.Text = "0";
+            this.numCoeff2.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OnNumCoeffKeyPress);
+            // 
+            // lblCoeff1
+            // 
+            this.lblCoeff1.AutoSize = true;
+            this.lblCoeff1.Location = new System.Drawing.Point(6, 67);
+            this.lblCoeff1.Name = "lblCoeff1";
+            this.lblCoeff1.Size = new System.Drawing.Size(41, 13);
+            this.lblCoeff1.TabIndex = 6;
+            this.lblCoeff1.Text = "Coeff1:";
+            // 
+            // numCoeff1
+            // 
+            this.numCoeff1.Location = new System.Drawing.Point(48, 64);
+            this.numCoeff1.Name = "numCoeff1";
+            this.numCoeff1.Size = new System.Drawing.Size(75, 20);
+            this.numCoeff1.TabIndex = 5;
+            this.numCoeff1.Text = "0";
+            this.numCoeff1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OnNumCoeffKeyPress);
+            // 
+            // btnDecrypt
+            // 
+            this.btnDecrypt.Location = new System.Drawing.Point(9, 36);
+            this.btnDecrypt.Name = "btnDecrypt";
+            this.btnDecrypt.Size = new System.Drawing.Size(114, 23);
+            this.btnDecrypt.TabIndex = 3;
+            this.btnDecrypt.Text = "Try to find keys";
+            this.btnDecrypt.UseVisualStyleBackColor = true;
+            this.btnDecrypt.Click += new System.EventHandler(this.OnBtnDecryptClick);
+            // 
+            // lblFirmware
+            // 
+            this.lblFirmware.AutoSize = true;
+            this.lblFirmware.Location = new System.Drawing.Point(129, 12);
+            this.lblFirmware.Name = "lblFirmware";
+            this.lblFirmware.Size = new System.Drawing.Size(0, 13);
+            this.lblFirmware.TabIndex = 1;
+            this.lblFirmware.Visible = false;
+            // 
+            // btnSelectFirmware
+            // 
+            this.btnSelectFirmware.Location = new System.Drawing.Point(9, 7);
+            this.btnSelectFirmware.Name = "btnSelectFirmware";
+            this.btnSelectFirmware.Size = new System.Drawing.Size(114, 23);
+            this.btnSelectFirmware.TabIndex = 0;
+            this.btnSelectFirmware.Text = "Select backup/QIO";
+            this.btnSelectFirmware.UseVisualStyleBackColor = true;
+            this.btnSelectFirmware.Click += new System.EventHandler(this.OnSelectFirmwareClick);
+            // 
             // timer100ms
             // 
             this.timer100ms.Enabled = true;
             this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-            // 
-            // buttonDetect
-            // 
-            this.buttonDetect.Location = new System.Drawing.Point(728, 39);
-            this.buttonDetect.Name = "buttonDetect";
-            this.buttonDetect.Size = new System.Drawing.Size(57, 23);
-            this.buttonDetect.TabIndex = 40;
-            this.buttonDetect.Text = "Detect";
-            this.buttonDetect.UseVisualStyleBackColor = true;
-            this.buttonDetect.Click += new System.EventHandler(this.buttonDetect_Click);
             // 
             // FormMain
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(907, 510);
+            this.ClientSize = new System.Drawing.Size(915, 510);
             this.Controls.Add(this.tabControl1);
             this.Name = "FormMain";
             this.Text = "BK7231 Easy UART Flasher - Automatically download firmware and flash BK7231T/BK72" +
@@ -1678,6 +1991,9 @@
             this.tabPage8.PerformLayout();
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
+            this.tabDecryption.ResumeLayout(false);
+            this.tabDecryption.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgPartitions)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1824,6 +2140,32 @@
         private System.Windows.Forms.Button buttonBlankCheck;
         private System.Windows.Forms.Button buttonVerify;
         private System.Windows.Forms.Button buttonDetect;
+        private System.Windows.Forms.TabPage tabDecryption;
+        private System.Windows.Forms.Button btnSelectFirmware;
+        private System.Windows.Forms.Label lblFirmware;
+        private System.Windows.Forms.Button btnDecrypt;
+        private System.Windows.Forms.Button btnDecryptBootloader;
+        private System.Windows.Forms.Label lblCoeff4;
+        private System.Windows.Forms.TextBox numCoeff4;
+        private System.Windows.Forms.Label lblCoeff3;
+        private System.Windows.Forms.TextBox numCoeff3;
+        private System.Windows.Forms.Label lblCoeff2;
+        private System.Windows.Forms.TextBox numCoeff2;
+        private System.Windows.Forms.Label lblCoeff1;
+        private System.Windows.Forms.TextBox numCoeff1;
+        private System.Windows.Forms.Button btnEncryptFirmware;
+        private System.Windows.Forms.Button btnEncryptN101Bootloader;
+        private System.Windows.Forms.Button btnDecryptFirmware;
+        private System.Windows.Forms.RichTextBox textBoxDecryptLog;
+        private System.Windows.Forms.Button btnEncryptN1013Bootloader;
+        private System.Windows.Forms.Button btnLoadPartitions;
+        private System.Windows.Forms.DataGridView dgPartitions;
+        private System.Windows.Forms.DataGridViewTextBoxColumn dgName;
+        private System.Windows.Forms.DataGridViewTextBoxColumn dgType;
+        private System.Windows.Forms.DataGridViewTextBoxColumn dgAddress;
+        private System.Windows.Forms.DataGridViewTextBoxColumn dgLength;
+        private System.Windows.Forms.Button btnLoadDefaultNPartitions;
+        private System.Windows.Forms.CheckBox chkSkipDecrc;
     }
 }
 
