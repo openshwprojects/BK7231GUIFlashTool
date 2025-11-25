@@ -84,6 +84,15 @@ namespace BK7231Flasher
 			{
 				return;
 			}
+			if(decrc.AsSpan().IndexOf(Encoding.ASCII.GetBytes(Utils.BootloaderDict[0])) > 0)
+			{
+				AddDecryptionLogLine($"Firmware built with zero keys.", Color.Green);
+				numCoeff1.Text = "0";
+				numCoeff2.Text = "0";
+				numCoeff3.Text = "0";
+				numCoeff4.Text = "0";
+				return;
+			}
 			var imageU32 = Utils.U8ToU32(decrc);
 			var keys = new List<Tuple<uint, uint>>();
 			foreach(var str in Utils.BootloaderDict)
@@ -270,7 +279,7 @@ namespace BK7231Flasher
 		private void OnBtnLoadPartitionsClick(object sender, EventArgs e)
 		{
 			var decrc = LoadFirmware(0, 0x10000, chkSkipDecrc.Checked);
-			if(!CheckDecrcLength(decrc, 27168))
+			if(!CheckDecrcLength(decrc, 512))
 			{
 				return;
 			}
@@ -294,7 +303,9 @@ namespace BK7231Flasher
 			partitionsLength = 0;
 			var imageU32 = Utils.U8ToU32(bootloader);
 			var falPartitions = new List<FALPartition64>();
-			for(int i = imageU32.Length - 1; i > imageU32.Length - 1 - 8 * 10; i--)
+			var limit = imageU32.Length - 1 - 16 * 10;
+			limit = limit < 0 ? 0 : limit;
+			for(int i = imageU32.Length - 1; i > limit; i--)
 			{
 				if(imageU32[i] == Utils.FAL_PART_MAGIC_WORD)
 				{
@@ -311,7 +322,7 @@ namespace BK7231Flasher
 					if(partition.crc32 == 0 || partition.crc32 == (CRC.crc32_ver2(0xFFFFFFFF, bytedata, 60) ^ 0xFFFFFFFF))
 					{
 						if(partition.crc32 == 0)
-							if(!noLog) AddDecryptionLogLine($"Partition {partition.name} has zeroed CRC32! Ignore if 1.0.1 bootloader", Color.Orange);
+							if(!noLog) AddDecryptionLogLine($"Partition {partition.name} has zeroed CRC32! Ignore if Tuya/1.0.1 bootloader", Color.Orange);
 						falPartitions.Add(partition);
 					}
 					else
