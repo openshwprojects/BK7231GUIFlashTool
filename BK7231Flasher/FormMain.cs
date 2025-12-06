@@ -1617,14 +1617,43 @@ namespace BK7231Flasher
 
         private void buttonTuyaConfig_CopyJSONToClipBoard_Click(object sender, EventArgs e)
         {
-            Clipboard.SetText(textBoxTuyaCFGJSON.Text);
+            string text = textBoxTuyaCFGJSON?.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                MessageBox.Show("No JSON text available to copy.", "Copy to clipboard", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                try
+                {
+                    Clipboard.SetText(text);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to copy to clipboard: " + ex.Message, "Clipboard error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
         }
 
         private void buttonTuyaConfig_CopyTextToClipBoard_Click(object sender, EventArgs e)
         {
-            Clipboard.SetText(textBoxTuyaCFGText.Text);
+            string text = textBoxTuyaCFGText?.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                MessageBox.Show("No text description available to copy.", "Copy to clipboard", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                try
+                {
+                    Clipboard.SetText(text);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to copy to clipboard: " + ex.Message, "Clipboard error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
         }
-
         private void linkLabel5_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
