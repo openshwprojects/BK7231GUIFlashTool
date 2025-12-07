@@ -86,7 +86,7 @@ namespace BK7231Flasher
             }
             catch (Exception ex)
             {
-                textBoxTuyaCFGText.Text = "Sorry, exception occured: " + ex.ToString();
+                textBoxTuyaCFGText.Text = "Sorry, exception occurred: " + ex.ToString();
             }
         }
 

@@ -1329,7 +1329,7 @@ namespace BK7231Flasher
                 }
                 else
                 {
-                    // wrap around breaks stuff here, maybe it has 4MB flash?
+                    // wrap-around breaks stuff here, maybe it has 4MB flash?
                     //addr += 0x400000;// not working for BK7252 as well
                 }
                 bool bOk = readSectorTo(addr, tempResult);
