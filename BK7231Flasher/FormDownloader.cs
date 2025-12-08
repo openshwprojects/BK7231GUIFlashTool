@@ -60,7 +60,7 @@ namespace BK7231Flasher
                 setState("Exception!", Color.Red);
                 setState(ex.ToString(), Color.Red);
                 addLog("It's possible that your system does not support Secure Protocol needed by github.", Color.Red);
-                addLog("Sorry, exception occured.", Color.Red);
+                addLog("Sorry, exception occurred.", Color.Red);
                 addLog("Please manually download firmware from here:", Color.Red);
                 addLog(list_url, Color.Red);
                 string pfx = FormMain.getFirmwarePrefix(bkType);

@@ -119,7 +119,7 @@ namespace BK7231Flasher
                 comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDown;
                 comboBoxFirmware.Text = file;
                 chosenSourceFile = file;
-                addLog("You drag and dropped file " + file + "...",Color.Black);
+                addLog("You dragged and dropped file " + file + "...",Color.Black);
             }
         }
         // string label_startRead = "Start Read Flash (Full backup)";
@@ -768,7 +768,7 @@ namespace BK7231Flasher
             clearUp();
             createFlasher();
             flasher.setBackupName(lastBackupNameEnteredByUser);
-            // thanks to wrap around hack, we can read from start correctly
+            // thanks to wrap-around hack, we can read from start correctly
             int startSector;
             int sectors;
             if (parms!= null)
@@ -835,7 +835,7 @@ namespace BK7231Flasher
         {
             clearUp();
             createFlasher();
-            // thanks to wrap around hack, we can read from start correctly
+            // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
 
             if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
@@ -855,7 +855,7 @@ namespace BK7231Flasher
             else
             {
                 addLog("OBK config loaded. You can now view it by clicking 'Change OBK settings' button."+Environment.NewLine, Color.Black);
-                addLog("You can also edit it whatever you want." + Environment.NewLine, Color.Black);
+                addLog("You can also edit it however you want." + Environment.NewLine, Color.Black);
                 addLog("You can also use 'Write OBK config' button to write it back with your changes." + Environment.NewLine, Color.Black);
             }
             worker = null;
@@ -964,7 +964,7 @@ namespace BK7231Flasher
             }
             else
             {
-                addLog("Backup created, now will attempt to extract Tuya config." + Environment.NewLine, Color.Gray);
+                addLog("Backup created, will now attempt to extract Tuya config." + Environment.NewLine, Color.Gray);
                 try
                 {
                     TuyaConfig tc = new TuyaConfig();
@@ -1087,7 +1087,7 @@ namespace BK7231Flasher
         private void buttonDownloadLatest_Click(object sender, EventArgs e)
         {
             refreshType();
-            var res = MessageBox.Show("Do you want to automatically download latest release from WWW?", 
+            var res = MessageBox.Show("Do you want to automatically download latest release?", 
                 "Download?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
@@ -1286,7 +1286,7 @@ namespace BK7231Flasher
 
         private void buttonClearOldFirmware_Click(object sender, EventArgs e)
         {
-            var res = MessageBox.Show("Do you want to clear all downloaded firwmares? ", "Remove old firmware files", MessageBoxButtons.YesNo);
+            var res = MessageBox.Show("Do you want to clear all downloaded firmware files? ", "Remove old firmware files", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
                 clearFirmwaresList();
@@ -1314,7 +1314,7 @@ namespace BK7231Flasher
         {
             var res = MessageBox.Show("This will remove everything from 0x11000, including configuration of OBK and MAC address and RF partition. "+
                 "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
-                "Do it if you have RF issues. Flash OBK after doing erase. This option might require lower bauds. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
+                "Do it if you have RF issues. Flash OBK after doing erase. This option might require a lower baud rate. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
                 if (doGenericOperationPreparations() == false)
@@ -1606,7 +1606,7 @@ namespace BK7231Flasher
             try
             {
                 // opens the folder in explorer
-                string path = Path.Combine(Directory.GetCurrentDirectory(), OBKMassBackup.DEFAULT_BASE_DIR);
+                string path = Path.Combine(Directory.GetCurrentDirectory(), backupsPath);
                 Process.Start("explorer.exe", path);
             }
             catch (Exception ex)
@@ -1668,7 +1668,7 @@ namespace BK7231Flasher
         {
             if(checkBoxOverwriteBootloader.Checked == true)
             {
-                DialogResult res = MessageBox.Show("This will break bootloader if used incorrectly, do you have a backup? Are you sure?",
+                DialogResult res = MessageBox.Show("This will break bootloader if used incorrectly. Do you have a backup? Are you sure?",
                     "Are you sure?", MessageBoxButtons.YesNo);
                 if(res == DialogResult.No)
                 {
