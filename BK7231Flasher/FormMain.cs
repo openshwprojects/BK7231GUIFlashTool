@@ -190,7 +190,7 @@ namespace BK7231Flasher
 
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7231T, "BK7231T"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7231U, "BK7231U"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231N, "BK7231N (T2)"));
+            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231N, "BK7231N (T2, T34)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7231M, "BK7231M"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7236, "BK7236 (T3)"));
             comboBoxChipType.Items.Add(new ChipType(BKType.BK7238, "BK7238 (T1)"));
