@@ -15,6 +15,8 @@ namespace BK7231Flasher
         MemoryStream ms;
         string lastEncryptionKey;
         public static int SECTOR_SIZE = 0x1000;
+        public static int BLOCK_SIZE = 0x10000;
+        public static int SECTORS_PER_BLOCK = BLOCK_SIZE / SECTOR_SIZE;
         public static int FLASH_SIZE = 0x200000;
         public static int BOOTLOADER_SIZE = 0x11000;
         public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
@@ -940,36 +942,9 @@ namespace BK7231Flasher
             logger.setProgress(0, sectors);
             logger.setState("Erasing...", Color.Transparent);
             addLog("Going to do erase, start " + startSector +", sec count " + sectors +"!" + Environment.NewLine);
-            for (int sec = 0; sec < sectors; sec++)
+            if(!eraseRange(startSector, sectors))
             {
-                int secAddr = startSector + SECTOR_SIZE * sec;
-                int tries = 0;
-                while (true)
-                {
-                    tries++;
-                    // 4K erase
-                    bool bOk = eraseSector(secAddr, 0x20);
-                    addLog("Erasing sector " + secAddr + "...");
-                    if (bOk == false)
-                    {
-                        if(tries > 5)
-                        {
-                            logger.setState("Erase failed.", Color.Red);
-                            addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
-                            return false;
-                        }
-                        else
-                        {
-                            addWarning(" failed, will retry! ");
-                        }
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                addLog(" ok! ");
-                logger.setProgress(sec+1, sectors);
+                return false;
             }
             addLog(Environment.NewLine);
             addLog("All selected sectors erased!" + Environment.NewLine);
@@ -1220,20 +1195,9 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            for (int sec = 0; sec < sectors; sec++)
+            if(!eraseRange(startSector, sectors))
             {
-                int secAddr = startSector + SECTOR_SIZE * sec;
-                // 4K erase
-                bool bOk = eraseSector(secAddr, 0x20);
-                addLog("Erasing sector " + formatHex(secAddr) + "...");
-                if (bOk == false)
-                {
-                    logger.setState("Erase sector failed!", Color.Red);
-                    addError(" Erasing sector " + secAddr + " failed!" + Environment.NewLine);
-                    return false;
-                }
-                addLog(" ok! ");
-
+                return false;
             }
             addLog(Environment.NewLine);
             addLog("All selected sectors erased!" + Environment.NewLine);
@@ -1859,6 +1823,99 @@ namespace BK7231Flasher
             }
             serial.BaudRate = prev;
             return false;
+        }
+
+        bool eraseRange(int startSector, int sectors)
+        {
+            int current = startSector / SECTOR_SIZE;
+            int end = current + sectors;
+
+            bool erase4k()
+            {
+                int tries = 0;
+                int addr = current * SECTOR_SIZE;
+                while(true)
+                {
+                    addLog("Erasing sector " + formatHex(addr) + "...");
+                    bool bOk = eraseSector(addr, 0x20);
+                    if(!bOk)
+                    {
+                        if(tries > 5)
+                        {
+                            logger.setState("Erase failed.", Color.Red);
+                            addError(" Erasing sector " + addr + " failed!" + Environment.NewLine);
+                            return false;
+                        }
+                        else
+                        {
+                            addWarning(" failed, will retry! ");
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                current++;
+                addLog(" ok! ");
+                logger.setProgress(current + 1, sectors);
+                return true;
+            }
+
+            // erase sectors until 64KB-aligned
+            while(current < end &&
+                   (current % SECTORS_PER_BLOCK) != 0)
+            {
+                if(!erase4k())
+                {
+                    return false;
+                }
+            }
+
+            // erase 64k while possible
+            while((end - current) >= SECTORS_PER_BLOCK)
+            {
+                int tries = 0;
+                int addr = current * SECTOR_SIZE;
+                while(true)
+                {
+                    addLog("Erasing block " + formatHex(addr) + "...");
+                    bool bOk = eraseSector(addr, 0xD8);
+                    if(!bOk)
+                    {
+                        if(tries > 5)
+                        {
+                            logger.setState("Erase failed.", Color.Red);
+                            addError(" Erasing block " + addr + " failed!" + Environment.NewLine);
+                            return false;
+                        }
+                        else
+                        {
+                            addWarning(" failed, will retry! ");
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                current += SECTORS_PER_BLOCK;
+                addLog(" ok! ");
+                logger.setProgress(current + 1, sectors);
+            }
+
+            // erase remaining sectors
+            while(current < end)
+            {
+                if(!erase4k())
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
