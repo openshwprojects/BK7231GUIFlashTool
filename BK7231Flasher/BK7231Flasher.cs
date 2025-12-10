@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -888,7 +889,30 @@ namespace BK7231Flasher
             lastEncryptionKey = "";
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
-                if (doUnprotect())
+                byte[] chipIdRaw;
+                if(chipType == BKType.BK7236 || chipType == BKType.BK7258)
+                {
+                    chipIdRaw = ReadFlashReg(0x44010000 + (0x1 << 2)) ?? new byte[] { 0, 0, 0, 0 };
+                }
+                else
+                {
+                    chipIdRaw = ReadFlashReg(0x800000) ?? new byte[] { 0, 0, 0, 0 };
+                }
+                chipIdRaw = chipIdRaw.Reverse().ToArray();
+                string chipId = "";
+                // should be 0x7238 for BK7238, 0x7231c for BK7231N, 0x7236 for both BK7236 and BK7258
+                foreach(var ch in chipIdRaw)
+                {
+                    if(ch == 0 || ch == 1)
+                        continue;
+                    chipId += $"{ch:x}";
+                }
+                // do something if selected type != chip id?
+                if(string.IsNullOrEmpty(chipId))
+                    addWarning($"Failed to get chip ID!" + Environment.NewLine);
+                else
+                    addLog($"Chip ID: 0x{chipId}" + Environment.NewLine);
+                if(doUnprotect())
                 {
                     return false;
                 }
