@@ -1307,7 +1307,7 @@ namespace BK7231Flasher
         private void genericLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             LinkLabel ll = sender as LinkLabel;
-            System.Diagnostics.Process.Start(ll.Text);
+          //  System.Diagnostics.Process.Start(ll.Text);
         }
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
@@ -1350,7 +1350,7 @@ namespace BK7231Flasher
 
         private void linkLabel4_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://openbekeniot.github.io/webapp/templateImporter.html");
+          //  System.Diagnostics.Process.Start("https://openbekeniot.github.io/webapp/templateImporter.html");
         }
         FormOBKConfig formObkCfg;
         private void buttonChangeOBKSettings_Click(object sender, EventArgs e)
@@ -1654,7 +1654,7 @@ namespace BK7231Flasher
         }
         private void linkLabel5_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
+          //  System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
         }
 
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
