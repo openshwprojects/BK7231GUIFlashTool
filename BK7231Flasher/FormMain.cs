@@ -1422,12 +1422,10 @@ namespace BK7231Flasher
         }
         private void buttonStartScan_Click(object sender, EventArgs e)
         {
-            startOrStopScannerThread();
         }
 
         private void textBoxScannerThreads_TextChanged(object sender, EventArgs e)
         {
-            setMaxWorkersCountFromGUI();
         }
 
         private void listView1_MouseClick(object sender, MouseEventArgs e)
@@ -1661,7 +1659,6 @@ namespace BK7231Flasher
 
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            killScanner();
         }
 
         private void checkBoxOverwriteBootloader_CheckedChanged(object sender, EventArgs e)
