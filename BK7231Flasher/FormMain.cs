@@ -24,6 +24,30 @@ namespace BK7231Flasher
         FormCustom formCustom;
         CancellationTokenSource cts;
 
+        public Dictionary<BKType, string> Chips = new Dictionary<BKType, string>()
+        {
+            { BKType.BK7231T,    "BK7231T" },
+            { BKType.BK7231U,    "BK7231U" },
+            { BKType.BK7231N,    "BK7231N (T2, T34)" },
+            { BKType.BK7231M,    "BK7231M" },
+            { BKType.BK7236,     "BK7236 (T3)" },
+            { BKType.BK7238,     "BK7238 (T1)" },
+            { BKType.BK7252,     "BK7252" },
+            { BKType.BK7252N,    "BK7252N (T4)" },
+            { BKType.BK7258,     "BK7258 (T5)" },
+            { BKType.RTL8710B,   "RTL8710B" },
+            { BKType.RTL87X0C,   "RTL87X0C" },
+            { BKType.RTL8720D,   "RTL8720DN" },
+            { BKType.LN882H,     "LN882H" },
+            { BKType.BL602,      "BL602" },
+            { BKType.ECR6600,    "ECR6600" },
+            { BKType.W800,       "W800" },
+            { BKType.W600,       "W600 (write)" },
+            { BKType.RDA5981,    "RDA5981" },
+            { BKType.BekenSPI,   "Beken SPI CH341" },
+            { BKType.GenericSPI, "Generic SPI CH341" },
+        };
+
         public FormMain()
         {
             Singleton = this;
@@ -188,28 +212,10 @@ namespace BK7231Flasher
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
 
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231T, "BK7231T"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231U, "BK7231U"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231N, "BK7231N (T2, T34)"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7231M, "BK7231M"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7236, "BK7236 (T3)"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7238, "BK7238 (T1)"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7252, "BK7252"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7252N, "BK7252N (T4)"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BK7258, "BK7258 (T5)"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.RTL8710B, "RTL8710B"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.RTL87X0C, "RTL87X0C"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720D, "RTL8720DN"));
-            //comboBoxChipType.Items.Add(new ChipType(BKType.RTL8721DA, "RTL8721DA"));
-            //comboBoxChipType.Items.Add(new ChipType(BKType.RTL8720E, "RTL8720E"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.LN882H, "LN882H"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BL602, "BL602"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.ECR6600, "ECR6600"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.W800, "W800"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.W600, "W600 (write)"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.RDA5981, "RDA5981"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.BekenSPI, "Beken SPI CH341"));
-            comboBoxChipType.Items.Add(new ChipType(BKType.GenericSPI, "Generic SPI CH341"));
+            foreach(var chip in Chips)
+            {
+                comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
+            }
 
             comboBoxChipType.SelectedIndex = 0;
             
