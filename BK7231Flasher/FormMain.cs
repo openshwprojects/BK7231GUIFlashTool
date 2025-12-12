@@ -1313,7 +1313,7 @@ namespace BK7231Flasher
         private void genericLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             LinkLabel ll = sender as LinkLabel;
-            System.Diagnostics.Process.Start(ll.Text);
+          //  System.Diagnostics.Process.Start(ll.Text);
         }
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
@@ -1356,7 +1356,7 @@ namespace BK7231Flasher
 
         private void linkLabel4_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://openbekeniot.github.io/webapp/templateImporter.html");
+          //  System.Diagnostics.Process.Start("https://openbekeniot.github.io/webapp/templateImporter.html");
         }
         FormOBKConfig formObkCfg;
         private void buttonChangeOBKSettings_Click(object sender, EventArgs e)
@@ -1428,115 +1428,113 @@ namespace BK7231Flasher
         }
         private void buttonStartScan_Click(object sender, EventArgs e)
         {
-            startOrStopScannerThread();
         }
 
         private void textBoxScannerThreads_TextChanged(object sender, EventArgs e)
         {
-            setMaxWorkersCountFromGUI();
         }
 
         private void listView1_MouseClick(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right)
-            {
-                ListViewItem selectedItem = listView1.FocusedItem;
+            //if (e.Button == MouseButtons.Right)
+            //{
+            //    ListViewItem selectedItem = listView1.FocusedItem;
 
-                ContextMenuStrip contextMenu = new ContextMenuStrip();
+            //    ContextMenuStrip contextMenu = new ContextMenuStrip();
 
-                ToolStripMenuItem openPageMenuItem = new ToolStripMenuItem("Open page");
-                openPageMenuItem.Click += (s, args) =>
-                {
-                    string url = selectedItem.SubItems[1].Text; 
-                    System.Diagnostics.Process.Start("http://"+url);
-                };
-                contextMenu.Items.Add(openPageMenuItem);
+            //    ToolStripMenuItem openPageMenuItem = new ToolStripMenuItem("Open page");
+            //    openPageMenuItem.Click += (s, args) =>
+            //    {
+            //        string url = selectedItem.SubItems[1].Text; 
+            //        System.Diagnostics.Process.Start("http://"+url);
+            //    };
+            //    contextMenu.Items.Add(openPageMenuItem);
 
-                ToolStripMenuItem copyUrlMenuItem = new ToolStripMenuItem("Copy URL");
-                copyUrlMenuItem.Click += (s, args) =>
-                {
-                    string url = selectedItem.SubItems[1].Text; 
-                    Clipboard.SetText(url);
-                };
-                contextMenu.Items.Add(copyUrlMenuItem);
+            //    ToolStripMenuItem copyUrlMenuItem = new ToolStripMenuItem("Copy URL");
+            //    copyUrlMenuItem.Click += (s, args) =>
+            //    {
+            //        string url = selectedItem.SubItems[1].Text; 
+            //        Clipboard.SetText(url);
+            //    };
+            //    contextMenu.Items.Add(copyUrlMenuItem);
 
 
-                ToolStripMenuItem rebootMenuItem = new ToolStripMenuItem("Reboot");
-                rebootMenuItem.Click += (s, args) =>
-                {
-                    OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
-                    devo.sendCmnd("reboot",null);
-                };
-                contextMenu.Items.Add(rebootMenuItem);
+            //    ToolStripMenuItem rebootMenuItem = new ToolStripMenuItem("Reboot");
+            //    rebootMenuItem.Click += (s, args) =>
+            //    {
+            //        OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+            //        devo.sendCmnd("reboot",null);
+            //    };
+            //    contextMenu.Items.Add(rebootMenuItem);
 
-                OBKDeviceAPI dev = selectedItem.Tag as OBKDeviceAPI;
-                for (int i = 0; i < dev.getPowerSlotsCount(); i++)
-                {
-                    int slotIndex = i+1; 
-                    ToolStripMenuItem toggleMenuItem = new ToolStripMenuItem("Toggle POWER"+ slotIndex);
-                    toggleMenuItem.Click += (s, args) =>
-                    {
-                        OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
-                        devo.sendCmnd("POWER"+ slotIndex + " TOGGLE", null);
-                    };
-                    contextMenu.Items.Add(toggleMenuItem);
-                }
+            //    OBKDeviceAPI dev = selectedItem.Tag as OBKDeviceAPI;
+            //    for (int i = 0; i < dev.getPowerSlotsCount(); i++)
+            //    {
+            //        int slotIndex = i+1; 
+            //        ToolStripMenuItem toggleMenuItem = new ToolStripMenuItem("Toggle POWER"+ slotIndex);
+            //        toggleMenuItem.Click += (s, args) =>
+            //        {
+            //            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+            //            devo.sendCmnd("POWER"+ slotIndex + " TOGGLE", null);
+            //        };
+            //        contextMenu.Items.Add(toggleMenuItem);
+            //    }
                 
-                if(dev.hasDimmerSupport())
-                {
-                    ToolStripMenuItem dimmerToolsMenuItem = new ToolStripMenuItem("Dimmer");
-                    contextMenu.Items.Add(dimmerToolsMenuItem);
+            //    if(dev.hasDimmerSupport())
+            //    {
+            //        ToolStripMenuItem dimmerToolsMenuItem = new ToolStripMenuItem("Dimmer");
+            //        contextMenu.Items.Add(dimmerToolsMenuItem);
 
-                    for(int i = 0; i <= 100; i+=25)
-                    {
-                        int savedI = i;
-                        ToolStripMenuItem dimmerMenuItem = new ToolStripMenuItem("Set Dimmer "+i+"%");
-                        dimmerMenuItem.Click += (s, args) =>
-                        {
-                            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
-                            devo.sendCmnd("Dimmer " + savedI + "", null);
-                        };
-                        dimmerToolsMenuItem.DropDownItems.Add(dimmerMenuItem);
-                    }
-                }
-                if (dev.hasCTSupport())
-                {
-                    ToolStripMenuItem ctToolsMenuItem = new ToolStripMenuItem("CT");
-                    contextMenu.Items.Add(ctToolsMenuItem);
+            //        for(int i = 0; i <= 100; i+=25)
+            //        {
+            //            int savedI = i;
+            //            ToolStripMenuItem dimmerMenuItem = new ToolStripMenuItem("Set Dimmer "+i+"%");
+            //            dimmerMenuItem.Click += (s, args) =>
+            //            {
+            //                OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+            //                devo.sendCmnd("Dimmer " + savedI + "", null);
+            //            };
+            //            dimmerToolsMenuItem.DropDownItems.Add(dimmerMenuItem);
+            //        }
+            //    }
+            //    if (dev.hasCTSupport())
+            //    {
+            //        ToolStripMenuItem ctToolsMenuItem = new ToolStripMenuItem("CT");
+            //        contextMenu.Items.Add(ctToolsMenuItem);
 
-                    for (int i = 154; i <= 500; i += 173)
-                    {
-                        int savedI = i;
-                        ToolStripMenuItem ctMenuItem = new ToolStripMenuItem("Set CT " + i + "");
-                        ctMenuItem.Click += (s, args) =>
-                        {
-                            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
-                            devo.sendCmnd("CT " + savedI + "", null);
-                        };
-                        ctToolsMenuItem.DropDownItems.Add(ctMenuItem);
-                    }
-                }
-                if (dev.hasColorSupport())
-                {
-                    ToolStripMenuItem colorToolsMenuItem = new ToolStripMenuItem("Color");
-                    contextMenu.Items.Add(colorToolsMenuItem);
+            //        for (int i = 154; i <= 500; i += 173)
+            //        {
+            //            int savedI = i;
+            //            ToolStripMenuItem ctMenuItem = new ToolStripMenuItem("Set CT " + i + "");
+            //            ctMenuItem.Click += (s, args) =>
+            //            {
+            //                OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+            //                devo.sendCmnd("CT " + savedI + "", null);
+            //            };
+            //            ctToolsMenuItem.DropDownItems.Add(ctMenuItem);
+            //        }
+            //    }
+            //    if (dev.hasColorSupport())
+            //    {
+            //        ToolStripMenuItem colorToolsMenuItem = new ToolStripMenuItem("Color");
+            //        contextMenu.Items.Add(colorToolsMenuItem);
 
-                    for (int i = 0; i < Colors.list.GetLength(0); i++)
-                    {
-                        int savedI = i;
-                        string name = Colors.list[i, 0];
-                        string code = Colors.list[i, 1];
-                        ToolStripMenuItem colorMenuItem = new ToolStripMenuItem("Set " + name + " ("+code+")");
-                        colorMenuItem.Click += (s, args) =>
-                        {
-                            OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
-                            devo.sendCmnd("Color " + code + "", null);
-                        };
-                        colorToolsMenuItem.DropDownItems.Add(colorMenuItem);
-                    }
-                }
-                contextMenu.Show(listView1, e.Location);
-            }
+            //        for (int i = 0; i < Colors.list.GetLength(0); i++)
+            //        {
+            //            int savedI = i;
+            //            string name = Colors.list[i, 0];
+            //            string code = Colors.list[i, 1];
+            //            ToolStripMenuItem colorMenuItem = new ToolStripMenuItem("Set " + name + " ("+code+")");
+            //            colorMenuItem.Click += (s, args) =>
+            //            {
+            //                OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
+            //                devo.sendCmnd("Color " + code + "", null);
+            //            };
+            //            colorToolsMenuItem.DropDownItems.Add(colorMenuItem);
+            //        }
+            //    }
+            //    contextMenu.Show(listView1, e.Location);
+            //}
         }
 
         private void buttonIPCFGDump_Click(object sender, EventArgs e)
@@ -1662,12 +1660,11 @@ namespace BK7231Flasher
         }
         private void linkLabel5_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
+          //  System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=WunlqIMAdgw");
         }
 
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            killScanner();
         }
 
         private void checkBoxOverwriteBootloader_CheckedChanged(object sender, EventArgs e)
