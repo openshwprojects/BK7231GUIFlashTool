@@ -349,6 +349,14 @@ namespace BK7231Flasher
                         tg.setPinRole(value, PinRole.WifiLED_n);
                     }
                 }
+                else if (Regex.IsMatch(key, "remote_io"))
+                {
+                    desc += "- RF Remote on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.RCRecv);
+                    }
+                }
                 else if (Regex.IsMatch(key, "samp_sw_pin"))
                 {
                     desc += "- Battery Relay on P" + value + Environment.NewLine;
