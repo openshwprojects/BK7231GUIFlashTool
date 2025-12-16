@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace BK7231Flasher
@@ -146,4 +147,132 @@ namespace BK7231Flasher
             }
         }
     }
+
+    public enum CRC16Type
+    {
+        CCITT,
+        CCITT_FALSE,
+        CCITT_TRUE,
+        CMS,
+        XMODEM
+    }
+
+    public static class CRC16
+    {
+        private class CRCParams
+        {
+            public ushort Poly;
+            public ushort Init;
+            public bool Ref;
+            public ushort Out;
+            public ushort[] Table;
+        }
+
+        private static readonly ConcurrentDictionary<CRC16Type, CRCParams> Configs = new ConcurrentDictionary<CRC16Type, CRCParams>();
+
+        static CRC16()
+        {
+            Add(CRC16Type.CCITT, 0x1021, 0x0000, true, 0x0000);
+            Add(CRC16Type.CCITT_FALSE, 0x1021, 0xFFFF, false, 0x0000);
+            Add(CRC16Type.CCITT_TRUE, 0x1021, 0x0000, true, 0x0000);
+            Add(CRC16Type.CMS, 0x8005, 0xFFFF, false, 0x0000);
+            Add(CRC16Type.XMODEM, 0x1021, 0x0000, false, 0x0000);
+        }
+
+        private static void Add(CRC16Type type, ushort poly, ushort init, bool reflect, ushort xorOut)
+        {
+            var cfg = new CRCParams
+            {
+                Poly = reflect ? Reverse16(poly) : poly,
+                Init = reflect ? Reverse16(init) : init,
+                Ref = reflect,
+                Out = xorOut,
+                Table = BuildTable(reflect ? Reverse16(poly) : poly, reflect)
+            };
+            Configs[type] = cfg;
+        }
+
+        private static ushort Reverse16(ushort num)
+        {
+            ushort result = 0;
+            for(int i = 0; i < 16; i++)
+                result |= (ushort)(((num >> i) & 1) << (15 - i));
+            return result;
+        }
+
+        private static ushort[] BuildTable(ushort poly, bool reflect)
+        {
+            var table = new ushort[256];
+            if(reflect)
+            {
+                for(int b = 0; b < 256; b++)
+                {
+                    ushort crc = (ushort)b;
+                    for(int i = 0; i < 8; i++)
+                    {
+                        if((crc & 0x0001) != 0)
+                            crc = (ushort)((crc >> 1) ^ poly);
+                        else
+                            crc >>= 1;
+                    }
+                    table[b] = crc;
+                }
+            }
+            else
+            {
+                for(int b = 0; b < 256; b++)
+                {
+                    ushort crc = (ushort)(b << 8);
+                    for(int i = 0; i < 8; i++)
+                    {
+                        if((crc & 0x8000) != 0)
+                            crc = (ushort)((crc << 1) ^ poly);
+                        else
+                            crc <<= 1;
+                    }
+                    table[b] = (ushort)(crc & 0xFFFF);
+                }
+            }
+            return table;
+        }
+
+        public static ushort Compute(CRC16Type type, byte[] data)
+            => Compute(type, data, 0, data.Length);
+
+        public static ushort Compute(CRC16Type type, byte[] data, int start = 0, int? length = null)
+        {
+            if(!Configs.TryGetValue(type, out var cfg))
+                throw new ArgumentNullException(nameof(type));
+
+            if(data == null)
+                throw new ArgumentNullException(nameof(data));
+
+            ushort crc = cfg.Init;
+
+            return cfg.Ref
+                ? CalcRef(cfg, data, start, length ?? data.Length, crc)
+                : CalcStd(cfg, data, start, length ?? data.Length, crc);
+        }
+
+        private static ushort CalcStd(CRCParams cfg, byte[] data, int start, int length, ushort crc)
+        {
+            for(int i = start; i < start + length; i++)
+            {
+                byte idx = (byte)(data[i] ^ (crc >> 8));
+                crc = (ushort)(cfg.Table[idx] ^ ((crc << 8) & 0xFFFF));
+            }
+            return (ushort)(crc ^ cfg.Out);
+        }
+
+        private static ushort CalcRef(CRCParams cfg, byte[] data, int start, int length, ushort crc)
+        {
+            for(int i = start; i < start + length; i++)
+            {
+                byte idx = (byte)(data[i] ^ (crc & 0xFF));
+                crc = (ushort)(cfg.Table[idx] ^ (crc >> 8));
+            }
+            return (ushort)(crc ^ cfg.Out);
+        }
+    }
+
 }
