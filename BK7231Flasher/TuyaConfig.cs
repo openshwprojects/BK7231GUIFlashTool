@@ -503,6 +503,14 @@ namespace BK7231Flasher
                         tg.setPinChannel(value, number);
                     }
                 }
+                else if (key == "gate_sensor_pin_pin")
+                {
+                    desc += "- Door/Gate sensor on P" + value + Environment.NewLine;
+                    if (tg != null)
+                    {
+                        tg.setPinRole(value, PinRole.dInput);
+                    }
+                }
                 else if (key == "basic_pin_pin")
                 {
                     // This will read 1 if there was a movement, at least on the sensor I have
