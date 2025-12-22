@@ -761,7 +761,7 @@ namespace BK7231Flasher
             try
             {
                 logger.setProgress(0, sectors);
-                addLog("Erase started with ofs " + startSector + " and len in sectors " + sectors);
+                addLog("Erase started with ofs " + formatHex(startSector) + " and len in sectors " + sectors);
                 if (doGenericSetup() == false)
                 {
                     return false;
@@ -965,7 +965,7 @@ namespace BK7231Flasher
         {
             logger.setProgress(0, sectors);
             logger.setState("Erasing...", Color.Transparent);
-            addLog("Going to do erase, start " + startSector +", sec count " + sectors +"!" + Environment.NewLine);
+            addLog("Going to do erase, start " + formatHex(startSector) +", sec count " + sectors +"!" + Environment.NewLine);
             if(!eraseRange(startSector, sectors))
             {
                 return false;
@@ -1114,7 +1114,7 @@ namespace BK7231Flasher
                     if (bOk == false)
                     {
                         logger.setState("Writing error!", Color.Red);
-                        addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                        addError(" Writing sector " + formatHex(secAddr) + " failed!" + Environment.NewLine);
                         return false;
                     }
                     logger.setProgress(sec + 1, sectors);
@@ -1231,11 +1231,11 @@ namespace BK7231Flasher
                 // 4K write
                 bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                 //bool bOk = writeSector(secAddr, data, SECTOR_SIZE * sec, SECTOR_SIZE);
-                addLog("Writing sector " + secAddr + "...");
+                addLog("Writing sector " + formatHex(secAddr) + "...");
                 if (bOk == false)
                 {
                     logger.setState("Write sector failed!", Color.Red);
-                    addError(" Writing sector " + secAddr + " failed!" + Environment.NewLine);
+                    addError(" Writing sector " + formatHex(secAddr) + " failed!" + Environment.NewLine);
                     return false;
                 }
                 addLog(" ok! ");
@@ -1867,7 +1867,7 @@ namespace BK7231Flasher
                         if(tries > 5)
                         {
                             logger.setState("Erase failed.", Color.Red);
-                            addError(" Erasing sector " + addr + " failed!" + Environment.NewLine);
+                            addError(" Erasing sector " + formatHex(addr) + " failed!" + Environment.NewLine);
                             return false;
                         }
                         else
@@ -1911,7 +1911,7 @@ namespace BK7231Flasher
                         if(tries > 5)
                         {
                             logger.setState("Erase failed.", Color.Red);
-                            addError(" Erasing block " + addr + " failed!" + Environment.NewLine);
+                            addError(" Erasing block " + formatHex(addr) + " failed!" + Environment.NewLine);
                             return false;
                         }
                         else
@@ -1943,3 +1943,4 @@ namespace BK7231Flasher
         }
     }
 }
+
