@@ -321,7 +321,7 @@ namespace BK7231Flasher
         }
         public bool loadAndRunPreprocessedImage()
         {
-            byte[] loaderBinary = FLoaders.B64GZ_ToBytes(FLoaders.BL602Floader);
+            byte[] loaderBinary = FLoaders.GetBinaryFromAssembly("BL602Floader");
 
             return loadAndRunPreprocessedImage(loaderBinary);
         }
@@ -568,8 +568,8 @@ namespace BK7231Flasher
                     //if(bOverwriteBootloader)
                     {
                         addLogLine("Writing boot...");
-                        byte[] boot = FLoaders.B64GZ_ToBytes(FLoaders.BL602_Boot);
-                        byte[] partitions = FLoaders.B64GZ_ToBytes(flashSizeMB > 1 ? FLoaders.BL602_Partitions : FLoaders.BL602_1MBPartitions);
+                        byte[] boot = FLoaders.GetBinaryFromAssembly("BL602_Boot");
+                        byte[] partitions = FLoaders.GetBinaryFromAssembly(flashSizeMB > 1 ? "BL602_Partitions" : "BL602_1MBPartitions");
                         boot = MiscUtils.padArray(boot, 0xE000);
                         boot = boot.Concat(partitions).ToArray();
                         if(!writeFlash(boot, 0))
@@ -578,7 +578,7 @@ namespace BK7231Flasher
                     addLogLine("Reading " + sourceFileName + "...");
                     byte[] data = File.ReadAllBytes(sourceFileName);
                     data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
-                    byte[] apphdr = FLoaders.B64GZ_ToBytes(FLoaders.BL602_AppHdr);
+                    byte[] apphdr = FLoaders.GetBinaryFromAssembly("BL602_AppHdr");
                     apphdr[120] = (byte)(data.Length & 0xFF);
                     apphdr[121] = (byte)((data.Length >> 8) & 0xFF);
                     apphdr[122] = (byte)((data.Length >> 16) & 0xFF);
@@ -603,7 +603,7 @@ namespace BK7231Flasher
                     //if(bOverwriteBootloader)
                     {
                         addLogLine("Writing dts...");
-                        byte[] dts = FLoaders.B64GZ_ToBytes(FLoaders.BL602_Dts);
+                        byte[] dts = FLoaders.GetBinaryFromAssembly("BL602_Dts");
                         if(!writeFlash(dts, flashSizeMB > 1 ? 0x1FC000 : 0xFC000))
                             return;
                     }

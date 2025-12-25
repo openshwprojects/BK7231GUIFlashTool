@@ -137,7 +137,7 @@ namespace BK7231Flasher
 		private bool UploadStub()
 		{
 			if(chipType == BKType.W600) return true;
-			var stub = FLoaders.B64GZ_ToBytes(FLoaders.W800_Stub);
+			var stub = FLoaders.GetBinaryFromAssembly("W800_Stub");
 			addLogLine($"Sending stub...");
 			if(xm.Send(stub) == stub.Length)
 			{

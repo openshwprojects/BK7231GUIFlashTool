@@ -196,6 +196,19 @@
     <AdditionalFiles Include="easyflash\libef_GRAN8.so">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
+    <EmbeddedResource Include="Floaders\AmebaDFLoader.bin" />
+    <EmbeddedResource Include="Floaders\AmebaZ_NewFloader.bin" />
+    <EmbeddedResource Include="Floaders\BK7231N_1_0_1.bin" />
+    <EmbeddedResource Include="Floaders\BK7231N_1_0_13.bin" />
+    <EmbeddedResource Include="Floaders\BL602Floader.bin" />
+    <EmbeddedResource Include="Floaders\BL602_1MBPartitions.bin" />
+    <EmbeddedResource Include="Floaders\BL602_AppHdr.bin" />
+    <EmbeddedResource Include="Floaders\BL602_Boot.bin" />
+    <EmbeddedResource Include="Floaders\BL602_Dts.bin" />
+    <EmbeddedResource Include="Floaders\BL602_Partitions.bin" />
+    <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
+    <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
+    <EmbeddedResource Include="Floaders\W800_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

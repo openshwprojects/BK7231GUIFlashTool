@@ -265,7 +265,7 @@ namespace BK7231Flasher
             string msg = "";
             if(!isRamcode)
             {
-                byte[] dat = FLoaders.B64GZ_ToBytes(FLoaders.LN882H_RamCode);
+                byte[] dat = FLoaders.GetBinaryFromAssembly("LN882H_RamCode");
                 serial.Write($"download [rambin] [0x20000000] [{dat.Length}]\r\n");
                 addLogLine("Will send file via YModem");
 

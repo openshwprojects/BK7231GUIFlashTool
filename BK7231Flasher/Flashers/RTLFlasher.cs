@@ -217,19 +217,19 @@ namespace BK7231Flasher
             //    addError("Error Set Baud!" + Environment.NewLine);
             //    return true;
             //}
-            byte[] dat = FLoaders.B64GZ_ToBytes(FLoaders.AmebaDFLoader);
+            byte[] dat = FLoaders.GetBinaryFromAssembly("AmebaDFLoader");
             int offset = 0x00082000;
             bool skipUpload = false;
             var regSkip = new byte[0];
             switch(chipType)
             {
                 case BKType.RTL8710B:
-                    dat = FLoaders.B64GZ_ToBytes(FLoaders.AmebaZ_NewFloader);
+                    dat = FLoaders.GetBinaryFromAssembly("AmebaZ_NewFloader");
                     offset = 0x10002000;
                     regSkip = new byte[4] { 25, 32, 0, 16 };
                     break;
                 case BKType.RTL8720D:
-                    FLoaders.B64GZ_ToBytes(FLoaders.AmebaDFLoader);
+                    FLoaders.GetBinaryFromAssembly("AmebaDFLoader");
                     offset = 0x00082000;
                     regSkip = new byte[4] { 33, 32, 8, 0 };
                     break;
@@ -532,7 +532,7 @@ namespace BK7231Flasher
             {
                 int givenBaud = baud;
                 int x = 0x0D;
-                int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000 };
+                int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000, 2100000, 2764800, 3000000, 3250000, 3692300, 3750000, 4000000, 6000000 };
                 foreach(int el in br)
                 {
                     if(el >= baud)
@@ -593,7 +593,8 @@ namespace BK7231Flasher
             catch
             {
                 addError("Error: ReOpen COM port at " + baud);
-                Environment.Exit(-1);
+                return false;
+                //Environment.Exit(-1);
             }
             return true;
         }

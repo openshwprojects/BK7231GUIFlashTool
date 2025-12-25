@@ -117,7 +117,7 @@ namespace BK7231Flasher
 
 		private bool UploadStub()
 		{
-			var stub = FLoaders.B64GZ_ToBytes(FLoaders.ECR6600_Stub_Custom);
+			var stub = FLoaders.GetBinaryFromAssembly("ECR6600_Stub_Custom");
 			var startupAddress = 0x10000; // works even if 0
 			var empty = new byte[8];
 			var dat = new List<byte>()
