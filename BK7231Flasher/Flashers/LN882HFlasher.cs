@@ -265,7 +265,7 @@ namespace BK7231Flasher
             string msg = "";
             if(!isRamcode)
             {
-                byte[] dat = Convert.FromBase64String(FLoaders.LN882H_RamCode);
+                byte[] dat = FLoaders.B64GZ_ToBytes(FLoaders.LN882H_RamCode);
                 serial.Write($"download [rambin] [0x20000000] [{dat.Length}]\r\n");
                 addLogLine("Will send file via YModem");
 
@@ -366,7 +366,7 @@ namespace BK7231Flasher
                     }
                     Array.Copy(buf, nocrc, packetsize - 2);
                     Array.ConstrainedCopy(buf, packetsize - 2, crc, 0, 2);
-                    ushort calc_crc = YModem.calc_crc(nocrc);
+                    ushort calc_crc = CRC16.Compute(CRC16Type.XMODEM, nocrc);
                     ushort sentcrc = (ushort)(crc[1] << 8 | crc[0]);
                     if (sentcrc != calc_crc)
                     {

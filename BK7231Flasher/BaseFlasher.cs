@@ -159,6 +159,10 @@ namespace BK7231Flasher
         {
             return "0x" + i.ToString("X2");
         }
+        public static string formatHex(long i)
+        {
+            return "0x" + i.ToString("X2");
+        }
         public void setSkipKeyCheck(bool b)
         {
             bSkipKeyCheck = b;

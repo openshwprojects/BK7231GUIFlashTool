@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      FLASHERVERSION: ${{ github.run_number }}
 
     steps:
       - name: Checkout repository
@@ -103,16 +105,16 @@ jobs:
       - name: Create ZIP File
         run: |
           mkdir release
-          powershell Compress-Archive -Path "BuildOutput/Release/*" -DestinationPath "release/BK7231GUIFlashTool-v${{ github.run_number }}.zip"
+          powershell Compress-Archive -Path "BuildOutput/Release/*" -DestinationPath "release/BK7231GUIFlashTool-build-${{ github.run_number }}.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: BK7231GUIFlashTool v${{ github.run_number }}
+          name: BK7231GUIFlashTool build ${{ github.run_number }}
           body: |
             Automated release for BK7231GUIFlashTool.
             Includes the latest .exe, .dll files, and loaders directory.
           draft: false
           prerelease: false
-          files: release/BK7231GUIFlashTool-v${{ github.run_number }}.zip
+          files: release/BK7231GUIFlashTool-build-${{ github.run_number }}.zip

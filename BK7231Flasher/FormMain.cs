@@ -8,6 +8,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Net;
 using System.Net.Security;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,7 +53,8 @@ namespace BK7231Flasher
         {
             Singleton = this;
             InitializeComponent();
-
+            var version = Assembly.GetExecutingAssembly().GetCustomAttribute<BuildVersion>().Value;
+            Text += $" (build {(string.IsNullOrWhiteSpace(version) ? "local" : version)})";
         }
         public string getFirmwareDir()
         {
@@ -154,9 +156,9 @@ namespace BK7231Flasher
             this.DragDrop += new DragEventHandler(Control_DragDrop);
 
             ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;// | SecurityProtocolType.Ssl3;
             ServicePointManager.Expect100Continue = true;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;// | SecurityProtocolType.Ssl3;
 
             buttonIPSaveResultToFile.Enabled = false;
             setIPDeviceButtonsState(false);
@@ -1814,6 +1816,17 @@ namespace BK7231Flasher
             cp.ofs = 0;
             cp.sourceFileName = "";
             doCustomWrite(cp);
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Assembly)]
+    public class BuildVersion : Attribute
+    {
+        public string Value { get; set; }
+
+        public BuildVersion(string value)
+        {
+            Value = value;
         }
     }
 }
