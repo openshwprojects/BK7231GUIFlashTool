@@ -327,6 +327,7 @@ namespace BK7231Flasher
         }
         public bool loadAndRunPreprocessedImage(byte[] file)
         {
+
             addLogLine("Sending boot header...");
             // loadBootHeader
             this.executeCommand(0x11, file, 0, 176);
