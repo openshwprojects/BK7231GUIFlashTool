@@ -57,26 +57,26 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Beken_Crypto.cs" />
+    <Compile Include="Utils\Beken_Crypto.cs" />
     <Compile Include="FormMain.Decryption.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Flashers\RDAFlasher.cs" />
-    <Compile Include="Xmodem.cs" />
+    <Compile Include="Utils\Xmodem.cs" />
     <Compile Include="Flashers\WMFlasher.cs" />
     <Compile Include="Flashers\ECR6600Flasher.cs" />
-    <Compile Include="BaseFlasher.cs" />
-    <Compile Include="Utils\BitUtils.cs" />
-    <Compile Include="BK7231Flasher.cs" />
-    <Compile Include="BKFlashList.cs" />
+    <Compile Include="Flashers\BaseFlasher.cs" />
+    <Compile Include="Helpers\BitUtils.cs" />
+    <Compile Include="Flashers\BK7231Flasher.cs" />
+    <Compile Include="Misc\BKFlashList.cs" />
     <Compile Include="Flashers\RTLZ2Flasher.cs" />
     <Compile Include="Flashers\BL602Flasher.cs" />
-    <Compile Include="CH341DEV.cs" />
-    <Compile Include="Colors.cs" />
-    <Compile Include="ConfigBase.cs" />
-    <Compile Include="CRC.cs" />
-    <Compile Include="EasyFlash.cs" />
-    <Compile Include="FLoaders.cs" />
+    <Compile Include="Utils\CH341DEV.cs" />
+    <Compile Include="Helpers\Colors.cs" />
+    <Compile Include="Misc\ConfigBase.cs" />
+    <Compile Include="Utils\CRC.cs" />
+    <Compile Include="Utils\EasyFlash.cs" />
+    <Compile Include="Misc\FLoaders.cs" />
     <Compile Include="FormDownloader.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -128,29 +128,29 @@
     <Compile Include="FormPrompt.Designer.cs">
       <DependentUpon>FormPrompt.cs</DependentUpon>
     </Compile>
-    <Compile Include="ILogListener.cs" />
+    <Compile Include="Helpers\ILogListener.cs" />
     <Compile Include="Flashers\LN882HFlasher.cs" />
     <Compile Include="Utils\MiscUtils.cs" />
-    <Compile Include="ModifyProgressBarColor.cs" />
-    <Compile Include="MySettings.cs" />
-    <Compile Include="OBKConfig.cs" />
-    <Compile Include="OBKDeviceAPI.cs" />
-    <Compile Include="OBKFlags.cs" />
-    <Compile Include="OBKFlashLayout.cs" />
-    <Compile Include="OBKMassBackup.cs" />
-    <Compile Include="OBKRoles.cs" />
-    <Compile Include="OBKScanner.cs" />
+    <Compile Include="Helpers\ModifyProgressBarColor.cs" />
+    <Compile Include="Misc\MySettings.cs" />
+    <Compile Include="Misc\OBKConfig.cs" />
+    <Compile Include="Misc\OBKDeviceAPI.cs" />
+    <Compile Include="Misc\OBKFlags.cs" />
+    <Compile Include="Misc\OBKFlashLayout.cs" />
+    <Compile Include="Misc\OBKMassBackup.cs" />
+    <Compile Include="Misc\OBKRoles.cs" />
+    <Compile Include="Misc\OBKScanner.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utils\Rand.cs" />
+    <Compile Include="Helpers\Rand.cs" />
     <Compile Include="Flashers\RTLFlasher.cs" />
     <Compile Include="Flashers\SPIFlasher.cs" />
     <Compile Include="Flashers\SPIFlasher_Beken.cs" />
-    <Compile Include="TuyaConfig.cs" />
+    <Compile Include="Utils\TuyaConfig.cs" />
     <Compile Include="Utils\RFPartitionUtil.cs" />
-    <Compile Include="Utils\RichTextUtil.cs" />
-    <Compile Include="TuyaModules.cs" />
-    <Compile Include="YModem.cs" />
+    <Compile Include="Helpers\RichTextUtil.cs" />
+    <Compile Include="Misc\TuyaModules.cs" />
+    <Compile Include="Utils\YModem.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
       <SubType>Designer</SubType>
