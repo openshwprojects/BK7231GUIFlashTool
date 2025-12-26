@@ -23,6 +23,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>CS0168, CS0162, CS0649</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -57,7 +58,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Beken_Crypto.cs" />
-    <Compile Include="BuildVersion.cs" />
     <Compile Include="FormMain.Decryption.cs">
       <SubType>Form</SubType>
     </Compile>

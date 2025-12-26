@@ -12,7 +12,7 @@ namespace BK7231Flasher
 {
     public class BL602Flasher : BaseFlasher
     {
-        int timeoutMs = 10000;
+        //int timeoutMs = 10000;
         int flashSizeMB = 2;
         byte[] flashID;
 
