@@ -12,6 +12,7 @@
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -76,7 +77,7 @@
     <Compile Include="Misc\ConfigBase.cs" />
     <Compile Include="Utils\CRC.cs" />
     <Compile Include="Utils\EasyFlash.cs" />
-    <Compile Include="Misc\FLoaders.cs" />
+    <Compile Include="Helpers\FLoaders.cs" />
     <Compile Include="FormDownloader.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -206,6 +207,7 @@
     <EmbeddedResource Include="Floaders\BL602_Boot.bin" />
     <EmbeddedResource Include="Floaders\BL602_Dts.bin" />
     <EmbeddedResource Include="Floaders\BL602_Partitions.bin" />
+    <EmbeddedResource Include="Floaders\BL702Floader.bin" />
     <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
     <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
     <EmbeddedResource Include="Floaders\W800_Stub.bin" />

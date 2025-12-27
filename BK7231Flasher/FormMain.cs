@@ -43,6 +43,7 @@ namespace BK7231Flasher
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
             { BKType.LN882H,     "LN882H" },
             { BKType.BL602,      "BL602" },
+            { BKType.BL702,      "BL702 (read)" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.W800,       "W800" },
             { BKType.W600,       "W600 (write)" },
@@ -487,6 +488,7 @@ namespace BK7231Flasher
                     flasher = new LN882HFlasher(cts.Token);
                     break;
                 case BKType.BL602:
+                case BKType.BL702:
                     flasher = new BL602Flasher(cts.Token);
                     break;
                 case BKType.BekenSPI:
