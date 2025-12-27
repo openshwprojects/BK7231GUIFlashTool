@@ -12,6 +12,7 @@
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -23,6 +24,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>CS0168, CS0162, CS0649</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -56,26 +58,26 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Beken_Crypto.cs" />
+    <Compile Include="Utils\Beken_Crypto.cs" />
     <Compile Include="FormMain.Decryption.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RDAFlasher.cs" />
-    <Compile Include="Xmodem.cs" />
-    <Compile Include="WMFlasher.cs" />
-    <Compile Include="ECR6600Flasher.cs" />
-    <Compile Include="BaseFlasher.cs" />
-    <Compile Include="BitUtils.cs" />
-    <Compile Include="BK7231Flasher.cs" />
-    <Compile Include="BKFlashList.cs" />
-    <Compile Include="RTLZ2Flasher.cs" />
-    <Compile Include="BL602Flasher.cs" />
-    <Compile Include="CH341DEV.cs" />
-    <Compile Include="Colors.cs" />
-    <Compile Include="ConfigBase.cs" />
-    <Compile Include="CRC.cs" />
-    <Compile Include="EasyFlash.cs" />
-    <Compile Include="FLoaders.cs" />
+    <Compile Include="Flashers\RDAFlasher.cs" />
+    <Compile Include="Utils\Xmodem.cs" />
+    <Compile Include="Flashers\WMFlasher.cs" />
+    <Compile Include="Flashers\ECR6600Flasher.cs" />
+    <Compile Include="Flashers\BaseFlasher.cs" />
+    <Compile Include="Helpers\BitUtils.cs" />
+    <Compile Include="Flashers\BK7231Flasher.cs" />
+    <Compile Include="Misc\BKFlashList.cs" />
+    <Compile Include="Flashers\RTLZ2Flasher.cs" />
+    <Compile Include="Flashers\BL602Flasher.cs" />
+    <Compile Include="Utils\CH341DEV.cs" />
+    <Compile Include="Helpers\Colors.cs" />
+    <Compile Include="Misc\ConfigBase.cs" />
+    <Compile Include="Utils\CRC.cs" />
+    <Compile Include="Utils\EasyFlash.cs" />
+    <Compile Include="Helpers\FLoaders.cs" />
     <Compile Include="FormDownloader.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -127,31 +129,29 @@
     <Compile Include="FormPrompt.Designer.cs">
       <DependentUpon>FormPrompt.cs</DependentUpon>
     </Compile>
-    <Compile Include="ILogListener.cs" />
-    <Compile Include="LN882HFlasher.cs" />
-    <Compile Include="MiscUtils.cs" />
-    <Compile Include="ModifyProgressBarColor.cs" />
-    <Compile Include="MySettings.cs" />
-    <Compile Include="OBKConfig.cs" />
-    <Compile Include="OBKDeviceAPI.cs" />
-    <Compile Include="OBKFlags.cs" />
-    <Compile Include="OBKFlashLayout.cs" />
-    <Compile Include="OBKMassBackup.cs" />
-    <Compile Include="OBKRoles.cs" />
-    <Compile Include="OBKScanner.cs" />
+    <Compile Include="Helpers\ILogListener.cs" />
+    <Compile Include="Flashers\LN882HFlasher.cs" />
+    <Compile Include="Utils\MiscUtils.cs" />
+    <Compile Include="Helpers\ModifyProgressBarColor.cs" />
+    <Compile Include="Misc\MySettings.cs" />
+    <Compile Include="Misc\OBKConfig.cs" />
+    <Compile Include="Misc\OBKDeviceAPI.cs" />
+    <Compile Include="Misc\OBKFlags.cs" />
+    <Compile Include="Misc\OBKFlashLayout.cs" />
+    <Compile Include="Misc\OBKMassBackup.cs" />
+    <Compile Include="Misc\OBKRoles.cs" />
+    <Compile Include="Misc\OBKScanner.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Rand.cs" />
-    <Compile Include="RequiredLibrariesCheck.cs" />
-    <Compile Include="RTLFlasher.cs" />
-    <Compile Include="SPIFlasher.cs" />
-    <Compile Include="SPIFlasher_Beken.cs" />
-    <Compile Include="TuyaConfig.cs" />
-    <Compile Include="RFPartitionUtil.cs" />
-    <Compile Include="RichTextUtil.cs" />
-    <Compile Include="SecurityProtocolTypeExtensions.cs" />
-    <Compile Include="TuyaModules.cs" />
-    <Compile Include="YModem.cs" />
+    <Compile Include="Helpers\Rand.cs" />
+    <Compile Include="Flashers\RTLFlasher.cs" />
+    <Compile Include="Flashers\SPIFlasher.cs" />
+    <Compile Include="Flashers\SPIFlasher_Beken.cs" />
+    <Compile Include="Utils\TuyaConfig.cs" />
+    <Compile Include="Utils\RFPartitionUtil.cs" />
+    <Compile Include="Helpers\RichTextUtil.cs" />
+    <Compile Include="Misc\TuyaModules.cs" />
+    <Compile Include="Utils\YModem.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -197,6 +197,20 @@
     <AdditionalFiles Include="easyflash\libef_GRAN8.so">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </AdditionalFiles>
+    <EmbeddedResource Include="Floaders\AmebaDFLoader.bin" />
+    <EmbeddedResource Include="Floaders\AmebaZ_NewFloader.bin" />
+    <EmbeddedResource Include="Floaders\BK7231N_1_0_1.bin" />
+    <EmbeddedResource Include="Floaders\BK7231N_1_0_13.bin" />
+    <EmbeddedResource Include="Floaders\BL602Floader.bin" />
+    <EmbeddedResource Include="Floaders\BL602_1MBPartitions.bin" />
+    <EmbeddedResource Include="Floaders\BL602_AppHdr.bin" />
+    <EmbeddedResource Include="Floaders\BL602_Boot.bin" />
+    <EmbeddedResource Include="Floaders\BL602_Dts.bin" />
+    <EmbeddedResource Include="Floaders\BL602_Partitions.bin" />
+    <EmbeddedResource Include="Floaders\BL702Floader.bin" />
+    <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
+    <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
+    <EmbeddedResource Include="Floaders\W800_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -230,4 +244,15 @@
     </AdditionalFiles>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="BeforeBuild">
+    <ItemGroup>
+      <AssemblyAttributes Include="BK7231Flasher.BuildVersion">
+        <_Parameter1>$(FLASHERVERSION)</_Parameter1>
+      </AssemblyAttributes>
+    </ItemGroup>
+    <WriteCodeFragment AssemblyAttributes="@(AssemblyAttributes)" Language="C#" OutputFile="BuildVersion.cs">
+      <Output TaskParameter="OutputFile" ItemName="Compile" />
+      <Output TaskParameter="OutputFile" ItemName="FileWrites" />
+    </WriteCodeFragment>
+  </Target>
 </Project>

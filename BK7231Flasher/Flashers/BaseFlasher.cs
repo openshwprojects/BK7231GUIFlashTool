@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.IO.Ports;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BK7231Flasher
 {
@@ -24,6 +23,8 @@ namespace BK7231Flasher
         RTL8720E,
         LN882H,
         BL602,
+        BL616,
+        BL702,
         ECR6600,
         W600,
         W800,
@@ -156,6 +157,10 @@ namespace BK7231Flasher
             return "0x" + i.ToString("X2");
         }
         public static string formatHex(uint i)
+        {
+            return "0x" + i.ToString("X2");
+        }
+        public static string formatHex(long i)
         {
             return "0x" + i.ToString("X2");
         }

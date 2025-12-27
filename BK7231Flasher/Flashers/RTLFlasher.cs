@@ -14,7 +14,6 @@ namespace BK7231Flasher
         int timeoutMs = 200;
         int flashSizeMB = 2;
         byte[] flashID;
-        bool isInFloaderMode = false;
         MemoryStream ms;
         
         private static readonly byte CMD_USB = 0x05; // UART Set Baud
@@ -24,7 +23,7 @@ namespace BK7231Flasher
         private static readonly byte CMD_SFS = 0x26; // FLASH Write Status Register
         private static readonly byte CMD_CRC = 0x27; // Check Flash write checksum
         private static readonly byte CMD_RWA = 0x31; // Read dword <addr, 4 byte> -> 0x31,<dword, 4 byte>,  0x15
-        private static readonly byte CMD_ABRT = 0x1B; // User Break (End xmodem mode (write RAM/Flash mode))
+        //private static readonly byte CMD_ABRT = 0x1B; // User Break (End xmodem mode (write RAM/Flash mode))
 
         public RTLFlasher(CancellationToken ct) : base(ct)
         {
@@ -218,35 +217,34 @@ namespace BK7231Flasher
             //    addError("Error Set Baud!" + Environment.NewLine);
             //    return true;
             //}
-            byte[] dat = Convert.FromBase64String(FLoaders.AmebaDFLoader);
+            byte[] dat = FLoaders.GetBinaryFromAssembly("AmebaDFLoader");
             int offset = 0x00082000;
             bool skipUpload = false;
             var regSkip = new byte[0];
             switch(chipType)
             {
                 case BKType.RTL8710B:
-                    dat = Convert.FromBase64String(FLoaders.AmebaZ_NewFloader);
+                    dat = FLoaders.GetBinaryFromAssembly("AmebaZ_NewFloader");
                     offset = 0x10002000;
                     regSkip = new byte[4] { 25, 32, 0, 16 };
                     break;
                 case BKType.RTL8720D:
-                    Convert.FromBase64String(FLoaders.AmebaDFLoader);
+                    FLoaders.GetBinaryFromAssembly("AmebaDFLoader");
                     offset = 0x00082000;
                     regSkip = new byte[4] { 33, 32, 8, 0 };
                     break;
-                case BKType.RTL8721DA:
-                    Convert.FromBase64String(FLoaders.AmebaDplusFLoader);
-                    offset = 0x00082000;
-                    break;
-                case BKType.RTL8720E:
-                    Convert.FromBase64String(FLoaders.AmebaLiteFloader);
-                    offset = 0x00082000;
-                    break;
+                //case BKType.RTL8721DA:
+                //    FLoaders.B64GZ_ToBytes(FLoaders.AmebaDplusFLoader);
+                //    offset = 0x00082000;
+                //    break;
+                //case BKType.RTL8720E:
+                //    FLoaders.B64GZ_ToBytes(FLoaders.AmebaLiteFloader);
+                //    offset = 0x00082000;
+                //    break;
             }
             byte[] regs = ReadRegs(offset, 4);
             if(regs != null && regs.Length == 4 && regs.SequenceEqual(regSkip))
             {
-                isInFloaderMode = true;
                 skipUpload = true;
                 addLog("RAM code is already uploaded." + Environment.NewLine);
             }
@@ -265,7 +263,6 @@ namespace BK7231Flasher
                 }
                 stream.Close();
                 RestoreComBaud();
-                isInFloaderMode = true;
                 if(!SetBaud(baud))
                 {
                     addError("Error Set Baud!" + Environment.NewLine);
@@ -299,7 +296,6 @@ namespace BK7231Flasher
         {
             int count = (size + 4095) / 4096;
             var expectedPackets = count * 4;
-            int totalRead = 0;
             offset &= 0xffffff;
 
             logger.setProgress(0, count);
@@ -497,10 +493,12 @@ namespace BK7231Flasher
                 try
                 {
                     int val = serial.ReadByte();
+#if false
                     if (false)
                     {
                         Console.WriteLine("Try " + retries + " wants " + code + " got " + val);
                     }
+#endif
                     if (val == -1)
                         return false;
                     if ((byte)val == code)
@@ -534,7 +532,7 @@ namespace BK7231Flasher
             {
                 int givenBaud = baud;
                 int x = 0x0D;
-                int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000 };
+                int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000, 2100000, 2764800, 3000000, 3250000, 3692300, 3750000, 4000000, 6000000 };
                 foreach(int el in br)
                 {
                     if(el >= baud)
@@ -595,7 +593,8 @@ namespace BK7231Flasher
             catch
             {
                 addError("Error: ReOpen COM port at " + baud);
-                Environment.Exit(-1);
+                return false;
+                //Environment.Exit(-1);
             }
             return true;
         }
