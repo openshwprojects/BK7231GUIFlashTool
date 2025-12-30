@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO.Ports;
+using System.Text;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -238,6 +239,15 @@ namespace BK7231Flasher
         }
 
         public virtual void Dispose() { }
+
+        public static string HashToStr(byte[] data)
+        {
+            var sb = new StringBuilder();
+            foreach(byte b in data)
+                sb.Append(b.ToString("X2"));
+
+            return sb.ToString();
+        }
     }
 }
 

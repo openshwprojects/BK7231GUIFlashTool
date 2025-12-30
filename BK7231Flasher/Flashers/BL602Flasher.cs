@@ -506,9 +506,9 @@ namespace BK7231Flasher
             using(var hasher = SHA256.Create())
             {
                 var sha = hasher.ComputeHash(data);
-                sha256read = RTLZ2Flasher.HashToStr(sha);
+                sha256read = HashToStr(sha);
             }
-            var sha256flash = RTLZ2Flasher.HashToStr(sha256result.Skip(2).ToArray());
+            var sha256flash = HashToStr(sha256result.Skip(2).ToArray());
             if(sha256flash != sha256read)
             {
                 addErrorLine($"Hash mismatch!\r\nexpected\t{sha256read}\r\ngot\t{sha256flash}");
