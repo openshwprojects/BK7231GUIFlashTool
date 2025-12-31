@@ -43,7 +43,7 @@ namespace BK7231Flasher
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
             { BKType.LN882H,     "LN882H" },
             { BKType.BL602,      "BL602" },
-            { BKType.BL702,      "BL702 (read)" },
+            { BKType.BL702,      "BL702 (read/restore)" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.W800,       "W800" },
             { BKType.W600,       "W600 (write)" },

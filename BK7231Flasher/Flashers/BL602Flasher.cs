@@ -168,7 +168,10 @@ namespace BK7231Flasher
         byte[] readFully()
         {
             byte[] r = new byte[serial.BytesToRead];
-            serial.Read(r, 0, r.Length);
+            for(int i = 0; i < r.Length; i++)
+            {
+                serial.Read(r, i, 1);
+            }
             return r;
         }
         byte[] executeCommand(int type, byte[] parms = null,
@@ -191,7 +194,9 @@ namespace BK7231Flasher
                 }
                 chksum = (byte)(chksum & 0xFF);
             }
-            byte[] raw = new byte[] { (byte)type, chksum, (byte)(len & 0xFF), (byte)(len >> 8) };
+            var raw = new byte[] { (byte)type, chksum, (byte)(len & 0xFF), (byte)(len >> 8) };
+            serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
             serial.Write(raw, 0, raw.Length);
             if (parms != null)
             {
@@ -222,7 +227,10 @@ namespace BK7231Flasher
             if (serial.BytesToRead >= 2)
             {
                 byte[] rep = new byte[2];
-                serial.Read(rep, 0, 2);
+                for(int i = 0; i < rep.Length; i++)
+                {
+                    serial.Read(rep, i, 1);
+                }
                 if (rep[0] == 'O' && rep[1] == 'K')
                 {
                     // Console.Write(".ok.");
@@ -234,6 +242,28 @@ namespace BK7231Flasher
                     addLogLine("Command fail!");
                     ret = readFully();
                     return null;
+                }
+                else if (rep[0] == 'P' && rep[1] == 'D')
+                {
+                    int errcount = 500;
+                    while(errcount-- > 0)
+                    {
+                        try
+                        {
+                            for(int i = 0; i < rep.Length; i++)
+                            {
+                                serial.Read(rep, i, 1);
+                            }
+                        }
+                        catch { }
+                        if(rep[0] == 'O' && rep[1] == 'K')
+                            return readFully();
+                        else if(rep[0] == 'P' && rep[1] == 'D')
+                            addLogLine("Command pending...");
+                        rep[0] = 0;
+                        Thread.Sleep(20);
+                    }
+                    return readFully();
                 }
             }
             if(expectedReplyLen != 0) addLogLine("Command timed out!");
@@ -254,6 +284,8 @@ namespace BK7231Flasher
         {
             try
             {
+                var bufLen = 1024;
+                if(chipType == BKType.BL602) bufLen = 4096;
                 if(len < 0)
                     len = data.Length;
                 int ofs = 0;
@@ -261,22 +293,27 @@ namespace BK7231Flasher
                 logger.setProgress(0, len);
                 doErase(adr, (len + 4095) / 4096);
                 addLogLine("Starting flash write " + len);
-                byte[] buffer = new byte[4100];
+                byte[] buffer = new byte[bufLen + 4];
                 logger.setState("Writing", Color.White);
+                Thread.Sleep(1000);
                 while(ofs < len)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    addLog("." + formatHex(ofs) + ".");
+                    if(ofs % 0x1000 == 0) addLog("." + formatHex(ofs) + ".");
                     int chunk = len - ofs;
-                    if(chunk > 4096)
-                        chunk = 4096;
+                    if(chunk > bufLen)
+                        chunk = bufLen;
                     buffer[0] = (byte)(adr & 0xFF);
                     buffer[1] = (byte)((adr >> 8) & 0xFF);
                     buffer[2] = (byte)((adr >> 16) & 0xFF);
                     buffer[3] = (byte)((adr >> 24) & 0xFF);
                     Array.Copy(data, ofs, buffer, 4, chunk);
                     int bufferLen = chunk + 4;
-                    executeCommand(0x31, buffer, 0, bufferLen, true, 2);
+                    int errCnt = 0;
+                    while(executeCommand(0x31, buffer, 0, bufferLen, true, 5) == null && errCnt < 20)
+                        errCnt++;
+                    if(errCnt >= 20)
+                        throw new Exception("Read failed!");
                     ofs += chunk;
                     adr += chunk;
                     logger.setProgress(ofs, len);
@@ -539,7 +576,7 @@ namespace BK7231Flasher
         public override bool doErase(int startSector, int sectors, bool bAll = false)
         {
             logger.setState("Erasing...", Color.White);
-            int errcount = 1000;
+            int errcount = 100;
             if(bAll)
             {
                 if (doGenericSetup() == false)
@@ -586,7 +623,7 @@ namespace BK7231Flasher
                     addLogLine("Erase pending...");
                 else
                     addLogLine($"Unknown response, {(char)buf[0]}{(char)buf[1]}");
-                Thread.Sleep(2);
+                Thread.Sleep(20);
             }
             if(errcount > 0) logger.setState("Erase done", Color.DarkGreen);
             else
@@ -640,7 +677,7 @@ namespace BK7231Flasher
                 {
                     if(chipType != BKType.BL602)
                     {
-                        addErrorLine($"Firmware write is not supported on {chipType}");
+                        addErrorLine($"Firmware write is not supported on {chipType}. If you intend to restore a backup, make sure that file name starts with 'readResult'");
                         return;
                     }
                     //if(bOverwriteBootloader)
