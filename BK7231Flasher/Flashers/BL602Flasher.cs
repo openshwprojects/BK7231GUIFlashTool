@@ -284,8 +284,7 @@ namespace BK7231Flasher
         {
             try
             {
-                var bufLen = 1024;
-                if(chipType == BKType.BL602) bufLen = 4096;
+                var bufLen = 4096;
                 if(len < 0)
                     len = data.Length;
                 int ofs = 0;
