@@ -574,7 +574,10 @@ namespace BK7231Flasher
                 var buf = new byte[2];
                 try
                 {
-                    serial.Read(buf, 0, 2);
+                    for(int i = 0; i < buf.Length; i++)
+                    {
+                        serial.Read(buf, i, 1);
+                    }
                 }
                 catch { continue; }
                 if(buf[0] == 'O' && buf[1] == 'K')
