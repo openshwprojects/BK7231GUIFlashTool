@@ -602,33 +602,13 @@ namespace BK7231Flasher
                 cmdBuffer[5] = (byte)((end >> 8) & 0xFF);
                 cmdBuffer[6] = (byte)((end >> 16) & 0xFF);
                 cmdBuffer[7] = (byte)((end >> 24) & 0xFF);
-                executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 0, 0);
-            }
-            Thread.Sleep(150);
-            while(errcount-- > 0)
-            {
-                var buf = new byte[2];
-                try
-                {
-                    for(int i = 0; i < buf.Length; i++)
-                    {
-                        serial.Read(buf, i, 1);
-                    }
-                }
-                catch { continue; }
-                if(buf[0] == 'O' && buf[1] == 'K')
-                    break;
-                else if(buf[0] == 'P' && buf[1] == 'D')
-                    addLogLine("Erase pending...");
+                var res = executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 30);
+                if(res != null) logger.setState("Erase done", Color.DarkGreen);
                 else
-                    addLogLine($"Unknown response, {(char)buf[0]}{(char)buf[1]}");
-                Thread.Sleep(20);
-            }
-            if(errcount > 0) logger.setState("Erase done", Color.DarkGreen);
-            else
-            {
-                logger.setState("Erase failed!", Color.Red);
-                return false;
+                {
+                    logger.setState("Erase failed!", Color.Red);
+                    return false;
+                }
             }
             serial.DiscardInBuffer();
             return true;
