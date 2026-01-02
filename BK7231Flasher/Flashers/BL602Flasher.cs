@@ -13,7 +13,7 @@ namespace BK7231Flasher
     public class BL602Flasher : BaseFlasher
     {
         //int timeoutMs = 10000;
-        int flashSizeMB = 2;
+        float flashSizeMB = 2;
         byte[] flashID;
         BLInfo blinfo = null;
 
@@ -34,7 +34,7 @@ namespace BK7231Flasher
                     if(i % 10 == 1)
                     {
                         addLogLine($"If doing something immediately after another operation, it might not sync for about half a minute");
-                        addLogLine($"Otherwise, please pull high BOOT/IO8 and reset.");
+                        addLogLine($"Otherwise, please pull high BOOT/{(chipType == BKType.BL602 ? "IO8" : "IO28")} and reset.");
                     }
                     Thread.Sleep(50);
                 }
@@ -54,7 +54,7 @@ namespace BK7231Flasher
             serial.DiscardInBuffer();
 
             // Write initialization sequence
-            byte[] syncRequest = new byte[70];
+            byte[] syncRequest = new byte[16];
             for (int i = 0; i < syncRequest.Length; i++) syncRequest[i] = (byte)'U';
             serial.Write(syncRequest, 0, syncRequest.Length);
 
@@ -67,7 +67,7 @@ namespace BK7231Flasher
                 {
                     byte[] response = new byte[2];
                     serial.Read(response, 0, 2);
-                    if (response[0] == 'O' && response[1] == 'K')
+                    if ((response[0] == 'O' && response[1] == 'K') || (response[0] == 'K' && response[1] == 'O'))
                     {
                         return true;
                     }
@@ -151,7 +151,7 @@ namespace BK7231Flasher
 
             if (res.Length >= 6)
             {
-                flashSizeMB = (1 << (res[4] - 0x11)) / 8;
+                flashSizeMB = (float)(1 << (res[4] - 0x11)) / 8;
                 if(flashSizeMB > 32)
                 {
                     return null;
@@ -444,7 +444,7 @@ namespace BK7231Flasher
             {
                 return ;
             }
-            if(fullRead) sectors = flashSizeMB * 256;
+            if(fullRead) sectors = (int)(flashSizeMB * 256);
             doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
         }
 
@@ -634,7 +634,7 @@ namespace BK7231Flasher
             OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
             if(rwMode == WriteMode.ReadAndWrite)
             {
-                sectors = flashSizeMB * 256;
+                sectors = (int)(flashSizeMB * 256);
                 doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
                 if (ms == null)
                 {
