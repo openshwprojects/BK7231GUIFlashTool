@@ -27,7 +27,10 @@ namespace BK7231Flasher
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
-                xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF);
+                xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF)
+                {
+                    ReceiverTimeoutMillisec = 1000,
+                };
             }
             catch(Exception ex)
             {
@@ -295,24 +298,24 @@ namespace BK7231Flasher
 
             return false;
         }
-        public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false, bool restoreBaud = true) {
+        public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false, bool restoreBaud = true)
+        {
             serial.Write("flash_id\r\n");
             try
             {
-                Thread.Sleep(5);
-                var flashIdStr = serial.ReadExisting().Remove(0, 2);
-                flashID = Enumerable.Range(0, flashIdStr.Length)
-                    .Where(x => x % 2 == 0)
-                    .Select(x => Convert.ToByte(flashIdStr.Substring(x, 2), 16))
-                    .ToArray();
+                flashID = new byte[4];
+                for(int i = 0; i < flashID.Length; i++)
+                {
+                    serial.Read(flashID, i, 1);
+                }
             }
             catch
             {
                 addLogLine("Error on flash_id");
                 return false;
             }
-            flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
-            addLog("Flash ID: 0x" + flashID[0].ToString("X2") + flashID[1].ToString("X2") + flashID[2].ToString("X2")+Environment.NewLine);
+            flashSizeMB = (1 << (flashID[0] - 0x11)) / 8;
+            addLog("Flash ID: 0x" + flashID[2].ToString("X2") + flashID[1].ToString("X2") + flashID[0].ToString("X2")+Environment.NewLine);
             addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
             if(fullRead)
             {
@@ -332,13 +335,13 @@ namespace BK7231Flasher
             addLog($"Reading ");
             void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
             {
-                if(!isCancelled) logger.setProgress(size - toRead, size);
                 if(((size - toRead) % 0x1000) == 0)
                 {
                     addLog($"0x{offset:X}... ");
                 }
                 offset += packet.Length;
                 toRead -= packet.Length;
+                if(!isCancelled) logger.setProgress(size - toRead, size);
             }
             xm.PacketReceived += Xm_PacketReceived;
             try
@@ -346,7 +349,7 @@ namespace BK7231Flasher
                 var res = xm.Receive(ms);
                 if(res != XMODEM.TerminationReasonEnum.EndOfFile)
                 {
-                    addErrorLine($"Read failed with {res}");
+                    addErrorLine($"{Environment.NewLine}Read failed with {res}");
                     Thread.Sleep(100);
                     result = false;
                 }
