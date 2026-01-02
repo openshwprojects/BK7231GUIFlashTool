@@ -202,11 +202,7 @@ namespace BK7231Flasher
 
 		private void OnBtnEncryptBootloaderClick(object sender, EventArgs e)
 		{
-			var gzbl = new MemoryStream(Convert.FromBase64String(FLoaders.BK7231N_1_0_1_gz));
-			var gzip = new GZipStream(gzbl, CompressionMode.Decompress);
-			var stre = new MemoryStream();
-			gzip.CopyTo(stre);
-			var bootloader = stre.ToArray();
+			var bootloader = FLoaders.GetBinaryFromAssembly("BK7231N_1_0_1");
 			var keys = new uint[] { Convert.ToUInt32(numCoeff1.Text, 16), Convert.ToUInt32(numCoeff2.Text, 16), Convert.ToUInt32(numCoeff3.Text, 16), Convert.ToUInt32(numCoeff4.Text, 16) };
 			for(int i = 0x48, k = 0; i < 0x57; i += 4, k++)
 			{
@@ -233,11 +229,7 @@ namespace BK7231Flasher
 		private void OnBtnEncryptBKNBootloaderClick(object sender, EventArgs e)
 		{
 			// uascent bootloader, common versions don't encrypt OTA
-			var gzbl = new MemoryStream(Convert.FromBase64String(FLoaders.BK7231N_1_0_13_gz));
-			var gzip = new GZipStream(gzbl, CompressionMode.Decompress);
-			var stre = new MemoryStream();
-			gzip.CopyTo(stre);
-			var bootloader = stre.ToArray();
+			var bootloader = FLoaders.GetBinaryFromAssembly("BK7231N_1_0_13");
 			var keys = new uint[] { Convert.ToUInt32(numCoeff1.Text, 16), Convert.ToUInt32(numCoeff2.Text, 16), Convert.ToUInt32(numCoeff3.Text, 16), Convert.ToUInt32(numCoeff4.Text, 16) };
 			for(int i = 0x1F08, k = 0; i < 0x1F17; i += 4, k++)
 			{

@@ -175,7 +175,7 @@ namespace BK7231Flasher
                 x += column * 200;
                 y += row * 24;
                 cb.Location = new Point(x, y);
-                cb.Width = 550;
+                cb.Width = cb.Text.Length * 5 + 32;
                 cb.Height = checkBoxFlag.Height;
                 if (i != 0)
                 {

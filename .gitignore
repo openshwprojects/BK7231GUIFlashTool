@@ -6,3 +6,4 @@
 .vs/*
 
 packages
+BuildVersion.cs

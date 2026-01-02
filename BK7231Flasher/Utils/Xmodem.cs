@@ -391,7 +391,7 @@ namespace BK7231Flasher
         /// <summary>
         /// Performs blocking when the Receive() method is called by the user.
         /// </summary>
-        private ManualResetEvent ReceiverUserBlock = new ManualResetEvent(false);
+        private readonly ManualResetEvent ReceiverUserBlock = new ManualResetEvent(false);
 
         private int _NumCancellationBytesReceived = 0;
         /// <summary>
@@ -550,8 +550,7 @@ namespace BK7231Flasher
                         // A response was received from the Sender after 1 or more file initiation bytes have been sent.
 
                         // Halt the file initiation sender
-                        if (ReceiverFileInitiationTimer != null)
-                            ReceiverFileInitiationTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                        ReceiverFileInitiationTimer?.Change(Timeout.Infinite, Timeout.Infinite);
 
                         // Start the timeout/NAK watchdog
                         if (ReceiverNAKWatchdog == null)
@@ -653,8 +652,7 @@ namespace BK7231Flasher
         /// </summary>
         private void ResetNAKWatchdog()
         {
-            if (ReceiverNAKWatchdog != null)
-                ReceiverNAKWatchdog.Change(ReceiverTimeoutMillisec, ReceiverTimeoutMillisec);
+            ReceiverNAKWatchdog?.Change(ReceiverTimeoutMillisec, ReceiverTimeoutMillisec);
 
             ReceiverNumConsecutiveNAKSent = 0;
         }
@@ -723,9 +721,6 @@ namespace BK7231Flasher
 
         // Stores the check value. This will contain 1 byte for XModem-Checksum, and 2 bytes for XModem-CRC or XModem-1K.
         private byte[] ErrorCheck;
-
-        // Calculates CRC-16 CCITT checksum using polynomial (X^16 + X^12 + X^5	+ 1)
-        private CRC16CCITT CRC = new CRC16CCITT(CRC16CCITT.InitialCrcValue.Zeros);
 
         private void ReceiverPacketBuilder(byte[] freshBytes)
         {
@@ -848,7 +843,7 @@ namespace BK7231Flasher
                         int packetStartIndexSOH = Array.IndexOf(BytesToParse, SOH, headerByteSearchStartIndex);
 
                         // Look for the packet header byte
-                        int foundIndex = 0;
+                        int foundIndex;
                         if (packetStartIndexSTX > -1 && packetStartIndexSOH > -1)
                         {
                             // There is a (slim) possibility that both <SOH> and <STX> bytes may be found.                      
@@ -1072,8 +1067,7 @@ namespace BK7231Flasher
                     ExpectingFirstPacket = false;
 
                     // If user wants all received data to be outputed in one lump, add this packet to the buffer
-                    if (AllDataReceivedBuffer != null)
-                        AllDataReceivedBuffer.Write(DataPacketReceived, 0, DataPacketReceived.Length);
+                    AllDataReceivedBuffer?.Write(DataPacketReceived, 0, DataPacketReceived.Length);
 
                     ValidPacketReceived = true;
 
@@ -1125,7 +1119,7 @@ namespace BK7231Flasher
                 // CRC-16:
                 case Variants.XModemCRC:
                 case Variants.XModem1K:
-                    ushort crcChecksumCalculated = CRC.ComputeChecksum(DataPacketReceived);
+                    ushort crcChecksumCalculated = CRC16.Compute(CRC16Type.XMODEM, DataPacketReceived);
                     ushort crcChecksumReceived = BytesToUShort(ErrorCheck[0], ErrorCheck[1]);
                     if (crcChecksumCalculated == crcChecksumReceived)
                         return true;
@@ -1227,7 +1221,7 @@ namespace BK7231Flasher
 
         // ************************************* SENDER SENDER SENDER SENDER SENDER SENDER SENDER ***********************************
 
-        private ManualResetEvent WaitForResponseFromReceiver = new ManualResetEvent(false);
+        private readonly ManualResetEvent WaitForResponseFromReceiver = new ManualResetEvent(false);
 
         private Timer SenderPacketResponseWatchdog;
 
@@ -1515,7 +1509,7 @@ namespace BK7231Flasher
                 checkValueBytes = new byte[] { CheckSum(DataPacketToSend) };
             else
             {
-                ushort checkValueShort = CRC.ComputeChecksum(DataPacketToSend);
+                ushort checkValueShort = CRC16.Compute(CRC16Type.XMODEM, DataPacketToSend);
                 checkValueBytes = UShortToBytes(checkValueShort);
             }
 
@@ -1655,8 +1649,7 @@ namespace BK7231Flasher
 
         private void ResetSenderPacketResponseWatchdog()
         {
-            if (SenderPacketResponseWatchdog != null)
-                SenderPacketResponseWatchdog.Change(SenderPacketRetryTimeoutMillisec, SenderPacketRetryTimeoutMillisec);
+            SenderPacketResponseWatchdog?.Change(SenderPacketRetryTimeoutMillisec, SenderPacketRetryTimeoutMillisec);
         }
 
         private void ReceiverStillAliveWatchdogRoutine(object notUsed)
@@ -1667,8 +1660,7 @@ namespace BK7231Flasher
 
         private void ResetReceiverStillAliveWatchdog()
         {
-            if (ReceiverStillAliveWatchdog != null)
-                ReceiverStillAliveWatchdog.Change(SendInactivityTimeoutMillisec, SendInactivityTimeoutMillisec);
+            ReceiverStillAliveWatchdog?.Change(SendInactivityTimeoutMillisec, SendInactivityTimeoutMillisec);
         }
 
         /// <summary>
@@ -1725,57 +1717,5 @@ namespace BK7231Flasher
         }
 
     } // End class
-
-    /// <summary>
-    /// Calculates CRC-16 CCITT checksum using polynomial (X^16 + X^12 + X^5 + 1).
-    /// </summary>
-    public class CRC16CCITT
-    {
-        const ushort poly = 4129;
-        ushort[] table = new ushort[256];
-        ushort initialValue = 0;
-
-        public ushort ComputeChecksum(byte[] bytes)
-        {
-            ushort crc = this.initialValue;
-            for (int i = 0; i < bytes.Length; ++i)
-            {
-                crc = (ushort)((crc << 8) ^ table[((crc >> 8) ^ (0xff & bytes[i]))]);
-            }
-            return crc;
-        }
-
-        public byte[] ComputeChecksumBytes(byte[] bytes)
-        {
-            ushort crc = ComputeChecksum(bytes);
-            return BitConverter.GetBytes(crc);
-        }
-
-        public enum InitialCrcValue { Zeros, NonZero1 = 0xffff, NonZero2 = 0x1D0F }
-
-        public CRC16CCITT(InitialCrcValue initialValue)
-        {
-            this.initialValue = (ushort)initialValue;
-            ushort temp, a;
-            for (int i = 0; i < table.Length; ++i)
-            {
-                temp = 0;
-                a = (ushort)(i << 8);
-                for (int j = 0; j < 8; ++j)
-                {
-                    if (((temp ^ a) & 0x8000) != 0)
-                    {
-                        temp = (ushort)((temp << 1) ^ poly);
-                    }
-                    else
-                    {
-                        temp <<= 1;
-                    }
-                    a <<= 1;
-                }
-                table[i] = temp;
-            }
-        }
-    }
 
 } // End namespace

@@ -10,7 +10,7 @@ namespace BK7231Flasher
 {
     public class LN882HFlasher : BaseFlasher
     {
-        int timeoutMs = 10000;
+        int timeoutMs = 2000;
         int flashSizeMB = 2;
         byte[] flashID;
 
@@ -27,6 +27,10 @@ namespace BK7231Flasher
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
+                xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF)
+                {
+                    ReceiverTimeoutMillisec = 1000,
+                };
             }
             catch(Exception ex)
             {
@@ -48,44 +52,49 @@ namespace BK7231Flasher
             }
             if(mode == WriteMode.ReadAndWrite)
             {
-                doReadInternal(startSector, 0, true);
+                if(!doReadInternal(startSector, 0, true, false))
+                {
+                    return true;
+                }
                 if(saveReadResult(startSector) == false)
                 {
                     return true;
                 }
             }
-            flash_program(data,0,data?.Length ?? 0, "", false, mode);
+            flash_program(data,0,data?.Length ?? 0, "", true, mode);
             return false;
         }
-        public void change_baudrate(int baudrate)
+        public void change_baudrate(int baudrate, bool wait = true)
         {
             if(baudrate == serial.BaudRate)
                 return;
-           addLogLine("change_baudrate: Change baudrate " + baudrate);
+            addLogLine("change_baudrate: Change baudrate " + baudrate);
             serial.Write("baudrate " + baudrate + "\r\n");
             Thread.Sleep(500);
             serial.BaudRate = baudrate;
-           addLogLine("change_baudrate: Waiting for change...");
             flush_com();
+            if(!wait) return;
+            addLogLine("change_baudrate: Waiting for change...");
 
             string msg = "";
             while (!msg.Contains("RAMCODE"))
             {
-               addLogLine("change_baudrate: send version... wait for:  RAMCODE");
-                Thread.Sleep(1000);
+                if(isCancelled) return;
+                addLogLine("change_baudrate: send version... wait for:  RAMCODE");
+                //Thread.Sleep(1000);
                 flush_com();
                 serial.Write("version\r\n");
                 try
                 {
                     msg = serial.ReadLine();
-                   addLogLine(msg);
+                    //addLogLine(msg);
                     msg = serial.ReadLine();
-                   addLogLine(msg);
+                    //addLogLine(msg);
                 }
                 catch (TimeoutException) { msg = ""; }
             }
 
-           addLogLine("change_baudrate: Baudrate change done");
+            addLogLine("change_baudrate: Baudrate change done");
         }
 
         public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud, WriteMode mode)
@@ -119,7 +128,7 @@ namespace BK7231Flasher
                 addLogLine("flash_program: flashed " + len + " bytes!");
                 addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
             }
-            if(cfg != null)
+            if(cfg != null && !isCancelled)
             {
                 var offset = (uint)OBKFlashLayout.getConfigLocation(chipType, out var sectors);
                 var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
@@ -178,37 +187,6 @@ namespace BK7231Flasher
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
         }
-        bool openPort()
-        {
-            try
-            {
-                serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
-            }
-            catch (Exception ex)
-            {
-                addError("Serial port create exception: " + ex.ToString() + Environment.NewLine);
-                return true;
-            }
-            try
-            {
-              //  serial.ReadBufferSize = 4096 * 2;
-        //     serial.ReadBufferSize = 3000000;
-            }
-            catch (Exception ex)
-            {
-                addWarning("Setting serial port buffer size exception: " + ex.ToString() + Environment.NewLine);
-            }
-            try
-            {
-                serial.Open();
-            }
-            catch (Exception ex)
-            {
-                addError("Serial port open exception: " + ex.ToString() + Environment.NewLine);
-                return true;
-            }
-            return false;
-        }
         bool prepareForLoaderSend(out bool isRamcode)
         {
             isRamcode = false;
@@ -218,18 +196,21 @@ namespace BK7231Flasher
 
             string msg = "";
             int loops = 0;
-            while (msg != "Mar 14 2021/00:23:32\r")
+            int attempts = 0;
+            while (msg != "Mar 14 2021/00:23:32\r" && attempts++ < 500)
             {
-                Thread.Sleep(1000);
+                //Thread.Sleep(1000);
                 flush_com();
-                addLogLine("sending version... waiting for:  Mar 14 2021/00:23:32");
+                //addLogLine("sending version... waiting for:  Mar 14 2021/00:23:32");
                 loops++;
                 if (loops % 10 == 0 && loops>9)
                 {
                     addLogLine("Still no reply - maybe you need to pull BOOT pin down or do full power off/on before next attempt");
                 }
+                addLog($"Sync attempt {attempts}/500 ");
                 try
                 {
+                    if(isCancelled) return true;
                     serial.Write("version\r\n");
                     msg = serial.ReadLine();
                     if(msg.Equals("\r"))
@@ -239,15 +220,17 @@ namespace BK7231Flasher
                         isRamcode = true;
                         break;
                     }
-                    addLogLine(msg);
+                    //addLogLine(msg);
                 }
                 catch (TimeoutException)
                 {
+                    addWarningLine("... failed, will retry!");
                     msg = "";
                 }
             }
 
-            addLogLine("Connect to bootloader...");
+            //addLogLine("Connect to bootloader...");
+            logger.addLog("... OK!" + Environment.NewLine, Color.Green);
             return false;
         }
         public bool upload_ram_loader()
@@ -265,7 +248,7 @@ namespace BK7231Flasher
             string msg = "";
             if(!isRamcode)
             {
-                byte[] dat = Convert.FromBase64String(FLoaders.LN882H_RamCode);
+                byte[] dat = FLoaders.GetBinaryFromAssembly("LN882H_RamCode");
                 serial.Write($"download [rambin] [0x20000000] [{dat.Length}]\r\n");
                 addLogLine("Will send file via YModem");
 
@@ -275,6 +258,7 @@ namespace BK7231Flasher
                 addLogLine("Starting program. Wait....");
                 while (msg != "RAMCODE\r")
                 {
+                    if(isCancelled) return true;
                     Thread.Sleep(1000);
                     serial.DiscardInBuffer();
                     addLogLine("send version... wait for:  RAMCODE");
@@ -314,24 +298,24 @@ namespace BK7231Flasher
 
             return false;
         }
-        public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false) {
+        public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false, bool restoreBaud = true)
+        {
             serial.Write("flash_id\r\n");
             try
             {
-                Thread.Sleep(5);
-                var flashIdStr = serial.ReadExisting().Remove(0, 2);
-                flashID = Enumerable.Range(0, flashIdStr.Length)
-                    .Where(x => x % 2 == 0)
-                    .Select(x => Convert.ToByte(flashIdStr.Substring(x, 2), 16))
-                    .ToArray();
+                flashID = new byte[4];
+                for(int i = 0; i < flashID.Length; i++)
+                {
+                    serial.Read(flashID, i, 1);
+                }
             }
             catch
             {
                 addLogLine("Error on flash_id");
                 return false;
             }
-            flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
-            addLog("Flash ID: 0x" + flashID[0].ToString("X2") + flashID[1].ToString("X2") + flashID[2].ToString("X2")+Environment.NewLine);
+            flashSizeMB = (1 << (flashID[0] - 0x11)) / 8;
+            addLog("Flash ID: 0x" + flashID[2].ToString("X2") + flashID[1].ToString("X2") + flashID[0].ToString("X2")+Environment.NewLine);
             addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
             if(fullRead)
             {
@@ -339,54 +323,66 @@ namespace BK7231Flasher
             }
             change_baudrate(baudrate);
 
-            var addr = 0;
             var result = true;
-            int packetsize = 0x200 + 2;
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);
-            addLog("Reading..");
-            int loops = 0;
             serial.Write($"fdump 0x{startSector:X} 0x{size:X}\r\n");
+            ms?.Dispose();
             ms = new MemoryStream();
+            var offset = startSector;
+            int count = (size + 4095) / 4096;
+            var toRead = size;
+            addLog($"Reading ");
+            void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
             {
-                while (addr < size)
+                if(((size - toRead) % 0x1000) == 0)
                 {
-                    loops++;
-                    if (loops % 50 == 0)
-                    {
-                        addLog(startSector + "... ");
-                    }
-                    byte[] buf = new byte[packetsize];
-                    byte[] nocrc = new byte[packetsize - 2];
-                    byte[] crc = new byte[2];
-                    var read = 0;
-                    while (read < packetsize)
-                    {
-                        read += serial.Read(buf, read, packetsize - read);
-                    }
-                    Array.Copy(buf, nocrc, packetsize - 2);
-                    Array.ConstrainedCopy(buf, packetsize - 2, crc, 0, 2);
-                    ushort calc_crc = YModem.calc_crc(nocrc);
-                    ushort sentcrc = (ushort)(crc[1] << 8 | crc[0]);
-                    if (sentcrc != calc_crc)
-                    {
-                        logger.setState("CRC ERROR", Color.Red);
-                        addLogLine($"CRC FAIL at {startSector}, try lower baud?");
-                        result = false;
-                        break;
-                    }
-                    startSector += packetsize - 2;
-                    addr += packetsize - 2;
-                    logger.setProgress(addr, size);
-
-                    ms.Write(buf, 0, packetsize - 2);
+                    addLog($"0x{offset:X}... ");
+                }
+                offset += packet.Length;
+                toRead -= packet.Length;
+                if(!isCancelled) logger.setProgress(size - toRead, size);
+            }
+            xm.PacketReceived += Xm_PacketReceived;
+            try
+            {
+                var res = xm.Receive(ms);
+                if(res != XMODEM.TerminationReasonEnum.EndOfFile)
+                {
+                    addErrorLine($"{Environment.NewLine}Read failed with {res}");
+                    Thread.Sleep(100);
+                    result = false;
+                }
+                if(ms.Length != size)
+                {
+                    addError($"Read {ms.Length} bytes, but expected {size}! Try with lower baud rate?");
+                    result = false;
                 }
             }
+            finally
+            {
+                addLog(Environment.NewLine);
+                xm.PacketReceived -= Xm_PacketReceived;
+            }
+            if(result && !ChecksumVerify(startSector, size, ms.ToArray()))
+            {
+                result = false;
+            }
             t.Stop();
-            logger.setState("Reading complete!", Color.Green);
-            addLogLine($"\ndone in {t.Elapsed.TotalSeconds}s");
-            
-            change_baudrate(115200);
+            if(result)
+            {
+                logger.setState("Read complete!", Color.Green);
+            }
+            else
+            {
+                logger.setState("Read error!", Color.Red);
+                serial.Write($"{0x18}");
+                Thread.Sleep(100);
+                ms?.Dispose();
+                ms = null;
+            }
+            addLogLine($"done in {t.Elapsed.TotalSeconds}s");
+            if(restoreBaud || !result) change_baudrate(115200, false);
             return result;
         }
         MemoryStream ms;
@@ -397,7 +393,7 @@ namespace BK7231Flasher
 
         public override byte[] getReadResult()
         {
-                return ms?.GetBuffer();
+            return ms?.ToArray();
         }
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
@@ -462,6 +458,39 @@ namespace BK7231Flasher
         {
             string fileName = MiscUtils.formatDateNowFileName("readResult_" + chipType, backupName, "bin");
             return saveReadResult(fileName);
+        }
+
+        public uint GetCRC32(int offset, int size)
+        {
+            serial.Write($"flash_crc32 0x{offset:X} 0x{size:X}\r\n");
+            var data = new byte[4];
+            for(int i = 0; i < data.Length; i++)
+            {
+                serial.Read(data, i, 1);
+            }
+            return (uint)(data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24));
+        }
+
+        private bool ChecksumVerify(int startSector, int total, byte[] array)
+        {
+            logger.setState("Doing CRC verification...", Color.Transparent);
+            addLogLine($"Starting CRC check for {total / 0x1000} sectors, starting at offset 0x{startSector:X}");
+            var crc = GetCRC32(startSector, total);
+            var calc = CRC.crc32_ver2(0xFFFFFFFF, array) ^ 0xFFFFFFFF;
+            if(crc != calc)
+            {
+                logger.setState("CRC mismatch!", Color.Red);
+                addErrorLine("CRC mismatch!");
+                addErrorLine($"Sent by LN {formatHex(crc)}, our CRC {formatHex(calc)}");
+                if(bIgnoreCRCErr)
+                {
+                    addWarningLine("IgnoreCRCErr checked, bin will be saved even if there is a crc mismatch");
+                    return true;
+                }
+                return false;
+            }
+            addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
+            return true;
         }
     }
 }

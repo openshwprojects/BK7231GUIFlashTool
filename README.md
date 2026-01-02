@@ -4,9 +4,15 @@ BK7231 GUI Flash Tool a simple Windows application that allows you to flash the 
 
 Supported families:
 - Beken
-- LN882H (basic)
-- RTL8720DN (basic?)
-- BL602 (WIP)
+- BL602
+- ECR6600
+- LN882H
+- RDA5981
+- RTL8710B
+- RTL8710C
+- RTL8720D/RTL8720CS
+- W800
+- W600 (write only)
 
 Futhermore, it automatically creates an original firmware backup, and uses it to extract GPIO configuration that you can later import in OBK Web Application (Import Tab).
 
@@ -31,13 +37,13 @@ See also our [youtube channel](https://www.youtube.com/@elektrodacom) and [forum
 
 It should be possible to compile and run this tool on Linux by using [Mono](https://www.mono-project.com/). Mono is an open-source implementation of the .NET Framework which is also sponsored by Microsoft.
 
-Please note that if you're opting to run this tool under Linux, it is **highly** recommended for you to install Mono using your distro's package manager.
-
-Once it's installed, you can compile this software by executing `xbuild` on the project directory. To execute the program, you can simply execute the following command:
+Once it's installed, you can compile this software by executing `msbuild` on the project directory. To execute the program, you can simply execute the following command:
 
 `mono BK7231Flasher/bin/debug/BK7231Flasher.exe`
 
-# Brief usage instructions
+Alternatively, you can use prebuilt release binary.
+
+# Brief usage instructions (BK72xx)
 
 1. Connect UART to USB converter to Beken TXD1/RXD1
 2. Start flasher tool
@@ -50,10 +56,10 @@ Once it's installed, you can compile this software by executing `xbuild` on the 
 
 No command line and no strange arguments required.
 
-# Detailed usage instructions
+# Detailed usage instructions (BK72xx)
 
 1. Download and unpack executable from Releases tab on the right
-2. Prepare flashing circuit for BK7231 (both T and N)
+2. Prepare flashing circuit for BK72xx
 
     - Get a USB to UART bridge with 3.3V voltage signals
     - Connect the Bridge RX to Module TXD1, and Bridge TX to Module RXD1
@@ -65,7 +71,7 @@ No command line and no strange arguments required.
 
 ![image](https://user-images.githubusercontent.com/85486843/210281085-6141160b-df6d-486c-b574-ef784f5cbd56.png)
 
-4. Select proper platform - BK7231T or BK7231N
+4. Select proper platform - BK7231T, BK7231N, etc.
 5. Select your COM port of USB to UART converter
 6. Click "Download latest from Web" to get proper binary file
 7. Wait for download to finish

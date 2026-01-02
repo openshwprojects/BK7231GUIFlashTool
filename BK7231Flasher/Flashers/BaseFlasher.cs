@@ -1,8 +1,8 @@
 using System;
 using System.Drawing;
 using System.IO.Ports;
+using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BK7231Flasher
 {
@@ -24,6 +24,8 @@ namespace BK7231Flasher
         RTL8720E,
         LN882H,
         BL602,
+        BL616,
+        BL702,
         ECR6600,
         W600,
         W800,
@@ -159,6 +161,10 @@ namespace BK7231Flasher
         {
             return "0x" + i.ToString("X2");
         }
+        public static string formatHex(long i)
+        {
+            return "0x" + i.ToString("X2");
+        }
         public void setSkipKeyCheck(bool b)
         {
             bSkipKeyCheck = b;
@@ -233,6 +239,15 @@ namespace BK7231Flasher
         }
 
         public virtual void Dispose() { }
+
+        public static string HashToStr(byte[] data)
+        {
+            var sb = new StringBuilder();
+            foreach(byte b in data)
+                sb.Append(b.ToString("X2"));
+
+            return sb.ToString();
+        }
     }
 }
 

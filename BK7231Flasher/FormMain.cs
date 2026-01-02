@@ -1,13 +1,16 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.IO.Ports;
 using System.Net;
+using System.Net.Configuration;
 using System.Net.Security;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +43,7 @@ namespace BK7231Flasher
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
             { BKType.LN882H,     "LN882H" },
             { BKType.BL602,      "BL602" },
+            { BKType.BL702,      "BL702 (read/restore)" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.W800,       "W800" },
             { BKType.W600,       "W600 (write)" },
@@ -48,11 +52,14 @@ namespace BK7231Flasher
             { BKType.GenericSPI, "Generic SPI CH341" },
         };
 
+        public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
+
         public FormMain()
         {
             Singleton = this;
             InitializeComponent();
-
+            var version = Assembly.GetExecutingAssembly().GetCustomAttribute<BuildVersion>().Value;
+            Text += $" (build {(string.IsNullOrWhiteSpace(version) ? "local" : version)})";
         }
         public string getFirmwareDir()
         {
@@ -106,20 +113,6 @@ namespace BK7231Flasher
             string[] newPorts = SerialPort.GetPortNames();
             setPorts(newPorts);
         }
-        private static bool ValidateRemoteCertificate(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors error)
-        {
-            // If the certificate is a valid, signed certificate, return true.
-            if (error == System.Net.Security.SslPolicyErrors.None)
-            {
-                return true;
-            }
-
-            Console.WriteLine("X509Certificate [{0}] Policy Error: '{1}'",
-                cert.Subject,
-                error.ToString());
-
-            return false;
-        }
         string backupsPath = "backups";
         private void Control_DragEnter(object sender, DragEventArgs e)
         {
@@ -153,25 +146,14 @@ namespace BK7231Flasher
             this.DragEnter += new DragEventHandler(Control_DragEnter);
             this.DragDrop += new DragEventHandler(Control_DragDrop);
 
-            ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
-            ServicePointManager.Expect100Continue = true;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolTypeExtensions.Tls11 | SecurityProtocolTypeExtensions.Tls12;// | SecurityProtocolType.Ssl3;
+            var config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            var snsettings = (SettingsSection)config.GetSection("system.net/settings");
+            snsettings.HttpWebRequest.UseUnsafeHeaderParsing = true;
+            config.Save(ConfigurationSaveMode.Modified);
+            ConfigurationManager.RefreshSection("system.net/settings");
 
             buttonIPSaveResultToFile.Enabled = false;
             setIPDeviceButtonsState(false);
-#if false
-            {
-                byte[] data1 = { 0x01, 0x02, 0x03 };
-                byte crc1 = CRC.Tiny_CRC8(data1, 0, 3);
-                byte[] data2 = { (byte)0xF1, (byte)0xF2, (byte)0xF3 };
-                byte crc2 = CRC.Tiny_CRC8(data2, 0, 3);
-
-                Console.Write("test");
-
-            }
-#endif
-            
 
             //  var t = new TuyaConfig();
             //  t.fromFile("W:/GIT/BK7231GUIFlashTool/BK7231Flasher/bin/Release/backups/CBU_2Gang_8046/readResult_BK7231N_QIO_2023-05-5--13-40-02.bin");
@@ -218,13 +200,10 @@ namespace BK7231Flasher
             }
 
             comboBoxChipType.SelectedIndex = 0;
-            
-            comboBoxBaudRate.Items.Add(115200);
-            comboBoxBaudRate.Items.Add(230400);
-            comboBoxBaudRate.Items.Add(460800);
-            comboBoxBaudRate.Items.Add(921600);
-            comboBoxBaudRate.Items.Add(1500000);
-            comboBoxBaudRate.Items.Add(2000000);
+            foreach(var baud in BaudRates)
+            {
+                comboBoxBaudRate.Items.Add(baud);
+            }
 
             comboBoxBaudRate.SelectedIndex = 1;
 
@@ -509,6 +488,7 @@ namespace BK7231Flasher
                     flasher = new LN882HFlasher(cts.Token);
                     break;
                 case BKType.BL602:
+                case BKType.BL702:
                     flasher = new BL602Flasher(cts.Token);
                     break;
                 case BKType.BekenSPI:
@@ -1814,6 +1794,17 @@ namespace BK7231Flasher
             cp.ofs = 0;
             cp.sourceFileName = "";
             doCustomWrite(cp);
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Assembly)]
+    public class BuildVersion : Attribute
+    {
+        public string Value { get; set; }
+
+        public BuildVersion(string value)
+        {
+            Value = value;
         }
     }
 }

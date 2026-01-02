@@ -117,8 +117,7 @@ namespace BK7231Flasher
 
 		private bool UploadStub()
 		{
-			// write is broken with custom/V128 stub. RDTool continues to work ok with it though.
-			var stub = Convert.FromBase64String(FLoaders.ECR6600_Stub_Custom);
+			var stub = FLoaders.GetBinaryFromAssembly("ECR6600_Stub_Custom");
 			var startupAddress = 0x10000; // works even if 0
 			var empty = new byte[8];
 			var dat = new List<byte>()
@@ -333,8 +332,8 @@ namespace BK7231Flasher
 				stream.Dispose();
 				addLogLine(Environment.NewLine + "Getting hash...");
 				res = ExecuteCommand(CMD_SHA256, msg, 10, 32);
-				var readHash = RTLZ2Flasher.HashToStr(sha256Hash.ComputeHash(ret));
-				var expectedHash = RTLZ2Flasher.HashToStr(res);
+				var readHash = HashToStr(sha256Hash.ComputeHash(ret));
+				var expectedHash = HashToStr(res);
 				if(readHash != expectedHash)
 				{
 					addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
@@ -398,8 +397,8 @@ namespace BK7231Flasher
 				}
 				addLogLine(Environment.NewLine + "Getting hash...");
 				res = ExecuteCommand(CMD_SHA256, cmd, 10, 32);
-				var readHash = RTLZ2Flasher.HashToStr(sha256Hash.ComputeHash(data));
-				var expectedHash = RTLZ2Flasher.HashToStr(res);
+				var readHash = HashToStr(sha256Hash.ComputeHash(data));
+				var expectedHash = HashToStr(res);
 				if(readHash != expectedHash)
 				{
 					addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");

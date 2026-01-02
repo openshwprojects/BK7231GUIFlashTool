@@ -678,15 +678,6 @@ namespace BK7231Flasher
 			string fileName = MiscUtils.formatDateNowFileName("readResult_" + chipType, backupName, "bin");
 			return saveReadResult(fileName);
 		}
-
-		public static string HashToStr(byte[] data)
-		{
-			var sb = new StringBuilder();
-			foreach(byte b in data)
-				sb.Append(b.ToString("X2"));
-
-			return sb.ToString();
-		}
 	}
 }
 

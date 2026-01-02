@@ -137,7 +137,7 @@ namespace BK7231Flasher
 		private bool UploadStub()
 		{
 			if(chipType == BKType.W600) return true;
-			var stub = Convert.FromBase64String(FLoaders.W800_Stub);
+			var stub = FLoaders.GetBinaryFromAssembly("W800_Stub");
 			addLogLine($"Sending stub...");
 			if(xm.Send(stub) == stub.Length)
 			{
@@ -170,7 +170,7 @@ namespace BK7231Flasher
 				(byte)(cmd.Count + 2 & 0xFF), 
 				(byte)((cmd.Count + 2 >> 8) & 0xFF)
 			};
-			var crc = CRC.crc_ccitt(cmd.ToArray(), 0, cmd.Count, 0xFFFF);
+			var crc = CRC16.Compute(CRC16Type.CCITT_FALSE, cmd.ToArray());
 			raw.Add((byte)(crc & 0xFF));
 			raw.Add((byte)((crc >> 8) & 0xFF));
 			raw.AddRange(cmd);
@@ -575,7 +575,6 @@ namespace BK7231Flasher
 				0x00, 0x00, 0x00, 0x00,
 			};
 			var crcHdr = CRC.crc32_ver2(0xFFFFFFFF, fls.ToArray());
-			var t = Convert.ToString(crcHdr, 16);
 			fls.Add((byte)(crcHdr & 0xFF));
 			fls.Add((byte)((crcHdr >> 8) & 0xFF));
 			fls.Add((byte)((crcHdr >> 16) & 0xFF));
@@ -613,7 +612,6 @@ namespace BK7231Flasher
 				0x00, 0x00, 0x00, 0x00,
 			};
 			var crcHdr = CRC.crc32_ver2(0xFFFFFFFF, fls.ToArray());
-			var t = Convert.ToString(crcHdr, 16);
 			fls.Add((byte)(crcHdr & 0xFF));
 			fls.Add((byte)((crcHdr >> 8) & 0xFF));
 			fls.Add((byte)((crcHdr >> 16) & 0xFF));

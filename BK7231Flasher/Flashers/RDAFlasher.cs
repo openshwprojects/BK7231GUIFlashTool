@@ -187,7 +187,7 @@ namespace BK7231Flasher
 					try
 					{
 						DumpBytes(startAddr | FLASH_MMAP_BASE, dumpAmount, out bytes);
-						var treadHash = RTLZ2Flasher.HashToStr(sha1Hash.ComputeHash(bytes));
+						var treadHash = HashToStr(sha1Hash.ComputeHash(bytes));
 						var texpectedHash = FlashReadHash(startAddr | FLASH_MMAP_BASE, dumpAmount);
 						if(treadHash != texpectedHash)
 						{
@@ -213,7 +213,7 @@ namespace BK7231Flasher
 					throw new Exception("Error count exceeded limit!");
 				}
 				if(withLog) addLogLine(Environment.NewLine + "Getting hash...");
-				var readHash = RTLZ2Flasher.HashToStr(sha1Hash.ComputeHash(ret));
+				var readHash = HashToStr(sha1Hash.ComputeHash(ret));
 				var expectedHash = FlashReadHash(addr | FLASH_MMAP_BASE, amount);
 				if(readHash != expectedHash)
 				{
@@ -306,7 +306,7 @@ namespace BK7231Flasher
 					data = skipped;
 					len -= 0x1000;
 				}
-				var readHash = RTLZ2Flasher.HashToStr(sha1Hash.ComputeHash(data));
+				var readHash = HashToStr(sha1Hash.ComputeHash(data));
 				var expectedHash = FlashReadHash(addr | FLASH_MMAP_BASE, len);
 				if(readHash != expectedHash)
 				{
