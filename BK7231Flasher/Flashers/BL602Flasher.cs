@@ -13,7 +13,7 @@ namespace BK7231Flasher
     public class BL602Flasher : BaseFlasher
     {
         //int timeoutMs = 10000;
-        int flashSizeMB = 2;
+        float flashSizeMB = 2;
         byte[] flashID;
         BLInfo blinfo = null;
 
@@ -151,7 +151,7 @@ namespace BK7231Flasher
 
             if (res.Length >= 6)
             {
-                flashSizeMB = (1 << (res[4] - 0x11)) / 8;
+                flashSizeMB = (float)(1 << (res[4] - 0x11)) / 8;
                 if(flashSizeMB > 32)
                 {
                     return null;
@@ -444,7 +444,7 @@ namespace BK7231Flasher
             {
                 return ;
             }
-            if(fullRead) sectors = flashSizeMB * 256;
+            if(fullRead) sectors = (int)(flashSizeMB * 256);
             doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
         }
 
@@ -634,7 +634,7 @@ namespace BK7231Flasher
             OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
             if(rwMode == WriteMode.ReadAndWrite)
             {
-                sectors = flashSizeMB * 256;
+                sectors = (int)(flashSizeMB * 256);
                 doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
                 if (ms == null)
                 {
