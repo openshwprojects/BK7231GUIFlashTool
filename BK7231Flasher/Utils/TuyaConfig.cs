@@ -110,7 +110,6 @@ namespace BK7231Flasher
         }
         public string getMagicPositionHex() => $"0x{magicPosition:X}";
         public string getMagicPositionDecAndHex() => $"{magicPosition} ({getMagicPositionHex()})";
-
         public bool fromFile(string fname)
         {
             using (var fs = new FileStream(fname, FileMode.Open, FileAccess.Read))
