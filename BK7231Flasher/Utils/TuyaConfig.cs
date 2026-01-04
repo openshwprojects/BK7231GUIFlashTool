@@ -812,7 +812,7 @@ namespace BK7231Flasher
             desc += Environment.NewLine;
             void printposdevice(string device)
             {
-                desc += $"And the Tuya section starts at {magicPosition}, which is a default {device} offset." + Environment.NewLine;
+                desc += $"And the Tuya section starts at {magicPosition} (0x{magicPosition:X}), which is a default {device} offset." + Environment.NewLine;
             }
             switch(magicPosition)
             {
