@@ -108,6 +108,8 @@ namespace BK7231Flasher
         {
             return magicPosition;
         }
+        public string getMagicPositionHex() => $"0x{magicPosition:X}";
+        public string getMagicPositionDecAndHex() => $"{magicPosition} ({getMagicPositionHex()})";
         public bool fromFile(string fname)
         {
             using (var fs = new FileStream(fname, FileMode.Open, FileAccess.Read))
@@ -240,7 +242,7 @@ namespace BK7231Flasher
                 return true;
             }
             needle -= 32;
-            FormMain.Singleton.addLog("Tuya config extractor - magic is at " + needle +" " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {needle} (0x{needle:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
             magicPosition = needle;
 
             byte[] key = null;
@@ -812,12 +814,12 @@ namespace BK7231Flasher
             desc += Environment.NewLine;
             void printposdevice(string device)
             {
-                desc += $"And the Tuya section starts at {magicPosition}, which is a default {device} offset." + Environment.NewLine;
+                desc += $"And the Tuya section starts at {getMagicPositionDecAndHex()}, which is a default {device} offset." + Environment.NewLine;
             }
             switch(magicPosition)
             {
                 case USUAL_BK7231_MAGIC_POSITION:
-                    desc += $"And the Tuya section starts, as usual, at {magicPosition}" + Environment.NewLine;
+                    desc += $"And the Tuya section starts, as usual, at {getMagicPositionDecAndHex()}" + Environment.NewLine;
                     break;
                 case USUAL_BK_NEW_XR806_MAGIC_POSITION:
                     printposdevice("T1/XR806 and some T34");
@@ -853,7 +855,7 @@ namespace BK7231Flasher
                     printposdevice("W800");
                     break;
                 default:
-                    desc += "And the Tuya section starts at an UNCOMMON POSITION " + magicPosition + Environment.NewLine;
+                    desc += "And the Tuya section starts at an UNCOMMON POSITION " + getMagicPositionDecAndHex() + Environment.NewLine;
                     break;
 
             }
