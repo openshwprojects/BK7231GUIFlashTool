@@ -243,7 +243,7 @@ namespace BK7231Flasher
                 return true;
             }
             needle -= 32;
-            FormMain.Singleton.addLog("Tuya config extractor - magic is at " + needle +" " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {needle} (0x{needle:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
             magicPosition = needle;
 
             byte[] key = null;
