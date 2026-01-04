@@ -7,11 +7,9 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.IO.Ports;
-using System.Net;
+using System.Linq;
 using System.Net.Configuration;
-using System.Net.Security;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -43,7 +41,7 @@ namespace BK7231Flasher
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
             { BKType.LN882H,     "LN882H" },
             { BKType.BL602,      "BL602" },
-            { BKType.BL702,      "BL702 (read/restore)" },
+            { BKType.BL702,      "BL702" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.W800,       "W800" },
             { BKType.W600,       "W600 (write)" },
@@ -823,10 +821,50 @@ namespace BK7231Flasher
             createFlasher();
             // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
+            if(curType == BKType.BL602 || curType == BKType.BL702)
+            {
+                addLog("Reading partitions..." + Environment.NewLine, Color.Black);
+                if(curType == BKType.BL702)
+                {
+                    flasher.doRead(0x1000, 1);
+                }
+                else
+                {
+                    flasher.doRead(0xE000, 1);
+                }
+                
+                var ptdata = flasher.getReadResult();
+                try
+                {
+                    var partition = BL602Utils.PT_Parse(ptdata).First(x => x.Name == "PSM");
+                    startSector = (int)partition.Address0;
+                    sectors = (int)partition.Length0 / BK7231Flasher.SECTOR_SIZE;
+                }
+                catch(InvalidOperationException)
+                {
+                    addLog("No PSM partition! Can't read config." + Environment.NewLine, Color.Red);
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
+                }
+                catch(InvalidDataException ex)
+                {
+                    addLog($"Partition error: {ex.Message}" + Environment.NewLine, Color.Red);
+                    addLog($"Can't read config." + Environment.NewLine, Color.Red);
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
+                }
+            }
 
             if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
+            }
+            else if(curType == BKType.BL602 || curType == BKType.BL702)
+            {
+                // do it like that so that there would be no need for re-sync
+                ((BL602Flasher)flasher).doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
             }
             else
             {

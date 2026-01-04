@@ -58,6 +58,8 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Misc\BL602FlashList.cs" />
+    <Compile Include="Misc\BL602Utils.cs" />
     <Compile Include="Utils\Beken_Crypto.cs" />
     <Compile Include="FormMain.Decryption.cs">
       <SubType>Form</SubType>
@@ -202,11 +204,8 @@
     <EmbeddedResource Include="Floaders\BK7231N_1_0_1.bin" />
     <EmbeddedResource Include="Floaders\BK7231N_1_0_13.bin" />
     <EmbeddedResource Include="Floaders\BL602Floader.bin" />
-    <EmbeddedResource Include="Floaders\BL602_1MBPartitions.bin" />
-    <EmbeddedResource Include="Floaders\BL602_AppHdr.bin" />
     <EmbeddedResource Include="Floaders\BL602_Boot.bin" />
     <EmbeddedResource Include="Floaders\BL602_Dts.bin" />
-    <EmbeddedResource Include="Floaders\BL602_Partitions.bin" />
     <EmbeddedResource Include="Floaders\BL702Floader.bin" />
     <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
     <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
