@@ -843,14 +843,16 @@ namespace BK7231Flasher
                 catch(InvalidOperationException)
                 {
                     addLog("No PSM partition! Can't read config." + Environment.NewLine, Color.Red);
-                    worker = null;
-                    clearUp();
-                    setButtonStates(true);
+                    throw;
                 }
                 catch(InvalidDataException ex)
                 {
                     addLog($"Partition error: {ex.Message}" + Environment.NewLine, Color.Red);
                     addLog($"Can't read config." + Environment.NewLine, Color.Red);
+                    throw;
+                }
+                catch(Exception ex)
+                {
                     worker = null;
                     clearUp();
                     setButtonStates(true);
