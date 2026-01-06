@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 
 namespace BK7231Flasher
 {
     public class CRC
     {
         public static uint[] crc32_table;
-        private static List<ushort> crc_ccitt_table = new List<ushort>();
 
         public static void initCRC()
         {
@@ -84,13 +82,13 @@ namespace BK7231Flasher
         {
             return crc32_ver2(crc,buffer,buffer.Length);
         }
-        public static uint crc32_ver2(uint crc, byte[] buffer, int useLen)
+        public static uint crc32_ver2(uint crc, byte[] buffer, int useLen, uint offset = 0)
         {
             if (crc32_table == null)
             {
                 initCRC();
             }
-            for (uint i = 0; i < useLen; i++)
+            for (uint i = offset; i < useLen + offset; i++)
             {
                 uint c = buffer[i];
                 crc = (crc >> 8) ^ crc32_table[(crc ^ c) & 0xff];

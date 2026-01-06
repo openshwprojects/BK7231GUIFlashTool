@@ -310,7 +310,7 @@ namespace BK7231Flasher
 					var data = new uint[16];
 					Array.Copy(imageU32, i, data, 0, data.Length);
 					var bytedata = Utils.U32ToU8(data);
-					var partition = Utils.BytesToFAL64(bytedata);
+					var partition = Utils.FromBytes<FALPartition64>(bytedata);
 					if(partition.crc32 == 0 || partition.crc32 == (CRC.crc32_ver2(0xFFFFFFFF, bytedata, 60) ^ 0xFFFFFFFF))
 					{
 						if(partition.crc32 == 0)
@@ -369,12 +369,12 @@ namespace BK7231Flasher
 					}
 					if(!nocrc)
 					{
-						var array = Utils.FAL64ToBytes(part);
+						var array = Utils.ToBytes(part);
 						var skipCrc = new byte[array.Length - 4];
 						Array.Copy(array, skipCrc, skipCrc.Length);
 						part.crc32 = CRC.crc32_ver2(0xFFFFFFFF, skipCrc) ^ 0xFFFFFFFF;
 					}
-					var partition = Utils.FAL64ToBytes(part);
+					var partition = Utils.ToBytes(part);
 					falPartitions.AddRange(partition);
 				}
 				if(falPartitions.Count == 0)

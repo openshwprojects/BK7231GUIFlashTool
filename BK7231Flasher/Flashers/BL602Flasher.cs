@@ -1,4 +1,6 @@
+using BK7231Flasher.Misc;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -7,6 +9,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using static BK7231Flasher.BL602Utils;
 
 namespace BK7231Flasher
 {
@@ -231,7 +234,7 @@ namespace BK7231Flasher
                 {
                     serial.Read(rep, i, 1);
                 }
-                if (rep[0] == 'O' && rep[1] == 'K')
+                if ((rep[0] == 'O' && rep[1] == 'K') || (rep[0] == 'K' && rep[1] == 'O'))
                 {
                     // Console.Write(".ok.");
                     ret = readFully();
@@ -243,7 +246,7 @@ namespace BK7231Flasher
                     ret = readFully();
                     return null;
                 }
-                else if (rep[0] == 'P' && rep[1] == 'D')
+                else if ((rep[0] == 'P' && rep[1] == 'D') || (rep[0] == 'D' && rep[1] == 'P'))
                 {
                     int errcount = 500;
                     while(errcount-- > 0)
@@ -256,9 +259,9 @@ namespace BK7231Flasher
                             }
                         }
                         catch { }
-                        if(rep[0] == 'O' && rep[1] == 'K')
+                        if ((rep[0] == 'O' && rep[1] == 'K') || (rep[0] == 'K' && rep[1] == 'O'))
                             return readFully();
-                        else if(rep[0] == 'P' && rep[1] == 'D')
+                        else if ((rep[0] == 'P' && rep[1] == 'D') || (rep[0] == 'D' && rep[1] == 'P'))
                             addLogLine("Command pending...");
                         rep[0] = 0;
                         Thread.Sleep(20);
@@ -309,10 +312,10 @@ namespace BK7231Flasher
                     Array.Copy(data, ofs, buffer, 4, chunk);
                     int bufferLen = chunk + 4;
                     int errCnt = 0;
-                    while(executeCommand(0x31, buffer, 0, bufferLen, true, 5) == null && errCnt < 20)
+                    while(executeCommand(0x31, buffer, 0, bufferLen, true, 5) == null && errCnt < 10)
                         errCnt++;
-                    if(errCnt >= 20)
-                        throw new Exception("Read failed!");
+                    if(errCnt >= 10)
+                        throw new Exception("Write failed!");
                     ofs += chunk;
                     adr += chunk;
                     logger.setProgress(ofs, len);
@@ -440,12 +443,19 @@ namespace BK7231Flasher
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
-            if (doGenericSetup() == false)
+            try
             {
-                return ;
+                if(doGenericSetup() == false)
+                {
+                    return;
+                }
+                if(fullRead) sectors = (int)(flashSizeMB * 256);
+                doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
             }
-            if(fullRead) sectors = (int)(flashSizeMB * 256);
-            doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+            catch(Exception ex)
+            {
+                addErrorLine(ex.Message);
+            }
         }
 
         internal byte[] readFlash(int addr = 0, int amount = 4096)
@@ -465,7 +475,7 @@ namespace BK7231Flasher
                     if(amount < length)
                         length = amount;
 
-                    addLog($"Reading at 0x{destAddr:X6}... ");
+                    addLog($"Reading at 0x{addr:X6}... ");
                     byte[] cmdBuffer = new byte[8];
                     cmdBuffer[0] = (byte)(addr & 0xFF);
                     cmdBuffer[1] = (byte)((addr >> 8) & 0xFF);
@@ -501,7 +511,7 @@ namespace BK7231Flasher
                     addr += dataLen;
                     amount -= dataLen;
                     destAddr += dataLen;
-                    logger.setProgress(addr, startAmount);
+                    logger.setProgress(destAddr, startAmount);
                 }
                 addLogLine("");
                 if(!CheckSHA256(startAddr, startAmount, ret))
@@ -559,7 +569,11 @@ namespace BK7231Flasher
 
         public bool doReadInternal(int addr = 0, int amount = 0x200000) {
             byte[] res = readFlash(addr, amount);
-            if(res != null) ms = new MemoryStream(res);
+            if(res != null)
+            {
+                ms?.Dispose();
+                ms = new MemoryStream(res);
+            }
             return false;
         }
         MemoryStream ms;
@@ -575,7 +589,6 @@ namespace BK7231Flasher
         public override bool doErase(int startSector, int sectors, bool bAll = false)
         {
             logger.setState("Erasing...", Color.White);
-            int errcount = 100;
             if(bAll)
             {
                 if (doGenericSetup() == false)
@@ -583,8 +596,13 @@ namespace BK7231Flasher
                     return false;
                 }
                 addLogLine("Erasing...");
-                executeCommand(0x3C, null, 0, 0, true, 0, 0);
-                errcount = 30000;
+                var res = executeCommand(0x3C, null, 0, 0, true, 30);
+                if(res != null) logger.setState("Erase done", Color.DarkGreen);
+                else
+                {
+                    logger.setState("Erase failed!", Color.Red);
+                    return false;
+                }
             }
             else
             {
@@ -627,137 +645,177 @@ namespace BK7231Flasher
 
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-            if (doGenericSetup() == false)
+            try
             {
-                return;
-            }
-            OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
-            if(rwMode == WriteMode.ReadAndWrite)
-            {
-                sectors = (int)(flashSizeMB * 256);
-                doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
-                if (ms == null)
+                if(doGenericSetup() == false)
                 {
                     return;
                 }
-                if(saveReadResult(startSector) == false)
+                OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
+                if(rwMode == WriteMode.ReadAndWrite)
                 {
-                    return;
-                }
-            }
-            if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
-            {
-                if(string.IsNullOrEmpty(sourceFileName))
-                {
-                    addLogLine("No filename given!");
-                    return;
-                }
-                if(!sourceFileName.Contains("readResult"))
-                {
-                    if(chipType != BKType.BL602)
+                    sectors = (int)(flashSizeMB * 256);
+                    doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+                    if(ms == null)
                     {
-                        addErrorLine($"Firmware write is not supported on {chipType}. If you intend to restore a backup, make sure that file name starts with 'readResult'");
                         return;
                     }
-                    //if(bOverwriteBootloader)
+                    if(saveReadResult(startSector) == false)
                     {
-                        addLogLine("Writing boot...");
-                        byte[] boot = FLoaders.GetBinaryFromAssembly("BL602_Boot");
-                        byte[] partitions = FLoaders.GetBinaryFromAssembly(flashSizeMB > 1 ? "BL602_Partitions" : "BL602_1MBPartitions");
-                        boot = MiscUtils.padArray(boot, 0xE000);
-                        boot = boot.Concat(partitions).ToArray();
-                        if(!writeFlash(boot, 0))
-                            return;
+                        return;
+                    }
+                }
+                if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
+                {
+                    if(string.IsNullOrEmpty(sourceFileName))
+                    {
+                        addLogLine("No filename given!");
+                        return;
                     }
                     addLogLine("Reading " + sourceFileName + "...");
                     byte[] data = File.ReadAllBytes(sourceFileName);
-                    data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
-                    byte[] apphdr = FLoaders.GetBinaryFromAssembly("BL602_AppHdr");
-                    apphdr[120] = (byte)(data.Length & 0xFF);
-                    apphdr[121] = (byte)((data.Length >> 8) & 0xFF);
-                    apphdr[122] = (byte)((data.Length >> 16) & 0xFF);
-                    apphdr[123] = (byte)((data.Length >> 24) & 0xFF);
-                    using(var hasher = SHA256.Create())
+                    List<PartitionEntry> partitions;
+                    switch(flashSizeMB)
                     {
-                        var sha = hasher.ComputeHash(data);
-                        Array.Copy(sha, 0, apphdr, 132, 32);
+                        case 0.5f:
+                            if(chipType == BKType.BL602)
+                                throw new Exception("Flash is too small!");
+                            partitions = Partitions_512K_BL702;
+                            break;
+                        case 1f:
+                            if(chipType == BKType.BL702)
+                                partitions = Partitions_1MB_BL702;
+                            else 
+                                partitions = Partitions_1MB;
+                            break;
+                        case 2f:
+                            if(chipType == BKType.BL702)
+                                partitions = Partitions_2MB_BL702;
+                            else 
+                                partitions = Partitions_2MB;
+                            break;
+                        default:
+                            partitions = Partitions_4MB;
+                            if(chipType == BKType.BL702)
+                                partitions.First(x => x.Name == "FW").Address0 = 0x3000;
+                            break;
                     }
-                    var apphdrnocrc = new byte[apphdr.Length - 4];
-                    Array.Copy(apphdr, 0, apphdrnocrc, 0, apphdrnocrc.Length);
-                    var crc32 = CRC.crc32_ver2(0xFFFFFFFF, apphdrnocrc) ^ 0xFFFFFFFF;
-                    apphdr[apphdr.Length - 1 - 3] = (byte)crc32;
-                    apphdr[apphdr.Length - 1 - 2] = (byte)(crc32 >> 8);
-                    apphdr[apphdr.Length - 1 - 1] = (byte)(crc32 >> 16);
-                    apphdr[apphdr.Length - 1] = (byte)(crc32 >> 24);
-                    byte[] wd = MiscUtils.padArray(apphdr, BK7231Flasher.SECTOR_SIZE);
-                    data = wd.Concat(data).ToArray();
-                    if(!writeFlash(data, 0x10000))
-                        return;
-
-                    //if(bOverwriteBootloader)
+                    if(data[0] == 0x42 && data[1] == 0x46 && data[2] == 0x4e && data[3] == 0x50)
                     {
-                        addLogLine("Writing dts...");
-                        byte[] dts = FLoaders.GetBinaryFromAssembly("BL602_Dts");
-                        if(!writeFlash(dts, flashSizeMB > 1 ? 0x1FC000 : 0xFC000))
-                            return;
+                        writeFlash(data, 0);
                     }
-                }
-                else
-                {
-                    addLogLine("Reading " + sourceFileName + "...");
-                    byte[] data = File.ReadAllBytes(sourceFileName);
-                    this.writeFlash(data, 0);
-                }
-            }
-            if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
-            {
-                if(chipType != BKType.BL602)
-                {
-                    addErrorLine($"Config write is not supported on {chipType}");
-                    return;
-                }
-                if(cfg != null)
-                {
-                    var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
-                    var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
-
-                    cfg.saveConfig(chipType);
-                    var cfgData = cfg.getData();
-                    byte[] efdata;
-                    if(cfg.efdata != null)
+                    else if(data.Length > partitions.First(x => x.Name == "FW").Length0)
                     {
-                        try
-                        {
-                            efdata = EasyFlash.SaveValueToExistingEasyFlash("mY0bcFg", cfg.efdata, cfgData, areaSize, chipType);
-                        }
-                        catch(Exception ex)
-                        {
-                            addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
-                            addLog(ex.Message + Environment.NewLine);
-                            efdata = EasyFlash.SaveValueToNewEasyFlash("mY0bcFg", cfgData, areaSize, chipType);
-                        }
+                        throw new Exception("The size of the selected file exceeds the length of the partition!");
                     }
                     else
                     {
-                        efdata = EasyFlash.SaveValueToNewEasyFlash("mY0bcFg", cfgData, areaSize, chipType);
+                        uint flash = (uint)(flashID[2] << 16 | flashID[3] << 8 | flashID[4]);
+                        BL602FlashList.FlashConfig flashConfig;
+                        try
+                        {
+                            flashConfig = BL602FlashList.FlashDict.First(x => x.Key == flash).Value;
+                        }
+                        catch
+                        {
+                            addErrorLine($"There is no flash config for flash with id: 0x{flash:X}. Will use for 0xEF4015. This might result in unknown behvaiour.");
+                            flashConfig = BL602FlashList.FlashDict.First(x => x.Key == 0xEF4015).Value;
+                        }
+                        if(chipType != BKType.BL602 && chipType != BKType.BL702)
+                        {
+                            addErrorLine($"Firmware write is not supported on {chipType}.");
+                            return;
+                        }
+                        var apphdr = CreateBootHeader(flashConfig, data, chipType);
+                        if(chipType == BKType.BL602) data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
+                        byte[] wd = MiscUtils.padArray(apphdr, BK7231Flasher.SECTOR_SIZE);
+                        data = wd.Concat(data).ToArray();
+                        addLogLine("Writing...");
+                        if(chipType == BKType.BL702)
+                        {
+                            var bpartitions = PT_Build(partitions);
+                            var fdata = wd.Concat(bpartitions).Concat(data).ToArray();
+                            if(!writeFlash(fdata, 0x0))
+                                return;
+                        }
+                        else
+                        {
+                            var boot = FLoaders.GetBinaryFromAssembly("BL602_Boot");
+                            var boothdr = CreateBootHeader(flashConfig, boot, chipType);
+                            boothdr = MiscUtils.padArray(boothdr, BK7231Flasher.SECTOR_SIZE);
+                            boot = boothdr.Concat(boot).ToArray();
+                            var bpartitions = PT_Build(partitions);
+                            boot = MiscUtils.padArray(boot, 0xE000);
+                            boot = boot.Concat(bpartitions).ToArray();
+                            var fdata = boot.Concat(data).ToArray();
+                            if(!writeFlash(fdata, 0x0))
+                                return;
+                        }
+
+                        if(chipType == BKType.BL602/*bOverwriteBootloader*/)
+                        {
+                            addLogLine("Writing dts...");
+                            byte[] dts = FLoaders.GetBinaryFromAssembly("BL602_Dts");
+                            if(!writeFlash(dts, (int)partitions.First(x => x.Name == "factory").Address0))
+                                return;
+                        }
                     }
-                    addLog("Now will also write OBK config..." + Environment.NewLine);
-                    addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
-                    addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
-                    addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-                    bool bOk = writeFlash(efdata, offset, areaSize);
-                    if(bOk == false)
+                }
+                if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
+                {
+                    if(chipType != BKType.BL602)
                     {
-                        logger.setState("Writing error!", Color.Red);
-                        addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                        addErrorLine($"Config write is not supported on {chipType}");
                         return;
                     }
-                    logger.setState("OBK config write success!", Color.Green);
+                    if(cfg != null)
+                    {
+                        var ptdata = chipType == BKType.BL702 ? readFlash(0x1000, 0x1000) : readFlash(0xE000, 0x1000);
+                        var partition = PT_Parse(ptdata).First(x => x.Name == "PSM");
+                        var offset = (int)partition.Address0;
+                        var areaSize = (int)partition.Length0;
+                        cfg.saveConfig(chipType);
+                        var cfgData = cfg.getData();
+                        byte[] efdata;
+                        if(cfg.efdata != null)
+                        {
+                            try
+                            {
+                                efdata = EasyFlash.SaveValueToExistingEasyFlash("mY0bcFg", cfg.efdata, cfgData, areaSize, chipType);
+                            }
+                            catch(Exception ex)
+                            {
+                                addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+                                addLog(ex.Message + Environment.NewLine);
+                                efdata = EasyFlash.SaveValueToNewEasyFlash("mY0bcFg", cfgData, areaSize, chipType);
+                            }
+                        }
+                        else
+                        {
+                            efdata = EasyFlash.SaveValueToNewEasyFlash("mY0bcFg", cfgData, areaSize, chipType);
+                        }
+                        addLog("Now will also write OBK config..." + Environment.NewLine);
+                        addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                        addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                        addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                        bool bOk = writeFlash(efdata, offset, areaSize);
+                        if(bOk == false)
+                        {
+                            logger.setState("Writing error!", Color.Red);
+                            addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                            return;
+                        }
+                        logger.setState("OBK config write success!", Color.Green);
+                    }
+                    else
+                    {
+                        addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+                    }
                 }
-                else
-                {
-                    addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
-                }
+            }
+            catch(Exception ex)
+            {
+                addErrorLine(ex.Message);
             }
             return;
         }
@@ -782,4 +840,3 @@ namespace BK7231Flasher
         }
     }
 }
-
