@@ -1184,32 +1184,21 @@ namespace BK7231Flasher
             WaitForResponseFromReceiver.Set();
 
             // Deactivate Send and Receive watchdogs
-            if(ReceiverNAKWatchdog != null)
-            {
-                ReceiverNAKWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
-                ReceiverNAKWatchdog.Dispose();
-                ReceiverNAKWatchdog = null;
-            }
-            if(ReceiverFileInitiationTimer != null)
-            {
-                ReceiverFileInitiationTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                ReceiverFileInitiationTimer.Dispose();
-                ReceiverFileInitiationTimer = null;
-            }
+            ReceiverNAKWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
+            ReceiverNAKWatchdog?.Dispose();
+            ReceiverNAKWatchdog = null;
 
-            if(SenderPacketResponseWatchdog != null)
-            {
-                SenderPacketResponseWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
-                SenderPacketResponseWatchdog.Dispose();
-                SenderPacketResponseWatchdog = null;
-            }
+            ReceiverFileInitiationTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            ReceiverFileInitiationTimer?.Dispose();
+            ReceiverFileInitiationTimer = null;
 
-            if(ReceiverStillAliveWatchdog != null)
-            {
-                ReceiverStillAliveWatchdog.Change(Timeout.Infinite, Timeout.Infinite);
-                ReceiverStillAliveWatchdog.Dispose();
-                ReceiverStillAliveWatchdog = null;
-            }
+            SenderPacketResponseWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
+            SenderPacketResponseWatchdog?.Dispose();
+            SenderPacketResponseWatchdog = null;
+
+            ReceiverStillAliveWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
+            ReceiverStillAliveWatchdog?.Dispose();
+            ReceiverStillAliveWatchdog = null;
 
             // Flush serial data so they don't contaminate a future session
             if(Port.IsOpen)
