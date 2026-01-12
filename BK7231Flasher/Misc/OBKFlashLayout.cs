@@ -31,6 +31,7 @@ namespace BK7231Flasher
                 case BKType.BL602: // this is for new toml
                     sectors = 0x13000 / BK7231Flasher.SECTOR_SIZE;
                     return 0x1E9000;
+                case BKType.LN8825:
                 case BKType.LN882H:
                     sectors = 1;
                     return 0x1FF000;

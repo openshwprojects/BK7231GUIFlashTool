@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
-using System.Linq;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -13,6 +12,8 @@ namespace BK7231Flasher
         int timeoutMs = 2000;
         int flashSizeMB = 2;
         byte[] flashID;
+        string LN882H_RomVersion = "Mar 14 2021/00:23:32\r";
+        string LN8825_RomVersion = "Jun 19 2019/21:01:04\r";
 
         bool doGenericSetup()
         {
@@ -21,7 +22,7 @@ namespace BK7231Flasher
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
             try
             {
-                serial = new SerialPort(serialName, 115200);
+                serial = new SerialPort(serialName, 117000);
                 serial.ReadTimeout = timeoutMs;
                 serial.WriteTimeout = timeoutMs;
                 serial.Open();
@@ -66,21 +67,23 @@ namespace BK7231Flasher
         }
         public void change_baudrate(int baudrate, bool wait = true)
         {
-            if(baudrate == serial.BaudRate)
+            if(baudrate == serial.BaudRate || isCancelled)
                 return;
-            addLogLine("change_baudrate: Change baudrate " + baudrate);
+            addLogLine($"Setting baud rate {baudrate}...");
             serial.Write("baudrate " + baudrate + "\r\n");
             Thread.Sleep(500);
             serial.BaudRate = baudrate;
             flush_com();
             if(!wait) return;
-            addLogLine("change_baudrate: Waiting for change...");
+            addLogLine("Resyncing...");
 
             string msg = "";
-            while (!msg.Contains("RAMCODE"))
+            int attempts = 0;
+            while (!msg.Contains("RAMCODE") && attempts++ < 500)
             {
                 if(isCancelled) return;
-                addLogLine("change_baudrate: send version... wait for:  RAMCODE");
+                if(attempts > 1) addWarningLine("... failed, will retry!");
+                addLog($"Sync attempt {attempts}/500 ");
                 //Thread.Sleep(1000);
                 flush_com();
                 serial.Write("version\r\n");
@@ -91,82 +94,131 @@ namespace BK7231Flasher
                     msg = serial.ReadLine();
                     //addLogLine(msg);
                 }
-                catch (TimeoutException) { msg = ""; }
+                catch(TimeoutException)
+                {
+                    msg = "";
+                }
+                catch(Exception ex)
+                {
+                    addErrorLine(ex.Message);
+                    return;
+                }
             }
-
-            addLogLine("change_baudrate: Baudrate change done");
+            logger.addLog("... OK!" + Environment.NewLine, Color.Green);
         }
 
         public void flash_program(byte [] data, int ofs, int len, string filename, bool bRestoreBaud, WriteMode mode)
         {
-            OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
-            logger.setState("Prepare write...", Color.White);
-            change_baudrate(this.baudrate);
-            if(mode != WriteMode.OnlyOBKConfig)
+            try
             {
-                addLogLine("flash_program: will flash " + len + " bytes " + filename);
-                addLogLine("flash_program: sending startaddr");
-                serial.Write($"startaddr 0x{ofs:X}\r\n");
-                addLogLine(serial.ReadLine().Trim());
-                addLogLine(serial.ReadLine().Trim());
-
-                addLogLine("flash_program: sending update command");
-                serial.Write("upgrade\r\n");
-                serial.Read(new byte[7], 0, 7);
-
-                addLogLine("flash_program: sending file via ymodem");
-                YModem modem = new YModem(serial, logger);
-                int res = modem.send(data, filename, len, true, 3);
-                if(res != len)
+                xm.PacketSent += Xm_PacketSent;
+                OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
+                logger.setState("Prepare write...", Color.White);
+                change_baudrate(this.baudrate);
+                if(mode != WriteMode.OnlyOBKConfig)
                 {
-                    addLogLine("flash_program: failed to flash, flashed only " +
-                        res + " out of " + len + " bytes!");
-                    return;
-                }
-                addLogLine("flash_program: sending file done");
+                    addLogLine("flash_program: will flash " + len + " bytes " + filename);
+                    if(chipType == BKType.LN882H)
+                    {
+                        PreWrite(ofs);
+                        YModem modem = new YModem(serial, logger);
+                        int res = modem.send(data, filename, len, true);
+                        if(res != len)
+                        {
+                            addLogLine("flash_program: failed to flash, flashed only " +
+                                res + " out of " + len + " bytes!");
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        PreWrite(ofs, len, true);
+                        xm.PacketSent += Xm_PacketSent;
+                        int res = xm.Send(data);
+                        xm.PacketSent -= Xm_PacketSent;
+                        if(res != len)
+                        {
+                            addLogLine("flash_program: failed to flash, flashed only " +
+                                res + " out of " + len + " bytes!");
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    addLogLine("flash_program: sending file done");
 
-                addLogLine("flash_program: flashed " + len + " bytes!");
-                addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
-            }
-            if(cfg != null && !isCancelled)
-            {
-                var offset = (uint)OBKFlashLayout.getConfigLocation(chipType, out var sectors);
-                var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
-                cfg.saveConfig(chipType);
-                byte[] wd = MiscUtils.padArray(cfg.getData(), BK7231Flasher.SECTOR_SIZE);
-                ms?.Dispose();
-                ms = new MemoryStream(wd);
-                addLog("Now will also write OBK config..." + Environment.NewLine);
-                addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
-                addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
-                addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-                serial.Write($"startaddr 0x{offset:X}\r\n");
-                addLogLine(serial.ReadLine().Trim());
-                addLogLine(serial.ReadLine().Trim());
-                serial.Write("upgrade\r\n");
-                serial.Read(new byte[7], 0, 7);
-                YModem modem = new YModem(serial, logger);
-                var res = modem.send(wd, "ObkCfg", wd.Length, true, 3);
-                if(res != wd.Length)
+                    addLogLine("flash_program: flashed " + len + " bytes!");
+                    if(!ChecksumVerify(ofs, len, data))
+                    {
+                        change_baudrate(115200, false);
+                        return;
+                    }
+                    addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
+                }
+                if(cfg != null && !isCancelled)
                 {
-                    logger.setState("Writing error!", Color.Red);
-                    addError("Writing OBK config data to chip failed." + Environment.NewLine);
-                    return;
+                    var offset = (uint)OBKFlashLayout.getConfigLocation(chipType, out var sectors);
+                    var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+                    cfg.saveConfig(chipType);
+                    byte[] wd = MiscUtils.padArray(cfg.getData(), BK7231Flasher.SECTOR_SIZE);
+                    ms?.Dispose();
+                    ms = new MemoryStream(wd);
+                    addLog("Now will also write OBK config..." + Environment.NewLine);
+                    addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                    addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                    addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                    if(chipType == BKType.LN882H)
+                    {
+                        PreWrite((int)offset);
+                        YModem modem = new YModem(serial, logger);
+                        var res = modem.send(wd, "ObkCfg", wd.Length, true, 3);
+                        if(res != wd.Length)
+                        {
+                            logger.setState("Writing error!", Color.Red);
+                            addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        PreWrite((int)offset, wd.Length, true);
+                        int res = xm.Send(wd);
+                        if(res != wd.Length)
+                        {
+                            logger.setState("Writing error!", Color.Red);
+                            addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    if(!ChecksumVerify((int)offset, wd.Length, wd))
+                    {
+                        change_baudrate(115200, false);
+                        return;
+                    }
+                    logger.setState("OBK config write success!", Color.Green);
                 }
-                logger.setState("OBK config write success!", Color.Green);
+                else
+                {
+                    addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+                }
+                //serial.Write("filecount\r\n");
+                //addLogLine(serial.ReadLine().Trim());
+                //addLogLine(serial.ReadLine().Trim());
+                if(bRestoreBaud)
+                {
+                    change_baudrate(115200, false);
+                }
             }
-            else
+            catch(Exception ex)
             {
-                addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+                addErrorLine(ex.Message);
             }
-            serial.Write("filecount\r\n");
-            addLogLine(serial.ReadLine().Trim());
-            addLogLine(serial.ReadLine().Trim());
-            if(bRestoreBaud)
+            finally
             {
-                change_baudrate(115200);
+                xm.PacketSent -= Xm_PacketSent;
             }
-
         }
 
 
@@ -191,23 +243,26 @@ namespace BK7231Flasher
         {
             isRamcode = false;
             logger.setState("Connecting...", Color.White);
-            addLogLine("Sync with LN882H...");
+            addLogLine($"Sync with {chipType}...");
             serial.DiscardInBuffer();
 
             string msg = "";
             int loops = 0;
             int attempts = 0;
-            while (msg != "Mar 14 2021/00:23:32\r" && attempts++ < 500)
+            int maxAttempts = 100;
+            string ver = chipType == BKType.LN882H ? LN882H_RomVersion : LN8825_RomVersion;
+            while (msg != ver && attempts++ < maxAttempts)
             {
+                if(attempts > 1) addWarningLine("... failed, will retry!");
                 //Thread.Sleep(1000);
                 flush_com();
-                //addLogLine("sending version... waiting for:  Mar 14 2021/00:23:32");
+                //addLogLine($"sending version... waiting for: {ver}");
                 loops++;
                 if (loops % 10 == 0 && loops>9)
                 {
                     addLogLine("Still no reply - maybe you need to pull BOOT pin down or do full power off/on before next attempt");
                 }
-                addLog($"Sync attempt {attempts}/500 ");
+                addLog($"Sync attempt {attempts}/{maxAttempts} ");
                 try
                 {
                     if(isCancelled) return true;
@@ -217,30 +272,45 @@ namespace BK7231Flasher
                         msg = serial.ReadLine();
                     if(msg.Equals("RAMCODE\r"))
                     {
+                        serial.BaudRate = 115200;
                         isRamcode = true;
                         break;
                     }
+                    if(msg.Equals(LN882H_RomVersion) && chipType != BKType.LN882H)
+                    {
+                        addLogLine($"... fail!");
+                        throw new Exception($"Selected chip type is {chipType}, but current chip is {BKType.LN882H}");
+                    }
+                    else if(msg.Equals(LN8825_RomVersion) && chipType != BKType.LN8825)
+                    {
+                        addLogLine($"... fail!");
+                        throw new Exception($"Selected chip type is {chipType}, but current chip is {BKType.LN8825}");
+                    }
                     //addLogLine(msg);
                 }
-                catch (TimeoutException)
+                catch(TimeoutException)
                 {
-                    addWarningLine("... failed, will retry!");
                     msg = "";
                 }
+                catch(Exception ex)
+                {
+                    addErrorLine(ex.Message);
+                    return true;
+                }
             }
-
-            //addLogLine("Connect to bootloader...");
-            logger.addLog("... OK!" + Environment.NewLine, Color.Green);
+            if(attempts >= maxAttempts)
+            {
+                addErrorLine($"... failed!");
+                return true;
+            }
+            else
+            {
+                logger.addLog("... OK!" + Environment.NewLine, Color.Green);
+            }
             return false;
         }
         public bool upload_ram_loader()
         {
-            //addLogLine("upload_ram_loader will upload " + fname + "!");
-            //if (File.Exists(fname) == false)
-            //{
-            //    addLogLine("Can't open " + fname + "!");
-            //    return true;
-            //}
             if(prepareForLoaderSend(out var isRamcode))
             {
                 return true;
@@ -248,32 +318,45 @@ namespace BK7231Flasher
             string msg = "";
             if(!isRamcode)
             {
-                byte[] dat = FLoaders.GetBinaryFromAssembly("LN882H_RamCode");
+                string name = chipType == BKType.LN882H ? "LN882H_RamCode" : "LN88xx_RamCode";
+                byte[] dat = FLoaders.GetBinaryFromAssembly(name);
                 serial.Write($"download [rambin] [0x20000000] [{dat.Length}]\r\n");
-                addLogLine("Will send file via YModem");
+                addLogLine("Uploading RAM code");
 
                 YModem modem = new YModem(serial, logger);
                 modem.send(dat, "RAMCODE", dat.Length, false);
-
-                addLogLine("Starting program. Wait....");
-                while (msg != "RAMCODE\r")
+                serial.BaudRate = 115200;
+                int attempts = 0;
+                int maxAttempts = 100;
+                while (msg != "RAMCODE\r" && attempts++ < maxAttempts)
                 {
+                    if(attempts > 1) addWarningLine("... failed, will retry!");
                     if(isCancelled) return true;
                     Thread.Sleep(1000);
                     serial.DiscardInBuffer();
-                    addLogLine("send version... wait for:  RAMCODE");
+                    //addLogLine("send version... wait for:  RAMCODE");
                     serial.Write("version\r\n");
+                    addLog($"Sync attempt {attempts}/{maxAttempts} ");
                     try
                     {
                         msg = serial.ReadLine();
-                        addLogLine(msg);
+                        //addLogLine(msg);
                         msg = serial.ReadLine();
-                        addLogLine(msg);
+                        //addLogLine(msg);
                     }
                     catch (TimeoutException)
                     {
                         msg = "";
                     }
+                }
+                if(attempts >= maxAttempts)
+                {
+                    addErrorLine($"... failed!");
+                    return true;
+                }
+                else
+                {
+                    logger.addLog("... OK!" + Environment.NewLine, Color.Green);
                 }
             }
             else
@@ -281,7 +364,6 @@ namespace BK7231Flasher
                 addLogLine("RAMCODE already uploaded");
                 return false;
             }
-
             serial.Write("flash_uid\r\n");
             try
             {
@@ -300,25 +382,25 @@ namespace BK7231Flasher
         }
         public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false, bool restoreBaud = true)
         {
-            serial.Write("flash_id\r\n");
-            try
-            {
-                flashID = new byte[4];
-                for(int i = 0; i < flashID.Length; i++)
-                {
-                    serial.Read(flashID, i, 1);
-                }
-            }
-            catch
-            {
-                addLogLine("Error on flash_id");
-                return false;
-            }
-            flashSizeMB = (1 << (flashID[0] - 0x11)) / 8;
-            addLog("Flash ID: 0x" + flashID[2].ToString("X2") + flashID[1].ToString("X2") + flashID[0].ToString("X2")+Environment.NewLine);
-            addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
             if(fullRead)
             {
+                serial.Write("flash_id\r\n");
+                try
+                {
+                    flashID = new byte[4];
+                    for(int i = 0; i < flashID.Length; i++)
+                    {
+                        serial.Read(flashID, i, 1);
+                    }
+                }
+                catch
+                {
+                    addLogLine("Error on flash_id");
+                    return false;
+                }
+                flashSizeMB = (1 << (flashID[0] - 0x11)) / 8;
+                addLog("Flash ID: 0x" + flashID[2].ToString("X2") + flashID[1].ToString("X2") + flashID[0].ToString("X2")+Environment.NewLine);
+                addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
                 size = flashSizeMB * 0x100000;
             }
             change_baudrate(baudrate);
@@ -376,7 +458,6 @@ namespace BK7231Flasher
             else
             {
                 logger.setState("Read error!", Color.Red);
-                serial.Write($"{0x18}");
                 Thread.Sleep(100);
                 ms?.Dispose();
                 ms = null;
@@ -491,6 +572,20 @@ namespace BK7231Flasher
             }
             addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
             return true;
+        }
+
+        private void PreWrite(int startAddr, int size = 0, bool xm_mode = false)
+        {
+            if(xm_mode)
+            {
+                serial.Write($"fwrite 0x{startAddr:X} 0x{size:X}\r\n");
+                return;
+            }
+            serial.Write($"startaddr 0x{startAddr:X}\r\n");
+            addLogLine(serial.ReadLine().Trim());
+            addLogLine(serial.ReadLine().Trim());
+            serial.Write("upgrade\r\n");
+            serial.Read(new byte[7], 0, 7);
         }
     }
 }

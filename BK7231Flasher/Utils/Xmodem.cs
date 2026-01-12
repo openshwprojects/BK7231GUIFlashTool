@@ -1184,22 +1184,25 @@ namespace BK7231Flasher
             WaitForResponseFromReceiver.Set();
 
             // Deactivate Send and Receive watchdogs
-            ReceiverNAKWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
-            ReceiverNAKWatchdog?.Dispose();
-            ReceiverNAKWatchdog = null;
+            try
+            {
+                ReceiverNAKWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverNAKWatchdog?.Dispose();
+                ReceiverNAKWatchdog = null;
 
-            ReceiverFileInitiationTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-            ReceiverFileInitiationTimer?.Dispose();
-            ReceiverFileInitiationTimer = null;
+                ReceiverFileInitiationTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverFileInitiationTimer?.Dispose();
+                ReceiverFileInitiationTimer = null;
 
-            SenderPacketResponseWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
-            SenderPacketResponseWatchdog?.Dispose();
-            SenderPacketResponseWatchdog = null;
+                SenderPacketResponseWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
+                SenderPacketResponseWatchdog?.Dispose();
+                SenderPacketResponseWatchdog = null;
 
-            ReceiverStillAliveWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
-            ReceiverStillAliveWatchdog?.Dispose();
-            ReceiverStillAliveWatchdog = null;
-
+                ReceiverStillAliveWatchdog?.Change(Timeout.Infinite, Timeout.Infinite);
+                ReceiverStillAliveWatchdog?.Dispose();
+                ReceiverStillAliveWatchdog = null;
+            }
+            catch(ObjectDisposedException) { }
             // Flush serial data so they don't contaminate a future session
             if(Port.IsOpen)
             {

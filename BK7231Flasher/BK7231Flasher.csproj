@@ -210,6 +210,7 @@
     <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
     <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
     <EmbeddedResource Include="Floaders\W800_Stub.bin" />
+    <EmbeddedResource Include="Floaders\LN88xx_RamCode.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

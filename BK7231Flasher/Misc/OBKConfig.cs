@@ -577,6 +577,7 @@ namespace BK7231Flasher
             {
                 case BKType.RTL8720D:
                 case BKType.LN882H:
+                case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.RDA5981:
                     crc = CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4);
@@ -617,6 +618,7 @@ namespace BK7231Flasher
             {
                 case BKType.RTL8720D:
                 case BKType.LN882H:
+                case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.RDA5981:
                     crc = CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4);
