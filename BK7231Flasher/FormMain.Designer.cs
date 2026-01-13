@@ -984,7 +984,7 @@ namespace BK7231Flasher
             // lblKeyInfo
             // 
             this.lblKeyInfo.AutoSize = true;
-            this.lblKeyInfo.Location = new System.Drawing.Point(419, 44);
+            this.lblKeyInfo.Location = new System.Drawing.Point(419, 42);
             this.lblKeyInfo.Name = "lblKeyInfo";
             this.lblKeyInfo.Size = new System.Drawing.Size(328, 13);
             this.lblKeyInfo.TabIndex = 20;
