@@ -118,7 +118,7 @@ namespace BK7231Flasher
                 if(mode != WriteMode.OnlyOBKConfig)
                 {
                     addLogLine("flash_program: will flash " + len + " bytes " + filename);
-                    //if(chipType == BKType.LN882H)
+                    if(chipType == BKType.LN882H)
                     {
                         PreWrite(ofs);
                         YModem modem = new YModem(serial, logger);
@@ -131,21 +131,19 @@ namespace BK7231Flasher
                             return;
                         }
                     }
-                    //else
-                    //{
-                    //    var d2 = MiscUtils.padArray(data, 0x1000);
-                    //    PreWrite(ofs, d2.Length, true);
-                    //    xm.PacketSent += Xm_PacketSent;
-                    //    int res = xm.Send(d2);
-                    //    xm.PacketSent -= Xm_PacketSent;
-                    //    if(res != d2.Length)
-                    //    {
-                    //        addLogLine("flash_program: failed to flash, flashed only " +
-                    //            res + " out of " + len + " bytes!");
-                    //        change_baudrate(115200, false);
-                    //        return;
-                    //    }
-                    //}
+                    else
+                    {
+                        PreWrite(ofs, data.Length, true);
+                        int res = xm.Send(data);
+                        if(res != data.Length)
+                        {
+                            addLogLine("flash_program: failed to flash, flashed only " +
+                                res + " out of " + len + " bytes!");
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    logger.setProgress(1, 1);
                     addLogLine("flash_program: sending file done");
 
                     addLogLine("flash_program: flashed " + len + " bytes!");
@@ -169,7 +167,7 @@ namespace BK7231Flasher
                     addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
                     addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
                     addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-                    //if(chipType == BKType.LN882H)
+                    if(chipType == BKType.LN882H)
                     {
                         PreWrite((int)offset);
                         YModem modem = new YModem(serial, logger);
@@ -182,18 +180,18 @@ namespace BK7231Flasher
                             return;
                         }
                     }
-                    //else
-                    //{
-                    //    PreWrite((int)offset, wd.Length, true);
-                    //    int res = xm.Send(wd);
-                    //    if(res != wd.Length)
-                    //    {
-                    //        logger.setState("Writing error!", Color.Red);
-                    //        addError("Writing OBK config data to chip failed." + Environment.NewLine);
-                    //        change_baudrate(115200, false);
-                    //        return;
-                    //    }
-                    //}
+                    else
+                    {
+                        PreWrite((int)offset, wd.Length, true);
+                        int res = xm.Send(wd);
+                        if(res != wd.Length)
+                        {
+                            logger.setState("Writing error!", Color.Red);
+                            addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
                     if(!ChecksumVerify((int)offset, wd.Length, wd))
                     {
                         change_baudrate(115200, false);
