@@ -984,11 +984,11 @@ namespace BK7231Flasher
             // lblKeyInfo
             // 
             this.lblKeyInfo.AutoSize = true;
-            this.lblKeyInfo.Location = new System.Drawing.Point(419, 48);
+            this.lblKeyInfo.Location = new System.Drawing.Point(419, 44);
             this.lblKeyInfo.Name = "lblKeyInfo";
             this.lblKeyInfo.Size = new System.Drawing.Size(328, 13);
             this.lblKeyInfo.TabIndex = 20;
-            this.lblKeyInfo.Text = this.lblKeyInfo.Text = "Overrides Tuya KEY_PART_1 seed (first 4 chars used).\r\nDefault: 8710_2M; RTL8720D: 8721D; 8711AM: 8711AM_4M";
+            this.lblKeyInfo.Text = "Overrides Tuya KEY_PART_1 seed (first 4 chars used).\r\nDefault: 8710_2M; RTL8720D: 8721D; 8711AM: 8711AM_4M";
             this.lblKeyInfo.Visible = false;
             // 
             // txtKey
