@@ -41,6 +41,7 @@ namespace BK7231Flasher
             this.comboBoxChipType = new System.Windows.Forms.ComboBox();
             this.label3 = new System.Windows.Forms.Label();
             this.comboBoxFirmware = new System.Windows.Forms.ComboBox();
+            this.buttonBrowseFirmware = new System.Windows.Forms.Button();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.buttonDetect = new System.Windows.Forms.Button();
@@ -291,6 +292,18 @@ namespace BK7231Flasher
             this.comboBoxFirmware.SelectedIndexChanged += new System.EventHandler(this.comboBoxFirmware_SelectedIndexChanged);
             this.comboBoxFirmware.Click += new System.EventHandler(this.comboBoxFirmware_Click);
             // 
+            // buttonBrowseFirmware
+            // 
+            this.buttonBrowseFirmware.Location = new System.Drawing.Point(345, 59);
+            this.buttonBrowseFirmware.Name = "buttonBrowseFirmware";
+            this.buttonBrowseFirmware.Size = new System.Drawing.Size(24, 23);
+            this.buttonBrowseFirmware.TabIndex = 9;
+            this.buttonBrowseFirmware.TabStop = false;
+            this.buttonBrowseFirmware.Text = "...";
+            this.buttonBrowseFirmware.UseVisualStyleBackColor = true;
+            this.buttonBrowseFirmware.Visible = false;
+            this.buttonBrowseFirmware.Click += new System.EventHandler(this.buttonBrowseFirmware_Click);
+            // 
             // tabControl1
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
@@ -345,6 +358,7 @@ namespace BK7231Flasher
             this.tabPage1.Controls.Add(this.label5);
             this.tabPage1.Controls.Add(this.progressBar1);
             this.tabPage1.Controls.Add(this.buttonRead);
+            this.tabPage1.Controls.Add(this.buttonBrowseFirmware);
             this.tabPage1.Controls.Add(this.comboBoxFirmware);
             this.tabPage1.Controls.Add(this.textBoxLog);
             this.tabPage1.Controls.Add(this.label3);
@@ -2007,6 +2021,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.ComboBox comboBoxChipType;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.ComboBox comboBoxFirmware;
+        private System.Windows.Forms.Button buttonBrowseFirmware;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.TabPage tabPagePageTool;
