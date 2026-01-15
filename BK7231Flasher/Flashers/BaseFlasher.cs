@@ -23,6 +23,7 @@ namespace BK7231Flasher
         RTL8721DA,
         RTL8720E,
         LN882H,
+        LN8825,
         BL602,
         BL616,
         BL702,
@@ -232,7 +233,7 @@ namespace BK7231Flasher
         {
             if((sequence % 4) == 1)
             {
-                addLog($"Writing at 0x{offset:X}... ");
+                addLog($"0x{offset:X}... ");
             }
 
             logger.setProgress(sentBytes, total);

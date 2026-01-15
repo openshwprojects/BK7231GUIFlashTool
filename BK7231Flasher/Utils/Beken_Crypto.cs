@@ -311,18 +311,20 @@ namespace BK7231Flasher
 			return U32ToU8(crypted);
 		}
 
-		public static unsafe FALPartition64 BytesToFAL64(byte[] data)
+		public static T FromBytes<T>(byte[] buffer, int offset = 0) where T : struct
 		{
-			fixed(byte* pdata = data)
-			{
-				return Marshal.PtrToStructure<FALPartition64>((IntPtr)pdata);
-			}
+			var size = Marshal.SizeOf<T>();
+			var ptr = Marshal.AllocHGlobal(size);
+			Marshal.Copy(buffer, offset, ptr, size);
+			var value = Marshal.PtrToStructure<T>(ptr);
+			Marshal.FreeHGlobal(ptr);
+			return value;
 		}
 
-		public static byte[] FAL64ToBytes(FALPartition64 data)
+		public static byte[] ToBytes<T>(T data) where T : struct
 		{
 			var size = Marshal.SizeOf(data);
-			byte[] bytes = new byte[size];
+			var bytes = new byte[size];
 
 			GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
 			try
