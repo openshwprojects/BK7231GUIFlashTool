@@ -31,6 +31,7 @@ namespace BK7231Flasher
         W600,
         W800,
         RDA5981,
+        TR6260,
 
         BekenSPI,
         GenericSPI,
