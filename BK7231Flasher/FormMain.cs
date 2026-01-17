@@ -22,6 +22,8 @@ namespace BK7231Flasher
         public static FormMain Singleton;
         int chosenBaudRate;
         string chosenSourceFile;
+        int firmwareComboWidthNormal = -1;
+        int firmwareComboWidthAdvanced = -1;
         FormCustom formCustom;
         CancellationTokenSource cts;
 
@@ -1078,9 +1080,17 @@ namespace BK7231Flasher
                 found += addToFirmaresList(backupsPath);
             }
             labelMatchingFirmwares.Text = "" + found + " total bins, " + comboBoxFirmware.Items.Count + " matching.";
-            if (comboBoxFirmware.Items.Count>0)
+
+            if (comboBoxFirmware.Items.Count > 0)
             {
                 comboBoxFirmware.SelectedIndex = 0;
+            }
+            else
+            {
+                // If we previously had a manual (drag/drop or browse) path in the textbox, clear it.
+                comboBoxFirmware.SelectedIndex = -1;
+                comboBoxFirmware.Text = "";
+                chosenSourceFile = "";
             }
         }
         public void clearFirmwaresList()
@@ -1107,6 +1117,12 @@ namespace BK7231Flasher
         }
         private void comboBoxChipType_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // Changing platform should reset any manually typed / drag-dropped firmware path
+            comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxFirmware.SelectedIndex = -1;
+            comboBoxFirmware.Text = "";
+            chosenSourceFile = "";
+
             refreshType();
             refreshFirmwaresList();
             setSettingsKeyAndSave("Platform", comboBoxChipType.SelectedItem);
@@ -1122,14 +1138,19 @@ namespace BK7231Flasher
                 downloadLatestFor(curType);
             }
         }
-
         private void comboBoxFirmware_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if(comboBoxFirmware.SelectedItem != null)
+            if (comboBoxFirmware.SelectedItem != null)
             {
-                chosenSourceFile = Path.Combine(firmwaresPath,comboBoxFirmware.SelectedItem.ToString());
+                // If user previously drag/dropped or used browse (free-text), switch back to list mode once an item is selected.
+                if (comboBoxFirmware.DropDownStyle != ComboBoxStyle.DropDownList)
+                {
+                    comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
+                }
+
+                chosenSourceFile = Path.Combine(firmwaresPath, comboBoxFirmware.SelectedItem.ToString());
                 // kinda hacky, but we are 100% sure that there are no backups in firmwares, so should be ok
-                if(File.Exists(chosenSourceFile) == false)
+                if (File.Exists(chosenSourceFile) == false)
                 {
                     chosenSourceFile = Path.Combine(backupsPath, comboBoxFirmware.SelectedItem.ToString());
                 }
@@ -1153,6 +1174,32 @@ namespace BK7231Flasher
                 }
             }
         }
+
+        private void buttonBrowseFirmware_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Title = "Select firmware to flash";
+                ofd.Filter = "Firmware files (*.bin;*.rbl;*.fls;*.img)|*.bin;*.rbl;*.fls;*.img|All files (*.*)|*.*";
+                ofd.CheckFileExists = true;
+                ofd.Multiselect = false;
+                ofd.RestoreDirectory = true;
+
+                if (ofd.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                // Match existing drag/drop behaviour
+                comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDown;
+                comboBoxFirmware.SelectedIndex = -1;
+                comboBoxFirmware.Text = ofd.FileName;
+                chosenSourceFile = ofd.FileName;
+
+                addLog("Selected firmware file " + ofd.FileName + "." + Environment.NewLine, Color.Black);
+            }
+        }
+
 
         private void buttonRead_Click(object sender, EventArgs e)
         {
@@ -1296,6 +1343,20 @@ namespace BK7231Flasher
             checkBoxSkipKeyCheck.Visible = b;
             buttonCustomOperation.Visible = b;
             chkIgnoreCRCErr.Visible = b;
+
+            // Advanced-only firmware browse button + combobox width management
+            if (firmwareComboWidthNormal < 0)
+            {
+                firmwareComboWidthNormal = comboBoxFirmware.Width;
+                firmwareComboWidthAdvanced = firmwareComboWidthNormal - 26;
+            }
+
+            if (buttonBrowseFirmware != null)
+            {
+                buttonBrowseFirmware.Visible = b;
+            }
+
+            comboBoxFirmware.Width = b ? firmwareComboWidthAdvanced : firmwareComboWidthNormal;
         }
         
         private void buttonOpenBackupsDir_Click(object sender, EventArgs e)
