@@ -23,7 +23,12 @@
                         break;
 
                 case 'C':
-                    return BKType.BK7231N;
+                    if(s[1] == 'B')
+                        return BKType.BK7231N;
+                    else if(s[1] == 'R')
+                        return BKType.RTL87X0C;
+                    else
+                        break;
 
                 case 'T':
                     if(s == "T34")

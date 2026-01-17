@@ -4,13 +4,10 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using static BK7231Flasher.MiscUtils;
 
 namespace BK7231Flasher
 {
-    public class TuyaKeysText
-    {
-        public string textDescription;
-    }
     public class TuyaConfig
     {
         // thanks to kmnh & Kuba bk7231 tools for figuring out this format
@@ -18,10 +15,11 @@ namespace BK7231Flasher
         static int SECTOR_SIZE = 4096;
         static uint MAGIC_FIRST_BLOCK = 0x13579753;
         static uint MAGIC_NEXT_BLOCK = 0x98761234;
+        static uint MAGIC_FIRST_BLOCK_OS3 = 0x135726AB;
         // 8721D for RTL8720D devices, 8711AM_4M for WRG1. Not known for W800, ECR6600, RTL8720CM, BK7252...
         public static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
         static byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
-        static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
+        //static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
         // TODO: check more bins with this offset
         // hex 0x1EE000
         // While flash is 0x200000, so we have at most 0x12000 bytes there...
@@ -36,176 +34,63 @@ namespace BK7231Flasher
         // offset is 'incorrect'. data begins at 0x7dd000, but magic is after it, at 0x7fd000. Same situation is in WBR1D dump and W800 config dump.
         const int USUAL_T5_MAGIC_POSITION = 8245248;//8376320;
         const int USUAL_LN882H_MAGIC_POSITION = 2015232;
-        const int USUAL_TR6260_MAGIC_POSITION = 860160;
-        const int USUAL_ECR6600_MAGIC_POSITION = 1921024;
+        const int USUAL_TR6260_MAGIC_POSITION = 864256;
+        const int USUAL_ECR6600_MAGIC_POSITION = 1925120;
         const int USUAL_W800_MAGIC_POSITION = 1835008;
+        const int USUAL_LN8825_MAGIC_POSITION = 1998848;
 
-        internal static int getMagicOffset(BKType type)
+        class VaultPage
         {
-            // pretty useless for RTLs, since littlefs overwrites it.
-            switch(type)
-            {
-                case BKType.RTL8710B:
-                    return USUAL_RTLB_XR809_MAGIC_POSITION;
-                case BKType.RTL87X0C:
-                    return USUAL_RTLC_MAGIC_POSITION;
-                case BKType.RTL8720D:
-                    return USUAL_RTLD_MAGIC_POSITION;
-                case BKType.LN882H:
-                    return USUAL_LN882H_MAGIC_POSITION;
-                case BKType.BK7236:
-                    return USUAL_T3_MAGIC_POSITION;
-                case BKType.BK7238:
-                    return USUAL_BK_NEW_XR806_MAGIC_POSITION;
-                case BKType.BK7258:
-                    return USUAL_T5_MAGIC_POSITION;
-                case BKType.ECR6600:
-                    return USUAL_ECR6600_MAGIC_POSITION;
-                default:
-                    return USUAL_BK7231_MAGIC_POSITION;
-            }
+            public int FlashOffset;
+            public uint Seq;
+            public byte[] Data;
         }
-        public static int getMagicSize(BKType type)
+
+        // pretty useless for RTLs, since littlefs overwrites it.
+        internal static int getMagicOffset(BKType type) => type switch
+            {
+                BKType.RTL8710B => USUAL_RTLB_XR809_MAGIC_POSITION,
+                BKType.RTL87X0C => USUAL_RTLC_MAGIC_POSITION,
+                BKType.RTL8720D => USUAL_RTLD_MAGIC_POSITION,
+                BKType.LN882H   => USUAL_LN882H_MAGIC_POSITION,
+                BKType.BK7236   => USUAL_T3_MAGIC_POSITION,
+                BKType.BK7238   => USUAL_BK_NEW_XR806_MAGIC_POSITION,
+                BKType.BK7258   => USUAL_T5_MAGIC_POSITION,
+                BKType.ECR6600  => USUAL_ECR6600_MAGIC_POSITION,
+                BKType.LN8825   => USUAL_LN8825_MAGIC_POSITION,
+                BKType.TR6260   => USUAL_TR6260_MAGIC_POSITION,
+                _               => USUAL_BK7231_MAGIC_POSITION,
+            };
+
+        public static int getMagicSize(BKType type) => type switch
         {
-            switch(type)
-            {
-                case BKType.RTL8710B:
-                    return 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION;
-                case BKType.RTL87X0C:
-                    return 0x200000 - USUAL_RTLC_MAGIC_POSITION;
-                case BKType.RTL8720D:
-                    return 0x400000 - USUAL_RTLD_MAGIC_POSITION;
-                case BKType.LN882H:
-                    return 0x200000 - USUAL_LN882H_MAGIC_POSITION;
-                case BKType.BK7236:
-                    return 0x400000 - USUAL_T3_MAGIC_POSITION;
-                case BKType.BK7238:
-                    return 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION;
-                case BKType.BK7258:
-                    return 0x800000 - USUAL_T5_MAGIC_POSITION;
-                case BKType.ECR6600:
-                    return 0x200000 - USUAL_ECR6600_MAGIC_POSITION;
-                default:
-                    return 0x200000 - USUAL_BK7231_MAGIC_POSITION;
-            }
-        }
-        public static string getMagicConstantStartString()
-        {
-            string s = "";
-            for(int i = 0; i < MAGIC_CONFIG_START.Length; i++)
-            {
-                s += MAGIC_CONFIG_START[i].ToString("X2");
-            }
-            return s;
-        }
-        int magicPosition;
-        MemoryStream decrypted;
+            BKType.RTL8710B => 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION,
+            BKType.RTL87X0C => 0x200000 - USUAL_RTLC_MAGIC_POSITION,
+            BKType.RTL8720D => 0x400000 - USUAL_RTLD_MAGIC_POSITION,
+            BKType.LN882H   => 0x200000 - USUAL_LN882H_MAGIC_POSITION,
+            BKType.BK7236   => 0x400000 - USUAL_T3_MAGIC_POSITION,
+            BKType.BK7238   => 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION,
+            BKType.BK7258   => 0x800000 - USUAL_T5_MAGIC_POSITION,
+            BKType.ECR6600  => 0x200000 - USUAL_ECR6600_MAGIC_POSITION,
+            BKType.LN8825   => 0x200000 - USUAL_LN8825_MAGIC_POSITION,
+            BKType.TR6260   => 0x100000 - USUAL_TR6260_MAGIC_POSITION,
+            _               => 0x200000 - USUAL_BK7231_MAGIC_POSITION,
+        };
+
+        int magicPosition = -1;
         byte[] descryptedRaw;
-        // Dictionary<string, string> parms = new Dictionary<string, string>();
         List<KeyValue> parms = new List<KeyValue>();
 
-        public int getMagicPosition()
-        {
-            return magicPosition;
-        }
         public string getMagicPositionHex() => $"0x{magicPosition:X}";
+
         public string getMagicPositionDecAndHex() => $"{magicPosition} ({getMagicPositionHex()})";
+
         public bool fromFile(string fname)
         {
-            using (var fs = new FileStream(fname, FileMode.Open, FileAccess.Read))
-            {
-                var buffer = new byte[fs.Length]; 
-                fs.Read(buffer, 0, buffer.Length);
-                return fromBytes(buffer);
-            }
-        }
-        public byte []myDecrypt(byte [] data, int baseOffset, int blockIndex, byte [] key)
-        {
-            bool bSaveDebug;
-            bSaveDebug = true;
-            string saveDir = "DebugAES/";
-            if (bSaveDebug)
-            {
-                if (Directory.Exists(saveDir) == false)
-                {
-                    Directory.CreateDirectory(saveDir);
-                }
-            }
-            byte[] decryptedData = null;
-            try
-            {
-                using (Aes aes = Aes.Create())
-                {
-                    aes.Mode = CipherMode.ECB;
-                    aes.Key = key;
-                    aes.Padding = PaddingMode.Zeros;
-                    ICryptoTransform decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                    if (bSaveDebug)
-                    {
-                        File.WriteAllBytes(saveDir + "used_IV.bin", aes.IV);
-                        string hexString = "";
-                        foreach (byte b in aes.IV)
-                        {
-                            hexString += b.ToString("X2");
-                        }
-                        File.WriteAllText(saveDir + "used_IV.txt", hexString);
-                    }
-                    int readOfs = baseOffset + SECTOR_SIZE * blockIndex;
-                    int rem = data.Length - readOfs;
-                    using (MemoryStream msDecrypt = new MemoryStream(data, readOfs, SECTOR_SIZE))
-                    {
-                        if (bSaveDebug)
-                        {
-                            byte[] msDecryptB = MiscUtils.subArray(data, readOfs, SECTOR_SIZE);
-                            File.WriteAllBytes(saveDir + "tuya_" + blockIndex + ".bin", msDecryptB);
-                            string hexString = "";
-                            foreach (byte b in msDecryptB)
-                            {
-                                hexString += b.ToString("X2");
-                            }
-                            File.WriteAllText(saveDir + "tuya_" + blockIndex + ".txt", hexString);
-                        }
-                        if (bSaveDebug)
-                        {
-                            byte[] msDecryptB = key;
-                            File.WriteAllBytes(saveDir + "key_" + blockIndex + ".bin", msDecryptB);
-                            string hexString = "";
-                            foreach (byte b in msDecryptB)
-                            {
-                                hexString += b.ToString("X2");
-                            }
-                            File.WriteAllText(saveDir + "key_" + blockIndex + ".txt", hexString);
-                        }
-                        using (MemoryStream msPlain = new MemoryStream())
-                        {
-                            using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
-                            {
-                                byte[] buffer = new byte[1024];
-                                int bytesRead;
-                                while ((bytesRead = csDecrypt.Read(buffer, 0, buffer.Length)) > 0)
-                                {
-                                    msPlain.Write(buffer, 0, bytesRead);
-                                }
-                            }
-                            decryptedData = msPlain.ToArray();
-                            if (bSaveDebug)
-                            {
-                                File.WriteAllBytes(saveDir + "decoded_" + blockIndex + ".bin", decryptedData);
-                                string hexString = "";
-                                foreach (byte b in decryptedData)
-                                {
-                                    hexString += b.ToString("X2");
-                                }
-                                File.WriteAllText(saveDir + "decoded_" + blockIndex + ".txt", hexString);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-            }
-            return decryptedData;
+            using var fs = new FileStream(fname, FileMode.Open, FileAccess.Read);
+            var buffer = new byte[fs.Length];
+            fs.Read(buffer, 0, buffer.Length);
+            return fromBytes(buffer);
         }
 
         bool bLastBinaryOBKConfig;
@@ -219,93 +104,202 @@ namespace BK7231Flasher
         {
             return bLastBinaryOBKConfig;
         }
+
         public bool fromBytes(byte[] data)
         {
-            this.bLastBinaryOBKConfig = false;
-            this.bGivenBinaryIsFullOf0xff = false;
-
-            int needle = MiscUtils.indexOf(data, MAGIC_CONFIG_START);
-            if(needle < 0)
+            descryptedRaw = null;
+            if (isFullOf(data, 0xff))
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
-
-                if (MiscUtils.isFullOf(data, 0xff))
-                {
-                    FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Purple);
-                    bGivenBinaryIsFullOf0xff = true;
-                }
-                if(data.Length>3 && data[0] == (byte)'C' && data[1] == (byte)'F' && data[2] == (byte)'G')
-                {
-                    FormMain.Singleton.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Purple);
-                    this.bLastBinaryOBKConfig = true;
-                }
+                FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Purple);
+                bGivenBinaryIsFullOf0xff = true;
                 return true;
             }
-            needle -= 32;
-            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {needle} (0x{needle:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
-            magicPosition = needle;
-
-            byte[] key = null;
-
-            decrypted = new MemoryStream();
-            BinaryWriter bw = new BinaryWriter(decrypted);
-            byte[] first = myDecrypt(data, needle, 0, Encoding.ASCII.GetBytes(KEY_MASTER));
-            using (BinaryReader br = new BinaryReader(new MemoryStream(first)))
+            if(data.Length>3 && data[0] == (byte)'C' && data[1] == (byte)'F' && data[2] == (byte)'G')
             {
-                UInt32 mag = br.ReadUInt32();
-                if (mag != MAGIC_FIRST_BLOCK)
-                {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock header" + Environment.NewLine, System.Drawing.Color.Purple);
-                    return true;
-                }
-                uint crc = br.ReadUInt32();
-                key = br.ReadBytes(16);
-                if (checkCRC(crc, key, 0, key.Length) == false)
-                {
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Purple);
-                    return true;
-                }
-                key = makeSecondaryKey(key);
-                bw.Write(first, 8, first.Length - 8);
+                FormMain.Singleton.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Purple);
+                bLastBinaryOBKConfig = true;
+                return true;
             }
-            int blockIndex = 1;
-            for (; blockIndex < 500; blockIndex++)
+
+            try
             {
-                byte[] next = myDecrypt(data, needle, blockIndex, key);
-                if (next == null)
-                {
-                    break;
-                }
-                using (BinaryReader br = new BinaryReader(new MemoryStream(next)))
-                {
-                    UInt32 mag = br.ReadUInt32();
-                    if (mag != MAGIC_NEXT_BLOCK && mag != 324478635)
-                    {
-                        // it seems that TuyaOS3 binaries have here 324478635?
-                        //FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock header" + Environment.NewLine, System.Drawing.Color.Purple);
-                        //return true;
-                        FormMain.Singleton.addLog("WARNING - strange nextblock header " + mag.ToString("X4") + Environment.NewLine, System.Drawing.Color.Purple);
+                if(TryVaultExtract(data)) return false;
 
-                    }
-                    uint crc = br.ReadUInt32();
-                    if (checkCRC(crc, next, 8, next.Length - 8) == false)
-                    {
-                        FormMain.Singleton.addLog("WARNING - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Purple);
+                if(TryCommonExtract(data)) return false;
+            }
+            finally
+            {
+                if(descryptedRaw != null)
+                {
+                    string debugName = "lastRawDecryptedStrings.bin";
+                    FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
-                        //   FormMain.Singleton.addLog("Failed to extract Tuya keys - bad nextblock CRC" + Environment.NewLine, System.Drawing.Color.Purple);
-                        //  return true;
-                    }
-                    //uint len = br.ReadUInt32();
-                    bw.Write(next, 8, next.Length - 8);
+                    File.WriteAllBytes(debugName, descryptedRaw);
                 }
             }
-            descryptedRaw = decrypted.ToArray();
-            string debugName = "lastRawDecryptedStrings.bin";
-            FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName+"" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
-            File.WriteAllBytes(debugName, descryptedRaw);
-            return false;
+            return true;
         }
+
+        bool TryVaultExtract(byte[] flash)
+        {
+            descryptedRaw = null;
+
+            var deviceKeys = FindDeviceKeys(flash);
+            if(deviceKeys.Count == 0)
+                return false;
+
+            var baseKeyCandidates = new byte[][]
+            {
+                HexStringToBytes("9090a4a4a2c4f2cadadecce4e8f2e8cc"),
+                HexStringToBytes("48485252516279656d6f667274797466"),
+            };
+
+            var pageMagics = new uint[] { MAGIC_NEXT_BLOCK, MAGIC_FIRST_BLOCK_OS3, MAGIC_FIRST_BLOCK };
+
+            List<VaultPage> bestPages = null;
+            int bestCount = 0;
+
+            foreach(var devKey in deviceKeys)
+            {
+                foreach(var baseKey in baseKeyCandidates)
+                {
+                    var vaultKey = DeriveVaultKey(devKey, baseKey);
+
+                    foreach(var magic in pageMagics)
+                    {
+                        List<VaultPage> pages = new List<VaultPage>();
+
+                        for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
+                        {
+                            var dec = AESDecrypt(flash, ofs, vaultKey);
+
+                            if(dec == null) continue;
+
+                            var pageMagic = ReadU32LE(dec, 0);
+                            if(pageMagic != magic) continue;
+
+                            var crc = ReadU32LE(dec, 4);
+                            if(!checkCRC(crc, dec, 8, dec.Length - 8)) continue;
+
+                            var seq = ReadU32LE(dec, 8);
+                            if(magicPosition == -1) magicPosition = ofs;
+                            pages.Add(new VaultPage
+                            {
+                                FlashOffset = ofs,
+                                Seq = seq,
+                                Data = dec
+                            });
+                        }
+
+                        if(pages.Count > bestCount)
+                        {
+                            bestCount = pages.Count;
+                            bestPages = pages;
+                        }
+                    }
+                }
+            }
+
+            if(bestPages == null || bestPages.Count < 2) return false;
+
+            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
+
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
+            foreach(var p in bestPages) bw.Write(p.Data, 12, p.Data.Length - 12);
+
+            descryptedRaw = ms.ToArray();
+            return true;
+        }
+
+        byte[] DeriveVaultKey(byte[] baseKey, byte[] deviceKey)
+        {
+            if(baseKey.Length != 16 || deviceKey.Length != 16)
+                throw new Exception($"baseKey.Length != 16 ({baseKey.Length}) || deviceKey.Length != 16 ({deviceKey.Length})");
+
+            var vaultKey = new byte[16];
+            for(int i = 0; i < 16; i++) vaultKey[i] = (byte)((baseKey[i] + deviceKey[i]) & 0xFF);
+            return vaultKey;
+        }
+
+        byte[] HexStringToBytes(string hex)
+        {
+            if(hex.Length % 2 != 0) throw new Exception($"hex.Length % 2 != 0, {hex.Length}");
+            var bytes = new byte[hex.Length / 2];
+            for(int i = 0; i < hex.Length; i += 2) bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+            return bytes;
+        }
+
+        List<byte[]> FindDeviceKeys(byte[] flash)
+        {
+            var keys = new List<byte[]>();
+            var master = Encoding.ASCII.GetBytes(KEY_MASTER);
+
+            for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
+            {
+                var dec = AESDecrypt(flash, ofs, master);
+                if(dec == null) continue;
+
+                if(ReadU32LE(dec, 0) != MAGIC_FIRST_BLOCK) continue;
+
+                var dk = new byte[16];
+                Buffer.BlockCopy(dec, 8, dk, 0, 16);
+
+                var crc = ReadU32LE(dec, 4);
+                if(checkCRC(crc, dk, 0, 16)) keys.Add(dk);
+            }
+            return keys;
+        }
+
+        bool TryCommonExtract(byte[] flash)
+        {
+            byte[] needle = { 0x46, 0xDC, 0xED, 0x0E };
+            var pos = indexOf(flash, needle);
+            if(pos < 32) return false;
+            var ofs = pos - 32;
+            magicPosition = ofs;
+            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {ofs} (0x{ofs:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+
+            var first = AESDecrypt(flash, ofs, Encoding.ASCII.GetBytes(KEY_MASTER));
+            if(first == null || ReadU32LE(first, 0) != MAGIC_FIRST_BLOCK) return false;
+
+            var inner = new byte[16];
+            Buffer.BlockCopy(first, 8, inner, 0, 16);
+
+            var key = makeSecondaryKey(inner);
+
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
+
+            for(int i = 1; i < 512; i++)
+            {
+                var dec = AESDecrypt(flash, ofs + i * SECTOR_SIZE, key);
+                if(dec == null) break;
+                bw.Write(dec, 8, dec.Length - 8);
+            }
+
+            descryptedRaw = ms.ToArray();
+            return true;
+        }
+
+        byte[] AESDecrypt(byte[] flash, int ofs, byte[] key)
+        {
+            if(key.Length != 16) throw new Exception($"key.Length != 16 ({key.Length})");
+            if(ofs + SECTOR_SIZE > flash.Length) return null;
+
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.None;
+            aes.KeySize = 128;
+            aes.Key = key;
+
+            var block = new byte[SECTOR_SIZE];
+            Buffer.BlockCopy(flash, ofs, block, 0, SECTOR_SIZE);
+
+            return aes.CreateDecryptor().TransformFinalBlock(block, 0, SECTOR_SIZE);
+        }
+
         public string getKeysHumanReadable(OBKConfig tg = null)
         {
             bool bHasBattery = false;
@@ -818,6 +812,9 @@ namespace BK7231Flasher
             }
             switch(magicPosition)
             {
+                case 0:
+                case 0x1000:
+                    break;
                 case USUAL_BK7231_MAGIC_POSITION:
                     desc += $"And the Tuya section starts, as usual, at {getMagicPositionDecAndHex()}" + Environment.NewLine;
                     break;
@@ -853,6 +850,9 @@ namespace BK7231Flasher
                     break;
                 case USUAL_W800_MAGIC_POSITION:
                     printposdevice("W800");
+                    break;
+                case USUAL_LN8825_MAGIC_POSITION:
+                    printposdevice("LN8825B");
                     break;
                 default:
                     desc += "And the Tuya section starts at an UNCOMMON POSITION " + getMagicPositionDecAndHex() + Environment.NewLine;
