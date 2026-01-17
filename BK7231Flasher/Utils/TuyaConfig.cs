@@ -79,6 +79,7 @@ namespace BK7231Flasher
 
         int magicPosition = -1;
         byte[] descryptedRaw;
+        byte[] original;
         List<KeyValue> parms = new List<KeyValue>();
 
         public string getMagicPositionHex() => $"0x{magicPosition:X}";
@@ -108,6 +109,7 @@ namespace BK7231Flasher
         public bool fromBytes(byte[] data)
         {
             descryptedRaw = null;
+            original = data;
             if (isFullOf(data, 0xff))
             {
                 FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Purple);
@@ -909,12 +911,25 @@ namespace BK7231Flasher
                         keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("baud_cfg"));
                         if(keys_at == -1)
                         {
+                            // ln882h hack
+                            int jsonInOrig = MiscUtils.indexOf(original, Encoding.ASCII.GetBytes("crc:"));
+                            if(jsonInOrig != -1 && original[jsonInOrig + 6] == ',' && original[jsonInOrig + 7] == '}')
+                            {
+                                keys_at = jsonInOrig;
+                                descryptedRaw = original;
+                                while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
+                                    keys_at--;
+                                keys_at--;
+                            }
                             // extract at least something
-                            keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
                             if(keys_at == -1)
                             {
-                                FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                                return true;
+                                keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
+                                if(keys_at == -1)
+                                {
+                                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                                    return true;
+                                }
                             }
                         }
                         while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
