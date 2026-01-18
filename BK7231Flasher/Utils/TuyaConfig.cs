@@ -66,15 +66,15 @@ namespace BK7231Flasher
         public static int getMagicSize(BKType type) => type switch
         {
             BKType.RTL8710B => 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION,
-            BKType.RTL87X0C => 0x200000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
-            BKType.RTL8720D => 0x400000 - USUAL_RTLD_MAGIC_POSITION,
+            BKType.RTL87X0C => 0x1E5000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
+            BKType.RTL8720D => 0x3FC000 - USUAL_RTLD_MAGIC_POSITION,
             BKType.LN882H   => 0x200000 - USUAL_LN882H_MAGIC_POSITION,
-            BKType.BK7236   => 0x400000 - USUAL_T3_MAGIC_POSITION,
+            BKType.BK7236   => 0x3E0000 - USUAL_T3_MAGIC_POSITION,
             BKType.BK7238   => 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION,
-            BKType.BK7258   => 0x800000 - USUAL_T5_MAGIC_POSITION,
-            BKType.ECR6600  => 0x200000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
+            BKType.BK7258   => 0x7ED000 - USUAL_T5_MAGIC_POSITION,
+            BKType.ECR6600  => 0x1F7000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
             BKType.LN8825   => 0x200000 - USUAL_LN8825_MAGIC_POSITION,
-            BKType.TR6260   => 0x100000 - USUAL_TR6260_MAGIC_POSITION,
+            BKType.TR6260   => 0x0DE000 - USUAL_TR6260_MAGIC_POSITION,
             _               => 0x200000 - USUAL_BK7231_MAGIC_POSITION,
         };
 
@@ -374,6 +374,11 @@ namespace BK7231Flasher
                         desc += "- Battery Min Voltage: " + value + Environment.NewLine;
                         bHasBattery = true;
                         break;
+                    case "rl":
+                        desc += "- Relay (channel 0) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Rel);
+                        tg?.setPinChannel(value, 0);
+                        break;
                     case var k when Regex.IsMatch(k, "^rl\\d+_pin$"):
                     {
                         int number = int.Parse(Regex.Match(key, "\\d+").Value);
@@ -514,7 +519,7 @@ namespace BK7231Flasher
                         break;
                     case "pwmhz":
                         desc += "- PWM Frequency " + value + "" + Environment.NewLine;
-                        if(tg != null) tg.initCommandLine += $"PWMFrequency {value}\r\n";
+                        if(tg != null && int.TryParse(value, out _)) tg.initCommandLine += $"PWMFrequency {value}\r\n";
                         break;
                     case "pirsense_pin":
                         desc += "- PIR Sensitivity " + value + "" + Environment.NewLine;
@@ -533,10 +538,17 @@ namespace BK7231Flasher
                         break;
                     case "mosi":
                         desc += "- SPI MOSI " + value + "" + Environment.NewLine;
+                        // assume SPI LED
                         tg?.setPinRole(value, PinRole.SM16703P_DIN);
                         break;
                     case "miso":
                         desc += "- SPI MISO " + value + "" + Environment.NewLine;
+                        break;
+                    case "SCL":
+                        desc += "- SPI SCL " + value + "" + Environment.NewLine;
+                        break;
+                    case "CS":
+                        desc += "- SPI CS " + value + "" + Environment.NewLine;
                         break;
                     case "total_bt_pin":
                         desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
@@ -945,9 +957,9 @@ namespace BK7231Flasher
 
                     continue;
                 }
-                string skey = kp[0];
+                string skey = (kp.Length > 2 && kp[1].Contains('[')) ? kp[1] : kp[0];
                 string svalue = kp[kp.Length - 1];
-                skey = skey.Trim(new char[] { '"' }).Replace("\"", "");
+                skey = skey.Trim(new char[] { '"' }).Replace("\"", "").Replace("[", "").Replace("{", "");
                 svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "").Replace("}", "");
                 //parms.Add(skey, svalue);
                 if (findKeyValue(skey) == null)
