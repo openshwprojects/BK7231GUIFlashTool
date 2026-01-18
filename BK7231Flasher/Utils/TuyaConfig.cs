@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using static BK7231Flasher.MiscUtils;
 
 namespace BK7231Flasher
@@ -148,12 +149,8 @@ namespace BK7231Flasher
         bool TryVaultExtract(byte[] flash)
         {
             descryptedRaw = null;
-            using var aes = Aes.Create();
-            aes.Mode = CipherMode.ECB;
-            aes.Padding = PaddingMode.None;
-            aes.KeySize = 128;
-
-            var deviceKeys = FindDeviceKeys(flash, aes);
+            
+            var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
             {
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
@@ -173,11 +170,16 @@ namespace BK7231Flasher
 
             List<VaultPage> bestPages = null;
             int bestCount = 0;
+            var obj = new object();
             foreach(var devKey in deviceKeys)
             {
-                foreach(var baseKey in baseKeyCandidates)
+                Parallel.ForEach(baseKeyCandidates, baseKey =>
                 {
-                    aes.Key = baseKey.Length == 16 ? DeriveVaultKey(devKey, baseKey) : makeSecondaryKey(devKey, baseKey);
+                    using var aes = Aes.Create();
+                    aes.Mode = CipherMode.ECB;
+                    aes.Padding = PaddingMode.None;
+                    aes.KeySize = 128;
+                    aes.Key = DeriveVaultKey(devKey, baseKey);
                     using var decryptor = aes.CreateDecryptor();
                     var blockBuffer = new byte[SECTOR_SIZE];
                     var firstBlock = new byte[16];
@@ -212,14 +214,16 @@ namespace BK7231Flasher
                                 Data = dec
                             });
                         }
-
-                        if(pages.Count > bestCount)
+                        lock(obj)
                         {
-                            bestCount = pages.Count;
-                            bestPages = pages;
+                            if(pages.Count > bestCount)
+                            {
+                                bestCount = pages.Count;
+                                bestPages = pages;
+                            }
                         }
                     }
-                }
+                });
             }
 
             if(bestPages == null)
@@ -250,10 +254,18 @@ namespace BK7231Flasher
 
         byte[] DeriveVaultKey(byte[] baseKey, byte[] deviceKey)
         {
-            if(baseKey.Length != 16 || deviceKey.Length != 16)
-                throw new Exception($"baseKey.Length != 16 ({baseKey.Length}) || deviceKey.Length != 16 ({deviceKey.Length})");
-
+            if(baseKey.Length != 16)
+                throw new Exception($"baseKey.Length != 16 ({baseKey.Length}");
             var vaultKey = new byte[16];
+            if(deviceKey.Length != 16)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    int v = deviceKey[i & 3] + KEY_PART_2[i];
+                    vaultKey[i] = (byte)((v + baseKey[i]) & 0xFF);
+                }
+                return vaultKey;
+            }
             for(int i = 0; i < 16; i++) vaultKey[i] = (byte)((baseKey[i] + deviceKey[i]) & 0xFF);
             return vaultKey;
         }
@@ -266,9 +278,13 @@ namespace BK7231Flasher
             return bytes;
         }
 
-        List<byte[]> FindDeviceKeys(byte[] flash, Aes aes)
+        List<byte[]> FindDeviceKeys(byte[] flash)
         {
             var keys = new List<byte[]>();
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.None;
+            aes.KeySize = 128;
             aes.Key = Encoding.ASCII.GetBytes(KEY_MASTER);
 
             using var decryptor = aes.CreateDecryptor();
@@ -996,16 +1012,6 @@ namespace BK7231Flasher
                     return parms[i];
             }
             return null;
-        }
-        byte[] makeSecondaryKey(byte[] innerKey, byte[] p1Key)
-        {
-            byte[] key = new byte[0x10];
-            for (int i = 0; i < 16; i++)
-            {
-                int v = p1Key[i & 3] + KEY_PART_2[i];
-                key[i] = (byte)((v + innerKey[i]) & 0xFF);
-            }
-            return key;
         }
         bool checkCRC(uint expected, byte [] dat, int ofs, int len)
         {
