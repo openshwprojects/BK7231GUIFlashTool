@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -27,17 +28,17 @@ namespace BK7231Flasher
         const int USUAL_BK7231_MAGIC_POSITION = 2023424;
         const int USUAL_BK_NEW_XR806_MAGIC_POSITION = 2052096;
         const int USUAL_RTLB_XR809_MAGIC_POSITION = 2011136;
-        const int USUAL_RTLC_MAGIC_POSITION = 1933312;
-        const int USUAL_RTLD_MAGIC_POSITION = 3989504;
+        const int USUAL_RTLC_ECR6600_MAGIC_POSITION = 1921024;
+        const int USUAL_RTLD_MAGIC_POSITION = 3891200;
         const int USUAL_WBRG1_MAGIC_POSITION = 8220672;
         const int USUAL_T3_MAGIC_POSITION = 3997696;
-        // offset is 'incorrect'. data begins at 0x7dd000, but magic is after it, at 0x7fd000. Same situation is in WBR1D dump and W800 config dump.
-        const int USUAL_T5_MAGIC_POSITION = 8245248;//8376320;
+        const int USUAL_T5_MAGIC_POSITION = 8245248;
         const int USUAL_LN882H_MAGIC_POSITION = 2015232;
-        const int USUAL_TR6260_MAGIC_POSITION = 864256;
-        const int USUAL_ECR6600_MAGIC_POSITION = 1925120;
+        const int USUAL_TR6260_MAGIC_POSITION = 860160;
         const int USUAL_W800_MAGIC_POSITION = 1835008;
-        const int USUAL_LN8825_MAGIC_POSITION = 1998848;
+        const int USUAL_LN8825_MAGIC_POSITION = 1994752;
+        const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
+        const int USUAL_BK7252_MAGIC_POSITION = 3764224;
 
         class VaultPage
         {
@@ -50,13 +51,13 @@ namespace BK7231Flasher
         internal static int getMagicOffset(BKType type) => type switch
             {
                 BKType.RTL8710B => USUAL_RTLB_XR809_MAGIC_POSITION,
-                BKType.RTL87X0C => USUAL_RTLC_MAGIC_POSITION,
+                BKType.RTL87X0C => USUAL_RTLC_ECR6600_MAGIC_POSITION,
                 BKType.RTL8720D => USUAL_RTLD_MAGIC_POSITION,
                 BKType.LN882H   => USUAL_LN882H_MAGIC_POSITION,
                 BKType.BK7236   => USUAL_T3_MAGIC_POSITION,
                 BKType.BK7238   => USUAL_BK_NEW_XR806_MAGIC_POSITION,
                 BKType.BK7258   => USUAL_T5_MAGIC_POSITION,
-                BKType.ECR6600  => USUAL_ECR6600_MAGIC_POSITION,
+                BKType.ECR6600  => USUAL_RTLC_ECR6600_MAGIC_POSITION,
                 BKType.LN8825   => USUAL_LN8825_MAGIC_POSITION,
                 BKType.TR6260   => USUAL_TR6260_MAGIC_POSITION,
                 _               => USUAL_BK7231_MAGIC_POSITION,
@@ -65,13 +66,13 @@ namespace BK7231Flasher
         public static int getMagicSize(BKType type) => type switch
         {
             BKType.RTL8710B => 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION,
-            BKType.RTL87X0C => 0x200000 - USUAL_RTLC_MAGIC_POSITION,
+            BKType.RTL87X0C => 0x200000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
             BKType.RTL8720D => 0x400000 - USUAL_RTLD_MAGIC_POSITION,
             BKType.LN882H   => 0x200000 - USUAL_LN882H_MAGIC_POSITION,
             BKType.BK7236   => 0x400000 - USUAL_T3_MAGIC_POSITION,
             BKType.BK7238   => 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION,
             BKType.BK7258   => 0x800000 - USUAL_T5_MAGIC_POSITION,
-            BKType.ECR6600  => 0x200000 - USUAL_ECR6600_MAGIC_POSITION,
+            BKType.ECR6600  => 0x200000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
             BKType.LN8825   => 0x200000 - USUAL_LN8825_MAGIC_POSITION,
             BKType.TR6260   => 0x100000 - USUAL_TR6260_MAGIC_POSITION,
             _               => 0x200000 - USUAL_BK7231_MAGIC_POSITION,
@@ -126,8 +127,6 @@ namespace BK7231Flasher
             try
             {
                 if(TryVaultExtract(data)) return false;
-
-                if(TryCommonExtract(data)) return false;
             }
             finally
             {
@@ -149,12 +148,18 @@ namespace BK7231Flasher
 
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
+            {
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
                 return false;
+            }
 
             var baseKeyCandidates = new byte[][]
             {
+                KEY_PART_1,
                 HexStringToBytes("9090a4a4a2c4f2cadadecce4e8f2e8cc"),
-                HexStringToBytes("48485252516279656d6f667274797466"),
+                Encoding.ASCII.GetBytes("8721D"),
+                KEY_PART_2,
+                Encoding.ASCII.GetBytes("8711AM_4M"),
             };
 
             var pageMagics = new uint[] { MAGIC_NEXT_BLOCK, MAGIC_FIRST_BLOCK_OS3, MAGIC_FIRST_BLOCK };
@@ -166,44 +171,64 @@ namespace BK7231Flasher
             {
                 foreach(var baseKey in baseKeyCandidates)
                 {
-                    var vaultKey = DeriveVaultKey(devKey, baseKey);
+                    var vaultKeys = new List<byte[]>();
 
-                    foreach(var magic in pageMagics)
+                    if(baseKey.Length == 16) vaultKeys.Add(DeriveVaultKey(devKey, baseKey));
+                    else vaultKeys.Add(makeSecondaryKey(devKey, baseKey));
+
+                    foreach(var vaultKey in vaultKeys)
                     {
-                        List<VaultPage> pages = new List<VaultPage>();
-
-                        for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
+                        foreach(var magic in pageMagics)
                         {
-                            var dec = AESDecrypt(flash, ofs, vaultKey);
+                            List<VaultPage> pages = new List<VaultPage>();
 
-                            if(dec == null) continue;
-
-                            var pageMagic = ReadU32LE(dec, 0);
-                            if(pageMagic != magic) continue;
-
-                            var crc = ReadU32LE(dec, 4);
-                            if(!checkCRC(crc, dec, 8, dec.Length - 8)) continue;
-
-                            var seq = ReadU32LE(dec, 8);
-                            if(magicPosition == -1) magicPosition = ofs;
-                            pages.Add(new VaultPage
+                            for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                             {
-                                FlashOffset = ofs,
-                                Seq = seq,
-                                Data = dec
-                            });
-                        }
+                                var dec = AESDecrypt(flash, ofs, vaultKey);
 
-                        if(pages.Count > bestCount)
-                        {
-                            bestCount = pages.Count;
-                            bestPages = pages;
+                                if(dec == null) continue;
+
+                                var pageMagic = ReadU32LE(dec, 0);
+                                if(pageMagic != magic) continue;
+
+                                var crc = ReadU32LE(dec, 4);
+                                if(!checkCRC(crc, dec, 8, dec.Length - 8)) continue;
+
+                                var seq = ReadU32LE(dec, 8);
+
+                                pages.Add(new VaultPage
+                                {
+                                    FlashOffset = ofs,
+                                    Seq = seq,
+                                    Data = dec
+                                });
+                            }
+
+                            if(pages.Count > bestCount)
+                            {
+                                bestCount = pages.Count;
+                                bestPages = pages;
+                            }
                         }
                     }
                 }
             }
 
-            if(bestPages == null || bestPages.Count < 2) return false;
+            if(bestPages == null)
+            {
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
+                return false;
+            }
+
+            var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
+            magicPosition = magicPosition < dataFlashOffset ? magicPosition : dataFlashOffset;
+            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {magicPosition} (0x{magicPosition:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+
+            if(bestPages.Count < 2)
+            {
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - config not found" + Environment.NewLine, System.Drawing.Color.Orange);
+                return false;
+            }
 
             bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
 
@@ -249,40 +274,13 @@ namespace BK7231Flasher
                 Buffer.BlockCopy(dec, 8, dk, 0, 16);
 
                 var crc = ReadU32LE(dec, 4);
-                if(checkCRC(crc, dk, 0, 16)) keys.Add(dk);
+                if(checkCRC(crc, dk, 0, 16))
+                {
+                    keys.Add(dk);
+                    magicPosition = ofs;
+                }
             }
             return keys;
-        }
-
-        bool TryCommonExtract(byte[] flash)
-        {
-            byte[] needle = { 0x46, 0xDC, 0xED, 0x0E };
-            var pos = indexOf(flash, needle);
-            if(pos < 32) return false;
-            var ofs = pos - 32;
-            magicPosition = ofs;
-            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {ofs} (0x{ofs:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
-
-            var first = AESDecrypt(flash, ofs, Encoding.ASCII.GetBytes(KEY_MASTER));
-            if(first == null || ReadU32LE(first, 0) != MAGIC_FIRST_BLOCK) return false;
-
-            var inner = new byte[16];
-            Buffer.BlockCopy(first, 8, inner, 0, 16);
-
-            var key = makeSecondaryKey(inner);
-
-            using var ms = new MemoryStream();
-            using var bw = new BinaryWriter(ms);
-
-            for(int i = 1; i < 512; i++)
-            {
-                var dec = AESDecrypt(flash, ofs + i * SECTOR_SIZE, key);
-                if(dec == null) break;
-                bw.Write(dec, 8, dec.Length - 8);
-            }
-
-            descryptedRaw = ms.ToArray();
-            return true;
         }
 
         byte[] AESDecrypt(byte[] flash, int ofs, byte[] key)
@@ -306,392 +304,246 @@ namespace BK7231Flasher
         {
             bool bHasBattery = false;
             string desc = "";
-            for (int i = 0; i < parms.Count; i++)
+            if(tg != null && !string.IsNullOrWhiteSpace(tg.initCommandLine)) tg.initCommandLine += "\r\n";
+            for(int i = 0; i < parms.Count; i++)
             {
                 var p = parms[i];
                 string key = p.Key;
                 string value = p.Value;
-                if (Regex.IsMatch(key, "^led\\d+_pin$"))
+                switch(key)
                 {
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- LED (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^led\\d+_pin$"):
                     {
-                        tg.setPinRole(value, PinRole.LED);
-                        tg.setPinChannel(value, number);
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- LED (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.LED);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "^netled\\d+_pin$"))
-                {
-                    // some devices have netled1_pin, some have netled_pin
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- WiFi LED on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^netled\\d+_pin$"):
+                    case "netled_pin":
+                    case "wfst":
+                    case "wfst_pin":
+                        // some devices have netled1_pin, some have netled_pin
+                        //int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- WiFi LED on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.WifiLED_n);
+                        break;
+                    case var k when Regex.IsMatch(k, "bz_pin_pin"):
+                    case "buzzer_io":
+                        desc += "- Buzzer Pin (TODO) on P" + value + Environment.NewLine;
+                        //tg?.setPinRole(value, PinRole.WifiLED_n);
+                        break;
+                    case var k when Regex.IsMatch(k, "status_led_pin"):
+                        desc += "- Status LED on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.WifiLED_n);
+                        break;
+                    case var k when Regex.IsMatch(k, "remote_io"):
+                        desc += "- RF Remote on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.RCRecv);
+                        break;
+                    case var k when Regex.IsMatch(k, "samp_sw_pin"):
+                        desc += "- Battery Relay on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.BAT_Relay);
+                        break;
+                    case var k when Regex.IsMatch(k, "samp_pin"):
+                        desc += "- Battery ADC on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.BAT_ADC);
+                        break;
+                    case var k when Regex.IsMatch(k, "i2c_scl_pin"):
+                        desc += "- I2C SCL on P" + value + Environment.NewLine;
+                        break;
+                    case var k when Regex.IsMatch(k, "i2c_sda_pin"):
+                        desc += "- I2C SDA on P" + value + Environment.NewLine;
+                        break;
+                    case var k when Regex.IsMatch(k, "alt_pin_pin"):
+                        desc += "- ALT pin on P" + value + Environment.NewLine;
+                        break;
+                    case var k when Regex.IsMatch(k, "one_wire_pin"):
+                        desc += "- OneWire IO pin on P" + value + Environment.NewLine;
+                        break;
+                    case var k when Regex.IsMatch(k, "backlit_io_pin"):
+                        desc += "- Backlit IO pin on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.LED);
+                        break;
+                    case "max_V":
+                        desc += "- Battery Max Voltage: " + value + Environment.NewLine;
+                        bHasBattery = true;
+                        break;
+                    case "min_V":
+                        desc += "- Battery Min Voltage: " + value + Environment.NewLine;
+                        bHasBattery = true;
+                        break;
+                    case var k when Regex.IsMatch(k, "^rl\\d+_pin$"):
                     {
-                        tg.setPinRole(value, PinRole.WifiLED_n);
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- Relay (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Rel);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "bz_pin_pin"))
-                {// https://www.elektroda.com/rtvforum/viewtopic.php?p=21070110#21070110
-                    desc += "- Buzzer on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^rl_on\\d+_pin$"):
                     {
-                        //tg.setPinRole(value, PinRole.WifiLED_n);
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- Bridge Relay On (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Rel);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "status_led_pin"))
-                {
-                    desc += "- Status LED on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^rl_off\\d+_pin$"):
                     {
-                        tg.setPinRole(value, PinRole.WifiLED_n);
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- Bridge Relay Off (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Rel_n);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "remote_io"))
-                {
-                    desc += "- RF Remote on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case "bt_pin":
+                    case "bt":
                     {
-                        tg.setPinRole(value, PinRole.RCRecv);
+                        int number = 0;
+                        desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Btn);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "samp_sw_pin"))
-                {
-                    desc += "- Battery Relay on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^k\\d+pin_pin$"):
                     {
-                        tg.setPinRole(value, PinRole.BAT_Relay);
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Btn);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "samp_pin"))
-                {
-                    desc += "- Battery ADC on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^bt\\d+_pin$"):
                     {
-                        tg.setPinRole(value, PinRole.BAT_ADC);
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Btn);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "i2c_scl_pin"))
-                {
-                    desc += "- I2C SCL on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^door\\d+_magt_pin$"):
                     {
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- Door Sensor (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.dInput);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "i2c_sda_pin"))
-                {
-                    desc += "- I2C SDA on P" + value + Environment.NewLine;
-                    if (tg != null)
+                    case var k when Regex.IsMatch(k, "^onoff\\d+$"):
                     {
+                        int number = int.Parse(Regex.Match(key, "\\d+").Value);
+                        desc += "- TglChannelToggle (channel " + number + ") on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.TglChanOnTgl);
+                        tg?.setPinChannel(value, number);
+                        break;
                     }
-                }
-                else if (Regex.IsMatch(key, "alt_pin_pin"))
-                {
-                    desc += "- ALT pin on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                    }
-                }
-                else if (Regex.IsMatch(key, "one_wire_pin"))
-                {
-                    desc += "- OneWire IO pin on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                       
-                    }
-                }
-                else if (Regex.IsMatch(key, "backlit_io_pin"))
-                {
-                    desc += "- Backlit IO pin on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.LED);
-                    }
-                }
-                else if (key == "max_V")
-                {
-                    desc += "- Battery Max Voltage: " + value + Environment.NewLine;
-                    bHasBattery = true;
-                }
-                else if (key == "min_V")
-                {
-                    desc += "- Battery Min Voltage: " + value + Environment.NewLine;
-                    bHasBattery = true;
-                }
-                else if (Regex.IsMatch(key, "^rl\\d+_pin$"))
-                {
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- Relay (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Rel);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if (Regex.IsMatch(key, "^rl_on\\d+_pin$"))
-                {
-                    // match rl_on1_pin
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- Bridge Relay On (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Rel);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if (Regex.IsMatch(key, "^rl_off\\d+_pin$"))
-                {
-                    // match rl_off1_pin
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- Bridge Relay Off (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Rel_n);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if (key == "bt_pin" || key == "bt")
-                {
-                    int number = 0;
-                    desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Btn);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                // parse k3pin_pin
-                else if (Regex.IsMatch(key, "^k\\d+pin_pin$"))
-                {
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Btn);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if (Regex.IsMatch(key, "^bt\\d+_pin$"))
-                {
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- Button (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Btn);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if(Regex.IsMatch(key, "^door\\d+_magt_pin$"))
-                {
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- Door Sensor (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.dInput);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if(Regex.IsMatch(key, "^onoff\\d+$"))
-                {
-                    int number = int.Parse(Regex.Match(key, "\\d+").Value);
-                    desc += "- TglChannelToggle (channel " + number + ") on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.TglChanOnTgl);
-                        tg.setPinChannel(value, number);
-                    }
-                }
-                else if (key == "gate_sensor_pin_pin")
-                {
-                    desc += "- Door/Gate sensor on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.dInput);
-                    }
-                }
-                else if (key == "basic_pin_pin")
-                {
-                    // This will read 1 if there was a movement, at least on the sensor I have
-                    // some devices have netled1_pin, some have netled_pin
-                    desc += "- PIR sensor on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.dInput);
-                    }
-                }
-                else if (key == "netled_pin" || key == "wfst")
-                {
-                    // some devices have netled1_pin, some have netled_pin
-                    desc += "- WiFi LED on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.WifiLED_n);
-                    }
-                }
-                else if(key == "ele_pin" || key == "epin")
-                {
-                    desc += "- BL0937 ELE (CF) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.BL0937CF);
-                    }
-                }
-                else if (key == "vi_pin" || key == "ivpin")
-                {
-                    desc += "- BL0937 VI (CF1) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.BL0937CF1);
-                    }
-                }
-                else if (key == "sel_pin_pin" || key == "ivcpin")
-                {
-                    desc += "- BL0937 SEL on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.BL0937SEL);
-                    }
-                }
-                else if (key == "r_pin")
-                {
-                    desc += "- LED Red (Channel 1) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.PWM);
-                        tg.setPinChannel(value, 0);
-                    }
-                }
-                else if (key == "g_pin")
-                {
-                    desc += "- LED Green (Channel 2) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.PWM);
-                        tg.setPinChannel(value, 1);
-                    }
-                }
-                else if (key == "b_pin")
-                {
-                    desc += "- LED Blue (Channel 3) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.PWM);
-                        tg.setPinChannel(value, 2);
-                    }
-                }
-                else if (key == "c_pin")
-                {
-                    desc += "- LED Cool (Channel 4) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.PWM);
-                        tg.setPinChannel(value, 3);
-                    }
-                }
-                else if (key == "w_pin")
-                {
-                    desc += "- LED Warm (Channel 5) on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.PWM);
-                        tg.setPinChannel(value, 4);
-                    }
-                }
-                else if (key == "micpin")
-                {
-                    desc += "- Microphone (TODO) on P" + value + Environment.NewLine;
-                }
-                else if (key == "ctrl_pin")
-                {
-                    desc += "- Control Pin (TODO) on P" + value + Environment.NewLine;
-                }
-                else if (key == "buzzer_io")
-                {
-                    desc += "- Buzzer Pin (TODO) on P" + value + Environment.NewLine;
-                }
-                else if (key == "buzzer_pwm")
-                {
-                    desc += "- Buzzer Frequency (TODO) is " + value + "Hz"+ Environment.NewLine;
-                }
-                else if (key == "mic")
-                {
-                    desc += "- Microphone (TODO) is on P" + value + "" + Environment.NewLine;
-                }
-                else if (key == "irpin" || key == "infrr")
-                {
-                    desc += "- IR Receiver is on P" + value + "" + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.IRRecv);
-                    }
-                }
-                else if (key == "infre")
-                {
-                    desc += "- IR Transmitter is on P" + value + "" + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.IRSend);
-                    }
-                }
-                else if (key == "reset_pin")
-                {
-                    desc += "- Button is on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Btn);
-                    }
-                }
-                else if (key == "wfst_pin")
-                {
-                    desc += "- WiFi LED on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.WifiLED);
-                    }
-                }
-                else if (key == "pwmhz")
-                {
-                    desc += "- PWM Frequency " + value + "" + Environment.NewLine;
-                }
-                else if (key == "pirsense_pin")
-                {
-                    desc += "- PIR Sensitivity " + value + "" + Environment.NewLine;
-                }
-                else if (key == "pirlduty")
-                {
-                    desc += "- PIR Low Duty " + value + "" + Environment.NewLine;
-                }
-                else if (key == "pirfreq")
-                {
-                    desc += "- PIR Frequency " + value + "" + Environment.NewLine;
-                }
-                else if (key == "pirmduty")
-                {
-                    desc += "- PIR High Duty " + value + "" + Environment.NewLine;
-                }
-                else if (key == "pirin_pin")
-                {
-                    desc += "- PIR Input " + value + "" + Environment.NewLine;
-                }
-                else if (key == "mosi")
-                {
-                    desc += "- SPI MOSI " + value + "" + Environment.NewLine;
-                }
-                else if (key == "miso")
-                {
-                    desc += "- SPI MISO " + value + "" + Environment.NewLine;
-                }
-                else if (key == "total_bt_pin")
-                {
-                    desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
-                    if (tg != null)
-                    {
-                        tg.setPinRole(value, PinRole.Btn_Tgl_All);
-                    }
-                }
-                else
-                {
-
+                    case "gate_sensor_pin_pin":
+                        desc += "- Door/Gate sensor on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.dInput);
+                        break;
+                    case "basic_pin_pin":
+                        // This will read 1 if there was a movement, at least on the sensor I have
+                        // some devices have netled1_pin, some have netled_pin
+                        desc += "- PIR sensor on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.dInput);
+                        break;
+                    case "ele_pin":
+                    case "epin":
+                        desc += "- BL0937 ELE (CF) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.BL0937CF);
+                        break;
+                    case "vi_pin":
+                    case "ivpin":
+                        desc += "- BL0937 VI (CF1) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.BL0937CF1);
+                        break;
+                    case "sel_pin_pin":
+                    case "ivcpin":
+                        desc += "- BL0937 SEL on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.BL0937SEL);
+                        break;
+                    case "r_pin":
+                        desc += "- LED Red (Channel 1) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.PWM);
+                        tg?.setPinChannel(value, 0);
+                        break;
+                    case "g_pin":
+                        desc += "- LED Green (Channel 2) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.PWM);
+                        tg?.setPinChannel(value, 1);
+                        break;
+                    case "b_pin":
+                        desc += "- LED Blue (Channel 3) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.PWM);
+                        tg?.setPinChannel(value, 2);
+                        break;
+                    case "c_pin":
+                        desc += "- LED Cool (Channel 4) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.PWM);
+                        tg?.setPinChannel(value, 3);
+                        break;
+                    case "w_pin":
+                        desc += "- LED Warm (Channel 5) on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.PWM);
+                        tg?.setPinChannel(value, 4);
+                        break;
+                    case "mic":
+                    case "micpin":
+                        desc += "- Microphone (TODO) on P" + value + Environment.NewLine;
+                        break;
+                    case "ctrl_pin":
+                        desc += "- Control Pin (TODO) on P" + value + Environment.NewLine;
+                        break;
+                    case "buzzer_pwm":
+                        desc += "- Buzzer Frequency (TODO) is " + value + "Hz" + Environment.NewLine;
+                        break;
+                    case "irpin":
+                    case "infrr":
+                        desc += "- IR Receiver is on P" + value + "" + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.IRRecv);
+                        break;
+                    case "infre":
+                        desc += "- IR Transmitter is on P" + value + "" + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.IRSend);
+                        break;
+                    case "reset_pin":
+                        desc += "- Button is on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Btn);
+                        break;
+                    case "pwmhz":
+                        desc += "- PWM Frequency " + value + "" + Environment.NewLine;
+                        if(tg != null) tg.initCommandLine += $"PWMFrequency {value}\r\n";
+                        break;
+                    case "pirsense_pin":
+                        desc += "- PIR Sensitivity " + value + "" + Environment.NewLine;
+                        break;
+                    case "pirlduty":
+                        desc += "- PIR Low Duty " + value + "" + Environment.NewLine;
+                        break;
+                    case "pirfreq":
+                        desc += "- PIR Frequency " + value + "" + Environment.NewLine;
+                        break;
+                    case "pirmduty":
+                        desc += "- PIR High Duty " + value + "" + Environment.NewLine;
+                        break;
+                    case "pirin_pin":
+                        desc += "- PIR Input " + value + "" + Environment.NewLine;
+                        break;
+                    case "mosi":
+                        desc += "- SPI MOSI " + value + "" + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.SM16703P_DIN);
+                        break;
+                    case "miso":
+                        desc += "- SPI MISO " + value + "" + Environment.NewLine;
+                        break;
+                    case "total_bt_pin":
+                        desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
+                        tg?.setPinRole(value, PinRole.Btn_Tgl_All);
+                        break;
+                    default:
+                        break;
                 }
             }
             // LED
@@ -699,12 +551,11 @@ namespace BK7231Flasher
             string iicsda = getKeyValue("iicsda");
             if (iicscl.Length > 0 && iicsda.Length > 0)
             {
-                string iicr = getKeyValue("iicr","?");
-                string iicg = getKeyValue("iicg", "?");
-                string iicb = getKeyValue("iicb", "?");
-                string iicc = getKeyValue("iicc", "?");
-                string iicw = getKeyValue("iicw", "?");
-                string map = "" + iicr + " " + iicg + " " + iicb + " " + iicc + " " + iicw;
+                string iicr = getKeyValue("iicr","-1");
+                string iicg = getKeyValue("iicg", "-1");
+                string iicb = getKeyValue("iicb", "-1");
+                string iicc = getKeyValue("iicc", "-1");
+                string iicw = getKeyValue("iicw", "-1");
                 string ledType = "Unknown";
                 string iicccur = getKeyValue("iicccur");
                 string iicwcur = getKeyValue("iicwcur");
@@ -721,41 +572,127 @@ namespace BK7231Flasher
                 string _2235wcur = getKeyValue("2235wcur");
                 string _2335ccur = getKeyValue("2335ccur");
                 string kp58wcur = getKeyValue("kp58wcur");
+                string kp58ccur = getKeyValue("kp58ccur");
                 string currents = string.Empty;
+                bool isExc = false;
                 // use current (color/cw) setting
                 if (ehccur.Length>0 || wampere.Length > 0 || iicccur.Length > 0)
                 {
                     ledType = "SM2135";
+                    var rgbcurrent = 0;
+                    var cwcurrent = 0;
+                    try
+                    {
+                        rgbcurrent = ehccur.Length > 0 ? Convert.ToInt32(ehccur) : iicccur.Length > 0 ? Convert.ToInt32(iicccur) : campere.Length > 0 ? Convert.ToInt32(campere) : 1;
+                        cwcurrent = ehwcur.Length > 0 ? Convert.ToInt32(ehwcur) : iicwcur.Length > 0 ? Convert.ToInt32(iicwcur) : wampere.Length > 0 ? Convert.ToInt32(wampere) : 1;
+                    }
+                    catch
+                    {
+                        isExc = true;
+                    }
+                    finally
+                    {
+                        if(tg != null && !isExc) tg.initCommandLine += $"SM2135_Current {rgbcurrent} {cwcurrent}\r\n";
+                    }
                     currents =  $"- RGB current is {(ehccur.Length > 0 ? ehccur : iicccur.Length > 0 ? iicccur : campere.Length > 0 ? campere : "Unknown")} mA{Environment.NewLine}";
                     currents += $"- White current is {(ehwcur.Length > 0 ? ehwcur : iicwcur.Length > 0 ? iicwcur : wampere.Length > 0 ? wampere : "Unknown")} mA{Environment.NewLine}";
+                    tg?.setPinRole(iicsda, PinRole.SM2135DAT);
+                    tg?.setPinRole(iicscl, PinRole.SM2135CLK);
                 }
                 else if (dccur.Length > 0)
                 {
                     ledType = "BP5758D_";
+                    var rgbcurrent = 0;
+                    var wcurrent = 0;
+                    var ccurrent = 0;
+                    try
+                    {
+                        rgbcurrent = drgbcur.Length > 0 ? Convert.ToInt32(drgbcur) : 1;
+                        wcurrent = dwcur.Length > 0 ? Convert.ToInt32(dwcur) : 1;
+                        ccurrent = dccur.Length > 0 ? Convert.ToInt32(dccur) : 1;
+                    }
+                    catch
+                    {
+                        isExc = true;
+                    }
+                    finally
+                    {
+                        if(tg != null && !isExc) tg.initCommandLine += $"BP5758D_Current {rgbcurrent} {Math.Max(wcurrent, ccurrent)}\r\n";
+                    }
                     currents =  $"- RGB current is {(drgbcur.Length > 0 ? drgbcur : "Unknown")} mA{Environment.NewLine}";
                     currents += $"- Warm white current is {(dwcur.Length > 0 ? dwcur : "Unknown")} mA{Environment.NewLine}";
                     currents += $"- Cold white current is {(dccur.Length > 0 ? dccur : "Unknown")} mA{Environment.NewLine}";
+                    tg?.setPinRole(iicsda, PinRole.BP5758D_DAT);
+                    tg?.setPinRole(iicscl, PinRole.BP5758D_CLK);
                 }
                 else if (cjwcur.Length > 0)
                 {
                     ledType = "BP1658CJ_";
+                    var rgbcurrent = 0;
+                    var cwcurrent = 0;
+                    try
+                    {
+                        rgbcurrent = cjccur.Length > 0 ? Convert.ToInt32(cjccur) : 1;
+                        cwcurrent = cjwcur.Length > 0 ? Convert.ToInt32(cjwcur) : 1;
+                    }
+                    catch
+                    {
+                        isExc = true;
+                    }
+                    finally
+                    {
+                        if(tg != null && !isExc) tg.initCommandLine += $"BP1658CJ_Current {rgbcurrent} {cwcurrent}\r\n";
+                    }
                     currents =  $"- RGB current is {(cjccur.Length > 0 ? cjccur : "Unknown")} mA{Environment.NewLine}";
                     currents += $"- White current is {(cjwcur.Length > 0 ? cjwcur : "Unknown")} mA{Environment.NewLine}";
+                    tg?.setPinRole(iicsda, PinRole.BP1658CJ_DAT);
+                    tg?.setPinRole(iicscl, PinRole.BP1658CJ_CLK);
                 }
                 else if (_2235ccur.Length > 0)
                 {
                     ledType = "SM2235";
+                    var rgbcurrent = 0;
+                    var cwcurrent = 0;
+                    try
+                    {
+                        rgbcurrent = _2235ccur.Length > 0 ? Convert.ToInt32(_2235ccur) : 1;
+                        cwcurrent = _2235wcur.Length > 0 ? Convert.ToInt32(_2235wcur) : 1;
+                    }
+                    catch
+                    {
+                        isExc = true;
+                    }
+                    finally
+                    {
+                        if(tg != null && !isExc) tg.initCommandLine += $"SM2235_Current {rgbcurrent} {cwcurrent}\r\n";
+                    }
                     currents =  $"- RGB current is {(_2235ccur.Length > 0 ? _2235ccur : "Unknown")} mA{Environment.NewLine}";
                     currents += $"- White current is {(_2235wcur.Length > 0 ? _2235wcur : "Unknown")} mA{Environment.NewLine}";
-                }
-                else if (_2335ccur.Length > 0)
-                {
-                    // fallback
-                    ledType = "SM2235";
+                    tg?.setPinRole(iicsda, PinRole.SM2235DAT);
+                    tg?.setPinRole(iicscl, PinRole.SM2235CLK);
                 }
                 else if (kp58wcur.Length > 0)
                 {
-                    ledType = "KP18058";
+                    ledType = "KP18058_";
+                    var rgbcurrent = 0;
+                    var cwcurrent = 0;
+                    try
+                    {
+                        rgbcurrent = kp58wcur.Length > 0 ? Convert.ToInt32(kp58wcur) : 1;
+                        cwcurrent = kp58ccur.Length > 0 ? Convert.ToInt32(kp58ccur) : 1;
+                    }
+                    catch
+                    {
+                        isExc = true;
+                    }
+                    finally
+                    {
+                        if(tg != null && !isExc) tg.initCommandLine += $"KP18058_Current {rgbcurrent} {cwcurrent}\r\n";
+                    }
+                    currents =  $"- RGB current is {(kp58wcur.Length > 0 ? kp58wcur : "Unknown")} mA{Environment.NewLine}";
+                    currents += $"- White current is {(kp58ccur.Length > 0 ? kp58ccur : "Unknown")} mA{Environment.NewLine}";
+                    tg?.setPinRole(iicsda, PinRole.KP18058_DAT);
+                    tg?.setPinRole(iicscl, PinRole.KP18058_CLK);
                 }
                 else
                 {
@@ -765,6 +702,20 @@ namespace BK7231Flasher
                 string clk_name = ledType + "CLK";
                 desc += "- " + dat_name + " on P" + iicsda + Environment.NewLine;
                 desc += "- " + clk_name + " on P" + iicscl + Environment.NewLine;
+                string map = "" + iicr + " " + iicg + " " + iicb + " " + iicc + " " + iicw;
+                isExc = false;
+                try
+                {
+                    map = $"{Convert.ToInt32(iicr)} {Convert.ToInt32(iicg)} {Convert.ToInt32(iicb)} {Convert.ToInt32(iicc)} {Convert.ToInt32(iicw)}";
+                }
+                catch
+                {
+                    isExc = true;
+                }
+                finally
+                {
+                    if(tg != null && !isExc) tg.initCommandLine += $"LED_Map {map}\r\n";
+                }
                 desc += "- LED remap is " + map + Environment.NewLine;
                 desc += currents;
             }
@@ -823,8 +774,8 @@ namespace BK7231Flasher
                 case USUAL_BK_NEW_XR806_MAGIC_POSITION:
                     printposdevice("T1/XR806 and some T34");
                     break;
-                case USUAL_RTLC_MAGIC_POSITION:
-                    printposdevice("RTL8720C");
+                case USUAL_RTLC_ECR6600_MAGIC_POSITION:
+                    printposdevice("RTL8720C and ECR6600");
                     break;
                 case USUAL_RTLB_XR809_MAGIC_POSITION:
                     printposdevice("RTL8710B/XR809");
@@ -847,14 +798,17 @@ namespace BK7231Flasher
                 case USUAL_TR6260_MAGIC_POSITION:
                     printposdevice("TR6260");
                     break;
-                case USUAL_ECR6600_MAGIC_POSITION:
-                    printposdevice("ECR6600");
-                    break;
                 case USUAL_W800_MAGIC_POSITION:
                     printposdevice("W800");
                     break;
                 case USUAL_LN8825_MAGIC_POSITION:
                     printposdevice("LN8825B");
+                    break;
+                case USUAL_RTLCM_MAGIC_POSITION:
+                    printposdevice("RTL8720CM");
+                    break;
+                case USUAL_BK7252_MAGIC_POSITION:
+                    printposdevice("BK7252");
                     break;
                 default:
                     desc += "And the Tuya section starts at an UNCOMMON POSITION " + getMagicPositionDecAndHex() + Environment.NewLine;
@@ -1024,12 +978,12 @@ namespace BK7231Flasher
             }
             return null;
         }
-        byte[] makeSecondaryKey(byte[] innerKey)
+        byte[] makeSecondaryKey(byte[] innerKey, byte[] p1Key)
         {
             byte[] key = new byte[0x10];
             for (int i = 0; i < 16; i++)
             {
-                key[i] = (byte)(KEY_PART_1[i & 3] + KEY_PART_2[i]);
+                key[i] = (byte)(p1Key[i & 3] + KEY_PART_2[i]);
             }
             for (int i = 0; i < 16; i++)
             {
