@@ -12,14 +12,17 @@ namespace BK7231Flasher
     public class TuyaConfig
     {
         // thanks to kmnh & Kuba bk7231 tools for figuring out this format
-        static string KEY_MASTER = "qwertyuiopasdfgh";
-        static int SECTOR_SIZE = 4096;
-        static uint MAGIC_FIRST_BLOCK = 0x13579753;
-        static uint MAGIC_NEXT_BLOCK = 0x98761234;
-        static uint MAGIC_FIRST_BLOCK_OS3 = 0x135726AB;
+        static readonly string KEY_MASTER = "qwertyuiopasdfgh";
+        static readonly int SECTOR_SIZE = 4096;
+        static readonly uint MAGIC_FIRST_BLOCK = 0x13579753;
+        static readonly uint MAGIC_NEXT_BLOCK = 0x98761234;
+        static readonly uint MAGIC_FIRST_BLOCK_OS3 = 0x135726AB;
         // 8721D for RTL8720D devices, 8711AM_4M for WRG1. Not known for W800, ECR6600, RTL8720CM, BK7252...
         public static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
-        static byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
+        static readonly byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
+        static readonly byte[] KEY_NULL = HexStringToBytes("9090a4a4a2c4f2cadadecce4e8f2e8cc");
+        static readonly byte[] KEY_PART_1_D = Encoding.ASCII.GetBytes("8721D");
+        static readonly byte[] KEY_PART_1_AM = Encoding.ASCII.GetBytes("8711AM_4M");
         //static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
         // TODO: check more bins with this offset
         // hex 0x1EE000
@@ -145,8 +148,12 @@ namespace BK7231Flasher
         bool TryVaultExtract(byte[] flash)
         {
             descryptedRaw = null;
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.None;
+            aes.KeySize = 128;
 
-            var deviceKeys = FindDeviceKeys(flash);
+            var deviceKeys = FindDeviceKeys(flash, aes);
             if(deviceKeys.Count == 0)
             {
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
@@ -156,59 +163,60 @@ namespace BK7231Flasher
             var baseKeyCandidates = new byte[][]
             {
                 KEY_PART_1,
-                HexStringToBytes("9090a4a4a2c4f2cadadecce4e8f2e8cc"),
-                Encoding.ASCII.GetBytes("8721D"),
+                KEY_NULL,
+                KEY_PART_1_D,
                 KEY_PART_2,
-                Encoding.ASCII.GetBytes("8711AM_4M"),
+                KEY_PART_1_AM,
             };
 
             var pageMagics = new uint[] { MAGIC_NEXT_BLOCK, MAGIC_FIRST_BLOCK_OS3, MAGIC_FIRST_BLOCK };
 
             List<VaultPage> bestPages = null;
             int bestCount = 0;
-
             foreach(var devKey in deviceKeys)
             {
                 foreach(var baseKey in baseKeyCandidates)
                 {
-                    var vaultKeys = new List<byte[]>();
-
-                    if(baseKey.Length == 16) vaultKeys.Add(DeriveVaultKey(devKey, baseKey));
-                    else vaultKeys.Add(makeSecondaryKey(devKey, baseKey));
-
-                    foreach(var vaultKey in vaultKeys)
+                    aes.Key = baseKey.Length == 16 ? DeriveVaultKey(devKey, baseKey) : makeSecondaryKey(devKey, baseKey);
+                    using var decryptor = aes.CreateDecryptor();
+                    var blockBuffer = new byte[SECTOR_SIZE];
+                    var firstBlock = new byte[16];
+                    foreach(var magic in pageMagics)
                     {
-                        foreach(var magic in pageMagics)
+                        List<VaultPage> pages = new List<VaultPage>();
+
+                        for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                         {
-                            List<VaultPage> pages = new List<VaultPage>();
+                            decryptor.TransformBlock(flash, ofs, 16, firstBlock, 0);
 
-                            for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
+                            var pageMagic = ReadU32LE(firstBlock, 0);
+                            if(pageMagic != magic) continue;
+
+                            var dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
+
+                            if(dec == null) continue;
+
+                            var crc = ReadU32LE(dec, 4);
+                            if(!checkCRC(crc, dec, 8, dec.Length - 8))
                             {
-                                var dec = AESDecrypt(flash, ofs, vaultKey);
-
-                                if(dec == null) continue;
-
-                                var pageMagic = ReadU32LE(dec, 0);
-                                if(pageMagic != magic) continue;
-
-                                var crc = ReadU32LE(dec, 4);
-                                if(!checkCRC(crc, dec, 8, dec.Length - 8)) continue;
-
-                                var seq = ReadU32LE(dec, 8);
-
-                                pages.Add(new VaultPage
-                                {
-                                    FlashOffset = ofs,
-                                    Seq = seq,
-                                    Data = dec
-                                });
+                                FormMain.Singleton.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
+                                continue;
                             }
 
-                            if(pages.Count > bestCount)
+                            var seq = ReadU32LE(dec, 8);
+
+                            pages.Add(new VaultPage
                             {
-                                bestCount = pages.Count;
-                                bestPages = pages;
-                            }
+                                FlashOffset = ofs,
+                                Seq = seq,
+                                Data = dec
+                            });
+                        }
+
+                        if(pages.Count > bestCount)
+                        {
+                            bestCount = pages.Count;
+                            bestPages = pages;
                         }
                     }
                 }
@@ -234,7 +242,7 @@ namespace BK7231Flasher
 
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
-            foreach(var p in bestPages) bw.Write(p.Data, 12, p.Data.Length - 12);
+            foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
 
             descryptedRaw = ms.ToArray();
             return true;
@@ -250,7 +258,7 @@ namespace BK7231Flasher
             return vaultKey;
         }
 
-        byte[] HexStringToBytes(string hex)
+        static byte[] HexStringToBytes(string hex)
         {
             if(hex.Length % 2 != 0) throw new Exception($"hex.Length % 2 != 0, {hex.Length}");
             var bytes = new byte[hex.Length / 2];
@@ -258,20 +266,26 @@ namespace BK7231Flasher
             return bytes;
         }
 
-        List<byte[]> FindDeviceKeys(byte[] flash)
+        List<byte[]> FindDeviceKeys(byte[] flash, Aes aes)
         {
             var keys = new List<byte[]>();
-            var master = Encoding.ASCII.GetBytes(KEY_MASTER);
+            aes.Key = Encoding.ASCII.GetBytes(KEY_MASTER);
 
+            using var decryptor = aes.CreateDecryptor();
+            var blockBuffer = new byte[SECTOR_SIZE];
+            var dec = new byte[16];
             for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
             {
-                var dec = AESDecrypt(flash, ofs, master);
+                decryptor.TransformBlock(flash, ofs, 16, dec, 0);
+
+                var pageMagic = ReadU32LE(dec, 0);
+                if(pageMagic != MAGIC_FIRST_BLOCK) continue;
+
+                dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
                 if(dec == null) continue;
 
-                if(ReadU32LE(dec, 0) != MAGIC_FIRST_BLOCK) continue;
-
                 var dk = new byte[16];
-                Buffer.BlockCopy(dec, 8, dk, 0, 16);
+                Array.Copy(dec, 8, dk, 0, 16);
 
                 var crc = ReadU32LE(dec, 4);
                 if(checkCRC(crc, dk, 0, 16))
@@ -279,25 +293,18 @@ namespace BK7231Flasher
                     keys.Add(dk);
                     magicPosition = ofs;
                 }
+                else
+                {
+                    FormMain.Singleton.addLog("WARNING - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Purple);
+                }
             }
             return keys;
         }
 
-        byte[] AESDecrypt(byte[] flash, int ofs, byte[] key)
+        byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
-            if(key.Length != 16) throw new Exception($"key.Length != 16 ({key.Length})");
-            if(ofs + SECTOR_SIZE > flash.Length) return null;
-
-            using var aes = Aes.Create();
-            aes.Mode = CipherMode.ECB;
-            aes.Padding = PaddingMode.None;
-            aes.KeySize = 128;
-            aes.Key = key;
-
-            var block = new byte[SECTOR_SIZE];
-            Buffer.BlockCopy(flash, ofs, block, 0, SECTOR_SIZE);
-
-            return aes.CreateDecryptor().TransformFinalBlock(block, 0, SECTOR_SIZE);
+            Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
+            return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
         }
 
         public string getKeysHumanReadable(OBKConfig tg = null)
@@ -995,11 +1002,8 @@ namespace BK7231Flasher
             byte[] key = new byte[0x10];
             for (int i = 0; i < 16; i++)
             {
-                key[i] = (byte)(p1Key[i & 3] + KEY_PART_2[i]);
-            }
-            for (int i = 0; i < 16; i++)
-            {
-                key[i] = (byte)((key[i] + innerKey[i]) % 256);
+                int v = p1Key[i & 3] + KEY_PART_2[i];
+                key[i] = (byte)((v + innerKey[i]) & 0xFF);
             }
             return key;
         }
