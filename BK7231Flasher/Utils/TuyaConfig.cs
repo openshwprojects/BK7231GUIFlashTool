@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -21,7 +22,7 @@ namespace BK7231Flasher
         // 8721D for RTL8720D devices, 8711AM_4M for WRG1. Not known for W800, ECR6600, RTL8720CM, BK7252...
         public static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
         static readonly byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
-        static readonly byte[] KEY_NULL = HexStringToBytes("9090a4a4a2c4f2cadadecce4e8f2e8cc");
+        static readonly byte[] KEY_NULL = new byte[] { 0x90, 0x90, 0xA4, 0xA4, 0xA2, 0xC4, 0xF2, 0xCA, 0xDA, 0xDE, 0xCC, 0xE4, 0xE8, 0xF2, 0xE8, 0xCC };
         static readonly byte[] KEY_PART_1_D = Encoding.ASCII.GetBytes("8721D");
         static readonly byte[] KEY_PART_1_AM = Encoding.ASCII.GetBytes("8711AM_4M");
         //static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
@@ -171,6 +172,7 @@ namespace BK7231Flasher
             List<VaultPage> bestPages = null;
             int bestCount = 0;
             var obj = new object();
+            var time = Stopwatch.StartNew();
             foreach(var devKey in deviceKeys)
             {
                 Parallel.ForEach(baseKeyCandidates, baseKey =>
@@ -225,12 +227,13 @@ namespace BK7231Flasher
                     }
                 });
             }
-
+            time.Stop();
             if(bestPages == null)
             {
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
                 return false;
             }
+            FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
             var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
             magicPosition = magicPosition < dataFlashOffset ? magicPosition : dataFlashOffset;
@@ -270,14 +273,6 @@ namespace BK7231Flasher
             return vaultKey;
         }
 
-        static byte[] HexStringToBytes(string hex)
-        {
-            if(hex.Length % 2 != 0) throw new Exception($"hex.Length % 2 != 0, {hex.Length}");
-            var bytes = new byte[hex.Length / 2];
-            for(int i = 0; i < hex.Length; i += 2) bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
-            return bytes;
-        }
-
         List<byte[]> FindDeviceKeys(byte[] flash)
         {
             var keys = new List<byte[]>();
@@ -309,10 +304,10 @@ namespace BK7231Flasher
                     keys.Add(dk);
                     magicPosition = ofs;
                 }
-                else
-                {
-                    FormMain.Singleton.addLog("WARNING - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Purple);
-                }
+                //else
+                //{
+                //    FormMain.Singleton.addLog("WARNING - bad firstblock crc" + Environment.NewLine, System.Drawing.Color.Purple);
+                //}
             }
             return keys;
         }
