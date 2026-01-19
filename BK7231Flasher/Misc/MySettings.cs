@@ -13,6 +13,7 @@ namespace BK7231Flasher
             Key = key;
             Value = value;
         }
+        public override string ToString() => Value;
     }
 
     class MySettings

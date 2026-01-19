@@ -44,12 +44,122 @@ namespace BK7231Flasher
         const int USUAL_LN8825_MAGIC_POSITION = 1994752;
         const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
         const int USUAL_BK7252_MAGIC_POSITION = 3764224;
+        
+        const int KVHeaderSize = 0x12;
 
         class VaultPage
         {
             public int FlashOffset;
             public uint Seq;
             public byte[] Data;
+        }
+        
+        public sealed class KvEntry
+        {
+            public uint ValueLength;
+            public ushort KeyId;
+            public ushort ChecksumStored;
+            public ushort ChecksumCalculated;
+            public bool IsCheckSumCorrect => ChecksumStored == ChecksumCalculated;
+
+            public string Key = "";
+            public byte[] Value = Array.Empty<byte>();
+        
+            public override string ToString()
+                => $"{Key} (len={ValueLength}, valid={IsCheckSumCorrect})";
+        }
+
+        static ushort CalcChecksum(byte[] buf, int off, int len)
+        {
+            ushort sum = 0;
+            for(int i = off; i < off + len; i++) sum += buf[i];
+            return sum;
+        }
+
+        static bool TryParseEntry(byte[] pageData, int entryOffset, out KvEntry entry)
+        {
+            entry = null!;
+
+            if(entryOffset + KVHeaderSize > pageData.Length)
+                return false;
+
+            uint valueLen = ReadU32LE(pageData, entryOffset + 4);
+
+            if(valueLen == 0 || valueLen > pageData.Length)
+                return false;
+
+            int totalLength = KVHeaderSize + (int)valueLen;
+            if(entryOffset + totalLength > pageData.Length)
+                return false;
+
+            var storedChsum = ReadU16LE(pageData, entryOffset);
+            var keyId = ReadU16LE(pageData, entryOffset + 8);
+            var keyLen = pageData[entryOffset + 0x11];
+            var keyOff = 18;
+            var valOff = 128;
+
+            int keyPos = entryOffset + keyOff;
+            if(keyPos < 0 || keyPos >= pageData.Length)
+                return false;
+
+            var keyBytes = new List<byte>();
+            for(int i = keyPos; i < keyPos + keyLen; i++)
+            {
+                byte b = pageData[i];
+                if(!(b == 0 || (b >= 0x20 && b <= 0x7E)))
+                	return false;
+                if(b == 0)
+                    break;
+                keyBytes.Add(b);
+            }
+
+            if(keyBytes.Count == 0)
+                return false;
+
+            string key = Encoding.ASCII.GetString(keyBytes.ToArray());
+
+            int valPos = entryOffset + valOff;
+            if(valPos < 0 || valPos + valueLen > pageData.Length)
+                return false;
+
+            ushort calcChsum = CalcChecksum(pageData, valPos, (int)valueLen);
+            //if(storedChsum != calcChsum)
+            //	return false;
+
+            byte[] value = new byte[valueLen];
+            Buffer.BlockCopy(pageData, valPos, value, 0, (int)valueLen);
+
+            entry = new KvEntry
+            {
+                ValueLength = valueLen,
+                KeyId = keyId,
+                Key = key,
+                Value = value,
+                ChecksumStored = storedChsum,
+                ChecksumCalculated = calcChsum
+            };
+
+            return true;
+        }
+
+        List<KvEntry> ParseVault()
+        {
+            var entries = new List<KvEntry>();
+            byte[] data = descryptedRaw;
+
+            for(int off = 0; off + KVHeaderSize < data.Length; off += 0x80)
+            {
+                if(TryParseEntry(data, off, out var entry))
+                {
+                    entries.Add(entry);
+
+                    int nextOffset = off + 0x80;
+                    if(nextOffset > off)
+                        off = nextOffset - 0x80;
+                }
+            }
+
+            return entries;
         }
 
         // pretty useless for RTLs, since littlefs overwrites it.
@@ -150,7 +260,7 @@ namespace BK7231Flasher
         bool TryVaultExtract(byte[] flash)
         {
             descryptedRaw = null;
-            
+
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
             {
@@ -245,8 +355,7 @@ namespace BK7231Flasher
                 return false;
             }
 
-            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
-
+            //bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
@@ -767,10 +876,7 @@ namespace BK7231Flasher
                 desc += "Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is " + baud.Value + Environment.NewLine;
             }
             var kp = this.findKeyValue("module");
-            if(kp == null)
-            {
-                kp = this.findKeyContaining("module");
-            }
+            kp ??= this.findKeyContaining("module");
             if (kp != null)
             {
                 BKType type = TuyaModules.getTypeForModuleName(kp.Value);
@@ -787,6 +893,21 @@ namespace BK7231Flasher
             else
             {
                 desc += "No module information found.";
+            }
+            kp = findKeyValue("em_sys_env");
+            if(kp != null)
+            {
+                desc += Environment.NewLine;
+                BKType type = TuyaModules.getTypeForPlatformName(kp.Value);
+                desc += $"Device internal platform - {kp.Value}";
+                if(type != BKType.Invalid)
+                {
+                    desc += ", equals " + type + ".";
+                }
+                else
+                {
+                    desc += ".";
+                }
             }
             desc += Environment.NewLine;
             void printposdevice(string device)
@@ -876,95 +997,96 @@ namespace BK7231Flasher
         }
         public bool extractKeys()
         {
-            int first_at = 0;
-            int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("user_param_key"));
-            //var t = Encoding.ASCII.GetString(descryptedRaw.Where(x => x != 0).ToArray());
-            if (keys_at == -1)
+            var KVs = ParseVault();
+            var KVs_Deduped = KVs
+                .GroupBy(x => x.Key)
+                .Select(g => g.OrderByDescending(x => x.IsCheckSumCorrect).First())
+                .GroupBy(x => Convert.ToBase64String(x.Value))
+                .Select(g => g.OrderByDescending(x => x.KeyId).First())
+                .ToList();
+
+            byte[] str = KVs_Deduped.FirstOrDefault(x => x.Key == "user_param_key" && x.IsCheckSumCorrect == true)?.Value ??
+                KVs_Deduped.FirstOrDefault(x => x.Key == "baud_cfg" && x.IsCheckSumCorrect == true)?.Value;
+            byte[] em_sys_env = KVs_Deduped.FirstOrDefault(x => x.Key == "em_sys_env" && x.IsCheckSumCorrect == true)?.Value;
+            // old method. Works better when user_param_key is corrupted (bad checksum)
+            if(str == null)
             {
-                int jsonAt = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("Jsonver"));
-                if(jsonAt != -1)
-                {
-                    keys_at = MiscUtils.findFirstRev(descryptedRaw, (byte)'{', jsonAt);
-                }
+                if(KVs.Any(x => x.Key == "user_param_key"))
+                    FormMain.Singleton.addLog("Tuya user_param_key is corrupted, using old extraction method" + Environment.NewLine, System.Drawing.Color.Orange);
+                int first_at = 0;
+                int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("user_param_key"));
+                //var t = Encoding.ASCII.GetString(descryptedRaw.Where(x => x != 0).ToArray());
                 if (keys_at == -1)
                 {
-                    keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
-
-                    if(keys_at == -1)
+                    int jsonAt = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("Jsonver"));
+                    if(jsonAt != -1)
                     {
-                        keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("baud_cfg"));
+                        keys_at = MiscUtils.findFirstRev(descryptedRaw, (byte)'{', jsonAt);
+                    }
+                    if (keys_at == -1)
+                    {
+                        keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("ap_s{"));
+                
                         if(keys_at == -1)
                         {
-                            // ln882h hack
-                            int jsonInOrig = MiscUtils.indexOf(original, Encoding.ASCII.GetBytes("crc:"));
-                            if(jsonInOrig != -1 && original[jsonInOrig + 6] == ',' && original[jsonInOrig + 7] == '}')
-                            {
-                                keys_at = jsonInOrig;
-                                descryptedRaw = original;
-                                while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
-                                    keys_at--;
-                                keys_at--;
-                            }
-                            // extract at least something
+                            keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("baud_cfg"));
                             if(keys_at == -1)
                             {
-                                keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
+                                // ln882h hack
+                                int jsonInOrig = MiscUtils.indexOf(original, Encoding.ASCII.GetBytes("crc:"));
+                                if(jsonInOrig != -1 && original[jsonInOrig + 6] == ',' && original[jsonInOrig + 7] == '}')
+                                {
+                                    keys_at = jsonInOrig;
+                                    descryptedRaw = original;
+                                    while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
+                                        keys_at--;
+                                    keys_at--;
+                                }
+                                // extract at least something
                                 if(keys_at == -1)
                                 {
-                                    FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                                    return true;
+                                    keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
+                                    if(keys_at == -1)
+                                    {
+                                        FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                                        return true;
+                                    }
                                 }
                             }
-                        }
-                        while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
+                            while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
+                                keys_at++;
                             keys_at++;
-                        keys_at++;
-                        first_at = keys_at;
+                            first_at = keys_at;
+                        }
+                        else
+                        {
+                            first_at = keys_at + 5;
+                        }
                     }
                     else
                     {
-                        first_at = keys_at + 5;
+                        first_at = keys_at + 1;
                     }
                 }
                 else
                 {
-                    first_at = keys_at + 1;
-                }
-            }
-            else
-            {
-                while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
+                    while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
+                        keys_at++;
                     keys_at++;
-                keys_at++;
-                first_at = keys_at;
+                    first_at = keys_at;
+                }
+                int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
+                if (stopAT == -1)
+                {
+                    //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Purple);
+                    // return true;
+                    stopAT = descryptedRaw.Length;
+                }
+                str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
             }
-            int stopAT = MiscUtils.findMatching(descryptedRaw, (byte)'}', (byte)'{', first_at);
-            if (stopAT == -1)
-            {
-                //FormMain.Singleton.addLog("Failed to extract Tuya keys - no json end found" + Environment.NewLine, System.Drawing.Color.Purple);
-                // return true;
-                stopAT = descryptedRaw.Length;
-            }
-            byte[] str = MiscUtils.subArray(descryptedRaw, first_at, stopAT - first_at);
-            string asciiString;
             // There is still some kind of Tuya paging here,
             // let's skip it in a quick and dirty way
-#if false
-            str = MiscUtils.stripBinary(str);
-            asciiString = Encoding.ASCII.GetString(str);
-#else
-            asciiString = "";
-            for(int i = 0; i < str.Length; i++)
-            {
-                byte b = str[i];
-                if (b < 32)
-                    continue;
-                if (b > 127)
-                    continue;
-                char ch = (char)b;
-                asciiString += ch;
-            }
-#endif
+            string asciiString = bytesToAsciiStr(str);
             string[] pairs = asciiString.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             for(int i = 0; i < pairs.Length; i++)
             {
@@ -985,6 +1107,11 @@ namespace BK7231Flasher
                     KeyValue kv = new KeyValue(skey, svalue);
                     parms.Add(kv);
                 }
+            }
+            if(em_sys_env != null && !isFullOf(em_sys_env, 0x00))
+            {
+                KeyValue kv = new KeyValue("em_sys_env", bytesToAsciiStr(em_sys_env));
+                parms.Add(kv);
             }
             FormMain.Singleton.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
 
@@ -1019,6 +1146,21 @@ namespace BK7231Flasher
             if (n == expected)
                 return true;
             return false;
+        }
+        string bytesToAsciiStr(byte[] data)
+        {
+            var asciiString = "";
+            for(int i = 0; i < data.Length; i++)
+            {
+                byte b = data[i];
+                if (b < 32)
+                    continue;
+                if (b > 127)
+                    continue;
+                char ch = (char)b;
+                asciiString += ch;
+            }
+            return asciiString;
         }
     }
 }
