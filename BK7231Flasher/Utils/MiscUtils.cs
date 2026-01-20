@@ -126,5 +126,9 @@ namespace BK7231Flasher
             }
             return true;
         }
+
+        internal static uint ReadU32LE(byte[] b, int o = 0) => (uint)(b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24));
+
+        internal static ushort ReadU16LE(byte[] buf, int o = 0) => (ushort)(buf[o] | (buf[o + 1] << 8));
     }
 }
