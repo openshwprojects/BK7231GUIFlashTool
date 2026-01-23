@@ -20,9 +20,9 @@ namespace BK7231Flasher
         static readonly uint MAGIC_NEXT_BLOCK = 0x98761234;
         static readonly uint MAGIC_FIRST_BLOCK_OS3 = 0x135726AB;
         // 8721D for RTL8720D devices, 8711AM_4M for WRG1. Not known for W800, ECR6600, RTL8720CM, BK7252...
-        public static byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
+        static readonly byte[] KEY_PART_1 = Encoding.ASCII.GetBytes("8710_2M");
         static readonly byte[] KEY_PART_2 = Encoding.ASCII.GetBytes("HHRRQbyemofrtytf");
-        static readonly byte[] KEY_NULL = new byte[] { 0x90, 0x90, 0xA4, 0xA4, 0xA2, 0xC4, 0xF2, 0xCA, 0xDA, 0xDE, 0xCC, 0xE4, 0xE8, 0xF2, 0xE8, 0xCC };
+        static readonly byte[] KEY_NULL = DeriveVaultKey(KEY_PART_2, KEY_PART_2);
         static readonly byte[] KEY_PART_1_D = Encoding.ASCII.GetBytes("8721D");
         static readonly byte[] KEY_PART_1_AM = Encoding.ASCII.GetBytes("8711AM_4M");
         //static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
@@ -44,8 +44,13 @@ namespace BK7231Flasher
         const int USUAL_LN8825_MAGIC_POSITION = 1994752;
         const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
         const int USUAL_BK7252_MAGIC_POSITION = 3764224;
-        
+
         const int KVHeaderSize = 0x12;
+
+        int magicPosition = -1;
+        byte[] descryptedRaw;
+        byte[] original;
+        Dictionary<string, string> parms = new Dictionary<string, string>();
 
         class VaultPage
         {
@@ -53,7 +58,7 @@ namespace BK7231Flasher
             public uint Seq;
             public byte[] Data;
         }
-        
+
         public sealed class KvEntry
         {
             public uint ValueLength;
@@ -192,11 +197,6 @@ namespace BK7231Flasher
             BKType.TR6260   => 0x0DE000 - USUAL_TR6260_MAGIC_POSITION,
             _               => 0x200000 - USUAL_BK7231_MAGIC_POSITION,
         };
-
-        int magicPosition = -1;
-        byte[] descryptedRaw;
-        byte[] original;
-        List<KeyValue> parms = new List<KeyValue>();
 
         public string getMagicPositionHex() => $"0x{magicPosition:X}";
 
@@ -364,7 +364,7 @@ namespace BK7231Flasher
             return true;
         }
 
-        byte[] DeriveVaultKey(byte[] baseKey, byte[] deviceKey)
+        static byte[] DeriveVaultKey(byte[] baseKey, byte[] deviceKey)
         {
             if(baseKey.Length != 16)
                 throw new Exception($"baseKey.Length != 16 ({baseKey.Length}");
@@ -432,11 +432,10 @@ namespace BK7231Flasher
             bool bHasBattery = false;
             string desc = "";
             if(tg != null && !string.IsNullOrWhiteSpace(tg.initCommandLine)) tg.initCommandLine += "\r\n";
-            for(int i = 0; i < parms.Count; i++)
+            foreach(var kv in parms)
             {
-                var p = parms[i];
-                string key = p.Key;
-                string value = p.Value;
+                string key = kv.Key;
+                string value = kv.Value;
                 switch(key)
                 {
                     case var k when Regex.IsMatch(k, "^led\\d+_pin$"):
@@ -873,15 +872,15 @@ namespace BK7231Flasher
             var baud = this.findKeyValue("baud");
             if(baud != null)
             {
-                desc += "Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is " + baud.Value + Environment.NewLine;
+                desc += "Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is " + baud + Environment.NewLine;
             }
             var kp = this.findKeyValue("module");
             kp ??= this.findKeyContaining("module");
             if (kp != null)
             {
-                BKType type = TuyaModules.getTypeForModuleName(kp.Value);
-                desc += "Device seems to be using " + kp.Value + " module";
-                if(type != BKType.Invalid)
+                var type = TuyaModules.getTypeForModuleName(kp);
+                desc += "Device seems to be using " + kp + " module";
+                if(type != nameof(BKType.Invalid))
                 {
                     desc += ", which is using " + type + ".";
                 }
@@ -898,9 +897,9 @@ namespace BK7231Flasher
             if(kp != null)
             {
                 desc += Environment.NewLine;
-                BKType type = TuyaModules.getTypeForPlatformName(kp.Value);
-                desc += $"Device internal platform - {kp.Value}";
-                if(type != BKType.Invalid)
+                var type = TuyaModules.getTypeForPlatformName(kp);
+                desc += $"Device internal platform - {kp}";
+                if(type != nameof(BKType.Invalid))
                 {
                     desc += ", equals " + type + ".";
                 }
@@ -923,13 +922,13 @@ namespace BK7231Flasher
                     desc += $"And the Tuya section starts, as usual, at {getMagicPositionDecAndHex()}" + Environment.NewLine;
                     break;
                 case USUAL_BK_NEW_XR806_MAGIC_POSITION:
-                    printposdevice("T1/XR806 and some T34");
+                    printposdevice("T1/XR806 and some T34/BK7231N");
                     break;
                 case USUAL_RTLC_ECR6600_MAGIC_POSITION:
                     printposdevice("RTL8720C and ECR6600");
                     break;
                 case USUAL_RTLB_XR809_MAGIC_POSITION:
-                    printposdevice("RTL8710B/XR809");
+                    printposdevice("RTL8710B/XR809/BK7231Q");
                     break;
                 case USUAL_T3_MAGIC_POSITION:
                     printposdevice("T3/BK7236");
@@ -970,26 +969,20 @@ namespace BK7231Flasher
         }
         public string getKeyValue(string key, string sdefault = "")
         {
-            for (int i = 0; i < parms.Count; i++)
-            {
-                if (parms[i].Key == key)
-                {
-                    return parms[i].Value;
-                }
-            }
+            if(parms.TryGetValue(key, out var value))
+                return value;
             return sdefault;
         }
         public string getKeysAsJSON()
         {
-            string r = "{" + Environment.NewLine;
-            for (int i = 0; i < parms.Count; i++)
+            string r = "{";
+            foreach(var kv in parms)
             {
-                var p = parms[i];
-                r += "\t\""+p.Key + "\":\"" + p.Value + "\"";
-                if (i != parms.Count-1)
-                {
-                    r += ",";
-                }
+                r += Environment.NewLine + $"\t\"{kv.Key}\":\"{kv.Value}\",";
+            }
+            if(parms.Count > 0)
+            {
+                r = r.Substring(0, r.Length - 1); // remove last ','
                 r += Environment.NewLine;
             }
             r += "}" + Environment.NewLine;
@@ -1104,35 +1097,30 @@ namespace BK7231Flasher
                 //parms.Add(skey, svalue);
                 if (findKeyValue(skey) == null)
                 {
-                    KeyValue kv = new KeyValue(skey, svalue);
-                    parms.Add(kv);
+                    parms.Add(skey, svalue);
                 }
             }
             if(em_sys_env != null && !isFullOf(em_sys_env, 0x00))
             {
-                KeyValue kv = new KeyValue("em_sys_env", bytesToAsciiStr(em_sys_env));
-                parms.Add(kv);
+                parms.Add("em_sys_env", bytesToAsciiStr(em_sys_env));
             }
             FormMain.Singleton.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
 
             return false;
         }
-        KeyValue findKeyContaining(string key)
+        string findKeyContaining(string key)
         {
-            for (int i = 0; i < parms.Count; i++)
+            foreach(var kv in parms)
             {
-                if (parms[i].Key.Contains(key))
-                    return parms[i];
+                if (kv.Key.Contains(key))
+                    return kv.Value;
             }
             return null;
         }
-        KeyValue findKeyValue(string key)
+        string findKeyValue(string key)
         {
-            for(int i = 0; i < parms.Count; i++)
-            {
-                if (parms[i].Key == key)
-                    return parms[i];
-            }
+            if(parms.TryGetValue(key, out var value))
+                return value;
             return null;
         }
         bool checkCRC(uint expected, byte [] dat, int ofs, int len)
@@ -1142,7 +1130,7 @@ namespace BK7231Flasher
             {
                 n += dat[ofs + i];
             }
-            n = n & 0xFFFFFFFF;
+            n &= 0xFFFFFFFF;
             if (n == expected)
                 return true;
             return false;

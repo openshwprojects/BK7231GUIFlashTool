@@ -89,17 +89,5 @@ namespace BK7231Flasher
                 textBoxTuyaCFGText.Text = "Sorry, exception occurred: " + ex.ToString();
             }
         }
-
-        private void chkChangeKey_CheckedChanged(object sender, EventArgs e)
-        {
-            txtKey.Visible = chkChangeKey.Checked;
-            lblKeyInfo.Visible = chkChangeKey.Checked;
-            if(!chkChangeKey.Checked) txtKey.Text = "8710_2M";
-        }
-
-        private void txtKey_TextChanged(object sender, EventArgs e)
-        {
-            TuyaConfig.KEY_PART_1 = Encoding.ASCII.GetBytes(txtKey.Text);
-        }
     }
 }
