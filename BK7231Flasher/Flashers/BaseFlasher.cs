@@ -35,6 +35,7 @@ namespace BK7231Flasher
 
         BekenSPI,
         GenericSPI,
+        ESP32,
 
         Detect,
         Invalid,

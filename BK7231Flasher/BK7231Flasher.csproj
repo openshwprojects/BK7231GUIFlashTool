@@ -65,6 +65,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Flashers\RDAFlasher.cs" />
+    <Compile Include="Flashers\ESPFlasher.cs" />
     <Compile Include="Utils\Xmodem.cs" />
     <Compile Include="Flashers\WMFlasher.cs" />
     <Compile Include="Flashers\ECR6600Flasher.cs" />
@@ -244,15 +245,20 @@
     </AdditionalFiles>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="BeforeBuild">
-    <ItemGroup>
-      <AssemblyAttributes Include="BK7231Flasher.BuildVersion">
-        <_Parameter1>$(FLASHERVERSION)</_Parameter1>
-      </AssemblyAttributes>
-    </ItemGroup>
-    <WriteCodeFragment AssemblyAttributes="@(AssemblyAttributes)" Language="C#" OutputFile="BuildVersion.cs">
-      <Output TaskParameter="OutputFile" ItemName="Compile" />
-      <Output TaskParameter="OutputFile" ItemName="FileWrites" />
-    </WriteCodeFragment>
-  </Target>
+	<Target Name="BeforeBuild">
+	  <ItemGroup>
+		<AssemblyAttributes Include="BK7231Flasher.BuildVersion">
+		  <_Parameter1>$(FLASHERVERSION)</_Parameter1>
+		</AssemblyAttributes>
+	  </ItemGroup>
+
+	  <WriteCodeFragment
+		AssemblyAttributes="@(AssemblyAttributes)"
+		Language="C#"
+		OutputFile="$(IntermediateOutputPath)BuildVersion.cs">
+
+		<Output TaskParameter="OutputFile" ItemName="Compile" />
+		<Output TaskParameter="OutputFile" ItemName="FileWrites" />
+	  </WriteCodeFragment>
+	</Target>
 </Project>
