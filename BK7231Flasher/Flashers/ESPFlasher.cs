@@ -76,11 +76,31 @@ namespace BK7231Flasher
             if (Sync())
             {
                 addSuccess(Environment.NewLine + "Synced with ESP32!" + Environment.NewLine);
+                SpiAttach();
                 return true;
             }
 
             addError(Environment.NewLine + "Failed to sync with ESP32. Please ensure device is in bootloader mode." + Environment.NewLine);
             return false;
+        }
+
+        void SpiAttach()
+        {
+             try
+             {
+                 // ESP32 ROM needs 8 bytes of 0 for SPI_ATTACH
+                 byte[] payload = new byte[8]; 
+                 sendCommand(ESPCommand.SPI_ATTACH, payload);
+                 var resp = readPacket(1000, ESPCommand.SPI_ATTACH);
+                 if(resp == null) 
+                     addErrorLine("SPI_ATTACH failed (no response)");
+                 else
+                     addLogLine("SPI_ATTACH success");
+             }
+             catch(Exception ex)
+             {
+                 addErrorLine("SPI_ATTACH exception: " + ex.Message);
+             }
         }
 
         bool openPort()
@@ -183,9 +203,6 @@ namespace BK7231Flasher
             {
                 addErrorLine("Failed to read chip magic: " + ex.Message);
             }
-            addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
-            addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
-            addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
             return null;
         }
 
@@ -204,6 +221,135 @@ namespace BK7231Flasher
             // Or maybe it has header? No, readPacket/parseResponse strips header.
             
             throw new Exception($"Failed to read register {addr:X}, resp len {(resp==null?-1:resp.Length)}");
+        }
+
+
+        public void WriteReg(uint addr, uint value, uint mask = 0xFFFFFFFF, uint delay = 0)
+        {
+            // Packet: addr(4) + value(4) + mask(4) + delay(4)
+            List<byte> payload = new List<byte>();
+            payload.AddRange(BitConverter.GetBytes(addr));
+            payload.AddRange(BitConverter.GetBytes(value));
+            payload.AddRange(BitConverter.GetBytes(mask));
+            payload.AddRange(BitConverter.GetBytes(delay));
+            
+            sendCommand(ESPCommand.WRITE_REG, payload.ToArray());
+            readPacket(1000, ESPCommand.WRITE_REG);
+        }
+
+        const uint ESP32_SPI_REG_BASE = 0x3FF42000;
+        const uint SPI_USR_OFFS = 0x1C;
+        const uint SPI_USR2_OFFS = 0x24;
+        const uint SPI_MOSI_DLEN_OFFS = 0x28;
+        const uint SPI_MISO_DLEN_OFFS = 0x2C;
+        const uint SPI_W0_OFFS = 0x80;
+
+        uint RunSpiFlashCmd(byte cmd, int readBits = 0)
+        {
+            // Assuming ESP32 Registers for now
+            uint baseAddr = ESP32_SPI_REG_BASE;
+            
+            // Set lengths (0 MOSI, readBits MISO)
+            if(readBits > 0)
+            {
+                 WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, (uint)(readBits - 1));
+            }
+            else
+            {
+                 WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, 0);
+            }
+            WriteReg(baseAddr + SPI_MOSI_DLEN_OFFS, 0); // 0 bits MOSI
+
+            // SPI_USR_REG flags
+            // COMMAND(31) | MISO(28) if read | MOSI(27) if write
+            uint usrFlags = (1u << 31); // COMMAND
+            if(readBits > 0) usrFlags |= (1u << 28); // MISO
+            
+            WriteReg(baseAddr + SPI_USR_OFFS, usrFlags);
+
+            // SPI_USR2_REG: (7 << 28) | cmd
+            // 7 bits command length? esptool uses 7 << 28
+            uint usr2 = (7u << 28) | cmd;
+            WriteReg(baseAddr + SPI_USR2_OFFS, usr2);
+
+            // Execute: SPI_CMD_REG (offset 0) bit 18 (USR)
+            WriteReg(baseAddr, (1u << 18));
+
+            // Wait for completion (poll bit 18 of SPI_CMD_REG)
+            int timeout = 50;
+            for(int i = 0; i < timeout; i++)
+            {
+                uint val = ReadReg(baseAddr);
+                if ((val & (1u << 18)) == 0) break;
+                Thread.Sleep(1);
+            }
+
+            // Read result from W0
+            if(readBits > 0)
+            {
+                uint w0 = ReadReg(baseAddr + SPI_W0_OFFS);
+                // Mask? esptool just reads.
+                return w0;
+            }
+            return 0;
+        }
+
+        public uint? ReadFlashId()
+        {
+            try
+            {
+                addLogLine("Reading Flash ID...");
+                // CMD 0x9F (RDID), read 24 bits
+                uint fid = RunSpiFlashCmd(0x9F, 24);
+                addLogLine($"Flash ID: {fid:X}");
+                
+                // Decode size roughly
+                // 0x16 = 22 -> 4MB
+                uint sizeCode = (fid >> 16) & 0xFF;
+                if(sizeCode > 0 && sizeCode <= 31)
+                {
+                    long size = 1L << (int)sizeCode;
+                    addLogLine($"Detected Flash Size: {size} bytes ({size/1024/1024}MB)");
+                }
+                else
+                {
+                    addLogLine($"Unknown Flash Size Code: {sizeCode:X}");
+                }
+                
+                return fid;
+            }
+            catch(Exception ex)
+            {
+                addErrorLine("Failed to read Flash ID: " + ex.Message);
+            }
+            return null;
+        }
+
+        public string ReadMac()
+        {
+             try
+             {
+                 uint baseAddr = 0x3FF5A000;
+                 uint w1 = ReadReg(baseAddr + 0x04);
+                 uint w2 = ReadReg(baseAddr + 0x08);
+                 
+                 byte[] mac = new byte[6];
+                 mac[0] = (byte)((w2 >> 8) & 0xFF);
+                 mac[1] = (byte)((w2 >> 0) & 0xFF);
+                 mac[2] = (byte)((w1 >> 24) & 0xFF);
+                 mac[3] = (byte)((w1 >> 16) & 0xFF);
+                 mac[4] = (byte)((w1 >> 8) & 0xFF);
+                 mac[5] = (byte)((w1 >> 0) & 0xFF);
+                 
+                 string s = BitConverter.ToString(mac);
+                 addLogLine($"MAC Address: {s}");
+                 return s;
+             }
+             catch(Exception ex)
+             {
+                 addErrorLine("Failed to read MAC: " + ex.Message);
+                 return null;
+             }
         }
 
         void sendCommand(ESPCommand op, byte[] data, uint checksum = 0)
@@ -352,8 +498,6 @@ namespace BK7231Flasher
             // addLogLine($"RX Packet: CMD={cmd:X} SIZE={size} VAL={value:X} RAW={BitConverter.ToString(raw)}");
 
             if (raw.Length - 8 < size) 
-
-            if (raw.Length - 8 < size) 
             {
                 addLogLine("Incomplete packet!");
                 return null;
@@ -375,6 +519,11 @@ namespace BK7231Flasher
             if(Connect())
             {
                 GetChipId();
+                ReadMac();
+                ReadFlashId();
+                addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
+                addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
+                addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
             }
         }
     }
