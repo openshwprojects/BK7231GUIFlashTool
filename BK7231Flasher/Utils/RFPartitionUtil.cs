@@ -15,6 +15,11 @@
 
         public static byte[] getRFFromBackup(byte[] data, BKType type, out int addr)
         {
+            if(type == BKType.ECR6600)
+            {
+                addr = getRFOffset(type);
+                return MiscUtils.subArray(data, addr, 0x2000);
+            }
             addr = -1;
             if(data.Length < 0x1000)
                 data = MiscUtils.padArray(data, BK7231Flasher.SECTOR_SIZE);
@@ -47,6 +52,8 @@
                     return 0x3fe000;
                 case BKType.BK7258:
                     return 0x7fe000;
+                case BKType.ECR6600:
+                    return 0x1fe000;
                 default:
                     return -1;
             }

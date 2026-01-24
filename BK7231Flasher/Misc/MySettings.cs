@@ -3,43 +3,22 @@ using System.IO;
 
 namespace BK7231Flasher
 {
-    class KeyValue
-    {
-        public string Key { get; set; }
-        public string Value { get; set; }
-
-        public KeyValue(string key, string value)
-        {
-            Key = key;
-            Value = value;
-        }
-        public override string ToString() => Value;
-    }
-
     class MySettings
     {
-        private List<KeyValue> settingsList;
-        private List<string> recentTargetIPs = new List<string>();
+        private Dictionary<string, string> SettingsList { get; }
+
+        private List<string> RecentTargetIPs { get; }
 
         public MySettings()
         {
-            settingsList = new List<KeyValue>();
-        }
-
-        public void Add(string key, string value)
-        {
-            settingsList.Add(new KeyValue(key, value));
+            SettingsList = new Dictionary<string, string>();
+            RecentTargetIPs = new List<string>();
         }
 
         public string FindKeyValue(string key, string def = null)
         {
-            foreach (KeyValue kv in settingsList)
-            {
-                if (kv.Key == key)
-                {
-                    return kv.Value;
-                }
-            }
+            if(SettingsList.TryGetValue(key, out var value)) return value;
+
             if(def != null && def.Length > 0)
             {
                 return def;
@@ -49,27 +28,27 @@ namespace BK7231Flasher
 
         public void Save(string fileName)
         {
-            using (StreamWriter sw = new StreamWriter(fileName))
+            using StreamWriter sw = new StreamWriter(fileName);
+            foreach(var kv in SettingsList)
             {
-                foreach (KeyValue kv in settingsList)
-                {
-                    sw.WriteLine(kv.Key + "=" + kv.Value);
-                }
-                foreach(string s in recentTargetIPs)
-                {
-                    sw.WriteLine("RecentIP=" + s);
-                }
+                sw.WriteLine(kv.Key + "=" + kv.Value);
+            }
+            foreach(string s in RecentTargetIPs)
+            {
+                sw.WriteLine("RecentIP=" + s);
             }
         }
+
         public void addRecentTargetIP(string s)
         {
-            recentTargetIPs.Remove(s);
-            if(recentTargetIPs.Count > 10)
+            RecentTargetIPs.Remove(s);
+            if(RecentTargetIPs.Count > 10)
             {
-                recentTargetIPs.RemoveAt(0);
+                RecentTargetIPs.RemoveAt(0);
             }
-            recentTargetIPs.Add(s);
+            RecentTargetIPs.Add(s);
         }
+
         public void SetKeyValue(string key, string value)
         {
             if(key == "RecentIP"){
@@ -77,55 +56,41 @@ namespace BK7231Flasher
                 addRecentTargetIP(value);
                 return;
             }
-            bool found = false;
-            foreach (KeyValue kv in settingsList)
+            if(SettingsList.ContainsKey(key))
             {
-                if (kv.Key == key)
-                {
-                    kv.Value = value;
-                    found = true;
-                    break;
-                }
+                SettingsList[key] = value;
             }
-            if (!found)
+            else
             {
-                settingsList.Add(new KeyValue(key, value));
+                SettingsList.Add(key, value);
             }
         }
-        public bool HasKey(string key)
-        {
-            foreach (KeyValue kv in settingsList)
-            {
-                if (kv.Key == key)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
+
+        public bool HasKey(string key) => SettingsList.ContainsKey(key);
+
         public static MySettings CreateAndLoad(string fileName)
         {
             MySettings settings = new MySettings();
             settings.Load(fileName);
             return settings;
         }
+
         public void Load(string fileName)
         {
             if (File.Exists(fileName))
             {
-                using (StreamReader sr = new StreamReader(fileName))
+                using StreamReader sr = new StreamReader(fileName);
+                while(!sr.EndOfStream)
                 {
-                    while (!sr.EndOfStream)
-                    {
-                        string line = sr.ReadLine();
-                        int index = line.IndexOf('=');
-                        string key = line.Substring(0, index);
-                        string value = line.Substring(index + 1);
-                        SetKeyValue(key, value);
-                    }
+                    string line = sr.ReadLine();
+                    int index = line.IndexOf('=');
+                    string key = line.Substring(0, index);
+                    string value = line.Substring(index + 1);
+                    SetKeyValue(key, value);
                 }
             }
         }
+
         public int FindKeyValueInt(string key)
         {
             string value = FindKeyValue(key);
@@ -138,7 +103,7 @@ namespace BK7231Flasher
 
         internal List<string> getRecentIPs()
         {
-            return recentTargetIPs;
+            return RecentTargetIPs;
         }
 
         public bool FindKeyValueBool(string key)
@@ -150,6 +115,7 @@ namespace BK7231Flasher
             }
             return false;
         }
+
         public float FindKeyValueFloat(string key)
         {
             string value = FindKeyValue(key);
