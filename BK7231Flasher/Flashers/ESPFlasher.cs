@@ -56,52 +56,6 @@ namespace BK7231Flasher
             { 18, "ESP32-P4" },
         };
 
-        public bool Connect()
-        {
-            addLogLine("Attempting to connect to ESP32...");
-            if(!openPort())
-            {
-                return false;
-            }
-
-            // Reset strategy could be complex, for now assume user put it in boot mode or standard DTR/RTS
-            // esptool does: DTR=0, RTS=1 -> DTR=1, RTS=0
-            serial.DtrEnable = false;
-            serial.RtsEnable = true;
-            Thread.Sleep(100);
-            serial.DtrEnable = true;
-            serial.RtsEnable = false;
-            Thread.Sleep(500);
-
-            if (Sync())
-            {
-                addSuccess(Environment.NewLine + "Synced with ESP32!" + Environment.NewLine);
-                SpiAttach();
-                return true;
-            }
-
-            addError(Environment.NewLine + "Failed to sync with ESP32. Please ensure device is in bootloader mode." + Environment.NewLine);
-            return false;
-        }
-
-        void SpiAttach()
-        {
-             try
-             {
-                 // ESP32 ROM needs 8 bytes of 0 for SPI_ATTACH
-                 byte[] payload = new byte[8]; 
-                 sendCommand(ESPCommand.SPI_ATTACH, payload);
-                 var resp = readPacket(1000, ESPCommand.SPI_ATTACH);
-                 if(resp == null) 
-                     addErrorLine("SPI_ATTACH failed (no response)");
-                 else
-                     addLogLine("SPI_ATTACH success");
-             }
-             catch(Exception ex)
-             {
-                 addErrorLine("SPI_ATTACH exception: " + ex.Message);
-             }
-        }
 
         bool openPort()
         {
@@ -352,6 +306,126 @@ namespace BK7231Flasher
              }
         }
 
+        public bool Connect()
+        {
+            addLogLine("Attempting to connect to ESP32...");
+            if(!openPort())
+            {
+                return false;
+            }
+
+            // Reset strategy: DTR=0, RTS=1 -> DTR=1, RTS=0
+            serial.DtrEnable = false;
+            serial.RtsEnable = true;
+            Thread.Sleep(100);
+            serial.DtrEnable = true;
+            serial.RtsEnable = false;
+            Thread.Sleep(500);
+
+            if (Sync())
+            {
+                addSuccess(Environment.NewLine + "Synced with ESP32!" + Environment.NewLine);
+                if (!SpiAttach())
+                {
+                    addErrorLine("Failed to configure SPI pins.");
+                    return false;
+                }
+                return true;
+            }
+            return false; // Placeholder return
+        }
+
+
+        bool SpiAttach()
+        {
+             try
+             {
+                 addLogLine("Configuring SPI flash pins (SpiAttach)...");
+                 // ESP32 ROM needs 8 bytes of 0 for SPI_ATTACH
+                 byte[] payload = new byte[8]; 
+                 sendCommand(ESPCommand.SPI_ATTACH, payload);
+                 var resp = readPacket(1000, ESPCommand.SPI_ATTACH);
+                 if(resp == null) 
+                 {
+                     addErrorLine("SPI_ATTACH failed (no response or error status).");
+                     return false;
+                 }
+                 addLogLine("SPI_ATTACH success.");
+                 return true;
+             }
+             catch(Exception ex)
+             {
+                 addErrorLine("SPI_ATTACH exception: " + ex.Message);
+                 return false;
+             }
+        }
+
+        public bool SpiSetParams(uint size)
+        {
+             try
+             {
+                 addLogLine($"Setting SPI flash parameters for {size / 1024 / 1024}MB...");
+                 List<byte> payload = new List<byte>();
+                 payload.AddRange(BitConverter.GetBytes((uint)0)); // id
+                 payload.AddRange(BitConverter.GetBytes(size));    // total size
+                 payload.AddRange(BitConverter.GetBytes((uint)64 * 1024)); // block size
+                 payload.AddRange(BitConverter.GetBytes((uint)4 * 1024));  // sector size
+                 payload.AddRange(BitConverter.GetBytes((uint)256));       // page size
+                 payload.AddRange(BitConverter.GetBytes((uint)0xFFFF));    // status mask
+
+                 sendCommand(ESPCommand.SPI_SET_PARAMS, payload.ToArray());
+                 var resp = readPacket(1000, ESPCommand.SPI_SET_PARAMS);
+                 if (resp == null)
+                 {
+                     addErrorLine("SPI_SET_PARAMS failed (no response)");
+                     return false;
+                 }
+                 addLogLine("SPI_SET_PARAMS success");
+                 return true;
+             }
+             catch (Exception ex)
+             {
+                 addErrorLine("SPI_SET_PARAMS exception: " + ex.Message);
+                 return false;
+             }
+        }
+
+        public bool ChangeBaudrate(int newBaud)
+        {
+            try
+            {
+                addLogLine($"Requesting baud rate change to {newBaud}...");
+                byte[] payload = new byte[8];
+                // new baud
+                Array.Copy(BitConverter.GetBytes(newBaud), 0, payload, 0, 4);
+                // old baud (requested by some chips, but 0 is safe for ROM)
+                Array.Copy(BitConverter.GetBytes((uint)0), 0, payload, 4, 4);
+
+                sendCommand(ESPCommand.CHANGE_BAUDRATE, payload);
+                
+                // Wait for the ACK at the current (old) baud rate
+                var resp = readPacket(1000, ESPCommand.CHANGE_BAUDRATE);
+                if (resp == null)
+                {
+                    addErrorLine("Baudrate change request failed (no response)");
+                    return false;
+                }
+
+                // Give the chip a tiny bit of time to actually flip its internal switch
+                Thread.Sleep(50);
+                serial.BaudRate = newBaud;
+                Thread.Sleep(50); // Give the local OS/Driver time to settle
+                serial.DiscardInBuffer();
+                addLogLine($"Baud rate changed to {newBaud} successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                addErrorLine("ChangeBaudrate exception: " + ex.Message);
+                return false;
+            }
+        }
+
         void sendCommand(ESPCommand op, byte[] data, uint checksum = 0)
         {
             // Packet: C0 [00 op len(2) checksum(4)] [data] C0
@@ -494,7 +568,21 @@ namespace BK7231Flasher
             ushort size = BitConverter.ToUInt16(raw, 2);
             uint value = BitConverter.ToUInt32(raw, 4);
             
-            
+            // The payload starts at index 8. 
+            // For most commands (except ESP8266), the ROM returns 2-4 status bytes at the end.
+            // If the first status byte is non-zero, it means failure.
+            if (size >= 2)
+            {
+                byte status = raw[8];
+                byte error = raw[9];
+                if (status != 0)
+                {
+                    addErrorLine($"Chip returned error for CMD {cmd:X}: Status {status:X}, Error {error:X}");
+                    // We could throw here, but for now let's just log and return null to trigger retry/abort
+                    return null;
+                }
+            }
+
             // addLogLine($"RX Packet: CMD={cmd:X} SIZE={size} VAL={value:X} RAW={BitConverter.ToString(raw)}");
 
             if (raw.Length - 8 < size) 
@@ -516,14 +604,28 @@ namespace BK7231Flasher
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
-            if(Connect())
+            if (Connect())
             {
+                if (baudrate > 115200)
+                {
+                    if (!ChangeBaudrate(baudrate))
+                    {
+                        addErrorLine("Aborting due to baud rate change failure.");
+                        return;
+                    }
+                }
                 GetChipId();
                 ReadMac();
-                ReadFlashId();
-                addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
-                addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
-                addLogLine($"THIS IS JUST A TEST, THERE IS NOTHING MORE YET...");
+                uint? fid = ReadFlashId();
+                if (fid.HasValue)
+                {
+                    uint sizeCode = (fid.Value >> 16) & 0xFF;
+                    if (sizeCode > 0 && sizeCode <= 31)
+                    {
+                        uint size = 1u << (int)sizeCode;
+                        SpiSetParams(size);
+                    }
+                }
             }
         }
     }
