@@ -919,7 +919,7 @@ namespace BK7231Flasher
                 if (chipType != BKType.BK7238 && chipType != BKType.BK7252N)
                 {
                     addLog("Going to read encryption key..." + Environment.NewLine);
-                    string key = readEncryptionKey();
+                    string key = readEncryptionKey(out var coeffs);
                     addLog("Encryption key read done!" + Environment.NewLine);
                     addLog("Encryption key: " + key + Environment.NewLine);
                     string otherMode;
@@ -941,6 +941,13 @@ namespace BK7231Flasher
                     }
                     if(key != expectedKey)
                     {
+                        // BK7238/BK7252N 4 bytes efuse, so all 4 values will be identical. Ignore if zeroes.
+                        if(key != EMPTY_ENCRYPTION_KEY && coeffs.Distinct().Count() == 1)
+                        {
+                            addErrorLine($"WARNING! Selected chip is {chipType}, but according to encryption key this is either a BK7238/T1 or BK7252N!");
+                            addErrorLine($"According to Chip ID, this is a{(chipId == "7238" ? " BK7238" : chipId == "7252a" ? " BK7252N" : $"n unknown chip ({chipId})")}.");
+                            if(!bSkipKeyCheck) return false;
+                        }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                         addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
                         addError("If it's all zero, it may also mean that read is disabled." + Environment.NewLine);
@@ -1256,7 +1263,7 @@ namespace BK7231Flasher
             }
             return true;
         }
-        string readEncryptionKey()
+        string readEncryptionKey(out uint[] coeffs)
         {
             int SCTRL_EFUSE_CTRL = 0x00800074;
             int SCTRL_EFUSE_OPTR = 0x00800078;
@@ -1282,7 +1289,7 @@ namespace BK7231Flasher
                     Console.WriteLine("Efuse error at " + addr);
                 }
             }
-            uint[] coeffs = new uint[4];
+            coeffs = new uint[4];
             for (int i = 0; i < 4; i++)
             {
                 coeffs[i] = ((uint)efuse[i * 4]) |
