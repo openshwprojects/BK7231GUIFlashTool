@@ -944,8 +944,7 @@ namespace BK7231Flasher
                         // BK7238/BK7252N 4 bytes efuse, so all 4 values will be identical. Ignore if zeroes.
                         if(key != EMPTY_ENCRYPTION_KEY && coeffs.Distinct().Count() == 1)
                         {
-                            addErrorLine($"WARNING! Selected chip is {chipType}, but according to encryption key this is either a BK7238/T1 or BK7252N!");
-                            addErrorLine($"According to Chip ID, this is a{(chipId == "7238" ? " BK7238" : chipId == "7252a" ? " BK7252N" : $"n unknown chip ({chipId})")}.");
+                            addErrorLine($"WARNING! Selected chip is a {chipType}, but according to encryption key this is a{(chipId == "7238" ? " BK7238" : chipId == "7252a" ? " BK7252N" : $"n unknown chip ({chipId})")}!");
                             if(!bSkipKeyCheck) return false;
                         }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
