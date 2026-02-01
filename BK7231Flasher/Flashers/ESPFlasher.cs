@@ -37,6 +37,37 @@ namespace BK7231Flasher
         {
         }
 
+        MemoryStream ms;
+
+        public override byte[] getReadResult()
+        {
+            if (ms == null)
+                return null;
+            return ms.ToArray();
+        }
+
+        bool saveReadResult(string fileName)
+        {
+            if (ms == null)
+            {
+                addError("There was no result to save." + Environment.NewLine);
+                return false;
+            }
+            byte[] dat = ms.ToArray();
+            string fullPath = "backups/" + fileName;
+            File.WriteAllBytes(fullPath, dat);
+            addSuccess("Wrote " + dat.Length + " to " + fileName + Environment.NewLine);
+            logger.onReadResultQIOSaved(dat, null, fullPath);
+            return true;
+        }
+
+        public override bool saveReadResult(int startOffset)
+        {
+            string typeStr = startOffset.ToString("X");
+            string fileName = MiscUtils.formatDateNowFileName("readResult_" + chipType + "_" + typeStr, backupName, "bin");
+            return saveReadResult(fileName);
+        }
+
         static Dictionary<uint, string> ChipMagicValues = new Dictionary<uint, string>()
         {
             { 0x00F01D83, "ESP32" },
@@ -277,6 +308,18 @@ namespace BK7231Flasher
                 addErrorLine("Failed to read Flash ID: " + ex.Message);
             }
             return null;
+        }
+
+        public byte[] ReadFlashBlockSlow(uint addr, uint size)
+        {
+            // READ_FLASH_SLOW (0x0E) payload: addr(4) + size(4)
+            byte[] payload = new byte[8];
+            Array.Copy(BitConverter.GetBytes(addr), 0, payload, 0, 4);
+            Array.Copy(BitConverter.GetBytes(size), 0, payload, 4, 4);
+
+            sendCommand(ESPCommand.READ_FLASH_SLOW, payload);
+            var resp = readPacket(3000, ESPCommand.READ_FLASH_SLOW);
+            return resp;
         }
 
         public string ReadMac()
@@ -568,37 +611,37 @@ namespace BK7231Flasher
             ushort size = BitConverter.ToUInt16(raw, 2);
             uint value = BitConverter.ToUInt32(raw, 4);
             
-            // The payload starts at index 8. 
-            // For most commands (except ESP8266), the ROM returns 2-4 status bytes at the end.
-            // If the first status byte is non-zero, it means failure.
+            // The payload starts at index 8 and is 'size' bytes long.
+            // For most commands (except ESP8266 ROM, which we'll handle if needed), 
+            // the chip returns 2 status bytes at the end of the packet payload.
+            // These 2 bytes are NOT part of the actual data requested but are included in 'size'.
             if (size >= 2)
             {
-                byte status = raw[8];
-                byte error = raw[9];
+                byte status = raw[8 + size - 2];
+                byte error = raw[8 + size - 1];
                 if (status != 0)
                 {
                     addErrorLine($"Chip returned error for CMD {cmd:X}: Status {status:X}, Error {error:X}");
-                    // We could throw here, but for now let's just log and return null to trigger retry/abort
                     return null;
                 }
             }
 
-            // addLogLine($"RX Packet: CMD={cmd:X} SIZE={size} VAL={value:X} RAW={BitConverter.ToString(raw)}");
-
-            if (raw.Length - 8 < size) 
-            {
-                addLogLine("Incomplete packet!");
-                return null;
-            }
-
-            byte[] data = new byte[size];
-            Array.Copy(raw, 8, data, 0, size);
-            
             if (size == 0 || cmd == (byte)ESPCommand.READ_REG)
             {
                  return BitConverter.GetBytes(value);
             }
 
+            // Strip the status bytes from the data
+            // For READ_FLASH_SLOW (0x0E), it seems to return 4 extra bytes (status/error/?)
+            // For others, it's 2 bytes.
+            int overhead = 2;
+            if (cmd == (byte)ESPCommand.READ_FLASH_SLOW) overhead = 4;
+
+            int dataLen = size - overhead;
+            if (dataLen < 0) dataLen = 0;
+            byte[] data = new byte[dataLen];
+            Array.Copy(raw, 8, data, 0, dataLen);
+            
             return data;
         }
 
@@ -617,15 +660,74 @@ namespace BK7231Flasher
                 GetChipId();
                 ReadMac();
                 uint? fid = ReadFlashId();
+                uint flashSize = 0;
                 if (fid.HasValue)
                 {
                     uint sizeCode = (fid.Value >> 16) & 0xFF;
                     if (sizeCode > 0 && sizeCode <= 31)
                     {
-                        uint size = 1u << (int)sizeCode;
-                        SpiSetParams(size);
+                        flashSize = 1u << (int)sizeCode;
+                        SpiSetParams(flashSize);
                     }
                 }
+
+                if (fullRead && flashSize > 0)
+                {
+                    sectors = (int)(flashSize / 0x1000);
+                }
+
+                addLogLine($"Starting Flash Read: {sectors} sectors from 0x{startSector:X}...");
+                ms = new MemoryStream();
+                uint startAddr = (uint)startSector * 0x1000;
+                uint totalSize = (uint)sectors * 0x1000;
+                uint blockSize = 64; // Max safe size for ROM READ_FLASH_SLOW
+
+                uint currentAddr = startAddr;
+                while (currentAddr < startAddr + totalSize)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    uint toRead = Math.Min(blockSize, startAddr + totalSize - currentAddr);
+                    byte[] block = ReadFlashBlockSlow(currentAddr, toRead);
+                    
+                    if (block == null)
+                    {
+                        addErrorLine($"Failed to read block at 0x{currentAddr:X}");
+                        // Retry matching esptool behavior? For now, abort.
+                        return;
+                    }
+
+                    bool bDump = true;
+                    if (block.Length != toRead)
+                    {
+                         addWarningLine($"Read mismatch at 0x{currentAddr:X}: Request {toRead}, Got {block.Length}");
+                    }
+                    if (bDump)
+                    {
+                        addLogLine("Dump of received block:");
+                        string s = "";
+                        for (int i = 0; i < block.Length; i++)
+                        {
+                            s += block[i].ToString("X2") + " ";
+                            if (s.Length > 80)
+                            {
+                                addLogLine(s);
+                                s = "";
+                            }
+                        }
+                        if (s.Length > 0) addLogLine(s);
+                    }
+                    // If we got 0, we can't progress. Avoid infinite loop.
+                    if (block.Length == 0)
+                    {
+                        addErrorLine("Read 0 bytes, aborting.");
+                        return;
+                    }
+
+                    ms.Write(block, 0, block.Length);
+                    currentAddr += (uint)block.Length;
+                    logger.setProgress((int)(currentAddr - startAddr), (int)totalSize);
+                }
+                addLogLine("Flash Read Complete.");
             }
         }
     }
