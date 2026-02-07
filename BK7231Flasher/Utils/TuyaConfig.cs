@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static BK7231Flasher.MiscUtils;
@@ -49,8 +50,32 @@ namespace BK7231Flasher
 
         int magicPosition = -1;
         byte[] descryptedRaw;
+        // Always holds the decrypted KV-pages blob produced by TryVaultExtract().
+        // Enhanced extraction must only operate on this buffer (never on the full original flash dump).
+        byte[] vaultDecryptedRaw;
         byte[] original;
         Dictionary<string, string> parms = new Dictionary<string, string>();
+
+        // Enhanced pin translation should be derived from the enhanced KV view (which can include
+        // checksum-bad but still useful pages). This cache is presentation-only and does not
+        // modify the original 'parms' dictionary used by the classic extraction.
+        Dictionary<string, string> _cachedEnhancedParms;
+        byte[] _cachedEnhancedParmsSource;
+
+        // Caches for presentation-only enhanced extraction (no effect on extraction logic).
+        List<KvEntry> _cachedVaultEntries;
+        byte[] _cachedVaultSource;
+        string _cachedEnhancedText;
+        byte[] _cachedEnhancedTextSource;
+
+        List<KvEntry> _cachedDedupedEntries;
+        byte[] _cachedDedupedSource;
+
+        // Enhanced-extraction-only cache: per-key best entry without cross-key value dedupe.
+        // This preserves legitimate distinct keys that may share identical values.
+        List<KvEntry> _cachedEnhancedEntries;
+        byte[] _cachedEnhancedEntriesSource;
+
 
         class VaultPage
         {
@@ -73,6 +98,132 @@ namespace BK7231Flasher
             public override string ToString()
                 => $"{Key} (len={ValueLength}, valid={IsCheckSumCorrect})";
         }
+
+        List<KvEntry> GetVaultEntriesCached()
+        {
+            // Only parse the decrypted KV-pages buffer; never parse the full original dump.
+            if (vaultDecryptedRaw == null)
+                return new List<KvEntry>();
+
+            if (_cachedVaultEntries != null && object.ReferenceEquals(_cachedVaultSource, vaultDecryptedRaw))
+                return _cachedVaultEntries;
+
+            _cachedVaultEntries = ParseVaultPreferred();
+            _cachedVaultSource = vaultDecryptedRaw;
+
+            // Any change in parsed KV invalidates the rendered enhanced view cache.
+            _cachedDedupedEntries = null;
+            _cachedDedupedSource = null;
+
+            _cachedEnhancedEntries = null;
+            _cachedEnhancedEntriesSource = null;
+
+            _cachedEnhancedText = null;
+            _cachedEnhancedTextSource = null;
+
+            return _cachedVaultEntries;
+        }
+
+
+List<KvEntry> GetVaultEntriesDedupedCached()
+{
+    if (vaultDecryptedRaw == null)
+        return new List<KvEntry>();
+
+    if (_cachedDedupedEntries != null && object.ReferenceEquals(_cachedDedupedSource, vaultDecryptedRaw))
+        return _cachedDedupedEntries;
+
+    var KVs = GetVaultEntriesCached();
+
+    // Keep logic identical to the original extraction dedupe:
+    // 1) Prefer checksum-correct entries per key
+    // 2) Then dedupe identical values (by bytes) and pick highest KeyId
+    var KVs_Deduped = KVs
+        .GroupBy(x => x.Key)
+        .Select(g => g.OrderByDescending(x => x.IsCheckSumCorrect).First())
+        .GroupBy(x => Convert.ToBase64String(x.Value ?? Array.Empty<byte>()))
+        .Select(g => g.OrderByDescending(x => x.KeyId).First())
+        .ToList();
+
+    _cachedDedupedEntries = KVs_Deduped;
+    _cachedDedupedSource = vaultDecryptedRaw;
+
+    // Derived caches: invalidate the rendered enhanced view cache.
+    _cachedEnhancedText = null;
+    _cachedEnhancedTextSource = null;
+
+    return _cachedDedupedEntries;
+}
+
+
+        // Enhanced extraction should not drop legitimate distinct keys that share identical values.
+        // Unlike GetVaultEntriesDedupedCached(), this applies only per-key selection (prefer checksum-correct)
+        // and preserves the first-seen key order from the parsed vault.
+        List<KvEntry> GetVaultEntriesEnhancedCached()
+        {
+            if (vaultDecryptedRaw == null)
+                return new List<KvEntry>();
+
+            if (_cachedEnhancedEntries != null && object.ReferenceEquals(_cachedEnhancedEntriesSource, vaultDecryptedRaw))
+                return _cachedEnhancedEntries;
+
+            var kvs = GetVaultEntriesCached();
+
+            var bestByKey = new Dictionary<string, KvEntry>(StringComparer.Ordinal);
+            var order = new List<string>();
+
+            foreach (var kv in kvs)
+            {
+                if (kv == null || string.IsNullOrEmpty(kv.Key))
+                    continue;
+
+                if (!bestByKey.TryGetValue(kv.Key, out var cur))
+                {
+                    bestByKey[kv.Key] = kv;
+                    order.Add(kv.Key);
+                }
+                else if (IsBetterEnhancedEntry(kv, cur))
+                {
+                    bestByKey[kv.Key] = kv;
+                }
+            }
+
+            var list = new List<KvEntry>(order.Count);
+            foreach (var k in order)
+            {
+                if (bestByKey.TryGetValue(k, out var e))
+                    list.Add(e);
+            }
+
+            _cachedEnhancedEntries = list;
+            _cachedEnhancedEntriesSource = vaultDecryptedRaw;
+
+            _cachedEnhancedText = null;
+            _cachedEnhancedTextSource = null;
+
+            return _cachedEnhancedEntries;
+        }
+
+        static bool IsBetterEnhancedEntry(KvEntry candidate, KvEntry current)
+        {
+            if (candidate == null)
+                return false;
+            if (current == null)
+                return true;
+
+            if (candidate.IsCheckSumCorrect != current.IsCheckSumCorrect)
+                return candidate.IsCheckSumCorrect;
+
+            if (candidate.KeyId != current.KeyId)
+                return candidate.KeyId > current.KeyId;
+
+            if (candidate.ValueLength != current.ValueLength)
+                return candidate.ValueLength > current.ValueLength;
+
+            return false;
+        }
+
+
 
         static ushort CalcChecksum(byte[] buf, int off, int len)
         {
@@ -150,7 +301,9 @@ namespace BK7231Flasher
         List<KvEntry> ParseVault()
         {
             var entries = new List<KvEntry>();
-            byte[] data = descryptedRaw;
+            byte[] data = vaultDecryptedRaw;
+            if (data == null || data.Length == 0)
+                return entries;
 
             for(int off = 0; off + KVHeaderSize < data.Length; off += 0x80)
             {
@@ -163,9 +316,318 @@ namespace BK7231Flasher
                         off = nextOffset - 0x80;
                 }
             }
-
             return entries;
         }
+
+            
+        List<KvEntry> ParseVaultPreferred()
+        {
+            // Prefer KVStorage-style indexed parsing when it clearly applies.
+            // Fall back to the classic fixed-stride parser otherwise.
+            try
+            {
+                var kvsIndexed = ParseVaultKvStorage();
+                if (LooksLikeKvStorageResult(kvsIndexed))
+                    return kvsIndexed;
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+            return ParseVault();
+        }
+
+        static bool LooksLikeKvStorageResult(List<KvEntry> entries)
+        {
+            if (entries == null || entries.Count < 3)
+                return false;
+
+            // Require at least one canonical gw_* key (or user_param_key) to avoid false positives.
+            foreach (var e in entries)
+            {
+                if (e == null || string.IsNullOrEmpty(e.Key))
+                    continue;
+
+                if (e.Key.StartsWith("gw_", StringComparison.Ordinal) ||
+                    string.Equals(e.Key, "user_param_key", StringComparison.Ordinal) ||
+                    string.Equals(e.Key, "tuya_seed", StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
+        }
+
+        sealed class KvStorageIndex
+        {
+            public string Name;
+            public int Length;
+            public ushort BlockId;
+            public byte PageId;
+            public uint Element;
+            public List<KvStoragePart> Parts = new List<KvStoragePart>();
+        }
+
+        sealed class KvStoragePart
+        {
+            public ushort BlockId;
+            public byte PageStart;
+            public byte PageEnd;
+        }
+
+        List<KvEntry> ParseVaultKvStorage()
+        {
+            var result = new List<KvEntry>();
+            byte[] data = vaultDecryptedRaw;
+            if (data == null || data.Length < SECTOR_SIZE)
+                return result;
+
+            // Build an index of blocks by block_id.
+            var blocksById = new Dictionary<ushort, int>();
+            int blockCount = data.Length / SECTOR_SIZE;
+
+            for (int b = 0; b < blockCount; b++)
+            {
+                int blockStart = b * SECTOR_SIZE;
+                uint magic = ReadU32LE(data, blockStart);
+                if (magic != MAGIC_NEXT_BLOCK && magic != MAGIC_FIRST_BLOCK_OS3 && magic != MAGIC_FIRST_BLOCK)
+                    continue;
+
+                ushort blockId = ReadU16LE(data, blockStart + 8);
+                if (!blocksById.ContainsKey(blockId))
+                    blocksById[blockId] = blockStart;
+            }
+
+            if (blocksById.Count == 0)
+                return result;
+
+            // Collect all index pages.
+            var indexes = new List<KvStorageIndex>();
+
+            foreach (var kv in blocksById)
+            {
+                int blockStart = kv.Value;
+
+                byte mapSize = data[blockStart + 14];
+                int mapOff = blockStart + 15;
+                if (mapSize == 0 || mapOff + mapSize > blockStart + 128)
+                    continue;
+
+                // map_data bytes
+                for (int pi = 0; pi < 31; pi++)
+                {
+                    int pageId = pi + 1;
+                    if (!IsIndexPage(data, mapOff, mapSize, pageId))
+                        continue;
+
+                    int pageStart = blockStart + (pageId * 128);
+                    if (pageStart + 128 > data.Length)
+                        continue;
+
+                    if (TryParseKvStorageIndexPage(data, blockStart, ReadU16LE(data, blockStart + 8), (byte)pageId, pageStart, out var idx))
+                    {
+                        indexes.Add(idx);
+                    }
+                }
+            }
+
+            if (indexes.Count == 0)
+                return result;
+
+            // Deduplicate by key name: prefer highest 'element' (newest), then longest length.
+            var chosen = indexes
+                .Where(x => x != null && !string.IsNullOrWhiteSpace(x.Name) && x.Length >= 0)
+                .GroupBy(x => x.Name, StringComparer.Ordinal)
+                .Select(g => g
+                    .OrderByDescending(x => x.Element)
+                    .ThenByDescending(x => x.Length)
+                    .First())
+                .ToList();
+
+            foreach (var idx in chosen)
+            {
+                var value = ReassembleKvStorageValue(data, blocksById, idx);
+                if (value == null)
+                    continue;
+                if (value.Length == 0 && idx.Length > 0)
+                    continue;
+
+                result.Add(new KvEntry
+                {
+                    Key = idx.Name,
+                    ValueLength = (uint)value.Length,
+                    KeyId = (ushort)(idx.Element & 0xFFFF),
+                    Value = value,
+                    ChecksumStored = 0,
+                    ChecksumCalculated = 0
+                });
+            }
+
+            return result;
+        }
+
+        static bool IsIndexPage(byte[] data, int mapOff, int mapSize, int pageId)
+        {
+            // pageId is 1..31. The map uses bits indexed by pageId.
+            int byteIndex = pageId / 8;
+            int bitIndex = pageId % 8;
+
+            if (byteIndex < 0 || byteIndex >= mapSize)
+                return false;
+
+            byte m = data[mapOff + byteIndex];
+            return (m & (1 << bitIndex)) != 0;
+        }
+
+        static bool TryParseKvStorageIndexPage(byte[] data, int blockStart, ushort blockId, byte pageId, int pageStart, out KvStorageIndex idx)
+        {
+            idx = null;
+
+            try
+            {
+                // Layout mirrors the Tuya KVStorage DataBlock.IndexPage layout, but some firmwares
+                // encode parts_size as either count-of-parts or byte-size. We accept both.
+                uint crc = ReadU32LE(data, pageStart + 0);
+                int length = (int)ReadU32LE(data, pageStart + 4);
+                ushort idxBlockId = ReadU16LE(data, pageStart + 8);
+                byte idxPageId = data[pageStart + 10];
+                ushort partsField = ReadU16LE(data, pageStart + 11);
+                uint element = ReadU32LE(data, pageStart + 13);
+                byte nameLen = data[pageStart + 17];
+
+                if (idxBlockId != blockId)
+                    return false;
+                if (idxPageId != pageId)
+                    return false;
+                if (nameLen == 0 || nameLen > 110) // defensive
+                    return false;
+
+                int nameOff = pageStart + 18;
+                int nameEnd = nameOff + nameLen;
+                if (nameEnd > pageStart + 128)
+                    return false;
+
+                // nameLen appears to include a NUL terminator in many firmwares
+                int realNameLen = nameLen;
+                if (realNameLen > 0 && data[nameOff + realNameLen - 1] == 0)
+                    realNameLen -= 1;
+
+                if (realNameLen <= 0)
+                    return false;
+
+                // ASCII-ish key names only; avoid fragment garbage as keys in KVStorage mode.
+                for (int i = 0; i < realNameLen; i++)
+                {
+                    byte b = data[nameOff + i];
+                    if (!(b == 0 || (b >= 0x20 && b <= 0x7E)))
+                        return false;
+                }
+
+                string name = Encoding.ASCII.GetString(data, nameOff, realNameLen);
+
+                int partsOff = nameOff + nameLen;
+                int remaining = (pageStart + 128) - partsOff;
+                // partsField==0 is valid for empty values on some firmwares (e.g. em_sys_env = "").
+                // In that case there may be no parts array at all.
+                if (partsField == 0)
+                {
+                    idx = new KvStorageIndex
+                    {
+                        Name = name,
+                        Length = length,
+                        BlockId = idxBlockId,
+                        PageId = idxPageId,
+                        Element = element,
+                        Parts = new List<KvStoragePart>(0)
+                    };
+                    return true;
+                }
+
+                if (remaining < 4)
+                    return false;
+
+                int partsCount = 0;
+                // Interpret partsField as count if it fits, else as bytes (multiple of 4).
+                if (partsField > 0 && (partsField * 4) <= remaining)
+                    partsCount = partsField;
+                else if (partsField > 0 && (partsField % 4) == 0 && partsField <= remaining)
+                    partsCount = partsField / 4;
+                else
+                    return false;
+
+                if (partsCount <= 0 || partsCount > 64)
+                    return false;
+
+                var parts = new List<KvStoragePart>(partsCount);
+                for (int i = 0; i < partsCount; i++)
+                {
+                    int po = partsOff + (i * 4);
+                    ushort pBlock = ReadU16LE(data, po);
+                    byte pStart = data[po + 2];
+                    byte pEnd = data[po + 3];
+                    if (pStart == 0 || pEnd == 0 || pStart > pEnd || pEnd > 31)
+                        return false;
+
+                    parts.Add(new KvStoragePart { BlockId = pBlock, PageStart = pStart, PageEnd = pEnd });
+                }
+
+                idx = new KvStorageIndex
+                {
+                    Name = name,
+                    Length = length,
+                    BlockId = idxBlockId,
+                    PageId = idxPageId,
+                    Element = element,
+                    Parts = parts
+                };
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        static byte[] ReassembleKvStorageValue(byte[] data, Dictionary<ushort, int> blocksById, KvStorageIndex idx)
+        {
+            if (idx == null || idx.Parts == null || idx.Parts.Count == 0 || idx.Length <= 0)
+                return Array.Empty<byte>();
+
+            try
+            {
+                using var ms = new MemoryStream();
+
+                foreach (var part in idx.Parts)
+                {
+                    if (!blocksById.TryGetValue(part.BlockId, out int blockStart))
+                        return Array.Empty<byte>();
+
+                    for (int pid = part.PageStart; pid <= part.PageEnd; pid++)
+                    {
+                        int pageStart = blockStart + (pid * 128);
+                        if (pageStart + 128 > data.Length)
+                            return Array.Empty<byte>();
+
+                        ms.Write(data, pageStart, 128);
+                    }
+                }
+
+                var buf = ms.ToArray();
+                if (buf.Length > idx.Length)
+                {
+                    Array.Resize(ref buf, idx.Length);
+                }
+                else if (buf.Length < idx.Length)
+                {
+                    // Some firmwares may declare a longer length; be defensive and keep what we have.
+                }
+                return buf;
+            }
+            catch
+            {
+                return Array.Empty<byte>();
+            }
+        }
+
 
         // pretty useless for RTLs, since littlefs overwrites it.
         internal static int getMagicOffset(BKType type) => type switch
@@ -225,6 +687,7 @@ namespace BK7231Flasher
         public bool fromBytes(byte[] data)
         {
             descryptedRaw = null;
+            vaultDecryptedRaw = null;
             original = data;
             if (isFullOf(data, 0xff))
             {
@@ -260,6 +723,7 @@ namespace BK7231Flasher
         bool TryVaultExtract(byte[] flash)
         {
             descryptedRaw = null;
+            vaultDecryptedRaw = null;
 
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
@@ -361,6 +825,7 @@ namespace BK7231Flasher
             foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
 
             descryptedRaw = ms.ToArray();
+            vaultDecryptedRaw = descryptedRaw;
             return true;
         }
 
@@ -429,10 +894,43 @@ namespace BK7231Flasher
 
         public string getKeysHumanReadable(OBKConfig tg = null)
         {
+            return GetKeysHumanReadableInternal(parms, tg);
+        }
+
+        // When enhanced extraction is enabled, prefer key/value pairs reconstructed from the enhanced
+        // vault entries. This allows the text description to still show pins/modules even when the
+        // classic extraction picked a fallback (e.g. baud_cfg) due to a checksum-bad user_param_key.
+        public string getKeysHumanReadableEnhanced(OBKConfig tg = null)
+        {
+            var enhanced = GetEnhancedParmsCached();
+            if (enhanced == null || enhanced.Count == 0)
+                return GetKeysHumanReadableInternal(parms, tg);
+
+            // If enhanced produced no pin/module-ish keys, keep classic behavior.
+            bool enhancedLooksUseful = enhanced.Keys.Any(k => k.EndsWith("_pin", StringComparison.Ordinal) || k.IndexOf("pin", StringComparison.OrdinalIgnoreCase) >= 0 || k.Equals("module", StringComparison.Ordinal));
+            if (!enhancedLooksUseful)
+                return GetKeysHumanReadableInternal(parms, tg);
+
+            var enhancedDesc = GetKeysHumanReadableInternal(enhanced, tg);
+
+            // Safety: if enhanced still couldn't recover any pins but classic did, fall back.
+            if (enhancedDesc != null && enhancedDesc.StartsWith("Sorry, no meaningful pins", StringComparison.Ordinal) &&
+                !GetKeysHumanReadableInternal(parms, null).StartsWith("Sorry, no meaningful pins", StringComparison.Ordinal))
+            {
+                return GetKeysHumanReadableInternal(parms, tg);
+            }
+            return enhancedDesc;
+        }
+
+        string GetKeysHumanReadableInternal(Dictionary<string, string> source, OBKConfig tg = null)
+        {
+            if (source == null)
+                source = new Dictionary<string, string>();
+
             bool bHasBattery = false;
             string desc = "";
             if(tg != null && !string.IsNullOrWhiteSpace(tg.initCommandLine)) tg.initCommandLine += "\r\n";
-            foreach(var kv in parms)
+            foreach(var kv in source)
             {
                 string key = kv.Key;
                 string value = kv.Value;
@@ -869,13 +1367,13 @@ namespace BK7231Flasher
             {
                 desc += "Device seems to use Battery Driver. See more details here: https://www.elektroda.com/rtvforum/topic3959103.html" + Environment.NewLine;
             }
-            var baud = this.findKeyValue("baud");
+            var baud = FindKeyValueIn(source, "baud");
             if(baud != null)
             {
                 desc += "Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is " + baud + Environment.NewLine;
             }
-            var kp = this.findKeyValue("module");
-            kp ??= this.findKeyContaining("module");
+            var kp = FindKeyValueIn(source, "module");
+            kp ??= FindKeyContainingIn(source, "module");
             if (kp != null)
             {
                 var type = TuyaModules.getTypeForModuleName(kp);
@@ -893,7 +1391,7 @@ namespace BK7231Flasher
             {
                 desc += "No module information found.";
             }
-            kp = findKeyValue("em_sys_env");
+            kp = FindKeyValueIn(source, "em_sys_env");
             if(kp != null)
             {
                 desc += Environment.NewLine;
@@ -967,6 +1465,188 @@ namespace BK7231Flasher
             }
             return desc;
         }
+
+        static string FindKeyContainingIn(Dictionary<string, string> source, string keyPart)
+        {
+            if (source == null || string.IsNullOrEmpty(keyPart))
+                return null;
+            foreach (var kv in source)
+            {
+                if (kv.Key != null && kv.Key.Contains(keyPart))
+                    return kv.Value;
+            }
+            return null;
+        }
+
+        static string FindKeyValueIn(Dictionary<string, string> source, string key)
+        {
+            if (source == null || key == null)
+                return null;
+            if (source.TryGetValue(key, out var value))
+                return value;
+            return null;
+        }
+
+        Dictionary<string, string> GetEnhancedParmsCached()
+        {
+            var src = vaultDecryptedRaw;
+            if (src == null)
+                return null;
+
+            if (_cachedEnhancedParms != null && object.ReferenceEquals(_cachedEnhancedParmsSource, src))
+                return _cachedEnhancedParms;
+
+            try
+            {
+                _cachedEnhancedParms = BuildEnhancedParmsFromVault();
+                _cachedEnhancedParmsSource = src;
+                return _cachedEnhancedParms;
+            }
+            catch
+            {
+                _cachedEnhancedParms = null;
+                _cachedEnhancedParmsSource = src;
+                return null;
+            }
+        }
+
+        Dictionary<string, string> BuildEnhancedParmsFromVault()
+        {
+            var result = new Dictionary<string, string>();
+
+            // Start from enhanced entries (per-key best selection, regardless of overall dedupe).
+            var kvs = GetVaultEntriesEnhancedCached();
+            if (kvs == null || kvs.Count == 0)
+                return result;
+
+            byte[] upk = kvs.FirstOrDefault(x => x.Key == "user_param_key")?.Value;
+            byte[] baudCfg = kvs.FirstOrDefault(x => x.Key == "baud_cfg")?.Value;
+            byte[] em = kvs.FirstOrDefault(x => x.Key == "em_sys_env")?.Value;
+
+            // em_sys_env (platform string)
+            if (em != null && !IsAllPadding(em))
+            {
+                string s = bytesToAsciiStr(em);
+                if (!string.IsNullOrWhiteSpace(s))
+                    result["em_sys_env"] = s;
+            }
+
+            // Prefer user_param_key for pins/module.
+            if (upk != null && upk.Length > 0 && !IsAllPadding(upk))
+            {
+                if (TryParseTuyaObjectPairsFromBytes(upk, out var dictFromUpk) && dictFromUpk.Count > 0)
+                {
+                    foreach (var kv in dictFromUpk)
+                    {
+                        if (!result.ContainsKey(kv.Key))
+                            result[kv.Key] = kv.Value;
+                    }
+                }
+            }
+
+            // baud_cfg can provide baud value.
+            if (baudCfg != null && baudCfg.Length > 0 && !IsAllPadding(baudCfg))
+            {
+                if (TryParseTuyaObjectPairsFromBytes(baudCfg, out var dictFromBaud) && dictFromBaud.Count > 0)
+                {
+                    foreach (var kv in dictFromBaud)
+                    {
+                        if (!result.ContainsKey(kv.Key))
+                            result[kv.Key] = kv.Value;
+                    }
+                }
+            }
+
+            // If classic extraction already has some useful fields that enhanced didn't parse, merge them.
+            // This keeps behavior consistent for fields like magic position diagnostics.
+            foreach (var kv in parms)
+            {
+                if (!result.ContainsKey(kv.Key))
+                    result[kv.Key] = kv.Value;
+            }
+
+            return result;
+        }
+
+        static bool TryParseTuyaObjectPairsFromBytes(byte[] data, out Dictionary<string, string> dict)
+        {
+            dict = new Dictionary<string, string>();
+            if (data == null || data.Length == 0)
+                return false;
+
+            string ascii = ExtractAsciiForJsonSearch(data, maxChars: 65536);
+            if (string.IsNullOrWhiteSpace(ascii))
+                return false;
+
+            // First attempt: extract a balanced JSON object/array and parse strictly.
+            int start = FindNextJsonStart(ascii, 0);
+            if (start >= 0 && TryExtractBalancedJson(ascii, start, out int endExclusive, out string jsonCandidate))
+            {
+                if (TryParseJsonToFlatPairs(jsonCandidate, dict))
+                    return dict.Count > 0;
+
+                if (TryRepairTuyaJsonish(jsonCandidate, out var repaired) && TryParseJsonToFlatPairs(repaired, dict))
+                    return dict.Count > 0;
+            }
+
+            // Fallback: loose key:value pairs (as used by the classic extraction).
+            string[] pairs = ascii.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var p in pairs)
+            {
+                string[] kp = p.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                if (kp.Length < 2)
+                    continue;
+
+                string skey = (kp.Length > 2 && kp[1].Contains('[')) ? kp[1] : kp[0];
+                string svalue = kp[kp.Length - 1];
+
+                skey = skey.Trim(new char[] { '"' }).Replace("\"", "").Replace("[", "").Replace("{", "");
+                svalue = svalue.Trim(new char[] { '"' }).Replace("\"", "").Replace("}", "");
+
+                if (string.IsNullOrWhiteSpace(skey))
+                    continue;
+
+                if (!dict.ContainsKey(skey))
+                    dict[skey] = svalue;
+            }
+
+            return dict.Count > 0;
+        }
+
+        static bool TryParseJsonToFlatPairs(string json, Dictionary<string, string> dict)
+        {
+            if (string.IsNullOrWhiteSpace(json) || dict == null)
+                return false;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json, new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = true,
+                    CommentHandling = JsonCommentHandling.Skip
+                });
+
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        if (prop.Value.ValueKind == JsonValueKind.Object || prop.Value.ValueKind == JsonValueKind.Array)
+                            continue;
+
+                        string val = prop.Value.ToString();
+                        dict[prop.Name] = val;
+                    }
+                    return dict.Count > 0;
+                }
+
+                // If it's an array, we can't flatten to Tuya pin pairs reliably.
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         public string getKeyValue(string key, string sdefault = "")
         {
             if(parms.TryGetValue(key, out var value))
@@ -988,7 +1668,938 @@ namespace BK7231Flasher
             r += "}" + Environment.NewLine;
             return r;
         }
-        public bool extractKeys()
+                        public string getEnhancedExtractionText()
+        {
+            // Enhanced extraction is presentation-only: it shows additional content already present
+            // in decrypted KV entries, but rendered in a cleaner way (JSON pretty-printing, key labels).
+            // No offsets, markers, or synthetic metadata are added.
+
+            var src = vaultDecryptedRaw;
+            if (src == null || src.Length == 0)
+                return "";
+
+            // If we already built the enhanced view for this decrypted buffer, reuse it.
+            if (_cachedEnhancedText != null && object.ReferenceEquals(_cachedEnhancedTextSource, src))
+                return _cachedEnhancedText;
+
+            var bodiesInOrder = new List<string>();
+            var bodyToKeys = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+            void AddBlock(string key, string body)
+            {
+                if (string.IsNullOrWhiteSpace(body))
+                    return;
+
+                // Normalize for display and dedupe.
+                body = NormalizeEnhancedNewlines(body).Trim();
+                if (body.Length == 0)
+                    return;
+
+                // In enhanced extraction we keep "simple" keys (gw_*, user_param_key, etc.) as distinct blocks,
+                // even if their rendered body is identical. This prevents accidental merging like "gw_di, timer_arr".
+                string internalKey = body;
+                if (!string.IsNullOrWhiteSpace(key) && IsSimpleEnhancedKey(key))
+                    internalKey = body + "\0" + key;
+
+                if (!bodyToKeys.TryGetValue(internalKey, out var keys))
+                {
+                    keys = new List<string>();
+                    bodyToKeys[internalKey] = keys;
+                    bodiesInOrder.Add(internalKey);
+                }
+if (!string.IsNullOrWhiteSpace(key))
+                {
+                    key = FormatEnhancedKeyLabel(key);
+                    if (!keys.Contains(key))
+                        keys.Add(key);
+                }
+            }
+
+            try
+            {
+                var kvs = GetVaultEntriesEnhancedCached();
+
+                foreach (var kv in kvs)
+                {
+                    if (kv.Value == null)
+                        continue;
+
+                    string rendered = RenderEnhancedValue(kv.Key, kv.Value);
+                    AddBlock(kv.Key, rendered);
+                }
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+            string TryBuildEnhancedFallback()
+            {
+                try
+                {
+                    // If raw extraction already found keys (especially credentials), show that.
+                    // This avoids any additional scanning and prevents the enhanced view from being empty.
+                    if (parms != null)
+                    {
+                        if (parms.ContainsKey("uuid") || parms.ContainsKey("auth_key") || parms.ContainsKey("psk_key"))
+                            return getKeysAsJSON();
+
+                        if (parms.Count >= 10)
+                            return getKeysAsJSON();
+                    }
+
+                    // Otherwise, try to recover a single well-formed JSON object/array from the decrypted vault blob.
+                    if (TryPrettyPrintJsonFromMixedBytes(src, "vault_blob", out var prettyBlob))
+                    {
+                        string p = NormalizeEnhancedNewlines(prettyBlob).Trim();
+                        if (p.Length > 0)
+                            return p + Environment.NewLine;
+                    }
+
+                    if (parms != null && parms.Count > 0)
+                        return getKeysAsJSON();
+
+                    if (IsAsciiOnlyOrPadded(src))
+                    {
+                        string ascii = ExtractAsciiForJsonSearch(src, maxChars: 65536);
+                        if (!string.IsNullOrWhiteSpace(ascii))
+                            return NormalizeEnhancedNewlines(ascii).Trim() + Environment.NewLine;
+                    }
+                }
+                catch
+                {
+                    // Best-effort only.
+                }
+                return "";
+            }
+
+            if (bodiesInOrder.Count == 0)
+            {
+                string fallback = TryBuildEnhancedFallback();
+                if (!string.IsNullOrWhiteSpace(fallback))
+                {
+                    _cachedEnhancedText = fallback;
+                    _cachedEnhancedTextSource = src;
+                    return fallback;
+                }
+                return "";
+            }
+
+            var renderedBlocks = new List<string>(bodiesInOrder.Count);
+            foreach (var bodyKey in bodiesInOrder)
+{
+    string displayBody = bodyKey;
+    int nul = displayBody.IndexOf('\0');
+    if (nul >= 0)
+        displayBody = displayBody.Substring(0, nul);
+
+    if (bodyToKeys.TryGetValue(bodyKey, out var keys) && keys != null && keys.Count > 0)
+        renderedBlocks.Add(string.Join(", ", keys) + Environment.NewLine + displayBody);
+    else
+        renderedBlocks.Add(displayBody);
+}
+
+            var result = string.Join(Environment.NewLine + Environment.NewLine, renderedBlocks) + Environment.NewLine;
+            // If classic/raw extraction recovered credentials but the enhanced blocks did not surface them
+            // (e.g. because the relevant KV entry is binary-wrapped or stored as loose pairs), append the
+            // raw JSON view. This does not add metadata; it only renders already-extracted fields.
+            try
+            {
+                bool rawHasCreds = parms != null && (parms.ContainsKey("uuid") || parms.ContainsKey("auth_key") || parms.ContainsKey("psk_key"));
+                if (rawHasCreds)
+                {
+                    bool enhancedHasCreds =
+                        result.IndexOf("\"uuid\"", StringComparison.Ordinal) >= 0 ||
+                        result.IndexOf("\"auth_key\"", StringComparison.Ordinal) >= 0 ||
+                        result.IndexOf("\"psk_key\"", StringComparison.Ordinal) >= 0;
+
+                    if (!enhancedHasCreds)
+                    {
+                        string rawJson = getKeysAsJSON();
+                        if (!string.IsNullOrWhiteSpace(rawJson))
+                            result = result.TrimEnd() + Environment.NewLine + Environment.NewLine + rawJson.TrimEnd() + Environment.NewLine;
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+
+
+            _cachedEnhancedText = result;
+            _cachedEnhancedTextSource = src;
+            return result;
+        }
+
+
+
+                static string RenderEnhancedValue(string kvKey, byte[] value)
+        {
+            // Some keys legitimately exist with an "empty" value.
+            // They can be stored as zero-length, or as a blob that is entirely padding (0x00/0xFF).
+            // Preserve them as an explicit empty string so the key still shows up in enhanced output.
+            if (value != null && (value.Length == 0 || IsAllPadding(value)))
+                return "\"\"";
+
+            // tuya_seed is a binary blob (typically 32 bytes). Rendering it as mixed ASCII + \xNN
+            // is confusing; present it as compact hex/base64 derived directly from the bytes.
+            if (string.Equals(kvKey, "tuya_seed", StringComparison.Ordinal))
+            {
+                string seed = RenderBinaryCompact(value);
+                if (!string.IsNullOrWhiteSpace(seed))
+                    return seed;
+            }
+
+            // Fast path: if the value (or a sub-range of it) contains a valid JSON object/array,
+            // prefer the pretty-printed JSON as the enhanced presentation.
+            // This is bounded and best-effort; it does not synthesize data, it only renders bytes already present.
+            if (TryPrettyPrintJsonFromMixedBytes(value, kvKey, out var prettyAny))
+                return NormalizeEnhancedNewlines(prettyAny).Trim();
+
+
+            // Special-case: user_param_key is frequently stored as JSON-ish text but can be wrapped
+            // with binary/padding bytes. In enhanced extraction we recover and pretty-print the first
+            // valid JSON object/array found within the ASCII-cleaned bytes.
+            if (string.Equals(kvKey, "user_param_key", StringComparison.Ordinal))
+            {
+                if (TryPrettyPrintJsonFromMixedBytes(value, kvKey, out var prettyUpk))
+                    return NormalizeEnhancedNewlines(prettyUpk).Trim();
+
+                // Fallback: if we could not isolate a full JSON object/array, still prefer a clean
+                // ASCII-only view over \\xNN noise (presentation-only).
+                if (IsAsciiOnlyOrPadded(value))
+                {
+                    string upkAscii = ExtractAsciiForJsonSearch(value, maxChars: 65536);
+                    if (!string.IsNullOrWhiteSpace(upkAscii))
+                    {
+                        string asciiNorm = NormalizeEnhancedNewlines(upkAscii).Trim();
+
+                        if (TryPrettyPrintLooseJsonPairs(asciiNorm, kvKey, out var prettyPairs))
+                            return NormalizeEnhancedNewlines(prettyPairs).Trim();
+
+                        return asciiNorm;
+                    }
+                }
+            }
+
+            // Some images contain a gw_bi value wrapped with binary bytes and/or padding.
+            // In those cases, prefer a clean ASCII-only view over \\xNN sequences (presentation-only),
+            // but only when the underlying bytes are actually ASCII (plus typical padding).
+            if (string.Equals(kvKey, "gw_bi", StringComparison.Ordinal))
+            {
+                if (IsAsciiOnlyOrPadded(value))
+                {
+                    string gwbiAscii = ExtractAsciiForJsonSearch(value, maxChars: 65536);
+                    if (!string.IsNullOrWhiteSpace(gwbiAscii))
+                    {
+                        string asciiNorm = NormalizeEnhancedNewlines(gwbiAscii).Trim();
+                        string asciiTrim = asciiNorm.TrimStart();
+                        if (asciiTrim.Length > 0 && (asciiTrim[0] == '{' || asciiTrim[0] == '['))
+                        {
+                            if (TryExtractBalancedJson(asciiTrim, 0, out int endExclusive, out string jsonCandidate) &&
+                                IsOnlyWhitespaceOrEscapedPadding(asciiTrim, endExclusive) &&
+                                TryPrettyPrintJsonCandidate(jsonCandidate, kvKey, out var pretty))
+                            {
+                                return NormalizeEnhancedNewlines(pretty).Trim();
+                            }
+                        }
+
+                        return asciiNorm;
+                    }
+                }
+            }
+
+            // If the key is known to be mostly textual, prefer a clean ASCII-only view over \xNN noise,
+            // but only when the underlying bytes are actually ASCII (plus typical padding). This matches
+            // Strict ASCII-gating avoids presenting partial garbage as meaningful text.
+            if (!string.IsNullOrEmpty(kvKey) &&
+                (kvKey.StartsWith("gw_", StringComparison.Ordinal) ||
+                 kvKey.EndsWith("_v2", StringComparison.Ordinal)))
+            {
+                if (IsAsciiOnlyOrPadded(value))
+                {
+                    string ascii = ExtractAsciiForJsonSearch(value, maxChars: 65536);
+                    if (!string.IsNullOrWhiteSpace(ascii))
+                        return NormalizeEnhancedNewlines(ascii).Trim();
+                }
+                else
+                {
+                    // If it is not clean ASCII (plus padding), do not try to
+                    // present partial garbage as text. Use a compact binary representation instead.
+                    string bin = RenderBinaryCompact(value);
+                    if (!string.IsNullOrWhiteSpace(bin))
+                        return bin;
+                }
+            }
+            // Final fallback: avoid emitting mixed ASCII + \xNN noise.
+            if (IsAsciiOnlyOrPadded(value))
+            {
+                string ascii = ExtractAsciiForJsonSearch(value, maxChars: 65536);
+                if (!string.IsNullOrWhiteSpace(ascii))
+                {
+                    string asciiNorm = NormalizeEnhancedNewlines(ascii).Trim();
+
+                    if (TryPrettyPrintLooseJsonPairs(asciiNorm, kvKey, out var prettyPairs))
+                        return NormalizeEnhancedNewlines(prettyPairs).Trim();
+
+                    return asciiNorm;
+                }
+            }
+
+            string compact = RenderBinaryCompact(value);
+            return string.IsNullOrWhiteSpace(compact) ? "" : compact;
+}
+
+
+        // Attempt to locate and pretty-print a valid JSON object/array embedded inside a mixed
+        // binary/text value. This is deliberately bounded and best-effort.
+        static bool TryPrettyPrintJsonFromMixedBytes(byte[] data, string kvKey, out string pretty)
+        {
+            pretty = null;
+            if (data == null || data.Length == 0)
+                return false;
+
+            // Extract ASCII only (drops binary noise) to avoid \xNN expansion.
+            // Bounded to keep worst-case time predictable.
+            string ascii = ExtractAsciiForJsonSearch(data, maxChars: 65536);
+            if (string.IsNullOrWhiteSpace(ascii))
+                return false;
+
+            int startAt = 0;
+            int bestLen = 0;
+            string bestPretty = null;
+
+            // Scan a handful of candidate JSON starts and keep the *largest* valid JSON found.
+            // This helps when the value contains multiple fragments or when there is a short false-positive first.
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                int start = FindNextJsonStart(ascii, startAt);
+                if (start < 0)
+                    break;
+
+                if (TryExtractBalancedJson(ascii, start, out int endExclusive, out string jsonCandidate))
+                {
+                    // Only accept if it parses as JSON.
+                    if (TryPrettyPrintJsonCandidate(jsonCandidate, kvKey, out var prettyCandidate))
+                    {
+                        if (jsonCandidate.Length > bestLen)
+                        {
+                            bestLen = jsonCandidate.Length;
+                            bestPretty = prettyCandidate;
+                        }
+                    }
+                }
+
+                startAt = start + 1;
+            }
+
+            if (bestPretty != null)
+            {
+                pretty = bestPretty;
+                return true;
+            }
+
+            return false;
+        }
+
+
+        static bool IsAsciiOnlyOrPadded(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+                return false;
+
+            bool hasContent = false;
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                byte b = data[i];
+
+                // Allow typical erased/padded bytes.
+                if (b == 0x00 || b == 0xFF)
+                    continue;
+
+                // Allow common whitespace.
+                if (b == 0x09 || b == 0x0A || b == 0x0D)
+                {
+                    hasContent = true;
+                    continue;
+                }
+
+                // Visible ASCII.
+                if (b >= 0x20 && b <= 0x7E)
+                {
+                    hasContent = true;
+                    continue;
+                }
+
+                return false;
+            }
+
+            return hasContent;
+        }
+
+
+        static string ExtractAsciiForJsonSearch(byte[] data, int maxChars)
+        {
+            if (data == null || data.Length == 0)
+                return "";
+
+            if (maxChars < 128)
+                maxChars = 128;
+
+            var sb = new StringBuilder(Math.Min(maxChars, data.Length));
+            int written = 0;
+
+            for (int i = 0; i < data.Length && written < maxChars; i++)
+            {
+                byte b = data[i];
+
+                // Skip typical flash padding and NULs.
+                if (b == 0x00 || b == 0xFF)
+                    continue;
+
+                // Preserve common whitespace.
+                if (b == 0x09 || b == 0x0A || b == 0x0D)
+                {
+                    sb.Append((char)b);
+                    written++;
+                    continue;
+                }
+
+                // Visible ASCII.
+                if (b >= 0x20 && b <= 0x7E)
+                {
+                    sb.Append((char)b);
+                    written++;
+                    continue;
+                }
+            }
+
+            return sb.ToString();
+        }
+
+
+		static bool IsAllPadding(byte[] data)
+		{
+			if (data == null || data.Length == 0)
+				return true;
+
+			for (int i = 0; i < data.Length; i++)
+			{
+				byte b = data[i];
+				if (b != 0x00 && b != 0xFF)
+					return false;
+			}
+
+			return true;
+		}
+
+		static string RenderBinaryCompact(byte[] data)
+		{
+			if (data == null || data.Length == 0)
+				return "";
+
+			int end = data.Length;
+			while (end > 0 && (data[end - 1] == 0x00 || data[end - 1] == 0xFF))
+				end--;
+
+			if (end <= 0)
+				return "";
+
+			// For larger blobs, base64 keeps the enhanced output size under control.
+			if (end > 512)
+				return Convert.ToBase64String(data, 0, end);
+
+			var sb = new StringBuilder(end * 2);
+			for (int i = 0; i < end; i++)
+				sb.Append(data[i].ToString("x2"));
+
+			return sb.ToString();
+		}
+
+
+        // Render a binary KV value into a stable, readable string without dropping content.
+        // - Visible ASCII and common whitespace are preserved.
+        // - Non-ASCII/control bytes are shown as \\xNN (presentation-only).
+        // - Trailing NUL padding is ignored (presentation-only).
+        static string RenderBytesForEnhancedDisplay(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+                return "";
+
+            int end = data.Length;
+            while (end > 0 && (data[end - 1] == 0x00 || data[end - 1] == 0xFF))
+                end--;
+
+            if (end <= 0)
+                return "";
+
+            var sb = new StringBuilder(end);
+
+            for (int i = 0; i < end; i++)
+            {
+                byte b = data[i];
+
+                // Preserve common whitespace.
+                if (b == 0x09) { sb.Append('\t'); continue; } // TAB
+                if (b == 0x0A) { sb.Append('\n'); continue; } // LF
+                if (b == 0x0D) { sb.Append('\n'); continue; } // CR -> normalize to LF
+
+                // Visible ASCII.
+                if (b >= 0x20 && b <= 0x7E)
+                {
+                    sb.Append((char)b);
+                    continue;
+                }
+
+                // Ignore NUL padding (presentation only).
+                if (b == 0x00)
+                    continue;
+
+                // Preserve non-ASCII/control bytes in a compact, non-garbled form.
+                sb.Append("\\x");
+                sb.Append(b.ToString("X2"));
+            }
+
+            return sb.ToString();
+        }
+
+                
+        
+static bool IsSimpleEnhancedKey(string key)
+{
+    if (string.IsNullOrWhiteSpace(key) || key.Length > 64)
+        return false;
+
+    for (int i = 0; i < key.Length; i++)
+    {
+        char c = key[i];
+        bool ok =
+            (c >= 'a' && c <= 'z') ||
+            (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') ||
+            c == '_' || c == '-' || c == '.' || c == ':';
+        if (!ok)
+            return false;
+    }
+    return true;
+}
+
+static string FormatEnhancedKeyLabel(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+                return "";
+
+            // Keep simple identifiers as-is.
+            if (key.Length <= 64)
+            {
+                bool simple = true;
+                for (int i = 0; i < key.Length; i++)
+                {
+                    char c = key[i];
+                    if (!(char.IsLetterOrDigit(c) || c == '_' || c == '.' || c == '-'))
+                    {
+                        simple = false;
+                        break;
+                    }
+                }
+                if (simple)
+                    return key;
+            }
+
+            // Otherwise, quote+escape so fragments like :null,"passwd":null,... remain visible but unambiguous.
+            return QuoteAndEscapeForDisplay(key);
+        }
+
+        static string QuoteAndEscapeForDisplay(string s)
+        {
+            if (s == null)
+                return "\"\"";
+
+            var sb = new StringBuilder(s.Length + 2);
+            sb.Append('\"');
+
+            foreach (char ch in s)
+            {
+                switch (ch)
+                {
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\"': sb.Append("\\\""); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default:
+                        if (ch < 0x20)
+                            sb.Append("\\u" + ((int)ch).ToString("X4"));
+                        else
+                            sb.Append(ch);
+                        break;
+                }
+            }
+
+            sb.Append('\"');
+            return sb.ToString();
+        }
+
+        static bool TryPrettyPrintLooseJsonPairs(string ascii, string kvKey, out string pretty)
+        {
+            pretty = null;
+            if (string.IsNullOrWhiteSpace(ascii))
+                return false;
+
+            string s = ascii.Trim();
+            if (s.Length < 8)
+                return false;
+
+            if (s[0] == '{' || s[0] == '[')
+                return false;
+
+            // Heuristic: only attempt when the text looks like it contains credential-ish pairs.
+            bool looksRelevant =
+                s.IndexOf("\"uuid\"", StringComparison.Ordinal) >= 0 ||
+                s.IndexOf("\"auth_key\"", StringComparison.Ordinal) >= 0 ||
+                s.IndexOf("\"psk_key\"", StringComparison.Ordinal) >= 0 ||
+                s.IndexOf("\"ap_ssid\"", StringComparison.Ordinal) >= 0 ||
+                s.IndexOf("\"ap_passwd\"", StringComparison.Ordinal) >= 0 ||
+                s.IndexOf("\"nc_tp\"", StringComparison.Ordinal) >= 0;
+
+            if (!looksRelevant)
+                return false;
+
+            s = s.TrimStart(',', ' ', '\t');
+
+            // Remove a trailing comma if present.
+            s = s.TrimEnd();
+            if (s.EndsWith(",", StringComparison.Ordinal))
+                s = s.TrimEnd(',');
+
+            string candidate = "{" + s + "}";
+
+            if (TryPrettyPrintJsonCandidate(candidate, kvKey, out var prettyInner))
+            {
+                pretty = prettyInner;
+                return true;
+            }
+
+            if (TryRepairTuyaJsonish(candidate, out var repaired) &&
+                TryPrettyPrintJsonCandidate(repaired, kvKey, out var prettyRepaired))
+            {
+                pretty = prettyRepaired;
+                return true;
+            }
+
+            return false;
+        }
+
+static string NormalizeEnhancedNewlines(string s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return s;
+
+            // Normalize newline forms.
+            s = s.Replace("\r\n", "\n").Replace("\r", "\n");
+
+            // Collapse overly long blank-line runs (presentation only) in a single pass.
+            s = Regex.Replace(s, "\n{3,}", "\n\n");
+
+            return s.Replace("\n", Environment.NewLine);
+        }
+
+        static bool IsAllWhitespace(string s, int startIndex)
+        {
+            if (string.IsNullOrEmpty(s))
+                return true;
+            if (startIndex < 0)
+                startIndex = 0;
+            for (int i = startIndex; i < s.Length; i++)
+            {
+                if (!char.IsWhiteSpace(s[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        static bool IsOnlyWhitespaceOrEscapedPadding(string s, int startIndex)
+        {
+            if (string.IsNullOrEmpty(s))
+                return true;
+
+            if (startIndex < 0)
+                startIndex = 0;
+
+            for (int i = startIndex; i < s.Length;)
+            {
+                char c = s[i];
+
+                if (char.IsWhiteSpace(c))
+                {
+                    i++;
+                    continue;
+                }
+
+                // Accept common escaped padding sequences produced by RenderBytesForEnhancedDisplay (presentation-only):
+                // \xFF (erased flash) and \x00 (NUL padding).
+                if (c == '\\' && i + 3 < s.Length && (s[i + 1] == 'x' || s[i + 1] == 'X'))
+                {
+                    char h1 = s[i + 2];
+                    char h2 = s[i + 3];
+
+                    bool isFF = (h1 == 'F' || h1 == 'f') && (h2 == 'F' || h2 == 'f');
+                    bool is00 = (h1 == '0') && (h2 == '0');
+
+                    if (isFF || is00)
+                    {
+                        i += 4;
+                        continue;
+                    }
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+
+
+
+		// Pretty-print any valid JSON objects/arrays found within a text run.
+        // If parsing fails, the original text is preserved.
+        static string PrettyPrintJsonInsideText(string text, string kvKey)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            var sb = new StringBuilder(text.Length);
+            int i = 0;
+
+            while (i < text.Length)
+            {
+                int start = FindNextJsonStart(text, i);
+                if (start < 0)
+                {
+                    sb.Append(text.Substring(i));
+                    break;
+                }
+
+                sb.Append(text.Substring(i, start - i));
+
+                if (TryExtractBalancedJson(text, start, out int endExclusive, out string jsonCandidate))
+                {
+                    if (TryPrettyPrintJsonCandidate(jsonCandidate, kvKey, out var pretty))
+                    {
+                        // Separate adjacent text from multi-line JSON for readability.
+                        if (sb.Length > 0 && sb[sb.Length - 1] != '\n')
+                            sb.Append('\n');
+
+                        sb.Append(pretty);
+
+                        if (endExclusive < text.Length && text[endExclusive] != '\n')
+                            sb.Append('\n');
+
+                        i = endExclusive;
+                        continue;
+                    }
+                }
+
+                // Not JSON (or couldn't be parsed) - keep original character and continue.
+                sb.Append(text[start]);
+                i = start + 1;
+            }
+
+            return sb.ToString();
+        }
+
+        static int FindNextJsonStart(string text, int startAt)
+{
+    // Find '{' or '[' that is NOT inside a quoted JSON string.
+    // This avoids false positives like the "[[...]]" embedded in gw_ai.s_time_z (string).
+    bool inString = false;
+    bool escape = false;
+
+    for (int i = 0; i < text.Length; i++)
+    {
+        char ch = text[i];
+
+        if (i >= startAt)
+        {
+            if (!inString && (ch == '{' || ch == '['))
+                return i;
+        }
+
+        if (escape)
+        {
+            escape = false;
+            continue;
+        }
+
+		if (ch == '\\')
+        {
+            if (inString)
+                escape = true;
+            continue;
+        }
+
+        if (ch == '"')
+        {
+            inString = !inString;
+            continue;
+        }
+    }
+    return -1;
+}
+
+        static bool TryExtractBalancedJson(string text, int start, out int endExclusive, out string json)
+        {
+            endExclusive = 0;
+            json = null;
+
+            var stack = new Stack<char>();
+            bool inString = false;
+            bool escape = false;
+
+            char open = text[start];
+            if (open != '{' && open != '[')
+                return false;
+
+            stack.Push(open);
+
+            for (int i = start + 1; i < text.Length; i++)
+            {
+                char ch = text[i];
+
+                if (inString)
+                {
+                    if (escape)
+                    {
+                        escape = false;
+                        continue;
+                    }
+		if (ch == '\\')
+                    {
+                        escape = true;
+                        continue;
+                    }
+                    if (ch == '"')
+                    {
+                        inString = false;
+                        continue;
+                    }
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+
+                if (ch == '{' || ch == '[')
+                {
+                    stack.Push(ch);
+                    continue;
+                }
+
+                if (ch == '}' || ch == ']')
+                {
+                    if (stack.Count == 0)
+                        return false;
+
+                    char top = stack.Pop();
+                    if ((top == '{' && ch != '}') || (top == '[' && ch != ']'))
+                        return false;
+
+                    if (stack.Count == 0)
+                    {
+                        endExclusive = i + 1;
+                        json = text.Substring(start, endExclusive - start).Trim();
+                        return json.Length > 0;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        static bool TryPrettyPrintJsonCandidate(string json, string kvKey, out string pretty)
+        {
+            pretty = null;
+
+            // First try strict JSON.
+            if (TryPrettyPrintJson(json, out pretty))
+                return true;
+
+            // Best-effort "repair" pass for Tuya's non-standard JSON-ish text (unquoted keys/values),
+            // Token-quoting repair for Tuya 'JSON-ish' blobs. Applies to any key in enhanced extraction.
+            if (TryRepairTuyaJsonish(json, out var repaired) &&
+                TryPrettyPrintJson(repaired, out pretty))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        static bool TryRepairTuyaJsonish(string input, out string repaired)
+        {
+            repaired = null;
+
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+
+            // Don't attempt if it already looks like standard JSON (has any quotes),
+            // or if it's missing obvious structure.
+            if (input.IndexOf(':') < 0)
+                return false;
+
+            if (input.IndexOf('"') >= 0)
+                return false;
+
+            if (!input.Contains("{") && !input.Contains("["))
+                return false;
+
+            try
+            {
+                // Token-quoting approach for Tuya 'JSON-ish' blobs:
+                // - quote tokens between JSON punctuation
+                // - restore JSON literals (true/false/null)
+                // - unquote numeric literals (incl. negative/float)
+                // - remove trailing commas before } or ]
+                string s = input;
+
+                s = Regex.Replace(s, @"([^{}\[\]:,\s]+)", m => "\"" + m.Value + "\"");
+                s = Regex.Replace(s, "\"(true|false|null)\"", m => m.Groups[1].Value.ToLowerInvariant(), RegexOptions.IgnoreCase);
+                s = Regex.Replace(s, "\"(-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?)\"", "$1");
+                s = Regex.Replace(s, @",\s*([}\]])", "$1");
+
+                repaired = s;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        static bool TryPrettyPrintJson(string json, out string pretty)
+        {
+            pretty = null;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                pretty = JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+public bool extractKeys()
         {
             var KVs = ParseVault();
             var KVs_Deduped = KVs
@@ -998,6 +2609,9 @@ namespace BK7231Flasher
                 .Select(g => g.OrderByDescending(x => x.KeyId).First())
                 .ToList();
 
+
+            
+                
             byte[] str = KVs_Deduped.FirstOrDefault(x => x.Key == "user_param_key" && x.IsCheckSumCorrect == true)?.Value ??
                 KVs_Deduped.FirstOrDefault(x => x.Key == "baud_cfg" && x.IsCheckSumCorrect == true)?.Value;
             byte[] em_sys_env = KVs_Deduped.FirstOrDefault(x => x.Key == "em_sys_env" && x.IsCheckSumCorrect == true)?.Value;

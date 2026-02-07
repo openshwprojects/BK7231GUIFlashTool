@@ -1,11 +1,114 @@
 ﻿using System;
 using System.Text;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace BK7231Flasher
 {
     public partial class FormMain : Form, ILogListener
     {
+        private TuyaConfig _lastTuyaConfig;
+
+        // Used to ignore stale background renders of enhanced output.
+        private int _tuyaEnhancedRenderSeq = 0;
+
+                
+private async Task SetTextBoxTextChunkedAsync(TextBox box, string text, int seq)
+{
+    // Avoid freezing the UI when the enhanced output is very large.
+    // For typical small outputs, a direct assignment is fine.
+    if (text == null) text = "";
+
+    const int ChunkSize = 32 * 1024; // 32KB
+    const int DirectSetThreshold = 256 * 1024; // 256KB
+
+    if (text.Length <= DirectSetThreshold)
+    {
+        box.Text = text;
+        return;
+    }
+
+    box.Clear();
+
+    for (int i = 0; i < text.Length; i += ChunkSize)
+    {
+        if (seq != _tuyaEnhancedRenderSeq)
+            return;
+
+        int len = Math.Min(ChunkSize, text.Length - i);
+        box.AppendText(text.Substring(i, len));
+
+        // Yield back to the message pump between chunks.
+        await Task.Yield();
+    }
+}
+
+
+private void updateTuyaConfigOutput()
+        {
+            var tc = _lastTuyaConfig;
+            if (tc == null)
+                return;
+
+            // Text description box: pin/module translation derived from Tuya keys.
+            // In enhanced mode we prefer translation based on the enhanced KV view (even if checksums are bad),
+            // but fall back to the classic extraction when the enhanced view cannot recover any meaningful pins.
+            textBoxTuyaCFGText.Text = checkBoxTuyaCfgEnhanced.Checked
+                ? tc.getKeysHumanReadableEnhanced()
+                : tc.getKeysHumanReadable();
+
+            if (!checkBoxTuyaCfgEnhanced.Checked)
+            {
+                // Cancel any in-flight enhanced render.
+                _tuyaEnhancedRenderSeq++;
+                textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+                return;
+            }
+
+            // Show the base JSON quickly, then compute enhanced output off the UI thread.
+            int seq = ++_tuyaEnhancedRenderSeq;
+            textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+
+            Task.Run(() => tc.getEnhancedExtractionText())
+                .ContinueWith(t =>
+                {
+                    if (seq != _tuyaEnhancedRenderSeq)
+                        return;
+
+                    string result = null;
+                    if (t.Status == TaskStatus.RanToCompletion)
+                        result = t.Result;
+                    else
+                        result = tc.getKeysAsJSON();
+
+                    
+                    if (string.IsNullOrWhiteSpace(result))
+                        result = tc.getKeysAsJSON();
+
+try
+                    {
+                        if (IsDisposed)
+                            return;
+                        BeginInvoke((Action)(async () =>
+                        {
+                            if (seq != _tuyaEnhancedRenderSeq)
+                                return;
+                            await SetTextBoxTextChunkedAsync(textBoxTuyaCFGJSON, result, seq);
+                        }));
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                });
+        }
+
+
+        private void checkBoxTuyaCfgEnhanced_CheckedChanged(object sender, EventArgs e)
+        {
+            updateTuyaConfigOutput();
+        }
+
         private void tabPage2_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -18,6 +121,7 @@ namespace BK7231Flasher
         {
             textBoxTuyaCFGJSON.Text = "";
             textBoxTuyaCFGText.Text = "";
+            _lastTuyaConfig = null;
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
@@ -60,8 +164,8 @@ namespace BK7231Flasher
                 {
                     if (tc.extractKeys() == false)
                     {
-                        textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
-                        textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
+                        _lastTuyaConfig = tc;
+                        updateTuyaConfigOutput();
                     }
                     else
                     {
