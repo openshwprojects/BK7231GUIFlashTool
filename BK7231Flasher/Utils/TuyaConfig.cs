@@ -818,7 +818,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 return false;
             }
 
-            //bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
+            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
