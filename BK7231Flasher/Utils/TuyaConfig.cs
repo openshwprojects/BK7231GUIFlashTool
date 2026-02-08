@@ -757,23 +757,24 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     aes.Padding = PaddingMode.None;
                     aes.KeySize = 128;
                     aes.Key = DeriveVaultKey(devKey, baseKey);
-                    using var decryptor = aes.CreateDecryptor();
                     var blockBuffer = new byte[SECTOR_SIZE];
-                    var firstBlock = new byte[16];
                     foreach(var magic in pageMagics)
                     {
+                        using var decryptor = aes.CreateDecryptor();
                         List<VaultPage> pages = new List<VaultPage>();
 
                         for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                         {
-                            decryptor.TransformBlock(flash, ofs, 16, firstBlock, 0);
+                            int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, blockBuffer, 0);
+                            if(n != SECTOR_SIZE)
+                                continue;
 
-                            var pageMagic = ReadU32LE(firstBlock, 0);
-                            if(pageMagic != magic) continue;
+                            var pageMagic = ReadU32LE(blockBuffer, 0);
+                            if(pageMagic != magic)
+                                continue;
 
-                            var dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
-
-                            if(dec == null) continue;
+                            var dec = new byte[SECTOR_SIZE];
+                            Buffer.BlockCopy(blockBuffer, 0, dec, 0, SECTOR_SIZE);
 
                             var crc = ReadU32LE(dec, 4);
                             if(!checkCRC(crc, dec, 8, dec.Length - 8))
@@ -866,21 +867,24 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             using var decryptor = aes.CreateDecryptor();
             var blockBuffer = new byte[SECTOR_SIZE];
-            var dec = new byte[16];
             for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
             {
-                decryptor.TransformBlock(flash, ofs, 16, dec, 0);
+                int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, blockBuffer, 0);
+                if(n != SECTOR_SIZE)
+                    continue;
 
-                var pageMagic = ReadU32LE(dec, 0);
-                if(pageMagic != MAGIC_FIRST_BLOCK) continue;
+                var pageMagic = ReadU32LE(blockBuffer, 0);
+                if(pageMagic != MAGIC_FIRST_BLOCK)
+                    continue;
 
-                dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
-                if(dec == null) continue;
+                // Copy sector since blockBuffer is reused.
+                var decSector = new byte[SECTOR_SIZE];
+                Buffer.BlockCopy(blockBuffer, 0, decSector, 0, SECTOR_SIZE);
 
                 var dk = new byte[16];
-                Array.Copy(dec, 8, dk, 0, 16);
+                Array.Copy(decSector, 8, dk, 0, 16);
 
-                var crc = ReadU32LE(dec, 4);
+                var crc = ReadU32LE(decSector, 4);
                 if(checkCRC(crc, dk, 0, 16))
                 {
                     keys.Add(dk);
@@ -893,6 +897,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             return keys;
         }
+       }
 
         byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
