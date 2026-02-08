@@ -744,65 +744,33 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             List<VaultPage> bestPages = null;
             int bestCount = 0;
-            int bestScore = -1;
-            int bestDevKeyIndex = int.MaxValue;
-            int bestBaseKeyIndex = int.MaxValue;
-            int bestMagicIndex = int.MaxValue;
             var obj = new object();
             var time = Stopwatch.StartNew();
-            static int ScorePages(List<VaultPage> pages)
+            foreach(var devKey in deviceKeys)
             {
-                if(pages == null || pages.Count == 0) return 0;
-
-                // Deterministic heuristic used only to break ties when multiple candidates yield the same page count.
-                // Looks for common Tuya KV markers in decrypted pages.
-                var sb = new StringBuilder();
-                foreach(var p in pages)
+                Parallel.ForEach(baseKeyCandidates, baseKey =>
                 {
-                    if(p == null || p.Data == null) continue;
-                    sb.Append(Encoding.ASCII.GetString(p.Data));
-                }
-                var all = sb.ToString();
-
-                int score = 0;
-                if(all.IndexOf("user_param_key", StringComparison.Ordinal) >= 0) score += 80;
-                if(all.IndexOf("gw_ai", StringComparison.Ordinal) >= 0) score += 30;
-                if(all.IndexOf("gw_di", StringComparison.Ordinal) >= 0) score += 30;
-                if(all.IndexOf("gw_bi", StringComparison.Ordinal) >= 0) score += 20;
-                if(all.IndexOf("auth_key", StringComparison.Ordinal) >= 0) score += 25;
-                if(all.IndexOf("uuid", StringComparison.Ordinal) >= 0) score += 20;
-                if(all.IndexOf("local_key", StringComparison.Ordinal) >= 0) score += 15;
-                if(all.IndexOf("psk_key", StringComparison.Ordinal) >= 0) score += 15;
-                if(all.IndexOf("schema", StringComparison.Ordinal) >= 0) score += 10;
-                if(all.IndexOf("devId", StringComparison.Ordinal) >= 0) score += 10;
-                return score;
-            }            for(int devKeyIndex = 0; devKeyIndex < deviceKeys.Count; devKeyIndex++)
-            {
-                var devKey = deviceKeys[devKeyIndex];
-                Parallel.ForEach(baseKeyCandidates, (baseKey, state, baseKeyIndexLong) =>
-                {
-                    int baseKeyIndex = (int)baseKeyIndexLong;
                     using var aes = Aes.Create();
                     aes.Mode = CipherMode.ECB;
                     aes.Padding = PaddingMode.None;
                     aes.KeySize = 128;
                     aes.Key = DeriveVaultKey(devKey, baseKey);
-                    using var decryptor = aes.CreateDecryptor();
+                    using var decryptorProbe = aes.CreateDecryptor();
+            using var decryptorFull = aes.CreateDecryptor();
                     var blockBuffer = new byte[SECTOR_SIZE];
                     var firstBlock = new byte[16];
-                    for(int magicIndex = 0; magicIndex < pageMagics.Length; magicIndex++)
+                    foreach(var magic in pageMagics)
                     {
-                        var magic = pageMagics[magicIndex];
                         List<VaultPage> pages = new List<VaultPage>();
 
                         for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                         {
-                            decryptor.TransformBlock(flash, ofs, 16, firstBlock, 0);
+                            decryptorProbe.TransformBlock(flash, ofs, 16, firstBlock, 0);
 
                             var pageMagic = ReadU32LE(firstBlock, 0);
                             if(pageMagic != magic) continue;
 
-                            var dec = AESDecryptBlock(flash, ofs, aes, blockBuffer);
+                            var dec = AESDecrypt(flash, ofs, decryptorFull, blockBuffer);
 
                             if(dec == null) continue;
 
@@ -822,21 +790,23 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                                 Data = dec
                             });
                         }
-                                                int markerScore = ScorePages(pages);
                         lock(obj)
                         {
-                            if(pages.Count > bestCount
-                                || (pages.Count == bestCount && markerScore > bestScore)
-                                || (pages.Count == bestCount && markerScore == bestScore && (devKeyIndex < bestDevKeyIndex
-                                    || (devKeyIndex == bestDevKeyIndex && (baseKeyIndex < bestBaseKeyIndex
-                                        || (baseKeyIndex == bestBaseKeyIndex && magicIndex < bestMagicIndex))))))
+                            if(pages.Count > bestCount)
                             {
                                 bestCount = pages.Count;
-                                bestScore = markerScore;
                                 bestPages = pages;
-                                bestDevKeyIndex = devKeyIndex;
-                                bestBaseKeyIndex = baseKeyIndex;
-                                bestMagicIndex = magicIndex;
+                            }
+                            else if(pages.Count == bestCount && pages.Count > 0)
+                            {
+                                // Deterministic tie-break: prefer the candidate that contains more
+                                // high-signal Tuya KV markers.
+                                var bestScore = ScoreVaultPages(bestPages);
+                                var thisScore = ScoreVaultPages(pages);
+                                if(thisScore > bestScore)
+                                {
+                                    bestPages = pages;
+                                }
                             }
                         }
                     }
@@ -850,7 +820,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
-            var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
+            // Ensure deterministic page ordering before concatenation/parsing.
+            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
+var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
             magicPosition = magicPosition < dataFlashOffset ? magicPosition : dataFlashOffset;
             FormMain.Singleton.addLog($"Tuya config extractor - magic is at {magicPosition} (0x{magicPosition:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
@@ -860,7 +832,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 return false;
             }
 
-            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
+            //bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
@@ -897,17 +869,18 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             aes.KeySize = 128;
             aes.Key = Encoding.ASCII.GetBytes(KEY_MASTER);
 
-            using var decryptor = aes.CreateDecryptor();
+            using var decryptorProbe = aes.CreateDecryptor();
+                    using var decryptorFull = aes.CreateDecryptor();
             var blockBuffer = new byte[SECTOR_SIZE];
             var dec = new byte[16];
             for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
             {
-                decryptor.TransformBlock(flash, ofs, 16, dec, 0);
+                decryptorProbe.TransformBlock(flash, ofs, 16, dec, 0);
 
                 var pageMagic = ReadU32LE(dec, 0);
                 if(pageMagic != MAGIC_FIRST_BLOCK) continue;
 
-                dec = AESDecryptBlock(flash, ofs, aes, blockBuffer);
+                dec = AESDecrypt(flash, ofs, decryptorFull, blockBuffer);
                 if(dec == null) continue;
 
                 var dk = new byte[16];
@@ -926,18 +899,19 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             return keys;
         }
-        static byte[] AESDecryptBlock(byte[] flash, int ofs, SymmetricAlgorithm aes, byte[] buffer)
+
+        byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
-            // Important: do NOT reuse a single ICryptoTransform with TransformFinalBlock repeatedly.
-            // Some crypto providers behave differently between x86/x64 and/or Release/Debug builds,
-            // which can lead to inconsistent Tuya KV page recovery.
-            //
-            // We keep a shared transform only for the 16-byte header probe (TransformBlock),
-            // and create a fresh decryptor for each full 4KB sector we decide to decrypt.
+            // IMPORTANT: do NOT use TransformFinalBlock repeatedly on a single ICryptoTransform.
+            // Some crypto providers behave differently across x86/x64/Release builds, which can
+            // cause vault page recovery to become non-deterministic. ECB + NoPadding allows us
+            // to safely decrypt full sectors with TransformBlock.
             Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
-            using var decryptor = aes.CreateDecryptor();
-            return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
+            var outBuf = new byte[SECTOR_SIZE];
+            decryptor.TransformBlock(buffer, 0, SECTOR_SIZE, outBuf, 0);
+            return outBuf;
         }
+
         public string getKeysHumanReadable(OBKConfig tg = null)
         {
             return GetKeysHumanReadableInternal(parms, tg);
