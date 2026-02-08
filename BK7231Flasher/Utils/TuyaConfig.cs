@@ -73,6 +73,10 @@ namespace BK7231Flasher
         int _diagLastBestPageCount;
         int _diagLastBestScore;
         uint _diagLastBestMagic;
+        int _diagLastBestPagesFirst;
+        int _diagLastBestPagesNext;
+        int _diagLastBestPagesOs3;
+        int _diagLastBestBadCrc;
 
         static bool IsEnhancedDiagEnabled()
         {
@@ -756,13 +760,15 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 KEY_PART_1_AM,
             };
 
-            var pageMagics = new uint[] { MAGIC_NEXT_BLOCK, MAGIC_FIRST_BLOCK_OS3, MAGIC_FIRST_BLOCK };
-
             List<VaultPage> bestPages = null;
             int bestCount = 0;
             int bestScore = -1;
             int bestMinOffset = int.MaxValue;
             uint bestMagic = 0;
+            int bestPagesFirst = 0;
+            int bestPagesNext = 0;
+            int bestPagesOs3 = 0;
+            int bestBadCrc = 0;
             var obj = new object();
             var time = Stopwatch.StartNew();
             foreach(var devKey in deviceKeys)
@@ -775,19 +781,20 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     aes.KeySize = 128;
                     aes.Key = DeriveVaultKey(devKey, baseKey);
                     var blockBuffer = new byte[SECTOR_SIZE];
-                    foreach(var magic in pageMagics)
-                    {
-                        using var decryptor = aes.CreateDecryptor();
-                        List<VaultPage> pages = new List<VaultPage>();
-
-                        for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
+                    List<VaultPage> pages = new List<VaultPage>();
+                    int pagesFirst = 0;
+                    int pagesNext = 0;
+                    int pagesOs3 = 0;
+                    int badCrc = 0;
+                    for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                         {
+                            using var decryptor = aes.CreateDecryptor();
                             int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, blockBuffer, 0);
                             if(n != SECTOR_SIZE)
                                 continue;
 
                             var pageMagic = ReadU32LE(blockBuffer, 0);
-                            if(pageMagic != magic)
+                            if(pageMagic != MAGIC_FIRST_BLOCK && pageMagic != MAGIC_NEXT_BLOCK && pageMagic != MAGIC_FIRST_BLOCK_OS3)
                                 continue;
 
                             var dec = new byte[SECTOR_SIZE];
@@ -796,11 +803,18 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                             var crc = ReadU32LE(dec, 4);
                             if(!checkCRC(crc, dec, 8, dec.Length - 8))
                             {
+                                badCrc++;
                                 FormMain.Singleton.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
                                 continue;
                             }
 
                             var seq = ReadU32LE(dec, 8);
+                            if(pageMagic == MAGIC_FIRST_BLOCK)
+                                pagesFirst++;
+                            else if(pageMagic == MAGIC_NEXT_BLOCK)
+                                pagesNext++;
+                            else if(pageMagic == MAGIC_FIRST_BLOCK_OS3)
+                                pagesOs3++;
 
                             pages.Add(new VaultPage
                             {
@@ -813,6 +827,18 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                         {
                             int score = ScoreVaultPages(pages);
                             int minOfs = pages.Count == 0 ? int.MaxValue : pages.Min(p => p.FlashOffset);
+                            uint domMagic = MAGIC_FIRST_BLOCK;
+                            int domCount = pagesFirst;
+                            if(pagesNext > domCount)
+                            {
+                                domCount = pagesNext;
+                                domMagic = MAGIC_NEXT_BLOCK;
+                            }
+                            if(pagesOs3 > domCount)
+                            {
+                                domCount = pagesOs3;
+                                domMagic = MAGIC_FIRST_BLOCK_OS3;
+                            }
 
                             if(pages.Count > bestCount ||
                                (pages.Count == bestCount && (score > bestScore ||
@@ -821,11 +847,15 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                                 bestCount = pages.Count;
                                 bestScore = score;
                                 bestMinOffset = minOfs;
-                                bestMagic = magic;
+                                bestMagic = domMagic;
                                 bestPages = pages;
+                                bestPagesFirst = pagesFirst;
+                                bestPagesNext = pagesNext;
+                                bestPagesOs3 = pagesOs3;
+                                bestBadCrc = badCrc;
                             }
                         }
-                    }
+
                 });
             }
             time.Stop();
@@ -839,6 +869,10 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             _diagLastBestPageCount = bestCount;
             _diagLastBestScore = bestScore;
             _diagLastBestMagic = bestMagic;
+            _diagLastBestPagesFirst = bestPagesFirst;
+            _diagLastBestPagesNext = bestPagesNext;
+            _diagLastBestPagesOs3 = bestPagesOs3;
+            _diagLastBestBadCrc = bestBadCrc;
 
             FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
@@ -898,7 +932,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     continue;
 
                 var pageMagic = ReadU32LE(blockBuffer, 0);
-                if(pageMagic != MAGIC_FIRST_BLOCK)
+                if(pageMagic != MAGIC_FIRST_BLOCK && pageMagic != MAGIC_FIRST_BLOCK_OS3)
                     continue;
 
                 // Copy sector since blockBuffer is reused.
@@ -1912,6 +1946,10 @@ if (!string.IsNullOrWhiteSpace(key))
                         " devkeys=" + _diagLastDeviceKeyCount +
                         " pages=" + _diagLastBestPageCount +
                         " score=" + _diagLastBestScore +
+                        " pages_first=" + _diagLastBestPagesFirst +
+                        " pages_next=" + _diagLastBestPagesNext +
+                        " pages_os3=" + _diagLastBestPagesOs3 +
+                        " badcrc=" + _diagLastBestBadCrc +
                         " magic=0x" + _diagLastBestMagic.ToString("X8") +
                         " kvs=" + (GetVaultEntriesEnhancedCached()?.Count ?? 0) +
                         Environment.NewLine;
