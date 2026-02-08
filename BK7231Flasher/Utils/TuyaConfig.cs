@@ -67,6 +67,22 @@ namespace BK7231Flasher
         string _cachedEnhancedText;
         byte[] _cachedEnhancedTextSource;
 
+        // Optional diagnostics to help compare enhanced extraction between different builds.
+        // Enabled by setting environment variable OBK_TUYA_ENH_DIAG=1
+        int _diagLastDeviceKeyCount;
+        int _diagLastBestPageCount;
+        int _diagLastBestScore;
+        uint _diagLastBestMagic;
+
+        static bool IsEnhancedDiagEnabled()
+        {
+            var v = Environment.GetEnvironmentVariable("OBK_TUYA_ENH_DIAG");
+            if (string.IsNullOrWhiteSpace(v))
+                return false;
+            v = v.Trim();
+            return v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase) || v.Equals("yes", StringComparison.OrdinalIgnoreCase);
+        }
+
         List<KvEntry> _cachedDedupedEntries;
         byte[] _cachedDedupedSource;
 
@@ -746,13 +762,14 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             int bestCount = 0;
             int bestScore = -1;
             int bestMinOffset = int.MaxValue;
+            uint bestMagic = 0;
             var obj = new object();
             var time = Stopwatch.StartNew();
             foreach(var devKey in deviceKeys)
             {
                 Parallel.ForEach(baseKeyCandidates, baseKey =>
                 {
-                    using var aes = Aes.Create();
+                    using var aes = new AesManaged();
                     aes.Mode = CipherMode.ECB;
                     aes.Padding = PaddingMode.None;
                     aes.KeySize = 128;
@@ -804,6 +821,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                                 bestCount = pages.Count;
                                 bestScore = score;
                                 bestMinOffset = minOfs;
+                                bestMagic = magic;
                                 bestPages = pages;
                             }
                         }
@@ -816,6 +834,12 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
                 return false;
             }
+
+            _diagLastDeviceKeyCount = deviceKeys.Count;
+            _diagLastBestPageCount = bestCount;
+            _diagLastBestScore = bestScore;
+            _diagLastBestMagic = bestMagic;
+
             FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
             var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
@@ -859,7 +883,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         List<byte[]> FindDeviceKeys(byte[] flash)
         {
             var keys = new List<byte[]>();
-            using var aes = Aes.Create();
+            using var aes = new AesManaged();
             aes.Mode = CipherMode.ECB;
             aes.Padding = PaddingMode.None;
             aes.KeySize = 128;
@@ -897,7 +921,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             return keys;
         }
-       }
 
         byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
@@ -1874,6 +1897,30 @@ if (!string.IsNullOrWhiteSpace(key))
                 // Best-effort only.
             }
 
+
+            if (IsEnhancedDiagEnabled())
+            {
+                try
+                {
+                    string aesCreate = "";
+                    try { aesCreate = Aes.Create().GetType().FullName; } catch { }
+                    string hdr =
+                        "#diag: is64=" + Environment.Is64BitProcess +
+                        " ptr=" + IntPtr.Size +
+                        " aes_create=" + aesCreate +
+                        " aes_used=" + typeof(AesManaged).FullName +
+                        " devkeys=" + _diagLastDeviceKeyCount +
+                        " pages=" + _diagLastBestPageCount +
+                        " score=" + _diagLastBestScore +
+                        " magic=0x" + _diagLastBestMagic.ToString("X8") +
+                        " kvs=" + (GetVaultEntriesEnhancedCached()?.Count ?? 0) +
+                        Environment.NewLine;
+                    result = hdr + result;
+                }
+                catch
+                {
+                }
+            }
 
             _cachedEnhancedText = result;
             _cachedEnhancedTextSource = src;
