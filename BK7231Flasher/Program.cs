@@ -62,6 +62,42 @@ namespace BK7231Flasher
         [STAThread]
         static void Main(string[] args)
         {
+            // Ensure System.Text.Json dependency chain can load reliably on .NET Framework
+            // even when files are marked with MOTW / remote-zone.
+            TryPreloadManagedDeps();
+
+            // Extra safety: if CLR still refuses to load a local dependency, resolve it
+            // from bytes. (Prevents Zone.Identifier / file-origin from blocking load.)
+            try
+            {
+                AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
+                {
+                    try
+                    {
+                        var an = new AssemblyName(e.Name);
+                        var already = AppDomain.CurrentDomain.GetAssemblies()
+                            .FirstOrDefault(a => string.Equals(a.GetName().Name, an.Name, StringComparison.OrdinalIgnoreCase));
+                        if (already != null)
+                            return already;
+
+                        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                        var dllPath = Path.Combine(baseDir, an.Name + ".dll");
+                        if (!File.Exists(dllPath))
+                            return null;
+
+                        return Assembly.Load(File.ReadAllBytes(dllPath));
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                };
+            }
+            catch
+            {
+                // best effort only
+            }
+
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
             Application.EnableVisualStyles();
