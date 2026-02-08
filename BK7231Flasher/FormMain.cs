@@ -60,11 +60,6 @@ namespace BK7231Flasher
         {
             Singleton = this;
             InitializeComponent();
-            try {
-                // Allow large enhanced extraction output in the JSON box.
-                textBoxTuyaCFGJSON.MaxLength = int.MaxValue;
-                if (textBoxTuyaCFGJSON is System.Windows.Forms.RichTextBox rtb) rtb.DetectUrls = false;
-            } catch { }
             var version = Assembly.GetExecutingAssembly().GetCustomAttribute<BuildVersion>().Value;
             Text += $" (build {(string.IsNullOrWhiteSpace(version) ? "local" : version)})";
         }
@@ -1715,34 +1710,7 @@ namespace BK7231Flasher
 
         private void buttonTuyaConfig_CopyJSONToClipBoard_Click(object sender, EventArgs e)
         {
-            string text = null;
-
-            // Prefer copying the full underlying JSON/enhanced extraction result rather than what's currently in the textbox
-            // (Textbox content can be truncated due to WinForms TextBox limits).
-            try
-            {
-                if (_lastTuyaConfig != null)
-                {
-                    if (checkBoxTuyaCfgEnhanced != null && checkBoxTuyaCfgEnhanced.Checked)
-                    {
-                        text = _lastTuyaConfig.getEnhancedExtractionText();
-                    }
-                    else
-                    {
-                        text = _lastTuyaConfig.getKeysAsJSON();
-                    }
-                }
-            }
-            catch
-            {
-                // fall back to textbox text
-            }
-
-            if (string.IsNullOrEmpty(text))
-            {
-                text = textBoxTuyaCFGJSON?.Text;
-            }
-
+            string text = textBoxTuyaCFGJSON?.Text;
             if (string.IsNullOrEmpty(text))
             {
                 MessageBox.Show("No JSON text available to copy.", "Copy to clipboard", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1755,7 +1723,7 @@ namespace BK7231Flasher
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Failed to copy JSON text to clipboard: " + ex.Message, "Copy to clipboard", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Failed to copy to clipboard: " + ex.Message, "Clipboard error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
         }

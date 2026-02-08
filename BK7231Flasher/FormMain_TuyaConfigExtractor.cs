@@ -13,7 +13,7 @@ namespace BK7231Flasher
         private int _tuyaEnhancedRenderSeq = 0;
 
                 
-private async Task SetTextBoxTextChunkedAsync(TextBoxBase box, string text, int seq)
+private async Task SetTextBoxTextChunkedAsync(TextBox box, string text, int seq)
 {
     // Avoid freezing the UI when the enhanced output is very large.
     // For typical small outputs, a direct assignment is fine.
@@ -41,19 +41,6 @@ private async Task SetTextBoxTextChunkedAsync(TextBoxBase box, string text, int 
         // Yield back to the message pump between chunks.
         await Task.Yield();
     }
-
-
-    // If the UI control truncates the text (common with certain WinForms edit/rich edit limits),
-    // prepend a warning so the user knows to use Copy JSON (which copies from the full cached string).
-    try
-    {
-        if (box.TextLength < text.Length)
-        {
-            string warn = "#WARN: UI text box truncated output (shown " + box.TextLength + " of " + text.Length + " chars). Use 'Copy JSON' to get the full text." + Environment.NewLine + Environment.NewLine;
-            box.Text = warn + box.Text;
-        }
-    }
-    catch { }
 }
 
 

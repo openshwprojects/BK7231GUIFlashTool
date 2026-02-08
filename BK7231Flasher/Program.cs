@@ -1,109 +1,159 @@
 ﻿using System;
 using System.Globalization;
-using System.IO;
-using System.Reflection;
-using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using System.IO;
+using System.Reflection;
 
 namespace BK7231Flasher
 {
     static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        static void TryPreloadManagedDeps()
+        [STAThread]
+        static void Main()
+        {
+            // Force consistent decimal separators etc.
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+
+            // IMPORTANT: Preload JSON-related dependencies from the app directory.
+            // GitHub Actions artifacts can end up with loader-context / MOTW quirks that cause
+            // FileLoadException for System.Memory (and friends) only at runtime when JSON rendering happens.
+            SetupJsonDependencyLoading();
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new FormMain());
+        }
+
+        private static void SetupJsonDependencyLoading()
         {
             try
             {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string[] dlls = new[]
-                {
-                    // Load order matters (dependencies first).
-                    "System.Runtime.CompilerServices.Unsafe.dll",
-                    "System.Buffers.dll",
-                    "System.Memory.dll",
-                    "System.Numerics.Vectors.dll",
-                    "System.ValueTuple.dll",
-                    "Microsoft.Bcl.AsyncInterfaces.dll",
-                    "System.Text.Encodings.Web.dll",
-                    "System.Text.Json.dll",
-                    "System.IO.Pipelines.dll",
-                    "System.Threading.Tasks.Extensions.dll",
-                };
+                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+                TryPreloadJsonDependencies();
+            }
+            catch
+            {
+                // Non-fatal: the app can still run, but enhanced JSON pretty-print may fall back.
+            }
+        }
 
-                foreach (var dll in dlls)
+        private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs e)
+        {
+            try
+            {
+                var an = new AssemblyName(e.Name);
+                var simpleName = an.Name;
+                if (!IsJsonDependency(simpleName))
+                    return null;
+
+                // If already loaded, reuse it.
+                var loaded = FindLoadedAssembly(simpleName);
+                if (loaded != null)
+                    return loaded;
+
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var path = Path.Combine(baseDir, simpleName + ".dll");
+                if (!File.Exists(path))
+                    return null;
+
+                // Load from bytes to avoid LoadFrom-context and "downloaded file" restrictions.
+                return Assembly.Load(File.ReadAllBytes(path));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void TryPreloadJsonDependencies()
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            // Order matters a bit (System.Text.Json pulls several of these in).
+            string[] deps = new string[]
+            {
+                "System.Runtime.CompilerServices.Unsafe",
+                "System.Buffers",
+                "System.Memory",
+                "System.Numerics.Vectors",
+                "System.Threading.Tasks.Extensions",
+                "System.ValueTuple",
+                "System.Text.Encodings.Web",
+                "Microsoft.Bcl.AsyncInterfaces",
+                "System.IO.Pipelines",
+                "System.Text.Json",
+            };
+
+            foreach (var name in deps)
+            {
+                try
                 {
-                    string path = Path.Combine(baseDir, dll);
+                    if (FindLoadedAssembly(name) != null)
+                        continue;
+
+                    var path = Path.Combine(baseDir, name + ".dll");
                     if (!File.Exists(path))
                         continue;
 
+                    // Prefer byte-load to avoid file-zone issues.
+                    Assembly.Load(File.ReadAllBytes(path));
+                }
+                catch
+                {
+                    // Ignore individual preload failures; AssemblyResolve still provides a second chance.
+                }
+            }
+        }
+
+        private static bool IsJsonDependency(string simpleName)
+        {
+            if (string.IsNullOrEmpty(simpleName))
+                return false;
+
+            switch (simpleName)
+            {
+                case "System.Text.Json":
+                case "System.Text.Encodings.Web":
+                case "System.Memory":
+                case "System.Buffers":
+                case "System.Numerics.Vectors":
+                case "System.Runtime.CompilerServices.Unsafe":
+                case "System.Threading.Tasks.Extensions":
+                case "System.ValueTuple":
+                case "Microsoft.Bcl.AsyncInterfaces":
+                case "System.IO.Pipelines":
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static Assembly FindLoadedAssembly(string simpleName)
+        {
+            try
+            {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
                     try
                     {
-                        // Prefer LoadFrom for normal probing.
-                        Assembly.LoadFrom(path);
-                    }
-                    catch (FileLoadException)
-                    {
-                        // Fallback: bypass Mark-of-the-Web / remote-zone blocking.
-                        Assembly.Load(File.ReadAllBytes(path));
+                        var n = asm.GetName().Name;
+                        if (string.Equals(n, simpleName, StringComparison.OrdinalIgnoreCase))
+                            return asm;
                     }
                     catch
                     {
-                        // Best-effort only.
+                        // ignore
                     }
                 }
             }
             catch
             {
-            }
-        }
-
-        [STAThread]
-        static void Main(string[] args)
-        {
-            // Ensure System.Text.Json dependency chain can load reliably on .NET Framework
-            // even when files are marked with MOTW / remote-zone.
-            TryPreloadManagedDeps();
-
-            // Extra safety: if CLR still refuses to load a local dependency, resolve it
-            // from bytes. (Prevents Zone.Identifier / file-origin from blocking load.)
-            try
-            {
-                AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
-                {
-                    try
-                    {
-                        var an = new AssemblyName(e.Name);
-                        var already = AppDomain.CurrentDomain.GetAssemblies()
-                            .FirstOrDefault(a => string.Equals(a.GetName().Name, an.Name, StringComparison.OrdinalIgnoreCase));
-                        if (already != null)
-                            return already;
-
-                        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                        var dllPath = Path.Combine(baseDir, an.Name + ".dll");
-                        if (!File.Exists(dllPath))
-                            return null;
-
-                        return Assembly.Load(File.ReadAllBytes(dllPath));
-                    }
-                    catch
-                    {
-                        return null;
-                    }
-                };
-            }
-            catch
-            {
-                // best effort only
+                // ignore
             }
 
-            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
-            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FormMain());
+            return null;
         }
     }
 }

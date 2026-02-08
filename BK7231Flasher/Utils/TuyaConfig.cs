@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -66,70 +66,6 @@ namespace BK7231Flasher
         byte[] _cachedVaultSource;
         string _cachedEnhancedText;
         byte[] _cachedEnhancedTextSource;
-
-        // Optional diagnostics to help compare enhanced extraction between different builds.
-        // Enabled by setting environment variable OBK_TUYA_ENH_DIAG=1
-        int _diagLastDeviceKeyCount;
-        int _diagLastBestPageCount;
-        int _diagLastBestScore;
-        uint _diagLastBestMagic;
-        int _diagLastBestPagesFirst;
-        int _diagLastBestPagesNext;
-        int _diagLastBestPagesOs3;
-        int _diagLastBestBadCrc;
-
-        int _diagLastEnhancedRenderErrors;
-        string _diagLastEnhancedRenderFirstKey;
-        string _diagLastEnhancedRenderFirstEx;
-        string _diagLastEnhancedRenderFirstMsg;
-        int _diagLastEnhancedRenderFirstHResult;
-        string _diagLastEnhancedRenderFirstFusion;
-
-        static bool _diagJsonAvailableKnown;
-        static bool _diagJsonAvailable;
-
-
-        static bool IsEnhancedDiagEnabled()
-        {
-            var v = Environment.GetEnvironmentVariable("OBK_TUYA_ENH_DIAG");
-            if (string.IsNullOrWhiteSpace(v))
-                return false;
-            v = v.Trim();
-            return v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase) || v.Equals("yes", StringComparison.OrdinalIgnoreCase);
-        }
-
-        static bool IsSystemTextJsonAvailable()
-        {
-            if (_diagJsonAvailableKnown)
-                return _diagJsonAvailable;
-
-            _diagJsonAvailableKnown = true;
-            try
-            {
-                // Reflection-only probe to avoid hard-binding to System.Text.Json types
-                // when the assembly cannot be loaded (e.g., MOTW / binding issues).
-                var t = Type.GetType("System.Text.Json.JsonDocument, System.Text.Json", throwOnError: true);
-                _diagJsonAvailable = (t != null);
-            }
-            catch
-            {
-                _diagJsonAvailable = false;
-            }
-
-            return _diagJsonAvailable;
-        }
-
-
-static string DiagSafe(string s, int maxLen = 120)
-        {
-            if (string.IsNullOrEmpty(s))
-                return "";
-            s = s.Replace("\r", " ").Replace("\n", " ");
-            if (s.Length > maxLen)
-                s = s.Substring(0, maxLen);
-            return s;
-        }
-
 
         List<KvEntry> _cachedDedupedEntries;
         byte[] _cachedDedupedSource;
@@ -804,61 +740,47 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 KEY_PART_1_AM,
             };
 
+            var pageMagics = new uint[] { MAGIC_NEXT_BLOCK, MAGIC_FIRST_BLOCK_OS3, MAGIC_FIRST_BLOCK };
+
             List<VaultPage> bestPages = null;
             int bestCount = 0;
-            int bestScore = -1;
-            int bestMinOffset = int.MaxValue;
-            uint bestMagic = 0;
-            int bestPagesFirst = 0;
-            int bestPagesNext = 0;
-            int bestPagesOs3 = 0;
-            int bestBadCrc = 0;
             var obj = new object();
             var time = Stopwatch.StartNew();
             foreach(var devKey in deviceKeys)
             {
                 Parallel.ForEach(baseKeyCandidates, baseKey =>
                 {
-                    using var aes = new AesManaged();
+                    using var aes = Aes.Create();
                     aes.Mode = CipherMode.ECB;
                     aes.Padding = PaddingMode.None;
                     aes.KeySize = 128;
                     aes.Key = DeriveVaultKey(devKey, baseKey);
+                    using var decryptor = aes.CreateDecryptor();
                     var blockBuffer = new byte[SECTOR_SIZE];
-                    List<VaultPage> pages = new List<VaultPage>();
-                    int pagesFirst = 0;
-                    int pagesNext = 0;
-                    int pagesOs3 = 0;
-                    int badCrc = 0;
-                    for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
+                    var firstBlock = new byte[16];
+                    foreach(var magic in pageMagics)
+                    {
+                        List<VaultPage> pages = new List<VaultPage>();
+
+                        for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                         {
-                            using var decryptor = aes.CreateDecryptor();
-                            int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, blockBuffer, 0);
-                            if(n != SECTOR_SIZE)
-                                continue;
+                            decryptor.TransformBlock(flash, ofs, 16, firstBlock, 0);
 
-                            var pageMagic = ReadU32LE(blockBuffer, 0);
-                            if(pageMagic != MAGIC_FIRST_BLOCK && pageMagic != MAGIC_NEXT_BLOCK && pageMagic != MAGIC_FIRST_BLOCK_OS3)
-                                continue;
+                            var pageMagic = ReadU32LE(firstBlock, 0);
+                            if(pageMagic != magic) continue;
 
-                            var dec = new byte[SECTOR_SIZE];
-                            Buffer.BlockCopy(blockBuffer, 0, dec, 0, SECTOR_SIZE);
+                            var dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
+
+                            if(dec == null) continue;
 
                             var crc = ReadU32LE(dec, 4);
                             if(!checkCRC(crc, dec, 8, dec.Length - 8))
                             {
-                                badCrc++;
                                 FormMain.Singleton.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
                                 continue;
                             }
 
                             var seq = ReadU32LE(dec, 8);
-                            if(pageMagic == MAGIC_FIRST_BLOCK)
-                                pagesFirst++;
-                            else if(pageMagic == MAGIC_NEXT_BLOCK)
-                                pagesNext++;
-                            else if(pageMagic == MAGIC_FIRST_BLOCK_OS3)
-                                pagesOs3++;
 
                             pages.Add(new VaultPage
                             {
@@ -869,37 +791,13 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                         }
                         lock(obj)
                         {
-                            int score = ScoreVaultPages(pages);
-                            int minOfs = pages.Count == 0 ? int.MaxValue : pages.Min(p => p.FlashOffset);
-                            uint domMagic = MAGIC_FIRST_BLOCK;
-                            int domCount = pagesFirst;
-                            if(pagesNext > domCount)
-                            {
-                                domCount = pagesNext;
-                                domMagic = MAGIC_NEXT_BLOCK;
-                            }
-                            if(pagesOs3 > domCount)
-                            {
-                                domCount = pagesOs3;
-                                domMagic = MAGIC_FIRST_BLOCK_OS3;
-                            }
-
-                            if(pages.Count > bestCount ||
-                               (pages.Count == bestCount && (score > bestScore ||
-                                (score == bestScore && minOfs < bestMinOffset))))
+                            if(pages.Count > bestCount)
                             {
                                 bestCount = pages.Count;
-                                bestScore = score;
-                                bestMinOffset = minOfs;
-                                bestMagic = domMagic;
                                 bestPages = pages;
-                                bestPagesFirst = pagesFirst;
-                                bestPagesNext = pagesNext;
-                                bestPagesOs3 = pagesOs3;
-                                bestBadCrc = badCrc;
                             }
                         }
-
+                    }
                 });
             }
             time.Stop();
@@ -908,16 +806,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
                 return false;
             }
-
-            _diagLastDeviceKeyCount = deviceKeys.Count;
-            _diagLastBestPageCount = bestCount;
-            _diagLastBestScore = bestScore;
-            _diagLastBestMagic = bestMagic;
-            _diagLastBestPagesFirst = bestPagesFirst;
-            _diagLastBestPagesNext = bestPagesNext;
-            _diagLastBestPagesOs3 = bestPagesOs3;
-            _diagLastBestBadCrc = bestBadCrc;
-
             FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
             var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
@@ -930,7 +818,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 return false;
             }
 
-            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
+            //bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
@@ -961,7 +849,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         List<byte[]> FindDeviceKeys(byte[] flash)
         {
             var keys = new List<byte[]>();
-            using var aes = new AesManaged();
+            using var aes = Aes.Create();
             aes.Mode = CipherMode.ECB;
             aes.Padding = PaddingMode.None;
             aes.KeySize = 128;
@@ -969,24 +857,21 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             using var decryptor = aes.CreateDecryptor();
             var blockBuffer = new byte[SECTOR_SIZE];
+            var dec = new byte[16];
             for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
             {
-                int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, blockBuffer, 0);
-                if(n != SECTOR_SIZE)
-                    continue;
+                decryptor.TransformBlock(flash, ofs, 16, dec, 0);
 
-                var pageMagic = ReadU32LE(blockBuffer, 0);
-                if(pageMagic != MAGIC_FIRST_BLOCK && pageMagic != MAGIC_FIRST_BLOCK_OS3)
-                    continue;
+                var pageMagic = ReadU32LE(dec, 0);
+                if(pageMagic != MAGIC_FIRST_BLOCK) continue;
 
-                // Copy sector since blockBuffer is reused.
-                var decSector = new byte[SECTOR_SIZE];
-                Buffer.BlockCopy(blockBuffer, 0, decSector, 0, SECTOR_SIZE);
+                dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
+                if(dec == null) continue;
 
                 var dk = new byte[16];
-                Array.Copy(decSector, 8, dk, 0, 16);
+                Array.Copy(dec, 8, dk, 0, 16);
 
-                var crc = ReadU32LE(decSector, 4);
+                var crc = ReadU32LE(dec, 4);
                 if(checkCRC(crc, dk, 0, 16))
                 {
                     keys.Add(dk);
@@ -1002,47 +887,11 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
         byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
-            // TransformFinalBlock() is not safe to call repeatedly on the same decryptor instance.
-            // Use TransformBlock() and return a per-call copy because the caller reuses 'buffer'.
-            int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, buffer, 0);
-            if(n != SECTOR_SIZE)
-                return null;
-
-            var outBuf = new byte[SECTOR_SIZE];
-            Buffer.BlockCopy(buffer, 0, outBuf, 0, SECTOR_SIZE);
-            return outBuf;
+            Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
+            return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
         }
 
-                static int ScoreVaultPages(List<VaultPage> pages)
-        {
-            if(pages == null || pages.Count == 0)
-                return 0;
-
-            // Heuristic: prefer candidates that contain well-known Tuya KV markers.
-            // This makes the "best" candidate choice stable across Release/Debug and x86/x64 builds.
-            int score = 0;
-            foreach(var p in pages)
-            {
-                if(p == null || p.Data == null) continue;
-                string s;
-                try { s = Encoding.ASCII.GetString(p.Data); }
-                catch { continue; }
-
-                if(s.IndexOf("user_param_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 50;
-                if(s.IndexOf("auth_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 20;
-                if(s.IndexOf("gw_ai", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("gw_di", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("gw_bi", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("uuid", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("psk_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("local_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("prod_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
-                if(s.IndexOf("tuya_seed", StringComparison.OrdinalIgnoreCase) >= 0) score += 5;
-            }
-            return score;
-        }
-
-public string getKeysHumanReadable(OBKConfig tg = null)
+        public string getKeysHumanReadable(OBKConfig tg = null)
         {
             return GetKeysHumanReadableInternal(parms, tg);
         }
@@ -1864,47 +1713,24 @@ if (!string.IsNullOrWhiteSpace(key))
                         keys.Add(key);
                 }
             }
-                List<KvEntry> kvs;
-                try
-                {
-                    kvs = GetVaultEntriesEnhancedCached();
-                }
-                catch
-                {
-                    kvs = new List<KvEntry>();
-                }
 
-                _diagLastEnhancedRenderErrors = 0;
-                _diagLastEnhancedRenderFirstKey = null;
-                _diagLastEnhancedRenderFirstEx = null;
-                _diagLastEnhancedRenderFirstMsg = null;
-                _diagLastEnhancedRenderFirstHResult = 0;
-                _diagLastEnhancedRenderFirstFusion = null;
+            try
+            {
+                var kvs = GetVaultEntriesEnhancedCached();
 
                 foreach (var kv in kvs)
                 {
-                    if (kv == null || kv.Value == null)
+                    if (kv.Value == null)
                         continue;
 
-                    try
-                    {
-                        string rendered = RenderEnhancedValue(kv.Key, kv.Value);
-                        AddBlock(kv.Key, rendered);
-                    }
-                    catch (Exception ex)
-                    {
-                        _diagLastEnhancedRenderErrors++;
-                        if (_diagLastEnhancedRenderFirstKey == null)
-                        {
-                            _diagLastEnhancedRenderFirstKey = kv.Key;
-                            _diagLastEnhancedRenderFirstEx = ex.GetType().FullName;
-                            _diagLastEnhancedRenderFirstMsg = ex.Message;
-                            _diagLastEnhancedRenderFirstHResult = ex.HResult;
-                            if (ex is System.IO.FileLoadException fle)
-                                _diagLastEnhancedRenderFirstFusion = fle.FusionLog;
-                        }
-                    }
+                    string rendered = RenderEnhancedValue(kv.Key, kv.Value);
+                    AddBlock(kv.Key, rendered);
                 }
+            }
+            catch
+            {
+                // Best-effort only.
+            }
             string TryBuildEnhancedFallback()
             {
                 try
@@ -1998,43 +1824,6 @@ if (!string.IsNullOrWhiteSpace(key))
                 // Best-effort only.
             }
 
-
-            if (IsEnhancedDiagEnabled())
-            {
-                try
-                {
-                    string aesCreate = "";
-                    try { aesCreate = Aes.Create().GetType().FullName; } catch { }
-                    string hdr =
-                        "#diag: is64=" + Environment.Is64BitProcess +
-                        " ptr=" + IntPtr.Size +
-                        " aes_create=" + aesCreate +
-                        " aes_used=" + typeof(AesManaged).FullName +
-                        " devkeys=" + _diagLastDeviceKeyCount +
-                        " pages=" + _diagLastBestPageCount +
-                        " score=" + _diagLastBestScore +
-                        " pages_first=" + _diagLastBestPagesFirst +
-                        " pages_next=" + _diagLastBestPagesNext +
-                        " pages_os3=" + _diagLastBestPagesOs3 +
-                        " badcrc=" + _diagLastBestBadCrc +
-                        " magic=0x" + _diagLastBestMagic.ToString("X8") +
-                        " kvs=" + (GetVaultEntriesEnhancedCached()?.Count ?? 0) +
-                        " rendererrs=" + _diagLastEnhancedRenderErrors +
-                        (_diagLastEnhancedRenderErrors > 0 ?
-                            (" rendererr1_key=" + DiagSafe(_diagLastEnhancedRenderFirstKey, 64) +
-                             " rendererr1_ex=" + DiagSafe(_diagLastEnhancedRenderFirstEx, 64) +
-                             " rendererr1_msg=" + DiagSafe(_diagLastEnhancedRenderFirstMsg, 120) +
-                             " rendererr1_hr=0x" + _diagLastEnhancedRenderFirstHResult.ToString("X8") +
-                             (string.IsNullOrWhiteSpace(_diagLastEnhancedRenderFirstFusion) ? "" : " rendererr1_fusion=" + DiagSafe(_diagLastEnhancedRenderFirstFusion, 120)))
-                            : "") +
-                        " outlen=" + (result?.Length ?? 0) +
-                        Environment.NewLine;
-                    result = hdr + result;
-                }
-                catch
-                {
-                }
-            }
 
             _cachedEnhancedText = result;
             _cachedEnhancedTextSource = src;
@@ -2733,10 +2522,6 @@ static string NormalizeEnhancedNewlines(string s)
         static bool TryPrettyPrintJsonCandidate(string json, string kvKey, out string pretty)
         {
             pretty = null;
-
-            // If System.Text.Json can't load (common on MOTW-blocked downloads), skip pretty printing.
-            if (!IsSystemTextJsonAvailable())
-                return false;
 
             // First try strict JSON.
             if (TryPrettyPrintJson(json, out pretty))
