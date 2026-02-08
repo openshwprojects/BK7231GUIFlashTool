@@ -744,12 +744,44 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             List<VaultPage> bestPages = null;
             int bestCount = 0;
+            int bestScore = -1;
+            int bestDevKeyIndex = int.MaxValue;
+            int bestBaseKeyIndex = int.MaxValue;
+            int bestMagicIndex = int.MaxValue;
             var obj = new object();
             var time = Stopwatch.StartNew();
-            foreach(var devKey in deviceKeys)
+            static int ScorePages(List<VaultPage> pages)
             {
-                Parallel.ForEach(baseKeyCandidates, baseKey =>
+                if(pages == null || pages.Count == 0) return 0;
+
+                // Deterministic heuristic used only to break ties when multiple candidates yield the same page count.
+                // Looks for common Tuya KV markers in decrypted pages.
+                var sb = new StringBuilder();
+                foreach(var p in pages)
                 {
+                    if(p == null || p.Data == null) continue;
+                    sb.Append(Encoding.ASCII.GetString(p.Data));
+                }
+                var all = sb.ToString();
+
+                int score = 0;
+                if(all.IndexOf("user_param_key", StringComparison.Ordinal) >= 0) score += 80;
+                if(all.IndexOf("gw_ai", StringComparison.Ordinal) >= 0) score += 30;
+                if(all.IndexOf("gw_di", StringComparison.Ordinal) >= 0) score += 30;
+                if(all.IndexOf("gw_bi", StringComparison.Ordinal) >= 0) score += 20;
+                if(all.IndexOf("auth_key", StringComparison.Ordinal) >= 0) score += 25;
+                if(all.IndexOf("uuid", StringComparison.Ordinal) >= 0) score += 20;
+                if(all.IndexOf("local_key", StringComparison.Ordinal) >= 0) score += 15;
+                if(all.IndexOf("psk_key", StringComparison.Ordinal) >= 0) score += 15;
+                if(all.IndexOf("schema", StringComparison.Ordinal) >= 0) score += 10;
+                if(all.IndexOf("devId", StringComparison.Ordinal) >= 0) score += 10;
+                return score;
+            }            for(int devKeyIndex = 0; devKeyIndex < deviceKeys.Count; devKeyIndex++)
+            {
+                var devKey = deviceKeys[devKeyIndex];
+                Parallel.ForEach(baseKeyCandidates, (baseKey, state, baseKeyIndexLong) =>
+                {
+                    int baseKeyIndex = (int)baseKeyIndexLong;
                     using var aes = Aes.Create();
                     aes.Mode = CipherMode.ECB;
                     aes.Padding = PaddingMode.None;
@@ -758,8 +790,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     using var decryptor = aes.CreateDecryptor();
                     var blockBuffer = new byte[SECTOR_SIZE];
                     var firstBlock = new byte[16];
-                    foreach(var magic in pageMagics)
+                    for(int magicIndex = 0; magicIndex < pageMagics.Length; magicIndex++)
                     {
+                        var magic = pageMagics[magicIndex];
                         List<VaultPage> pages = new List<VaultPage>();
 
                         for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
@@ -789,12 +822,21 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                                 Data = dec
                             });
                         }
+                                                int markerScore = ScorePages(pages);
                         lock(obj)
                         {
-                            if(pages.Count > bestCount)
+                            if(pages.Count > bestCount
+                                || (pages.Count == bestCount && markerScore > bestScore)
+                                || (pages.Count == bestCount && markerScore == bestScore && (devKeyIndex < bestDevKeyIndex
+                                    || (devKeyIndex == bestDevKeyIndex && (baseKeyIndex < bestBaseKeyIndex
+                                        || (baseKeyIndex == bestBaseKeyIndex && magicIndex < bestMagicIndex))))))
                             {
                                 bestCount = pages.Count;
+                                bestScore = markerScore;
                                 bestPages = pages;
+                                bestDevKeyIndex = devKeyIndex;
+                                bestBaseKeyIndex = baseKeyIndex;
+                                bestMagicIndex = magicIndex;
                             }
                         }
                     }
