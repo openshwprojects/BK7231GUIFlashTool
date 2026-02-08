@@ -13,7 +13,7 @@ namespace BK7231Flasher
         private int _tuyaEnhancedRenderSeq = 0;
 
                 
-private async Task SetTextBoxTextChunkedAsync(TextBox box, string text, int seq)
+private async Task SetTextBoxTextChunkedAsync(TextBoxBase box, string text, int seq)
 {
     // Avoid freezing the UI when the enhanced output is very large.
     // For typical small outputs, a direct assignment is fine.
