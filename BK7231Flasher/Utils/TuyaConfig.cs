@@ -802,7 +802,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                             var pageMagic = ReadU32LE(firstBlock, 0);
                             if(pageMagic != magic) continue;
 
-                            var dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
+                            var dec = AESDecryptBlock(flash, ofs, aes, blockBuffer);
 
                             if(dec == null) continue;
 
@@ -907,7 +907,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 var pageMagic = ReadU32LE(dec, 0);
                 if(pageMagic != MAGIC_FIRST_BLOCK) continue;
 
-                dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
+                dec = AESDecryptBlock(flash, ofs, aes, blockBuffer);
                 if(dec == null) continue;
 
                 var dk = new byte[16];
@@ -926,13 +926,18 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             return keys;
         }
-
-        byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
+        static byte[] AESDecryptBlock(byte[] flash, int ofs, SymmetricAlgorithm aes, byte[] buffer)
         {
+            // Important: do NOT reuse a single ICryptoTransform with TransformFinalBlock repeatedly.
+            // Some crypto providers behave differently between x86/x64 and/or Release/Debug builds,
+            // which can lead to inconsistent Tuya KV page recovery.
+            //
+            // We keep a shared transform only for the 16-byte header probe (TransformBlock),
+            // and create a fresh decryptor for each full 4KB sector we decide to decrypt.
             Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
+            using var decryptor = aes.CreateDecryptor();
             return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
         }
-
         public string getKeysHumanReadable(OBKConfig tg = null)
         {
             return GetKeysHumanReadableInternal(parms, tg);
