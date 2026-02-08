@@ -82,6 +82,11 @@ namespace BK7231Flasher
         string _diagLastEnhancedRenderFirstKey;
         string _diagLastEnhancedRenderFirstEx;
         string _diagLastEnhancedRenderFirstMsg;
+        int _diagLastEnhancedRenderFirstHResult;
+        string _diagLastEnhancedRenderFirstFusion;
+
+        static bool _diagJsonAvailableKnown;
+        static bool _diagJsonAvailable;
 
 
         static bool IsEnhancedDiagEnabled()
@@ -93,7 +98,29 @@ namespace BK7231Flasher
             return v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase) || v.Equals("yes", StringComparison.OrdinalIgnoreCase);
         }
 
-        static string DiagSafe(string s, int maxLen = 120)
+        static bool IsSystemTextJsonAvailable()
+        {
+            if (_diagJsonAvailableKnown)
+                return _diagJsonAvailable;
+
+            _diagJsonAvailableKnown = true;
+            try
+            {
+                // Reflection-only probe to avoid hard-binding to System.Text.Json types
+                // when the assembly cannot be loaded (e.g., MOTW / binding issues).
+                var t = Type.GetType("System.Text.Json.JsonDocument, System.Text.Json", throwOnError: true);
+                _diagJsonAvailable = (t != null);
+            }
+            catch
+            {
+                _diagJsonAvailable = false;
+            }
+
+            return _diagJsonAvailable;
+        }
+
+
+static string DiagSafe(string s, int maxLen = 120)
         {
             if (string.IsNullOrEmpty(s))
                 return "";
@@ -1851,6 +1878,8 @@ if (!string.IsNullOrWhiteSpace(key))
                 _diagLastEnhancedRenderFirstKey = null;
                 _diagLastEnhancedRenderFirstEx = null;
                 _diagLastEnhancedRenderFirstMsg = null;
+                _diagLastEnhancedRenderFirstHResult = 0;
+                _diagLastEnhancedRenderFirstFusion = null;
 
                 foreach (var kv in kvs)
                 {
@@ -1870,6 +1899,9 @@ if (!string.IsNullOrWhiteSpace(key))
                             _diagLastEnhancedRenderFirstKey = kv.Key;
                             _diagLastEnhancedRenderFirstEx = ex.GetType().FullName;
                             _diagLastEnhancedRenderFirstMsg = ex.Message;
+                            _diagLastEnhancedRenderFirstHResult = ex.HResult;
+                            if (ex is System.IO.FileLoadException fle)
+                                _diagLastEnhancedRenderFirstFusion = fle.FusionLog;
                         }
                     }
                 }
@@ -1991,7 +2023,9 @@ if (!string.IsNullOrWhiteSpace(key))
                         (_diagLastEnhancedRenderErrors > 0 ?
                             (" rendererr1_key=" + DiagSafe(_diagLastEnhancedRenderFirstKey, 64) +
                              " rendererr1_ex=" + DiagSafe(_diagLastEnhancedRenderFirstEx, 64) +
-                             " rendererr1_msg=" + DiagSafe(_diagLastEnhancedRenderFirstMsg, 80))
+                             " rendererr1_msg=" + DiagSafe(_diagLastEnhancedRenderFirstMsg, 120) +
+                             " rendererr1_hr=0x" + _diagLastEnhancedRenderFirstHResult.ToString("X8") +
+                             (string.IsNullOrWhiteSpace(_diagLastEnhancedRenderFirstFusion) ? "" : " rendererr1_fusion=" + DiagSafe(_diagLastEnhancedRenderFirstFusion, 120)))
                             : "") +
                         " outlen=" + (result?.Length ?? 0) +
                         Environment.NewLine;
@@ -2699,6 +2733,10 @@ static string NormalizeEnhancedNewlines(string s)
         static bool TryPrettyPrintJsonCandidate(string json, string kvKey, out string pretty)
         {
             pretty = null;
+
+            // If System.Text.Json can't load (common on MOTW-blocked downloads), skip pretty printing.
+            if (!IsSystemTextJsonAvailable())
+                return false;
 
             // First try strict JSON.
             if (TryPrettyPrintJson(json, out pretty))
