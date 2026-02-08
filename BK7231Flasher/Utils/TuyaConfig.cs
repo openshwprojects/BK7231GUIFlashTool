@@ -78,6 +78,12 @@ namespace BK7231Flasher
         int _diagLastBestPagesOs3;
         int _diagLastBestBadCrc;
 
+        int _diagLastEnhancedRenderErrors;
+        string _diagLastEnhancedRenderFirstKey;
+        string _diagLastEnhancedRenderFirstEx;
+        string _diagLastEnhancedRenderFirstMsg;
+
+
         static bool IsEnhancedDiagEnabled()
         {
             var v = Environment.GetEnvironmentVariable("OBK_TUYA_ENH_DIAG");
@@ -86,6 +92,17 @@ namespace BK7231Flasher
             v = v.Trim();
             return v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase) || v.Equals("yes", StringComparison.OrdinalIgnoreCase);
         }
+
+        static string DiagSafe(string s, int maxLen = 120)
+        {
+            if (string.IsNullOrEmpty(s))
+                return "";
+            s = s.Replace("\r", " ").Replace("\n", " ");
+            if (s.Length > maxLen)
+                s = s.Substring(0, maxLen);
+            return s;
+        }
+
 
         List<KvEntry> _cachedDedupedEntries;
         byte[] _cachedDedupedSource;
@@ -1820,24 +1837,42 @@ if (!string.IsNullOrWhiteSpace(key))
                         keys.Add(key);
                 }
             }
+                List<KvEntry> kvs;
+                try
+                {
+                    kvs = GetVaultEntriesEnhancedCached();
+                }
+                catch
+                {
+                    kvs = new List<KvEntry>();
+                }
 
-            try
-            {
-                var kvs = GetVaultEntriesEnhancedCached();
+                _diagLastEnhancedRenderErrors = 0;
+                _diagLastEnhancedRenderFirstKey = null;
+                _diagLastEnhancedRenderFirstEx = null;
+                _diagLastEnhancedRenderFirstMsg = null;
 
                 foreach (var kv in kvs)
                 {
-                    if (kv.Value == null)
+                    if (kv == null || kv.Value == null)
                         continue;
 
-                    string rendered = RenderEnhancedValue(kv.Key, kv.Value);
-                    AddBlock(kv.Key, rendered);
+                    try
+                    {
+                        string rendered = RenderEnhancedValue(kv.Key, kv.Value);
+                        AddBlock(kv.Key, rendered);
+                    }
+                    catch (Exception ex)
+                    {
+                        _diagLastEnhancedRenderErrors++;
+                        if (_diagLastEnhancedRenderFirstKey == null)
+                        {
+                            _diagLastEnhancedRenderFirstKey = kv.Key;
+                            _diagLastEnhancedRenderFirstEx = ex.GetType().FullName;
+                            _diagLastEnhancedRenderFirstMsg = ex.Message;
+                        }
+                    }
                 }
-            }
-            catch
-            {
-                // Best-effort only.
-            }
             string TryBuildEnhancedFallback()
             {
                 try
@@ -1952,6 +1987,12 @@ if (!string.IsNullOrWhiteSpace(key))
                         " badcrc=" + _diagLastBestBadCrc +
                         " magic=0x" + _diagLastBestMagic.ToString("X8") +
                         " kvs=" + (GetVaultEntriesEnhancedCached()?.Count ?? 0) +
+                        " rendererrs=" + _diagLastEnhancedRenderErrors +
+                        (_diagLastEnhancedRenderErrors > 0 ?
+                            (" rendererr1_key=" + DiagSafe(_diagLastEnhancedRenderFirstKey, 64) +
+                             " rendererr1_ex=" + DiagSafe(_diagLastEnhancedRenderFirstEx, 64) +
+                             " rendererr1_msg=" + DiagSafe(_diagLastEnhancedRenderFirstMsg, 80))
+                            : "") +
                         " outlen=" + (result?.Length ?? 0) +
                         Environment.NewLine;
                     result = hdr + result;
