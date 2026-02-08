@@ -1952,6 +1952,7 @@ if (!string.IsNullOrWhiteSpace(key))
                         " badcrc=" + _diagLastBestBadCrc +
                         " magic=0x" + _diagLastBestMagic.ToString("X8") +
                         " kvs=" + (GetVaultEntriesEnhancedCached()?.Count ?? 0) +
+                        " outlen=" + (result?.Length ?? 0) +
                         Environment.NewLine;
                     result = hdr + result;
                 }

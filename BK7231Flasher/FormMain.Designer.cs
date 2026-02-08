@@ -1097,6 +1097,7 @@ namespace BK7231Flasher
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
             this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Both;
             this.textBoxTuyaCFGJSON.WordWrap = false;
+            this.textBoxTuyaCFGJSON.MaxLength = 2147483647;
             this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 

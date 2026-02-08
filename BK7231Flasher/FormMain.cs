@@ -60,6 +60,11 @@ namespace BK7231Flasher
         {
             Singleton = this;
             InitializeComponent();
+            try {
+                // Allow large enhanced extraction output in the JSON box.
+                textBoxTuyaCFGJSON.MaxLength = int.MaxValue;
+                if (textBoxTuyaCFGJSON is System.Windows.Forms.RichTextBox rtb) rtb.DetectUrls = false;
+            } catch { }
             var version = Assembly.GetExecutingAssembly().GetCustomAttribute<BuildVersion>().Value;
             Text += $" (build {(string.IsNullOrWhiteSpace(version) ? "local" : version)})";
         }
