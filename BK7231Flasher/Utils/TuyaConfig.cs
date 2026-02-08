@@ -14,6 +14,7 @@ namespace BK7231Flasher
 {
     public class TuyaConfig
     {
+        // thanks to kmnh & Kuba bk7231 tools for figuring out this format
         static readonly string KEY_MASTER = "qwertyuiopasdfgh";
         static readonly int SECTOR_SIZE = 4096;
         static readonly uint MAGIC_FIRST_BLOCK = 0x13579753;
