@@ -112,7 +112,7 @@ namespace BK7231Flasher
             this.textBoxTuyaCFGText = new System.Windows.Forms.TextBox();
             this.label17 = new System.Windows.Forms.Label();
             this.linkLabel4 = new System.Windows.Forms.LinkLabel();
-            this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
+            this.textBoxTuyaCFGJSON = new System.Windows.Forms.RichTextBox();
             this.checkBoxTuyaCfgEnhanced = new System.Windows.Forms.CheckBox();
             this.label16 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
@@ -1095,7 +1095,8 @@ namespace BK7231Flasher
             this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(18, 113);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
-            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Both;
+            this.textBoxTuyaCFGJSON.WordWrap = false;
             this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(330, 363);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
@@ -2048,7 +2049,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.CheckBox checkBoxAllowBackup;
         private System.Windows.Forms.TabPage tabPage2;
         private System.Windows.Forms.Label label16;
-        private System.Windows.Forms.TextBox textBoxTuyaCFGJSON;
+        private System.Windows.Forms.RichTextBox textBoxTuyaCFGJSON;
         private System.Windows.Forms.Label label17;
         private System.Windows.Forms.CheckBox checkBoxTuyaCfgEnhanced;
         private System.Windows.Forms.LinkLabel linkLabel4;
