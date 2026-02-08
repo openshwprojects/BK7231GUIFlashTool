@@ -17,8 +17,9 @@ namespace BK7231Flasher
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
 
             // IMPORTANT: Preload JSON-related dependencies from the app directory.
-            // GitHub Actions artifacts can end up with loader-context / MOTW quirks that cause
-            // FileLoadException for System.Memory (and friends) only at runtime when JSON rendering happens.
+            // Some deployment/distribution paths can change .NET Framework assembly binding/load context,
+            // causing runtime FileLoadException for System.Memory (and friends) when System.Text.Json
+            // pretty-printing runs.
             SetupJsonDependencyLoading();
 
             Application.EnableVisualStyles();
