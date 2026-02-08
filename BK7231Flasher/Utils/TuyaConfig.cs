@@ -755,8 +755,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     aes.Padding = PaddingMode.None;
                     aes.KeySize = 128;
                     aes.Key = DeriveVaultKey(devKey, baseKey);
-                    using var decryptorProbe = aes.CreateDecryptor();
-            using var decryptorFull = aes.CreateDecryptor();
+                    using var decryptor = aes.CreateDecryptor();
                     var blockBuffer = new byte[SECTOR_SIZE];
                     var firstBlock = new byte[16];
                     foreach(var magic in pageMagics)
@@ -765,12 +764,12 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
                         for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
                         {
-                            decryptorProbe.TransformBlock(flash, ofs, 16, firstBlock, 0);
+                            decryptor.TransformBlock(flash, ofs, 16, firstBlock, 0);
 
                             var pageMagic = ReadU32LE(firstBlock, 0);
                             if(pageMagic != magic) continue;
 
-                            var dec = AESDecrypt(flash, ofs, decryptorFull, blockBuffer);
+                            var dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
 
                             if(dec == null) continue;
 
@@ -797,17 +796,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                                 bestCount = pages.Count;
                                 bestPages = pages;
                             }
-                            else if(pages.Count == bestCount && pages.Count > 0)
-                            {
-                                // Deterministic tie-break: prefer the candidate that contains more
-                                // high-signal Tuya KV markers.
-                                var bestScore = ScoreVaultPages(bestPages);
-                                var thisScore = ScoreVaultPages(pages);
-                                if(thisScore > bestScore)
-                                {
-                                    bestPages = pages;
-                                }
-                            }
                         }
                     }
                 });
@@ -820,9 +808,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
-            // Ensure deterministic page ordering before concatenation/parsing.
-            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
-var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
+            var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
             magicPosition = magicPosition < dataFlashOffset ? magicPosition : dataFlashOffset;
             FormMain.Singleton.addLog($"Tuya config extractor - magic is at {magicPosition} (0x{magicPosition:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
@@ -869,18 +855,17 @@ var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
             aes.KeySize = 128;
             aes.Key = Encoding.ASCII.GetBytes(KEY_MASTER);
 
-            using var decryptorProbe = aes.CreateDecryptor();
-                    using var decryptorFull = aes.CreateDecryptor();
+            using var decryptor = aes.CreateDecryptor();
             var blockBuffer = new byte[SECTOR_SIZE];
             var dec = new byte[16];
             for(int ofs = 0; ofs + SECTOR_SIZE <= flash.Length; ofs += SECTOR_SIZE)
             {
-                decryptorProbe.TransformBlock(flash, ofs, 16, dec, 0);
+                decryptor.TransformBlock(flash, ofs, 16, dec, 0);
 
                 var pageMagic = ReadU32LE(dec, 0);
                 if(pageMagic != MAGIC_FIRST_BLOCK) continue;
 
-                dec = AESDecrypt(flash, ofs, decryptorFull, blockBuffer);
+                dec = AESDecrypt(flash, ofs, decryptor, blockBuffer);
                 if(dec == null) continue;
 
                 var dk = new byte[16];
@@ -902,14 +887,8 @@ var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
 
         byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
-            // IMPORTANT: do NOT use TransformFinalBlock repeatedly on a single ICryptoTransform.
-            // Some crypto providers behave differently across x86/x64/Release builds, which can
-            // cause vault page recovery to become non-deterministic. ECB + NoPadding allows us
-            // to safely decrypt full sectors with TransformBlock.
             Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
-            var outBuf = new byte[SECTOR_SIZE];
-            decryptor.TransformBlock(buffer, 0, SECTOR_SIZE, outBuf, 0);
-            return outBuf;
+            return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
         }
 
         public string getKeysHumanReadable(OBKConfig tg = null)
