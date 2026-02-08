@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -744,6 +744,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             List<VaultPage> bestPages = null;
             int bestCount = 0;
+            int bestScore = -1;
+            int bestMinOffset = int.MaxValue;
             var obj = new object();
             var time = Stopwatch.StartNew();
             foreach(var devKey in deviceKeys)
@@ -791,9 +793,16 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                         }
                         lock(obj)
                         {
-                            if(pages.Count > bestCount)
+                            int score = ScoreVaultPages(pages);
+                            int minOfs = pages.Count == 0 ? int.MaxValue : pages.Min(p => p.FlashOffset);
+
+                            if(pages.Count > bestCount ||
+                               (pages.Count == bestCount && (score > bestScore ||
+                                (score == bestScore && minOfs < bestMinOffset))))
                             {
                                 bestCount = pages.Count;
+                                bestScore = score;
+                                bestMinOffset = minOfs;
                                 bestPages = pages;
                             }
                         }
@@ -818,7 +827,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 return false;
             }
 
-            //bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
+            bestPages.Sort((a, b) => a.Seq.CompareTo(b.Seq));
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             foreach(var p in bestPages) bw.Write(p.Data, 0, p.Data.Length);
@@ -887,11 +896,47 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
         byte[] AESDecrypt(byte[] flash, int ofs, ICryptoTransform decryptor, byte[] buffer)
         {
-            Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
-            return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
+            // TransformFinalBlock() is not safe to call repeatedly on the same decryptor instance.
+            // Use TransformBlock() and return a per-call copy because the caller reuses 'buffer'.
+            int n = decryptor.TransformBlock(flash, ofs, SECTOR_SIZE, buffer, 0);
+            if(n != SECTOR_SIZE)
+                return null;
+
+            var outBuf = new byte[SECTOR_SIZE];
+            Buffer.BlockCopy(buffer, 0, outBuf, 0, SECTOR_SIZE);
+            return outBuf;
         }
 
-        public string getKeysHumanReadable(OBKConfig tg = null)
+                static int ScoreVaultPages(List<VaultPage> pages)
+        {
+            if(pages == null || pages.Count == 0)
+                return 0;
+
+            // Heuristic: prefer candidates that contain well-known Tuya KV markers.
+            // This makes the "best" candidate choice stable across Release/Debug and x86/x64 builds.
+            int score = 0;
+            foreach(var p in pages)
+            {
+                if(p == null || p.Data == null) continue;
+                string s;
+                try { s = Encoding.ASCII.GetString(p.Data); }
+                catch { continue; }
+
+                if(s.IndexOf("user_param_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 50;
+                if(s.IndexOf("auth_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 20;
+                if(s.IndexOf("gw_ai", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("gw_di", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("gw_bi", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("uuid", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("psk_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("local_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("prod_key", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                if(s.IndexOf("tuya_seed", StringComparison.OrdinalIgnoreCase) >= 0) score += 5;
+            }
+            return score;
+        }
+
+public string getKeysHumanReadable(OBKConfig tg = null)
         {
             return GetKeysHumanReadableInternal(parms, tg);
         }
