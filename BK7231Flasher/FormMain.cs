@@ -688,7 +688,7 @@ namespace BK7231Flasher
                 clearUp();
                 setButtonStates(true);
                 if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
-                else addLog("RF partition not found in backup" + Environment.NewLine, Color.DarkOrange);
+                else addLog("RF partition not found in backup. You may need to use \"Restore RF part\"" + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             addLog($"RF partition found at 0x{addr:X2}" + Environment.NewLine, Color.Green);
@@ -1006,7 +1006,15 @@ namespace BK7231Flasher
                     {
                         if (tc.extractKeys() == false)
                         {
-                            byte[] mac = RFPartitionUtil.getMACFromQio(dat, curType);
+                            byte[] mac = RFPartitionUtil.getMACFromQio(dat, curType, out var isT1FixRequired);
+                            if(isT1FixRequired)
+                            {
+                                addLog("Your device requires moving or recreating RF partition." + Environment.NewLine, Color.DarkOrange);
+                                addLog("To do it, first enable \"Show advanced options\"." + Environment.NewLine, Color.DarkOrange);
+                                addLog("Moving (the best way) - press \"Custom\", \"Restore RF from backup\" and select your backup." + Environment.NewLine, Color.DarkOrange);
+                                addLog("Recreating - press \"Restore RF part\"." + Environment.NewLine, Color.DarkOrange);
+                                addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
+                            }
                             Singleton.buttonRead.Invoke((MethodInvoker)delegate {
                                 // Running on the UI thread
                                 FormExtractedConfig fo = new FormExtractedConfig();
