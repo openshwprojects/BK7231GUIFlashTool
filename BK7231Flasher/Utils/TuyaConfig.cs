@@ -1670,153 +1670,167 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         }
                         public string getEnhancedExtractionText()
         {
-            // Enhanced extraction is presentation-only: it shows additional content already present
-            // in decrypted KV entries, but rendered in a cleaner way (JSON pretty-printing, key labels).
-            // No offsets, markers, or synthetic metadata are added.
+            // Enhanced mode output for the JSON text area must be a single valid JSON document.
+            // Merge KV entries into one JSON object: { "<kv_key>": <parsed-json-or-string>, ... }
+            // Non-enhanced (classic) output remains unchanged.
 
             var src = vaultDecryptedRaw;
             if (src == null || src.Length == 0)
                 return "";
 
-            // If we already built the enhanced view for this decrypted buffer, reuse it.
             if (_cachedEnhancedText != null && object.ReferenceEquals(_cachedEnhancedTextSource, src))
                 return _cachedEnhancedText;
 
-            var bodiesInOrder = new List<string>();
-            var bodyToKeys = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-
-            void AddBlock(string key, string body)
+            JsonElement ToJsonElement(string rendered)
             {
-                if (string.IsNullOrWhiteSpace(body))
-                    return;
+                rendered = NormalizeEnhancedNewlines(rendered ?? "").Trim();
 
-                // Normalize for display and dedupe.
-                body = NormalizeEnhancedNewlines(body).Trim();
-                if (body.Length == 0)
-                    return;
-
-                // In enhanced extraction we keep "simple" keys (gw_*, user_param_key, etc.) as distinct blocks,
-                // even if their rendered body is identical. This prevents accidental merging like "gw_di, timer_arr".
-                string internalKey = body;
-                if (!string.IsNullOrWhiteSpace(key) && IsSimpleEnhancedKey(key))
-                    internalKey = body + "\0" + key;
-
-                if (!bodyToKeys.TryGetValue(internalKey, out var keys))
+                // Try to treat it as JSON first (object/array/scalar). If that fails, store as a JSON string.
+                try
                 {
-                    keys = new List<string>();
-                    bodyToKeys[internalKey] = keys;
-                    bodiesInOrder.Add(internalKey);
+                    using var doc = JsonDocument.Parse(rendered, new JsonDocumentOptions
+                    {
+                        AllowTrailingCommas = true,
+                        CommentHandling = JsonCommentHandling.Skip
+                    });
+                    return doc.RootElement.Clone();
                 }
-if (!string.IsNullOrWhiteSpace(key))
+                catch
                 {
-                    key = FormatEnhancedKeyLabel(key);
-                    if (!keys.Contains(key))
-                        keys.Add(key);
+                    using var doc = JsonDocument.Parse(JsonSerializer.Serialize(rendered));
+                    return doc.RootElement.Clone();
                 }
             }
+
+
+            string FixDisplayEscapes(string json)
+            {
+                if (string.IsNullOrEmpty(json))
+                    return json;
+
+                // System.Text.Json escapes some characters by default (e.g. + as \\u002B, and some HTML-sensitive chars).
+                // For UI readability, unescape those sequences in the emitted JSON text.
+                return json
+                    .Replace("\\u002B", "+").Replace("\\u002b", "+")
+                    .Replace("\\u003C", "<").Replace("\\u003c", "<")
+                    .Replace("\\u003E", ">").Replace("\\u003e", ">")
+                    .Replace("\\u0026", "&")
+                    .Replace("\\u003D", "=").Replace("\\u003d", "=")
+                    .Replace("\\u0027", "'");
+            }
+
+            // Preserve the original KV enumeration order for readability in the text area.
+            var valuesByKey = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            var orderedKeys = new List<string>();
+            bool hasAny = false;
 
             try
             {
                 var kvs = GetVaultEntriesEnhancedCached();
-
                 foreach (var kv in kvs)
                 {
-                    if (kv.Value == null)
+                    if (kv == null || string.IsNullOrEmpty(kv.Key))
                         continue;
 
                     string rendered = RenderEnhancedValue(kv.Key, kv.Value);
-                    AddBlock(kv.Key, rendered);
+                    var el = ToJsonElement(rendered);
+
+                    if (!valuesByKey.ContainsKey(kv.Key))
+                        orderedKeys.Add(kv.Key);
+
+                    valuesByKey[kv.Key] = el;
+                    hasAny = true;
                 }
             }
             catch
             {
                 // Best-effort only.
             }
-            string TryBuildEnhancedFallback()
+
+            // If enhanced yielded nothing, keep prior best-effort fallback behavior, but remain JSON-correct.
+            if (!hasAny)
             {
                 try
                 {
-                    // If raw extraction already found keys (especially credentials), show that.
-                    // This avoids any additional scanning and prevents the enhanced view from being empty.
-                    if (parms != null)
-                    {
-                        if (parms.ContainsKey("uuid") || parms.ContainsKey("auth_key") || parms.ContainsKey("psk_key"))
-                            return getKeysAsJSON();
-
-                        if (parms.Count >= 10)
-                            return getKeysAsJSON();
-                    }
-
-                    // Otherwise, try to recover a single well-formed JSON object/array from the decrypted vault blob.
+                    // Try to recover a single well-formed JSON object/array from the decrypted vault blob.
                     if (TryPrettyPrintJsonFromMixedBytes(src, "vault_blob", out var prettyBlob))
                     {
                         string p = NormalizeEnhancedNewlines(prettyBlob).Trim();
                         if (p.Length > 0)
-                            return p + Environment.NewLine;
+                        {
+                            string fixedP = FixDisplayEscapes(p) + Environment.NewLine;
+                            _cachedEnhancedText = fixedP;
+                            _cachedEnhancedTextSource = src;
+                            return fixedP;
+                        }
                     }
 
+                    // If classic/raw extraction produced parameters, return the classic JSON object (already valid JSON).
                     if (parms != null && parms.Count > 0)
-                        return getKeysAsJSON();
+                    {
+                        string fallback = FixDisplayEscapes(getKeysAsJSON());
+                        _cachedEnhancedText = fallback;
+                        _cachedEnhancedTextSource = src;
+                        return fallback;
+                    }
 
+                    // Last resort: expose ASCII as a JSON string field so the output remains valid JSON.
                     if (IsAsciiOnlyOrPadded(src))
                     {
                         string ascii = ExtractAsciiForJsonSearch(src, maxChars: 65536);
                         if (!string.IsNullOrWhiteSpace(ascii))
-                            return NormalizeEnhancedNewlines(ascii).Trim() + Environment.NewLine;
+                        {
+                            var asciiObj = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+                            {
+                                ["_ascii"] = ToJsonElement(ascii)
+                            };
+                            string s = JsonSerializer.Serialize(asciiObj, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
+                            s = FixDisplayEscapes(s);
+                            _cachedEnhancedText = s;
+                            _cachedEnhancedTextSource = src;
+                            return s;
+}
                     }
                 }
                 catch
                 {
                     // Best-effort only.
                 }
+
                 return "";
             }
 
-            if (bodiesInOrder.Count == 0)
-            {
-                string fallback = TryBuildEnhancedFallback();
-                if (!string.IsNullOrWhiteSpace(fallback))
-                {
-                    _cachedEnhancedText = fallback;
-                    _cachedEnhancedTextSource = src;
-                    return fallback;
-                }
-                return "";
-            }
-
-            var renderedBlocks = new List<string>(bodiesInOrder.Count);
-            foreach (var bodyKey in bodiesInOrder)
-{
-    string displayBody = bodyKey;
-    int nul = displayBody.IndexOf('\0');
-    if (nul >= 0)
-        displayBody = displayBody.Substring(0, nul);
-
-    if (bodyToKeys.TryGetValue(bodyKey, out var keys) && keys != null && keys.Count > 0)
-        renderedBlocks.Add(string.Join(", ", keys) + Environment.NewLine + displayBody);
-    else
-        renderedBlocks.Add(displayBody);
-}
-
-            var result = string.Join(Environment.NewLine + Environment.NewLine, renderedBlocks) + Environment.NewLine;
-            // If classic/raw extraction recovered credentials but the enhanced blocks did not surface them
-            // (e.g. because the relevant KV entry is binary-wrapped or stored as loose pairs), append the
-            // raw JSON view. This does not add metadata; it only renders already-extracted fields.
+            // Credential safety net (preserve prior behavior) without breaking single-JSON:
+            // if raw/classic extraction has credentials but the enhanced view doesn't surface them, include
+            // the classic/raw JSON under a reserved property.
             try
             {
                 bool rawHasCreds = parms != null && (parms.ContainsKey("uuid") || parms.ContainsKey("auth_key") || parms.ContainsKey("psk_key"));
                 if (rawHasCreds)
                 {
-                    bool enhancedHasCreds =
-                        result.IndexOf("\"uuid\"", StringComparison.Ordinal) >= 0 ||
-                        result.IndexOf("\"auth_key\"", StringComparison.Ordinal) >= 0 ||
-                        result.IndexOf("\"psk_key\"", StringComparison.Ordinal) >= 0;
+                    bool enhancedHasCreds = false;
+
+                    // Fast path: check gw_bi object if present.
+                    if (valuesByKey.TryGetValue("gw_bi", out var gwbi) && gwbi.ValueKind == JsonValueKind.Object)
+                    {
+                        if (gwbi.TryGetProperty("uuid", out _) || gwbi.TryGetProperty("auth_key", out _) || gwbi.TryGetProperty("psk_key", out _))
+                            enhancedHasCreds = true;
+                    }
+
+                    // Also consider direct top-level presence, just in case.
+                    if (!enhancedHasCreds && (valuesByKey.ContainsKey("uuid") || valuesByKey.ContainsKey("auth_key") || valuesByKey.ContainsKey("psk_key")))
+                        enhancedHasCreds = true;
 
                     if (!enhancedHasCreds)
                     {
                         string rawJson = getKeysAsJSON();
                         if (!string.IsNullOrWhiteSpace(rawJson))
-                            result = result.TrimEnd() + Environment.NewLine + Environment.NewLine + rawJson.TrimEnd() + Environment.NewLine;
+                        {
+                            const string RawKey = "_raw";
+                            if (!valuesByKey.ContainsKey(RawKey))
+                                orderedKeys.Add(RawKey);
+                            valuesByKey[RawKey] = ToJsonElement(rawJson);
+                        }
                     }
                 }
             }
@@ -1825,6 +1839,87 @@ if (!string.IsNullOrWhiteSpace(key))
                 // Best-effort only.
             }
 
+            // Emit one JSON object in a stable, readable order.
+            string result;
+            try
+            {
+                // Manual formatting avoids Utf8JsonWriter (which may pull in IAsyncDisposable/Microsoft.Bcl.AsyncInterfaces on .NET Framework).
+                var keysToWrite = new List<string>();
+                foreach (var k in orderedKeys)
+                {
+                    if (valuesByKey.ContainsKey(k))
+                        keysToWrite.Add(k);
+                }
+
+                var sb = new StringBuilder();
+                sb.Append("{").Append(Environment.NewLine);
+
+                var opts = new JsonSerializerOptions { WriteIndented = true };
+
+                for (int i = 0; i < keysToWrite.Count; i++)
+                {
+                    string k = keysToWrite[i];
+                    var v = valuesByKey[k];
+
+                    sb.Append("  ");
+                    sb.Append(JsonSerializer.Serialize(k));
+                    sb.Append(": ");
+
+                    string vJson = JsonSerializer.Serialize(v, opts);
+
+                    // Normalize to LF for processing then re-emit with Environment.NewLine.
+                    vJson = vJson.Replace("\r\n", "\n").Replace("\r", "\n");
+                    var lines = vJson.Split('\n');
+                    if (lines.Length > 0)
+                    {
+                        sb.Append(lines[0]);
+                        for (int li = 1; li < lines.Length; li++)
+                        {
+                            sb.Append(Environment.NewLine);
+                            sb.Append("  ");
+                            sb.Append(lines[li]);
+                        }
+                    }
+
+                    if (i != keysToWrite.Count - 1)
+                        sb.Append(",");
+
+                    sb.Append(Environment.NewLine);
+                }
+
+                sb.Append("}").Append(Environment.NewLine);
+                result = sb.ToString();
+            }
+            catch
+            {
+                // Fallback to serializer if manual formatting fails for any reason.
+                var tmp = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                foreach (var k in orderedKeys)
+                {
+                    if (valuesByKey.TryGetValue(k, out var v))
+                        tmp[k] = v;
+                }
+                result = JsonSerializer.Serialize(tmp, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
+            }
+
+            result = FixDisplayEscapes(result);
+
+            // Safety: ensure the emitted text is valid JSON. If not, fall back to serializer output.
+            try
+            {
+                using var _ = JsonDocument.Parse(result);
+            }
+            catch
+            {
+                var tmp = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                foreach (var k in orderedKeys)
+                {
+                    if (valuesByKey.TryGetValue(k, out var v))
+                        tmp[k] = v;
+                }
+                result = JsonSerializer.Serialize(tmp, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
+                result = FixDisplayEscapes(result);
+            }
 
             _cachedEnhancedText = result;
             _cachedEnhancedTextSource = src;
