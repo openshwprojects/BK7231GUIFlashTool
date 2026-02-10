@@ -132,6 +132,7 @@
     <Compile Include="FormPrompt.Designer.cs">
       <DependentUpon>FormPrompt.cs</DependentUpon>
     </Compile>
+    <Compile Include="Helpers\ConsoleLogListener.cs" />
     <Compile Include="Helpers\ILogListener.cs" />
     <Compile Include="Flashers\LN882HFlasher.cs" />
     <Compile Include="Utils\MiscUtils.cs" />
@@ -144,6 +145,7 @@
     <Compile Include="Misc\OBKMassBackup.cs" />
     <Compile Include="Misc\OBKRoles.cs" />
     <Compile Include="Misc\OBKScanner.cs" />
+    <Compile Include="CommandLineRunner.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Helpers\Rand.cs" />

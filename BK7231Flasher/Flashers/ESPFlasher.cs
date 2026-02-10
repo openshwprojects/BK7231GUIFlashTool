@@ -730,5 +730,92 @@ namespace BK7231Flasher
                 addLogLine("Flash Read Complete.");
             }
         }
+
+        public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
+        {
+            if (rwMode == WriteMode.OnlyWrite)
+            {
+                byte[] data = File.ReadAllBytes(sourceFileName);
+                doWrite((uint)startSector * 0x1000, data);
+            }
+            else
+            {
+                addErrorLine("ReadAndWrite mode not yet implemented for ESPFlasher.");
+            }
+        }
+
+        public void doWrite(uint offset, byte[] data)
+        {
+            if (Connect())
+            {
+                if (baudrate > 115200)
+                {
+                    if (!ChangeBaudrate(baudrate))
+                    {
+                        addErrorLine("Aborting due to baud rate change failure.");
+                        return;
+                    }
+                }
+
+                uint blockSize = 0x400; // 1024 bytes
+                uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
+
+                addLogLine($"Starting Flash Write: {data.Length} bytes ({numBlocks} blocks) at 0x{offset:X}...");
+
+                // FLASH_BEGIN: size, numBlocks, blockSize, offset
+                List<byte> beginPayload = new List<byte>();
+                beginPayload.AddRange(BitConverter.GetBytes((uint)data.Length));
+                beginPayload.AddRange(BitConverter.GetBytes(numBlocks));
+                beginPayload.AddRange(BitConverter.GetBytes(blockSize));
+                beginPayload.AddRange(BitConverter.GetBytes(offset));
+
+                sendCommand(ESPCommand.FLASH_BEGIN, beginPayload.ToArray());
+                // FLASH_BEGIN can take a long time if it triggers an erase
+                if (readPacket(10000, ESPCommand.FLASH_BEGIN) == null)
+                {
+                    addErrorLine("FLASH_BEGIN failed.");
+                    return;
+                }
+
+                for (uint i = 0; i < numBlocks; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    uint start = i * blockSize;
+                    uint len = Math.Min(blockSize, (uint)data.Length - start);
+
+                    // Block must be padded to blockSize with 0xFF
+                    byte[] block = new byte[blockSize];
+                    for (int j = 0; j < block.Length; j++) block[j] = 0xFF;
+                    Array.Copy(data, (int)start, block, 0, (int)len);
+
+                    // FLASH_DATA: size(4), seq(4), reserved(4), reserved(4), data(blockSize)
+                    List<byte> dataPayload = new List<byte>();
+                    dataPayload.AddRange(BitConverter.GetBytes(blockSize));
+                    dataPayload.AddRange(BitConverter.GetBytes(i));
+                    dataPayload.AddRange(BitConverter.GetBytes((uint)0)); // reserved
+                    dataPayload.AddRange(BitConverter.GetBytes((uint)0)); // reserved
+                    dataPayload.AddRange(block);
+
+                    // Calculate checksum over the data block
+                    byte checksum = 0xEF;
+                    foreach (byte b in block) checksum ^= b;
+
+                    sendCommand(ESPCommand.FLASH_DATA, dataPayload.ToArray(), checksum);
+                    if (readPacket(3000, ESPCommand.FLASH_DATA) == null)
+                    {
+                        addErrorLine($"FLASH_DATA failed at block {i}.");
+                        return;
+                    }
+
+                    logger.setProgress((int)((i + 1) * blockSize), data.Length);
+                }
+
+                // FLASH_END: execute (1 = run, 0 = stay)
+                sendCommand(ESPCommand.FLASH_END, BitConverter.GetBytes((uint)0));
+                readPacket(1000, ESPCommand.FLASH_END);
+
+                addLogLine("Flash Write Complete.");
+            }
+        }
     }
 }
