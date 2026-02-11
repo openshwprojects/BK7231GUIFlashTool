@@ -7,3 +7,5 @@
 
 packages
 BuildVersion.cs
+backups/
+references/

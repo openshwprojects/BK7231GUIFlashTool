@@ -1,4 +1,5 @@
 using System;
+using System.IO.Ports;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -35,6 +36,30 @@ namespace BK7231Flasher
         public static bool ShouldRunCli(string[] args)
         {
             return args.Length > 0;
+        }
+
+        static string GetFirstAvailablePort()
+        {
+            var ports = SerialPort.GetPortNames();
+            Array.Sort(ports);
+            foreach (var port in ports)
+            {
+                try
+                {
+                    using (var sp = new SerialPort(port))
+                    {
+                        sp.Open();
+                        Thread.Sleep(200); // Wait inside critical section to ensure port can be closed and reopened cleanly
+                        sp.Close();
+                        return port;
+                    }
+                }
+                catch
+                {
+                    // Ignore ports that can't be opened
+                }
+            }
+            return null;
         }
 
         public static void Run(string[] args)
@@ -137,9 +162,18 @@ namespace BK7231Flasher
                     Enum.TryParse(chipName, true, out testType);
                 if (testType != BKType.BekenSPI && testType != BKType.GenericSPI)
                 {
-                    Console.Error.WriteLine("Error: -port is required. Use -help for usage.");
-                    Environment.Exit(1);
-                    return;
+                    port = GetFirstAvailablePort();
+                    if (port != null)
+                    {
+                        Console.WriteLine($"No port specified, auto-selected: {port}");
+                        Thread.Sleep(500); // Give time for port to close properly
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine("Error: -port is required. Use -help for usage.");
+                        Environment.Exit(1);
+                        return;
+                    }
                 }
             }
 
