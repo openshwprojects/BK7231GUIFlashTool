@@ -1116,7 +1116,7 @@ namespace BK7231Flasher
                     // 4K write
                     bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                     //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
-                    addLog("Writing sector " + formatHex(secAddr) + "...");
+                    addLog(formatHex(secAddr) + "...");
                     if (bOk == false)
                     {
                         logger.setState("Writing error!", Color.Red);
@@ -1124,7 +1124,6 @@ namespace BK7231Flasher
                         return false;
                     }
                     logger.setProgress(sec + 1, sectors);
-                    addLog(" ok! ");
                 }
                 if (false == checkCRC(startSector, sectors, data))
                 {
@@ -1176,7 +1175,7 @@ namespace BK7231Flasher
                 addError("Read failed?" + Environment.NewLine);
                 return false;
             }
-            if (isFullOf(toCheck.ToArray(), 0xff)==false)
+            if (MiscUtils.isFullOf(toCheck.ToArray(), 0xff)==false)
             {
                 addError("Erase verify error? Flash was not full of 0xFF!" + Environment.NewLine);
                 return false;
@@ -1237,29 +1236,19 @@ namespace BK7231Flasher
                 // 4K write
                 bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                 //bool bOk = writeSector(secAddr, data, SECTOR_SIZE * sec, SECTOR_SIZE);
-                addLog("Writing sector " + formatHex(secAddr) + "...");
+                addLog(formatHex(secAddr) + "...");
                 if (bOk == false)
                 {
                     logger.setState("Write sector failed!", Color.Red);
                     addError(" Writing sector " + formatHex(secAddr) + " failed!" + Environment.NewLine);
                     return false;
                 }
-                addLog(" ok! ");
             }
             if (false == checkCRC(startSector, sectors, data))
             {
                 return false;
             }
             addSuccess("Write success!");
-            return true;
-        }
-        bool isFullOf(byte [] dat, byte c)
-        {
-            for(int i = 0; i < dat.Length; i++)
-            {
-                if (dat[i] != c)
-                    return false;
-            }
             return true;
         }
         string readEncryptionKey(out uint[] coeffs)
@@ -1315,7 +1304,7 @@ namespace BK7231Flasher
             for (int i = 0; i < sectors; i++)
             {
                 int addr = startSector + step * i;
-                addLog("Reading " + formatHex(addr) + "... ");
+                addLog(formatHex(addr) + "... ");
                 // BK7231T does not allow bootloader read, but we can use a wrap-around hack
                 if(chipType == BKType.BK7231T || chipType == BKType.BK7231U)
                 {
@@ -1341,7 +1330,6 @@ namespace BK7231Flasher
                 //    return null;
                 //}
                 logger.setProgress(i + 1, sectors);
-                addLog("Ok! ");
             }
             addLog(Environment.NewLine + "Basic read operation finished, but now it's time to verify..." + Environment.NewLine);
 
@@ -1518,6 +1506,29 @@ namespace BK7231Flasher
                 addError("Writing file data to chip failed." + Environment.NewLine);
                 return false;
             }
+            if(chipType == BKType.BK7238 && ms != null)
+            {
+                var rData = ms.ToArray();
+                RFPartitionUtil.getMACFromQio(rData, chipType, out var isNeedFix);
+                if(isNeedFix)
+                {
+                    var rfAddr = RFPartitionUtil.getRFOffset(chipType);
+                    var rfData = RFPartitionUtil.getRFFromBackup(rData, chipType, out var origAddr);
+                    if(rfData.Length != 0)
+                    {
+                        addLog($"Moving RF partition from {formatHex(origAddr)} to {formatHex(rfAddr)}..." + Environment.NewLine);
+                        if(writeChunk(rfAddr, rfData, rwMode) == false)
+                        {
+                            addErrorLine("RF move failed!.");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        addWarningLine("No RF partition found! You must manually restore it.");
+                    }
+                }
+            }
             addSuccess("Writing file data to chip successs." + Environment.NewLine);
             //File.WriteAllBytes("lastRead.bin", ms.ToArray());
             return true;
@@ -1530,7 +1541,7 @@ namespace BK7231Flasher
                 (startSector ).ToString("X2")
                 + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
                 (sectors * BK7231Flasher.SECTOR_SIZE).ToString("X2")
-                + " (" + startSector + " sectors)"
+                + " (" + sectors + " sectors)"
                 + Environment.NewLine);
             if (doGenericSetup() == false)
             {

@@ -10,22 +10,28 @@ namespace BK7231Flasher
     static class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
-            // Force consistent decimal separators etc.
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
 
             // IMPORTANT: Preload JSON-related dependencies from the app directory.
             // Some deployment/distribution paths can change .NET Framework assembly binding/load context,
-            // causing runtime FileLoadException for System.Memory (and friends) when System.Text.Json
-            // pretty-printing runs.
+            // causing runtime FileLoadException for System.Memory (and friends) when JSON rendering happens.
             SetupJsonDependencyLoading();
+
+            // If command-line arguments are provided, run in CLI mode
+            if (CommandLineRunner.ShouldRunCli(args))
+            {
+                CommandLineRunner.Run(args);
+                return;
+            }
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new FormMain());
         }
+
 
         private static void SetupJsonDependencyLoading()
         {
