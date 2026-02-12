@@ -663,25 +663,35 @@ namespace BK7231Flasher
              bool inPacket = false;
              bool escape = false;
 
+             // Bulk read buffer - avoids calling ReadByte() one at a time
+             // which is extremely slow at high baud rates.
+             // esptool does the same: port.read(port.inWaiting() or 1)
+             byte[] buf = new byte[4096];
+
              while((DateTime.Now.Ticks - start) / 10000 < timeoutMs)
              {
                  try {
-                     int bInt = serial.ReadByte();
-                     if (bInt == -1) break;
-                     byte b = (byte)bInt;
-                     
-                     if (b == SLIP_END) {
-                         if (inPacket) return payload.ToArray();
-                         inPacket = true;
-                         payload.Clear();
-                     } else if (inPacket) {
-                         if (b == SLIP_ESC) escape = true;
-                         else {
-                             if (escape) {
-                                 if (b == SLIP_ESC_END) payload.Add(SLIP_END);
-                                 else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
-                                 escape = false;
-                             } else payload.Add(b);
+                     int waiting = serial.BytesToRead;
+                     int toRead = waiting > 0 ? Math.Min(waiting, buf.Length) : 1;
+                     int count = serial.Read(buf, 0, toRead);
+                     if (count <= 0) break;
+
+                     for (int i = 0; i < count; i++)
+                     {
+                         byte b = buf[i];
+                         if (b == SLIP_END) {
+                             if (inPacket && payload.Count > 0) return payload.ToArray();
+                             inPacket = true;
+                             payload.Clear();
+                         } else if (inPacket) {
+                             if (b == SLIP_ESC) escape = true;
+                             else {
+                                 if (escape) {
+                                     if (b == SLIP_ESC_END) payload.Add(SLIP_END);
+                                     else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
+                                     escape = false;
+                                 } else payload.Add(b);
+                             }
                          }
                      }
                  } catch(TimeoutException) { }
