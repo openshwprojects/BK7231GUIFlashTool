@@ -42,6 +42,7 @@ namespace BK7231Flasher
         const int ESP_RAM_BLOCK = 0x1800; // Must match esptool default
 
         bool isStub = false;
+        byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
 
         public ESPFlasher(CancellationToken ct) : base(ct)
@@ -588,19 +589,16 @@ namespace BK7231Flasher
             var cmdResp = readPacket(3000, ESPCommand.READ_FLASH);
             if (cmdResp == null) throw new Exception("READ_FLASH command failed (no ACK)");
             
-            // Then stub streams SLIP packets containing the data.
-            // We need to read 'size' bytes total.
-            
-            MemoryStream msFull = new MemoryStream();
+            // Pre-allocate the full result buffer - zero copy path
+            byte[] dataBytes = new byte[size];
             uint received = 0;
             
             while(received < size)
             {
-                 byte[] packet = readRawPacket(3000);
-                 if(packet == null) throw new Exception("Timeout reading fast flash data");
+                 int got = readRawPacketInto(dataBytes, (int)received, 3000);
+                 if(got <= 0) throw new Exception("Timeout reading fast flash data");
                  
-                 msFull.Write(packet, 0, packet.Length);
-                 received += (uint)packet.Length;
+                 received += (uint)got;
                  
                  // Stub expects ACK: 4 bytes (bytes_received) as SLIP packet
                  byte[] ack = BitConverter.GetBytes(received);
@@ -613,7 +611,6 @@ namespace BK7231Flasher
             byte[] digest = readRawPacket(3000);
             if(digest == null || digest.Length != 16) throw new Exception("Failed to read MD5 digest");
             
-            byte[] dataBytes = msFull.ToArray();
             using(var md5 = MD5.Create())
             {
                 byte[] calc = md5.ComputeHash(dataBytes);
@@ -632,27 +629,72 @@ namespace BK7231Flasher
 
         void sendRawSlip(byte[] data)
         {
-             List<byte> packet = new List<byte>();
-             packet.Add(SLIP_END);
+             int pos = 0;
+             _slipBuf[pos++] = SLIP_END;
              foreach (byte b in data)
              {
                  if (b == SLIP_END)
                  {
-                     packet.Add(SLIP_ESC);
-                     packet.Add(SLIP_ESC_END);
+                     _slipBuf[pos++] = SLIP_ESC;
+                     _slipBuf[pos++] = SLIP_ESC_END;
                  }
                  else if (b == SLIP_ESC)
                  {
-                     packet.Add(SLIP_ESC);
-                     packet.Add(SLIP_ESC_ESC);
+                     _slipBuf[pos++] = SLIP_ESC;
+                     _slipBuf[pos++] = SLIP_ESC_ESC;
                  }
                  else
                  {
-                     packet.Add(b);
+                     _slipBuf[pos++] = b;
                  }
              }
-             packet.Add(SLIP_END);
-             serial.Write(packet.ToArray(), 0, packet.Count);
+             _slipBuf[pos++] = SLIP_END;
+             serial.Write(_slipBuf, 0, pos);
+        }
+
+        // Zero-copy overload: writes SLIP-decoded data directly into dest at destOffset.
+        // Returns number of bytes written, or -1 on timeout.
+        int readRawPacketInto(byte[] dest, int destOffset, int timeoutMs)
+        {
+             serial.ReadTimeout = timeoutMs;
+             long start = DateTime.Now.Ticks;
+             bool inPacket = false;
+             bool escape = false;
+             int written = 0;
+
+
+             while((DateTime.Now.Ticks - start) / 10000 < timeoutMs)
+             {
+                 try {
+                     int waiting = serial.BytesToRead;
+                     int toRead = waiting > 0 ? Math.Min(waiting, _slipBuf.Length) : 1;
+                     int count = serial.Read(_slipBuf, 0, toRead);
+                     if (count <= 0) break;
+
+                     for (int i = 0; i < count; i++)
+                     {
+                         byte b = _slipBuf[i];
+                         if (b == SLIP_END) {
+                             if (inPacket && written > 0) return written;
+                             inPacket = true;
+                             written = 0;
+                         } else if (inPacket) {
+                             if (b == SLIP_ESC) escape = true;
+                             else {
+                                 byte decoded = b;
+                                 if (escape) {
+                                     if (b == SLIP_ESC_END) decoded = SLIP_END;
+                                     else if (b == SLIP_ESC_ESC) decoded = SLIP_ESC;
+                                     escape = false;
+                                 }
+                                 dest[destOffset + written] = decoded;
+                                 written++;
+                             }
+                         }
+                     }
+                 } catch(TimeoutException) { }
+             }
+             return -1;
         }
 
         byte[] readRawPacket(int timeoutMs)
@@ -663,22 +705,18 @@ namespace BK7231Flasher
              bool inPacket = false;
              bool escape = false;
 
-             // Bulk read buffer - avoids calling ReadByte() one at a time
-             // which is extremely slow at high baud rates.
-             // esptool does the same: port.read(port.inWaiting() or 1)
-             byte[] buf = new byte[4096];
 
              while((DateTime.Now.Ticks - start) / 10000 < timeoutMs)
              {
                  try {
                      int waiting = serial.BytesToRead;
-                     int toRead = waiting > 0 ? Math.Min(waiting, buf.Length) : 1;
-                     int count = serial.Read(buf, 0, toRead);
+                     int toRead = waiting > 0 ? Math.Min(waiting, _slipBuf.Length) : 1;
+                     int count = serial.Read(_slipBuf, 0, toRead);
                      if (count <= 0) break;
 
                      for (int i = 0; i < count; i++)
                      {
-                         byte b = buf[i];
+                         byte b = _slipBuf[i];
                          if (b == SLIP_END) {
                              if (inPacket && payload.Count > 0) return payload.ToArray();
                              inPacket = true;
