@@ -41,21 +41,25 @@ namespace BK7231Flasher
         static string GetFirstAvailablePort()
         {
             var ports = SerialPort.GetPortNames();
+            Console.WriteLine($"[AutoSelect] Found ports: {string.Join(", ", ports)}");
             Array.Sort(ports);
             foreach (var port in ports)
             {
                 try
                 {
+                    Console.WriteLine($"[AutoSelect] Trying {port}...");
                     using (var sp = new SerialPort(port))
                     {
                         sp.Open();
                         Thread.Sleep(200); // Wait inside critical section to ensure port can be closed and reopened cleanly
                         sp.Close();
+                        Console.WriteLine($"[AutoSelect] Selected {port}");
                         return port;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Console.WriteLine($"[AutoSelect] Failed to open {port}: {ex.Message}");
                     // Ignore ports that can't be opened
                 }
             }
@@ -90,6 +94,7 @@ namespace BK7231Flasher
             int len = -1;
             string outputName = "cliBackup";
             string writeFile = null;
+            bool legacyMode = false;
 
             // Parse arguments
             for (int i = 0; i < args.Length; i++)
@@ -134,6 +139,9 @@ namespace BK7231Flasher
                     case "-out":
                         if (i + 1 < args.Length) outputName = args[++i];
                         break;
+                    case "-legacy":
+                        legacyMode = true;
+                        break;
                     case "-help":
                     case "--help":
                     case "-h":
@@ -162,6 +170,7 @@ namespace BK7231Flasher
                     Enum.TryParse(chipName, true, out testType);
                 if (testType != BKType.BekenSPI && testType != BKType.GenericSPI)
                 {
+                    Console.WriteLine("[AutoSelect] No port argument, attempting auto-selection...");
                     port = GetFirstAvailablePort();
                     if (port != null)
                     {
@@ -213,12 +222,12 @@ namespace BK7231Flasher
                 return;
             }
 
-            int exitCode = ExecuteOperation(operation, port ?? "", baud, chipType, ofs, len, outputName, writeFile);
+            int exitCode = ExecuteOperation(operation, port ?? "", baud, chipType, ofs, len, outputName, writeFile, legacyMode);
             Environment.Exit(exitCode);
         }
 
         static int ExecuteOperation(CliOperation operation, string port, int baud, BKType chipType,
-            int ofs, int len, string outputName, string writeFile)
+            int ofs, int len, string outputName, string writeFile, bool legacyMode)
         {
             var logger = new ConsoleLogListener();
             var cts = new CancellationTokenSource();
@@ -233,6 +242,10 @@ namespace BK7231Flasher
 
             BaseFlasher flasher = CreateFlasher(chipType, cts.Token);
             flasher.setBasic(logger, port, chipType, baud);
+            if (flasher is ESPFlasher espFlasher)
+            {
+                espFlasher.LegacyMode = legacyMode;
+            }
 
             try
             {
@@ -542,6 +555,7 @@ namespace BK7231Flasher
             Console.WriteLine("  -ofs <0x11000>       Start offset (hex or decimal, for -cread/-cwrite)");
             Console.WriteLine("  -len <0x1000>        Length in bytes (hex or decimal, for -cread/-cwrite)");
             Console.WriteLine("  -out <name>          Output name for backup (default: cliBackup)");
+            Console.WriteLine("  -legacy              Use legacy (ROM-only) mode for ESP32 (disable stub flasher)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  BK7231Flasher.exe -read -port COM3 -chip BK7231N -out mybackup");

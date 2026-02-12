@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -25,13 +26,22 @@ namespace BK7231Flasher
             SPI_ATTACH = 0x0D,
             READ_FLASH_SLOW = 0x0E,
             CHANGE_BAUDRATE = 0x0F,
+            SPI_FLASH_MD5 = 0x13,
             GET_SECURITY_INFO = 0x14,
+            ERASE_FLASH = 0xD0,
+            READ_FLASH = 0xD2,
         }
 
         const byte SLIP_END = 0xC0;
         const byte SLIP_ESC = 0xDB;
         const byte SLIP_ESC_END = 0xDC;
         const byte SLIP_ESC_ESC = 0xDD;
+
+        // ESP32 stub flasher binary (from esptool v1 JSON)
+        const int ESP_RAM_BLOCK = 0x1800; // Must match esptool default
+
+        bool isStub = false;
+        public bool LegacyMode { get; set; } = false;
 
         public ESPFlasher(CancellationToken ct) : base(ct)
         {
@@ -127,8 +137,17 @@ namespace BK7231Flasher
                     
                     // read response
                     var resp = readPacket(300, ESPCommand.SYNC);
-                    if (resp != null && resp.Length > 0)
+                    if (resp != null)
                     {
+                        // esptool drains 7 additional SYNC responses after the first
+                        for (int j = 0; j < 7; j++)
+                        {
+                            try
+                            {
+                                readPacket(100, ESPCommand.SYNC);
+                            }
+                            catch { }
+                        }
                         return true;
                     }
                 }
@@ -196,14 +215,14 @@ namespace BK7231Flasher
             byte[] payload = BitConverter.GetBytes(addr); // Little Endian
             addLogLine($"Reading Reg {addr:X}...");
             sendCommand(ESPCommand.READ_REG, payload);
-            var resp = readPacket(3000, ESPCommand.READ_REG); // Wait longer for ReadReg
+            var resp = readPacket(3000, ESPCommand.READ_REG);
             
-            // Check if resp is just value (4 bytes)
-            if (resp != null && resp.Length == 4)
+            // readPacket returns the 'value' field from the header
+            // for commands with resp_data_len=0 (like READ_REG)
+            if (resp != null && resp.Length >= 4)
             {
                 return BitConverter.ToUInt32(resp, 0);
             }
-            // Or maybe it has header? No, readPacket/parseResponse strips header.
             
             throw new Exception($"Failed to read register {addr:X}, resp len {(resp==null?-1:resp.Length)}");
         }
@@ -312,14 +331,407 @@ namespace BK7231Flasher
 
         public byte[] ReadFlashBlockSlow(uint addr, uint size)
         {
-            // READ_FLASH_SLOW (0x0E) payload: addr(4) + size(4)
-            byte[] payload = new byte[8];
-            Array.Copy(BitConverter.GetBytes(addr), 0, payload, 0, 4);
-            Array.Copy(BitConverter.GetBytes(size), 0, payload, 4, 4);
+            // esptool: read_flash_slow reads in 64-byte blocks (ROM limit)
+            // Each command returns resp_data_len=64 bytes
+            const int BLOCK_LEN = 64;
+            
+            List<byte> result = new List<byte>();
+            while (result.Count < (int)size)
+            {
+                int blockLen = Math.Min(BLOCK_LEN, (int)size - result.Count);
+                byte[] payload = new byte[8];
+                Array.Copy(BitConverter.GetBytes(addr + (uint)result.Count), 0, payload, 0, 4);
+                Array.Copy(BitConverter.GetBytes((uint)blockLen), 0, payload, 4, 4);
 
-            sendCommand(ESPCommand.READ_FLASH_SLOW, payload);
-            var resp = readPacket(3000, ESPCommand.READ_FLASH_SLOW);
-            return resp;
+                sendCommand(ESPCommand.READ_FLASH_SLOW, payload);
+                // resp_data_len = BLOCK_LEN (ROM always returns 64 bytes)
+                var resp = readPacket(3000, ESPCommand.READ_FLASH_SLOW, BLOCK_LEN);
+                if (resp == null || resp.Length < blockLen)
+                {
+                    addErrorLine($"ReadFlashBlockSlow: failed to read block at 0x{addr + (uint)result.Count:X}");
+                    return null;
+                }
+                // ROM returns full 64-byte buffer, take only blockLen bytes
+                byte[] block = new byte[blockLen];
+                Array.Copy(resp, 0, block, 0, blockLen);
+                result.AddRange(block);
+            }
+            return result.ToArray();
+        }
+
+        bool MemBegin(uint size, uint blocks, uint blockSize, uint offset)
+        {
+            // esptool: struct.pack("<IIII", size, blocks, blocksize, offset)
+            List<byte> payload = new List<byte>();
+            payload.AddRange(BitConverter.GetBytes(size));
+            payload.AddRange(BitConverter.GetBytes(blocks));
+            payload.AddRange(BitConverter.GetBytes(blockSize));
+            payload.AddRange(BitConverter.GetBytes(offset));
+
+            sendCommand(ESPCommand.MEM_BEGIN, payload.ToArray());
+            var resp = readPacket(5000, ESPCommand.MEM_BEGIN);
+            return resp != null;
+        }
+
+        bool MemData(byte[] data, uint seq)
+        {
+            // esptool: struct.pack("<IIII", len(data), seq, 0, 0) + data
+            List<byte> payload = new List<byte>();
+            payload.AddRange(BitConverter.GetBytes((uint)data.Length));
+            payload.AddRange(BitConverter.GetBytes(seq));
+            payload.AddRange(BitConverter.GetBytes((uint)0)); // reserved
+            payload.AddRange(BitConverter.GetBytes((uint)0)); // reserved
+            payload.AddRange(data);
+
+            // esptool: self.checksum(data) - XOR all data bytes starting from 0xEF
+            byte checksum = 0xEF;
+            foreach (byte b in data) checksum ^= b;
+
+            sendCommand(ESPCommand.MEM_DATA, payload.ToArray(), checksum);
+            var resp = readPacket(5000, ESPCommand.MEM_DATA);
+            return resp != null;
+        }
+
+        bool MemEnd(uint entryPoint)
+        {
+            List<byte> payload = new List<byte>();
+            payload.AddRange(BitConverter.GetBytes((uint)(entryPoint == 0 ? 1 : 0))); // no_entry
+            payload.AddRange(BitConverter.GetBytes(entryPoint));
+
+            sendCommand(ESPCommand.MEM_END, payload.ToArray());
+            var resp = readPacket(3000, ESPCommand.MEM_END);
+            return resp != null;
+        }
+
+        public bool UploadStub()
+        {
+            if (LegacyMode)
+            {
+                addLogLine("Legacy mode enabled, skipping stub upload.");
+                return false;
+            }
+
+            addLogLine("Uploading stub flasher...");
+            try
+            {
+                // Load stub from esptool JSON
+                string stubPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+                    "references", "esptool", "targets", "stub_flasher", "1", "esp32.json");
+                if (!File.Exists(stubPath))
+                {
+                    // Try relative to working directory
+                    stubPath = Path.Combine("references", "esptool", "targets", "stub_flasher", "1", "esp32.json");
+                }
+                if (!File.Exists(stubPath))
+                {
+                    addErrorLine("Stub JSON not found: " + stubPath);
+                    return false;
+                }
+
+                string jsonContent = File.ReadAllText(stubPath);
+                
+                // Simple JSON parsing for our known fields
+                string textB64 = ExtractJsonString(jsonContent, "text");
+                string dataB64 = ExtractJsonString(jsonContent, "data");
+                uint textStart = ExtractJsonUint(jsonContent, "text_start");
+                uint dataStart = ExtractJsonUint(jsonContent, "data_start");
+                uint entry = ExtractJsonUint(jsonContent, "entry");
+                
+                byte[] text = Convert.FromBase64String(textB64);
+                byte[] data = Convert.FromBase64String(dataB64);
+
+                // Console.WriteLine($"[DEBUG] Stub loaded: text={text.Length}B @0x{textStart:X}, data={data.Length}B @0x{dataStart:X}, entry=0x{entry:X}");
+
+                // Upload text (IRAM)
+                uint blocks = (uint)((text.Length + ESP_RAM_BLOCK - 1) / ESP_RAM_BLOCK);
+                if (!MemBegin((uint)text.Length, blocks, (uint)ESP_RAM_BLOCK, textStart))
+                {
+                    addErrorLine("Failed to MEM_BEGIN for text");
+                    return false;
+                }
+                for (uint i = 0; i < blocks; i++)
+                {
+                    int len = Math.Min(ESP_RAM_BLOCK, text.Length - (int)(i * ESP_RAM_BLOCK));
+                    byte[] block = new byte[len];
+                    Array.Copy(text, i * ESP_RAM_BLOCK, block, 0, len);
+                    // Console.WriteLine($"[DEBUG] Sending text block {i}, Len {len}");
+                    if (!MemData(block, i))
+                    {
+                        addErrorLine($"Failed to MEM_DATA text block {i}");
+                        return false;
+                    }
+                }
+
+                // Upload data (DRAM)
+                blocks = (uint)((data.Length + ESP_RAM_BLOCK - 1) / ESP_RAM_BLOCK);
+                if (!MemBegin((uint)data.Length, blocks, (uint)ESP_RAM_BLOCK, dataStart))
+                {
+                    addErrorLine("Failed to MEM_BEGIN for data");
+                    return false;
+                }
+                for (uint i = 0; i < blocks; i++)
+                {
+                    int len = Math.Min(ESP_RAM_BLOCK, data.Length - (int)(i * ESP_RAM_BLOCK));
+                    byte[] block = new byte[len];
+                    Array.Copy(data, i * ESP_RAM_BLOCK, block, 0, len);
+                    if (!MemData(block, i))
+                    {
+                        addErrorLine($"Failed to MEM_DATA data block {i}");
+                        return false;
+                    }
+                }
+
+                // Execute stub
+                addLogLine("Running stub flasher...");
+                MemEnd(entry);
+
+                // Wait for OHAI
+                if (!CheckForOHAI(5000))
+                {
+                    addErrorLine("Stub did not respond with OHAI.");
+                    return false;
+                }
+
+                isStub = true;
+                addLogLine("Stub flasher running.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                addErrorLine("Stub upload failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        static string ExtractJsonString(string json, string key)
+        {
+            // Find "key": "value" pattern
+            string search = "\"" + key + "\": \"";
+            int idx = json.IndexOf(search);
+            if (idx < 0) { search = "\"" + key + "\":\""; idx = json.IndexOf(search); }
+            if (idx < 0) throw new Exception($"JSON key '{key}' not found");
+            int start = idx + search.Length;
+            int end = json.IndexOf("\"", start);
+            return json.Substring(start, end - start);
+        }
+
+        static uint ExtractJsonUint(string json, string key)
+        {
+            // Find "key": number pattern
+            string search = "\"" + key + "\": ";
+            int idx = json.IndexOf(search);
+            if (idx < 0) { search = "\"" + key + "\":"; idx = json.IndexOf(search); }
+            if (idx < 0) throw new Exception($"JSON key '{key}' not found");
+            int start = idx + search.Length;
+            int end = start;
+            while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-')) end++;
+            return uint.Parse(json.Substring(start, end - start));
+        }
+
+        bool CheckForOHAI(int timeout)
+        {
+             // After mem_finish, stub sends a raw SLIP packet containing "OHAI"
+             // This is NOT a command response, just raw bytes
+             serial.ReadTimeout = timeout;
+             List<byte> buffer = new List<byte>();
+             long start = DateTime.Now.Ticks;
+             // Console.WriteLine($"[DEBUG] CheckForOHAI: waiting {timeout}ms...");
+             
+             while((DateTime.Now.Ticks - start) / 10000 < timeout)
+             {
+                 try {
+                     int b = serial.ReadByte();
+                     if(b != -1) {
+                         buffer.Add((byte)b);
+                         // Console.Write($"{(byte)b:X2} ");
+                     }
+                     
+                     // Check for OHAI
+                     if(buffer.Count >= 6)
+                     {
+                         // Check from end
+                         int n = buffer.Count;
+                         if(buffer[n-1] == 0xC0 && buffer[n-2] == 0x49 && buffer[n-3] == 0x41 && buffer[n-4] == 0x48 && buffer[n-5] == 0x4F && buffer[n-6] == 0xC0)
+                         {
+                             // Console.WriteLine();
+                             // Console.WriteLine("[DEBUG] CheckForOHAI: Got OHAI!");
+                             return true;
+                         }
+                     }
+                 } catch { }
+             }
+             // Console.WriteLine();
+             // Console.WriteLine($"[DEBUG] CheckForOHAI: timeout. Received {buffer.Count} bytes: {BitConverter.ToString(buffer.ToArray())}");
+             return false;
+        }
+
+        public byte[] ReadFlashFast(uint addr, uint size, Action<int, int> progress = null)
+        {
+            // READ_FLASH (0xD2) payload: offset(4) + length(4) + sector_size(4) + block_size(4)
+            // esptool code: struct.pack("<IIII", offset, length, self.FLASH_SECTOR_SIZE, 64)
+            
+            uint sectorSize = 0x1000;
+            uint packetSize = 64;
+            
+            List<byte> payload = new List<byte>();
+            payload.AddRange(BitConverter.GetBytes(addr));
+            payload.AddRange(BitConverter.GetBytes(size));
+            payload.AddRange(BitConverter.GetBytes(sectorSize));
+            payload.AddRange(BitConverter.GetBytes(packetSize));
+            
+            sendCommand(ESPCommand.READ_FLASH, payload.ToArray());
+            
+            // esptool: check_command waits for ACK response first
+            var cmdResp = readPacket(3000, ESPCommand.READ_FLASH);
+            if (cmdResp == null) throw new Exception("READ_FLASH command failed (no ACK)");
+            
+            // Then stub streams SLIP packets containing the data.
+            // We need to read 'size' bytes total.
+            
+            MemoryStream msFull = new MemoryStream();
+            uint received = 0;
+            
+            while(received < size)
+            {
+                 byte[] packet = readRawPacket(3000);
+                 if(packet == null) throw new Exception("Timeout reading fast flash data");
+                 
+                 msFull.Write(packet, 0, packet.Length);
+                 received += (uint)packet.Length;
+                 
+                 // Stub expects ACK: 4 bytes (bytes_received) as SLIP packet
+                 byte[] ack = BitConverter.GetBytes(received);
+                 sendRawSlip(ack);
+                 
+                 if(progress != null) progress((int)received, (int)size);
+            }
+            
+            // After data, read MD5 (16 bytes)
+            byte[] digest = readRawPacket(3000);
+            if(digest == null || digest.Length != 16) throw new Exception("Failed to read MD5 digest");
+            
+            byte[] dataBytes = msFull.ToArray();
+            using(var md5 = MD5.Create())
+            {
+                byte[] calc = md5.ComputeHash(dataBytes);
+                for(int i=0; i<16; i++)
+                {
+                    if(calc[i] != digest[i])
+                    {
+                         throw new Exception($"MD5 mismatch! Expected {BitConverter.ToString(digest)}, Calc {BitConverter.ToString(calc)}");
+                    }
+                }
+            }
+            
+            addLogLine("Flash Read MD5 verified.");
+            return dataBytes;
+        }
+
+        void sendRawSlip(byte[] data)
+        {
+             List<byte> packet = new List<byte>();
+             packet.Add(SLIP_END);
+             foreach (byte b in data)
+             {
+                 if (b == SLIP_END)
+                 {
+                     packet.Add(SLIP_ESC);
+                     packet.Add(SLIP_ESC_END);
+                 }
+                 else if (b == SLIP_ESC)
+                 {
+                     packet.Add(SLIP_ESC);
+                     packet.Add(SLIP_ESC_ESC);
+                 }
+                 else
+                 {
+                     packet.Add(b);
+                 }
+             }
+             packet.Add(SLIP_END);
+             serial.Write(packet.ToArray(), 0, packet.Count);
+        }
+
+        byte[] readRawPacket(int timeoutMs)
+        {
+             List<byte> payload = new List<byte>();
+             serial.ReadTimeout = timeoutMs;
+             long start = DateTime.Now.Ticks;
+             bool inPacket = false;
+             bool escape = false;
+
+             while((DateTime.Now.Ticks - start) / 10000 < timeoutMs)
+             {
+                 try {
+                     int bInt = serial.ReadByte();
+                     if (bInt == -1) break;
+                     byte b = (byte)bInt;
+                     
+                     if (b == SLIP_END) {
+                         if (inPacket) return payload.ToArray();
+                         inPacket = true;
+                         payload.Clear();
+                     } else if (inPacket) {
+                         if (b == SLIP_ESC) escape = true;
+                         else {
+                             if (escape) {
+                                 if (b == SLIP_ESC_END) payload.Add(SLIP_END);
+                                 else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
+                                 escape = false;
+                             } else payload.Add(b);
+                         }
+                     }
+                 } catch(TimeoutException) { }
+             }
+             return null;
+        }
+
+        public string FlashMd5Sum(uint addr, uint size)
+        {
+             // esptool: struct.pack("<IIII", addr, size, 0, 0)
+             List<byte> payload = new List<byte>();
+             payload.AddRange(BitConverter.GetBytes(addr));
+             payload.AddRange(BitConverter.GetBytes(size));
+             payload.AddRange(BitConverter.GetBytes((uint)0));
+             payload.AddRange(BitConverter.GetBytes((uint)0));
+             
+             sendCommand(ESPCommand.SPI_FLASH_MD5, payload.ToArray());
+             // esptool: timeout = timeout_per_mb(MD5_TIMEOUT_PER_MB, size)
+             // MD5_TIMEOUT_PER_MB = 8 seconds per MB, minimum 3s
+             int timeout = Math.Max(3000, (int)(8.0 * size / 1000000.0 * 1000));
+             
+             // esptool: resp_data_len = 16 for stub, 32 for ROM
+             // Stub returns 16 raw MD5 bytes, ROM returns 32 hex chars
+             int rdl = isStub ? 16 : 32;
+             var resp = readPacket(timeout, ESPCommand.SPI_FLASH_MD5, rdl);
+             if(resp != null)
+             {
+                  if (isStub)
+                  {
+                      // Stub: resp is 16 raw bytes, convert to hex string
+                      return BitConverter.ToString(resp).Replace("-","");
+                  }
+                  else
+                  {
+                      // ROM: resp is 32 hex chars as ASCII
+                      return System.Text.Encoding.ASCII.GetString(resp).ToUpper();
+                  }
+             }
+             return null;
+        }
+
+        public bool EraseFlash()
+        {
+            addLogLine("Erasing entire flash...");
+            sendCommand(ESPCommand.ERASE_FLASH, new byte[0]);
+            // This takes a LONG time. 30s+?
+            var resp = readPacket(60000, ESPCommand.ERASE_FLASH); 
+            if(resp != null) {
+                addLogLine("Erase complete.");
+                return true;
+            }
+            addErrorLine("Erase failed.");
+            return false;
         }
 
         public string ReadMac()
@@ -384,10 +796,11 @@ namespace BK7231Flasher
              try
              {
                  addLogLine("Configuring SPI flash pins (SpiAttach)...");
-                 // ESP32 ROM needs 8 bytes of 0 for SPI_ATTACH
-                 byte[] payload = new byte[8]; 
+                 // esptool: stub needs 4 bytes, ROM needs 8 bytes
+                 int payloadSize = isStub ? 4 : 8;
+                 byte[] payload = new byte[payloadSize];
                  sendCommand(ESPCommand.SPI_ATTACH, payload);
-                 var resp = readPacket(1000, ESPCommand.SPI_ATTACH);
+                 var resp = readPacket(3000, ESPCommand.SPI_ATTACH);
                  if(resp == null) 
                  {
                      addErrorLine("SPI_ATTACH failed (no response or error status).");
@@ -441,13 +854,14 @@ namespace BK7231Flasher
                 byte[] payload = new byte[8];
                 // new baud
                 Array.Copy(BitConverter.GetBytes(newBaud), 0, payload, 0, 4);
-                // old baud (requested by some chips, but 0 is safe for ROM)
-                Array.Copy(BitConverter.GetBytes((uint)0), 0, payload, 4, 4);
+                // esptool: second arg is old baud when running stub, 0 for ROM
+                int oldBaud = isStub ? serial.BaudRate : 0;
+                Array.Copy(BitConverter.GetBytes(oldBaud), 0, payload, 4, 4);
 
                 sendCommand(ESPCommand.CHANGE_BAUDRATE, payload);
                 
                 // Wait for the ACK at the current (old) baud rate
-                var resp = readPacket(1000, ESPCommand.CHANGE_BAUDRATE);
+                var resp = readPacket(3000, ESPCommand.CHANGE_BAUDRATE);
                 if (resp == null)
                 {
                     addErrorLine("Baudrate change request failed (no response)");
@@ -474,13 +888,15 @@ namespace BK7231Flasher
             // Packet: C0 [00 op len(2) checksum(4)] [data] C0
             // Inside brackets is SLIP escaped.
             
-            // Construct inner packet
+            // Construct inner packet (matches esptool struct.pack("<BBHI", 0x00, op, len(data), chk) + data)
             List<byte> inner = new List<byte>();
             inner.Add(0x00);
             inner.Add((byte)op);
             inner.AddRange(BitConverter.GetBytes((ushort)data.Length));
             inner.AddRange(BitConverter.GetBytes(checksum));
             inner.AddRange(data);
+
+            // Console.WriteLine($"[DEBUG] TX cmd=0x{(byte)op:X2} data_len={data.Length} chk=0x{checksum:X8}");
 
             // SLIP encode
             List<byte> packet = new List<byte>();
@@ -507,142 +923,122 @@ namespace BK7231Flasher
             serial.Write(packet.ToArray(), 0, packet.Count);
         }
 
-
-        byte[] readPacket(int timeoutMs = 1000, ESPCommand expectedCmd = (ESPCommand)0)
+        // resp_data_len: how many bytes of actual response data to expect before the status bytes
+        // For most commands this is 0 (status bytes are the first 2 bytes of data payload)
+        // For SPI_FLASH_MD5 with stub: 16 (16 bytes MD5 + 2 status bytes)
+        // For READ_FLASH_SLOW: 64 (64 bytes data + 2 status bytes)
+        byte[] readPacket(int timeoutMs = 1000, ESPCommand expectedCmd = (ESPCommand)0, int resp_data_len = 0)
         {
-             // Simple SLIP reader
-             List<byte> payload = new List<byte>();
-             serial.ReadTimeout = timeoutMs;
-             
-             long startTicks = DateTime.Now.Ticks;
-             
-             while(true)
-             {
-                 if(timeoutMs > 0 && (DateTime.Now.Ticks - startTicks) / 10000 > timeoutMs)
-                 {
-                     break;
-                 }
-                 
-                 payload.Clear();
-                 bool inPacket = false;
-                 bool escape = false;
-                 
-                 try 
-                 {
-                     while (true)
-                     {
-                         if(timeoutMs > 0 && (DateTime.Now.Ticks - startTicks) / 10000 > timeoutMs)
-                         {
-                             // Total timeout
-                             return null;
-                         }
+              // Unified SLIP reader + response parser - matches esptool's command() + check_command()
+              List<byte> payload = new List<byte>();
+              serial.ReadTimeout = timeoutMs;
+              
+              long startTicks = DateTime.Now.Ticks;
+              
+              // esptool tries up to 100 responses to find the matching one
+              for (int retry = 0; retry < 100; retry++)
+              {
+                  if(timeoutMs > 0 && (DateTime.Now.Ticks - startTicks) / 10000 > timeoutMs)
+                      break;
+                  
+                  payload.Clear();
+                  bool inPacket = false;
+                  bool escape = false;
+                  bool gotPacket = false;
+                  
+                  try 
+                  {
+                      while (true)
+                      {
+                          if(timeoutMs > 0 && (DateTime.Now.Ticks - startTicks) / 10000 > timeoutMs)
+                          {
+                              // Console.WriteLine($"[DEBUG] readPacket timeout for cmd 0x{(byte)expectedCmd:X2}");
+                              return null;
+                          }
 
-                         int bInt = serial.ReadByte();
-                         if (bInt == -1) break;
-                         byte b = (byte)bInt;
-    
-                         if (b == SLIP_END)
-                         {
-                             if (inPacket)
-                             {
-                                 // End of packet
-                                 byte[] res = parseResponse(payload.ToArray());
-                                 if(res != null) 
-                                 {
-                                      // Check OpCode if required
-                                      byte cmd = payload[1];
-                                      if(expectedCmd != 0 && cmd != (byte)expectedCmd)
-                                      {
-                                          // addLogLine($"Skipping unmatched response CMD {cmd:X} (wanted {(byte)expectedCmd:X})");
-                                          break; // Break inner loop to continue draining
-                                      }
-                                      return res;
-                                 }
-                                 else 
-                                 {
-                                     break; // Invalid parse, continue draining
-                                 }
-                             }
-                             else
-                             {
-                                 // Start of packet
-                                 inPacket = true;
-                                 payload.Clear();
-                             }
-                         }
-                         else if (inPacket)
-                         {
-                             if (b == SLIP_ESC)
-                             {
-                                 escape = true;
-                             }
-                             else
-                             {
-                                 if (escape)
-                                 {
-                                     if (b == SLIP_ESC_END) payload.Add(SLIP_END);
-                                     else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
-                                     escape = false;
-                                 }
-                                 else
-                                 {
-                                     payload.Add(b);
-                                 }
-                             }
-                         }
-                     }
-                 }
-                 catch(TimeoutException) { 
-                     // Inner read byte timeout, treated as loop break to check total timeout
-                 }
-             }
-             
-             return null;
-        }
+                          int bInt = serial.ReadByte();
+                          if (bInt == -1) break;
+                          byte b = (byte)bInt;
+     
+                          if (b == SLIP_END)
+                          {
+                              if (inPacket && payload.Count > 0)
+                              {
+                                  gotPacket = true;
+                                  break;
+                              }
+                              else
+                              {
+                                  inPacket = true;
+                                  payload.Clear();
+                              }
+                          }
+                          else if (inPacket)
+                          {
+                              if (b == SLIP_ESC)
+                                  escape = true;
+                              else if (escape)
+                              {
+                                  if (b == SLIP_ESC_END) payload.Add(SLIP_END);
+                                  else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
+                                  escape = false;
+                              }
+                              else
+                                  payload.Add(b);
+                          }
+                      }
+                  }
+                  catch(TimeoutException) { }
 
-        byte[] parseResponse(byte[] raw)
-        {
-            // Response format: direction(1) command(1) size(2) value(4) data(...)
-            // direction should be 0x01 (response)
-            if (raw.Length < 8) return null;
-            if (raw[0] != 0x01) return null; // Not a response?
-            
-            byte cmd = raw[1];
-            ushort size = BitConverter.ToUInt16(raw, 2);
-            uint value = BitConverter.ToUInt32(raw, 4);
-            
-            // The payload starts at index 8 and is 'size' bytes long.
-            // For most commands (except ESP8266 ROM, which we'll handle if needed), 
-            // the chip returns 2 status bytes at the end of the packet payload.
-            // These 2 bytes are NOT part of the actual data requested but are included in 'size'.
-            if (size >= 2)
-            {
-                byte status = raw[8 + size - 2];
-                byte error = raw[8 + size - 1];
-                if (status != 0)
-                {
-                    addErrorLine($"Chip returned error for CMD {cmd:X}: Status {status:X}, Error {error:X}");
-                    return null;
-                }
-            }
+                  if (!gotPacket) continue;
 
-            if (size == 0 || cmd == (byte)ESPCommand.READ_REG)
-            {
-                 return BitConverter.GetBytes(value);
-            }
+                  byte[] raw = payload.ToArray();
+                  // Console.WriteLine($"[DEBUG] RX Packet ({raw.Length}b): {BitConverter.ToString(raw)}");
 
-            // Strip the status bytes from the data
-            // For READ_FLASH_SLOW (0x0E), it seems to return 4 extra bytes (status/error/?)
-            // For others, it's 2 bytes.
-            int overhead = 2;
-            if (cmd == (byte)ESPCommand.READ_FLASH_SLOW) overhead = 4;
+                  // Parse: resp(1) op_ret(1) len_ret(2) val(4) [data...]
+                  if (raw.Length < 8) { /* Console.WriteLine($"[DEBUG] Packet too short: {raw.Length}"); */ continue; }
+                  byte resp = raw[0];
+                  byte op_ret = raw[1];
+                  uint val = BitConverter.ToUInt32(raw, 4);
+                  byte[] data = new byte[raw.Length - 8];
+                  if (data.Length > 0) Array.Copy(raw, 8, data, 0, data.Length);
 
-            int dataLen = size - overhead;
-            if (dataLen < 0) dataLen = 0;
-            byte[] data = new byte[dataLen];
-            Array.Copy(raw, 8, data, 0, dataLen);
-            
-            return data;
+                  if (resp != 0x01) { /* Console.WriteLine($"[DEBUG] Not a response (0x{resp:X2})"); */ continue; }
+                  if (expectedCmd != 0 && op_ret != (byte)expectedCmd)
+                  {
+                      // Console.WriteLine($"[DEBUG] CMD mismatch: got 0x{op_ret:X2}, want 0x{(byte)expectedCmd:X2}");
+                      continue;
+                  }
+
+                  // check_command: status_bytes = data[resp_data_len : resp_data_len + 2]
+                  if (data.Length < resp_data_len + 2)
+                  {
+                      if (data.Length >= 2 && data[0] != 0)
+                      {
+                          addErrorLine($"CMD 0x{op_ret:X2} error: status=0x{data[0]:X2} err=0x{data[1]:X2}");
+                          return null;
+                      }
+                      return BitConverter.GetBytes(val);
+                  }
+
+                  if (data[resp_data_len] != 0)
+                  {
+                      addErrorLine($"CMD 0x{op_ret:X2} error: status=0x{data[resp_data_len]:X2} err=0x{data[resp_data_len+1]:X2}");
+                      return null;
+                  }
+
+                  // if resp_data_len > 0: return data[:resp_data_len], else: return val
+                  if (resp_data_len > 0)
+                  {
+                      byte[] result = new byte[resp_data_len];
+                      Array.Copy(data, 0, result, 0, resp_data_len);
+                      return result;
+                  }
+                  return BitConverter.GetBytes(val);
+              }
+              
+              // Console.WriteLine($"[DEBUG] readPacket exhausted for cmd 0x{(byte)expectedCmd:X2}");
+              return null;
         }
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
@@ -680,6 +1076,35 @@ namespace BK7231Flasher
                 ms = new MemoryStream();
                 uint startAddr = (uint)startSector * 0x1000;
                 uint totalSize = (uint)sectors * 0x1000;
+
+                // Try stub for faster reads
+                if (!LegacyMode && UploadStub())
+                {
+                    // Re-attach SPI after stub starts
+                    SpiAttach();
+                    if (baudrate > 115200)
+                    {
+                        ChangeBaudrate(baudrate);
+                    }
+
+                    try
+                    {
+                        byte[] flashData = ReadFlashFast(startAddr, totalSize, (received, total) =>
+                        {
+                            logger.setProgress(received, total);
+                        });
+                        ms.Write(flashData, 0, flashData.Length);
+                        addLogLine("Flash Read Complete (stub mode).");
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        addErrorLine("Fast read failed: " + ex.Message);
+                        addLogLine("Falling back to slow read...");
+                    }
+                }
+
+                // Slow read fallback (ROM only, 64 bytes at a time)
                 uint blockSize = 64; // Max safe size for ROM READ_FLASH_SLOW
 
                 uint currentAddr = startAddr;
@@ -692,29 +1117,12 @@ namespace BK7231Flasher
                     if (block == null)
                     {
                         addErrorLine($"Failed to read block at 0x{currentAddr:X}");
-                        // Retry matching esptool behavior? For now, abort.
                         return;
                     }
 
-                    bool bDump = true;
                     if (block.Length != toRead)
                     {
                          addWarningLine($"Read mismatch at 0x{currentAddr:X}: Request {toRead}, Got {block.Length}");
-                    }
-                    if (bDump)
-                    {
-                        addLogLine("Dump of received block:");
-                        string s = "";
-                        for (int i = 0; i < block.Length; i++)
-                        {
-                            s += block[i].ToString("X2") + " ";
-                            if (s.Length > 80)
-                            {
-                                addLogLine(s);
-                                s = "";
-                            }
-                        }
-                        if (s.Length > 0) addLogLine(s);
                     }
                     // If we got 0, we can't progress. Avoid infinite loop.
                     if (block.Length == 0)
@@ -754,6 +1162,20 @@ namespace BK7231Flasher
                     {
                         addErrorLine("Aborting due to baud rate change failure.");
                         return;
+                    }
+                }
+
+                // Try stub for faster writes
+                if (!LegacyMode)
+                {
+                    UploadStub();
+                    if (isStub)
+                    {
+                        SpiAttach();
+                        if (baudrate > 115200)
+                        {
+                            ChangeBaudrate(baudrate);
+                        }
                     }
                 }
 
@@ -800,10 +1222,21 @@ namespace BK7231Flasher
                     byte checksum = 0xEF;
                     foreach (byte b in block) checksum ^= b;
 
-                    sendCommand(ESPCommand.FLASH_DATA, dataPayload.ToArray(), checksum);
-                    if (readPacket(3000, ESPCommand.FLASH_DATA) == null)
+                    bool success = false;
+                    for (int retry = 0; retry < 3; retry++)
                     {
-                        addErrorLine($"FLASH_DATA failed at block {i}.");
+                        sendCommand(ESPCommand.FLASH_DATA, dataPayload.ToArray(), checksum);
+                        if (readPacket(3000, ESPCommand.FLASH_DATA) != null)
+                        {
+                            success = true;
+                            break;
+                        }
+                        addWarningLine($"FLASH_DATA failed at block {i}, retry {retry+1}...");
+                    }
+
+                    if (!success)
+                    {
+                        addErrorLine($"FLASH_DATA failed at block {i} after 3 retries.");
                         return;
                     }
 
@@ -815,6 +1248,28 @@ namespace BK7231Flasher
                 readPacket(1000, ESPCommand.FLASH_END);
 
                 addLogLine("Flash Write Complete.");
+                
+                if (isStub)
+                {
+                     addLogLine("Verifying write with MD5...");
+                     try
+                     {
+                         using(var md5 = MD5.Create())
+                         {
+                             byte[] calc = md5.ComputeHash(data);
+                             string expected = BitConverter.ToString(calc).Replace("-","");
+                             
+                             string actual = FlashMd5Sum(offset, (uint)data.Length);
+                             if(actual == null) addErrorLine("Failed to get Flash MD5");
+                             else if(actual != expected) addErrorLine($"MD5 Mismatch! Expected {expected}, Got {actual}");
+                             else addLogLine("Write Verified Successfully!");
+                         }
+                     }
+                     catch(Exception ex)
+                     {
+                         addErrorLine("Verification exception: " + ex.Message);
+                     }
+                }
             }
         }
     }
