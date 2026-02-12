@@ -6,6 +6,7 @@ using System.IO.Ports;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Diagnostics;
 
 namespace BK7231Flasher
 {
@@ -104,7 +105,9 @@ namespace BK7231Flasher
             {
                 if (serial == null)
                 {
-                    serial = new SerialPort(serialName, baudrate);
+                    // ESP32 ROM bootloader always starts at 115200.
+                    // We sync at 115200, then change baud after stub upload.
+                    serial = new SerialPort(serialName, 115200);
                     serial.Open();
                 }
                 serial.DiscardInBuffer();
@@ -1045,14 +1048,6 @@ namespace BK7231Flasher
         {
             if (Connect())
             {
-                if (baudrate > 115200)
-                {
-                    if (!ChangeBaudrate(baudrate))
-                    {
-                        addErrorLine("Aborting due to baud rate change failure.");
-                        return;
-                    }
-                }
                 GetChipId();
                 ReadMac();
                 uint? fid = ReadFlashId();
@@ -1074,6 +1069,7 @@ namespace BK7231Flasher
 
                 addLogLine($"Starting Flash Read: {sectors} sectors from 0x{startSector:X}...");
                 ms = new MemoryStream();
+                var swRead = Stopwatch.StartNew();
                 uint startAddr = (uint)startSector * 0x1000;
                 uint totalSize = (uint)sectors * 0x1000;
 
@@ -1094,6 +1090,11 @@ namespace BK7231Flasher
                             logger.setProgress(received, total);
                         });
                         ms.Write(flashData, 0, flashData.Length);
+                        swRead.Stop();
+                        double secsFast = swRead.Elapsed.TotalSeconds;
+                        double kbitsFast = (totalSize * 8.0 / 1000.0) / secsFast;
+                        double kbytesFast = (totalSize / 1024.0) / secsFast;
+                        addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsFast:F1}s ({kbitsFast:F1} kbit/s, {kbytesFast:F1} KB/s)");
                         addLogLine("Flash Read Complete (stub mode).");
                         return;
                     }
@@ -1135,6 +1136,11 @@ namespace BK7231Flasher
                     currentAddr += (uint)block.Length;
                     logger.setProgress((int)(currentAddr - startAddr), (int)totalSize);
                 }
+                swRead.Stop();
+                double secsSlow = swRead.Elapsed.TotalSeconds;
+                double kbitsSlow = (totalSize * 8.0 / 1000.0) / secsSlow;
+                double kbytesSlow = (totalSize / 1024.0) / secsSlow;
+                addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsSlow:F1}s ({kbitsSlow:F1} kbit/s, {kbytesSlow:F1} KB/s)");
                 addLogLine("Flash Read Complete.");
             }
         }
@@ -1156,14 +1162,6 @@ namespace BK7231Flasher
         {
             if (Connect())
             {
-                if (baudrate > 115200)
-                {
-                    if (!ChangeBaudrate(baudrate))
-                    {
-                        addErrorLine("Aborting due to baud rate change failure.");
-                        return;
-                    }
-                }
 
                 // Try stub for faster writes
                 if (!LegacyMode)
@@ -1183,6 +1181,7 @@ namespace BK7231Flasher
                 uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
 
                 addLogLine($"Starting Flash Write: {data.Length} bytes ({numBlocks} blocks) at 0x{offset:X}...");
+                var swWrite = Stopwatch.StartNew();
 
                 // FLASH_BEGIN: size, numBlocks, blockSize, offset
                 List<byte> beginPayload = new List<byte>();
@@ -1247,6 +1246,11 @@ namespace BK7231Flasher
                 sendCommand(ESPCommand.FLASH_END, BitConverter.GetBytes((uint)0));
                 readPacket(1000, ESPCommand.FLASH_END);
 
+                swWrite.Stop();
+                double secsWrite = swWrite.Elapsed.TotalSeconds;
+                double kbitsWrite = (data.Length * 8.0 / 1000.0) / secsWrite;
+                double kbytesWrite = (data.Length / 1024.0) / secsWrite;
+                addLogLine($"Wrote {data.Length} bytes at 0x{offset:X8} in {secsWrite:F1}s ({kbitsWrite:F1} kbit/s, {kbytesWrite:F1} KB/s)");
                 addLogLine("Flash Write Complete.");
                 
                 if (isStub)
