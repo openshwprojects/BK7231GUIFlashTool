@@ -422,6 +422,7 @@ namespace BK7231Flasher
                 return false;
             }
 
+            logger.setState("Uploading stub...", Color.LightBlue);
             addLogLine("Uploading stub flasher...");
             try
             {
@@ -814,6 +815,7 @@ namespace BK7231Flasher
 
         public bool Connect()
         {
+            logger.setState("Connecting to ESP32...", Color.Yellow);
             addLogLine("Attempting to connect to ESP32...");
             if(!openPort())
             {
@@ -830,6 +832,7 @@ namespace BK7231Flasher
 
             if (Sync())
             {
+                logger.setState("ESP32 synced", Color.LightGreen);
                 addSuccess(Environment.NewLine + "Synced with ESP32!" + Environment.NewLine);
                 if (!SpiAttach())
                 {
@@ -1118,6 +1121,7 @@ namespace BK7231Flasher
                     sectors = (int)(flashSize / 0x1000);
                 }
 
+                logger.setState("Reading flash...", Color.LightBlue);
                 addLogLine($"Starting Flash Read: {sectors} sectors from 0x{startSector:X}...");
                 ms = new MemoryStream();
                 var swRead = Stopwatch.StartNew();
@@ -1147,10 +1151,12 @@ namespace BK7231Flasher
                         double kbytesFast = (totalSize / 1024.0) / secsFast;
                         addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsFast:F1}s ({kbitsFast:F1} kbit/s, {kbytesFast:F1} KB/s)");
                         addLogLine("Flash Read Complete (stub mode).");
+                        logger.setState("Read complete", Color.LightGreen);
                         return;
                     }
                     catch (Exception ex)
                     {
+                        logger.setState("Read error", Color.Red);
                         addErrorLine("Fast read failed: " + ex.Message);
                         addLogLine("Falling back to slow read...");
                     }
@@ -1193,6 +1199,7 @@ namespace BK7231Flasher
                 double kbytesSlow = (totalSize / 1024.0) / secsSlow;
                 addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsSlow:F1}s ({kbitsSlow:F1} kbit/s, {kbytesSlow:F1} KB/s)");
                 addLogLine("Flash Read Complete.");
+                logger.setState("Read complete", Color.LightGreen);
             }
         }
 
@@ -1231,6 +1238,7 @@ namespace BK7231Flasher
                 uint blockSize = 0x400; // 1024 bytes
                 uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
 
+                logger.setState("Writing flash...", Color.LightBlue);
                 addLogLine($"Starting Flash Write: {data.Length} bytes ({numBlocks} blocks) at 0x{offset:X}...");
                 var swWrite = Stopwatch.StartNew();
 
@@ -1303,9 +1311,11 @@ namespace BK7231Flasher
                 double kbytesWrite = (data.Length / 1024.0) / secsWrite;
                 addLogLine($"Wrote {data.Length} bytes at 0x{offset:X8} in {secsWrite:F1}s ({kbitsWrite:F1} kbit/s, {kbytesWrite:F1} KB/s)");
                 addLogLine("Flash Write Complete.");
+                logger.setState("Write complete", Color.LightGreen);
                 
                 if (isStub)
                 {
+                     logger.setState("Verifying MD5...", Color.LightBlue);
                      addLogLine("Verifying write with MD5...");
                      try
                      {
@@ -1317,7 +1327,7 @@ namespace BK7231Flasher
                              string actual = FlashMd5Sum(offset, (uint)data.Length);
                              if(actual == null) addErrorLine("Failed to get Flash MD5");
                              else if(actual != expected) addErrorLine($"MD5 Mismatch! Expected {expected}, Got {actual}");
-                             else addLogLine("Write Verified Successfully!");
+                             else { addLogLine("Write Verified Successfully!"); logger.setState("Write verified", Color.LightGreen); }
                          }
                      }
                      catch(Exception ex)
