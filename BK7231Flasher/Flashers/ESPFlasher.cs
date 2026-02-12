@@ -425,21 +425,8 @@ namespace BK7231Flasher
             addLogLine("Uploading stub flasher...");
             try
             {
-                // Load stub from esptool JSON
-                string stubPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
-                    "references", "esptool", "targets", "stub_flasher", "1", "esp32.json");
-                if (!File.Exists(stubPath))
-                {
-                    // Try relative to working directory
-                    stubPath = Path.Combine("references", "esptool", "targets", "stub_flasher", "1", "esp32.json");
-                }
-                if (!File.Exists(stubPath))
-                {
-                    addErrorLine("Stub JSON not found: " + stubPath);
-                    return false;
-                }
-
-                string jsonContent = File.ReadAllText(stubPath);
+                // Load stub from embedded resource (Floaders/ESP32_Stub.json)
+                string jsonContent = FLoaders.GetStringFromAssembly("ESP32_Stub");
                 
                 // Simple JSON parsing for our known fields
                 string textB64 = ExtractJsonString(jsonContent, "text");
