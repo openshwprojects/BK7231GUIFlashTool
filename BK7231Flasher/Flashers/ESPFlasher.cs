@@ -109,7 +109,14 @@ namespace BK7231Flasher
                     // ESP32 ROM bootloader always starts at 115200.
                     // We sync at 115200, then change baud after stub upload.
                     serial = new SerialPort(serialName, 115200);
+                    serial.ReadBufferSize = 32768;
                     serial.Open();
+                }
+                else
+                {
+                    // Reset baud to 115200 for ROM bootloader sync
+                    // (port may still be at a higher baud from a previous operation)
+                    serial.BaudRate = 115200;
                 }
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
@@ -591,7 +598,9 @@ namespace BK7231Flasher
             
             // Pre-allocate the full result buffer - zero copy path
             byte[] dataBytes = new byte[size];
+            byte[] ackBuf = new byte[4];
             uint received = 0;
+            uint lastProgress = 0;
             
             while(received < size)
             {
@@ -601,10 +610,18 @@ namespace BK7231Flasher
                  received += (uint)got;
                  
                  // Stub expects ACK: 4 bytes (bytes_received) as SLIP packet
-                 byte[] ack = BitConverter.GetBytes(received);
-                 sendRawSlip(ack);
+                 ackBuf[0] = (byte)(received);
+                 ackBuf[1] = (byte)(received >> 8);
+                 ackBuf[2] = (byte)(received >> 16);
+                 ackBuf[3] = (byte)(received >> 24);
+                 sendRawSlip(ackBuf);
                  
-                 if(progress != null) progress((int)received, (int)size);
+                 // Batch progress to every 4KB to reduce callback overhead
+                 if(progress != null && (received - lastProgress >= 4096 || received >= size))
+                 {
+                     progress((int)received, (int)size);
+                     lastProgress = received;
+                 }
             }
             
             // After data, read MD5 (16 bytes)
@@ -657,13 +674,11 @@ namespace BK7231Flasher
         int readRawPacketInto(byte[] dest, int destOffset, int timeoutMs)
         {
              serial.ReadTimeout = timeoutMs;
-             long start = DateTime.Now.Ticks;
              bool inPacket = false;
              bool escape = false;
              int written = 0;
 
-
-             while((DateTime.Now.Ticks - start) / 10000 < timeoutMs)
+             while(true)
              {
                  try {
                      int waiting = serial.BytesToRead;
@@ -692,7 +707,7 @@ namespace BK7231Flasher
                              }
                          }
                      }
-                 } catch(TimeoutException) { }
+                 } catch(TimeoutException) { return -1; }
              }
              return -1;
         }
@@ -701,12 +716,10 @@ namespace BK7231Flasher
         {
              List<byte> payload = new List<byte>();
              serial.ReadTimeout = timeoutMs;
-             long start = DateTime.Now.Ticks;
              bool inPacket = false;
              bool escape = false;
 
-
-             while((DateTime.Now.Ticks - start) / 10000 < timeoutMs)
+             while(true)
              {
                  try {
                      int waiting = serial.BytesToRead;
@@ -732,7 +745,7 @@ namespace BK7231Flasher
                              }
                          }
                      }
-                 } catch(TimeoutException) { }
+                 } catch(TimeoutException) { break; }
              }
              return null;
         }
@@ -1002,45 +1015,48 @@ namespace BK7231Flasher
                       while (true)
                       {
                           if(timeoutMs > 0 && (DateTime.Now.Ticks - startTicks) / 10000 > timeoutMs)
-                          {
-                              // Console.WriteLine($"[DEBUG] readPacket timeout for cmd 0x{(byte)expectedCmd:X2}");
                               return null;
-                          }
 
-                          int bInt = serial.ReadByte();
-                          if (bInt == -1) break;
-                          byte b = (byte)bInt;
-     
-                          if (b == SLIP_END)
+                          int waiting = serial.BytesToRead;
+                          int toRead = waiting > 0 ? Math.Min(waiting, _slipBuf.Length) : 1;
+                          int count = serial.Read(_slipBuf, 0, toRead);
+                          if (count <= 0) break;
+
+                          for (int i = 0; i < count; i++)
                           {
-                              if (inPacket && payload.Count > 0)
+                              byte b = _slipBuf[i];
+                              if (b == SLIP_END)
                               {
-                                  gotPacket = true;
-                                  break;
+                                  if (inPacket && payload.Count > 0)
+                                  {
+                                      gotPacket = true;
+                                      goto packetDone;
+                                  }
+                                  else
+                                  {
+                                      inPacket = true;
+                                      payload.Clear();
+                                  }
                               }
-                              else
+                              else if (inPacket)
                               {
-                                  inPacket = true;
-                                  payload.Clear();
+                                  if (b == SLIP_ESC)
+                                      escape = true;
+                                  else if (escape)
+                                  {
+                                      if (b == SLIP_ESC_END) payload.Add(SLIP_END);
+                                      else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
+                                      escape = false;
+                                  }
+                                  else
+                                      payload.Add(b);
                               }
-                          }
-                          else if (inPacket)
-                          {
-                              if (b == SLIP_ESC)
-                                  escape = true;
-                              else if (escape)
-                              {
-                                  if (b == SLIP_ESC_END) payload.Add(SLIP_END);
-                                  else if (b == SLIP_ESC_ESC) payload.Add(SLIP_ESC);
-                                  escape = false;
-                              }
-                              else
-                                  payload.Add(b);
                           }
                       }
                   }
                   catch(TimeoutException) { }
 
+                  packetDone:
                   if (!gotPacket) continue;
 
                   byte[] raw = payload.ToArray();
