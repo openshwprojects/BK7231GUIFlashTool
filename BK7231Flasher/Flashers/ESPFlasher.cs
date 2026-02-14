@@ -812,117 +812,25 @@ namespace BK7231Flasher
                  return null;
              }
         }
-        void SetControlLineDTR(bool state, bool swapDtrRts)
-        {
-            // Default wiring (as per esptool ClassicReset): DTR -> IO0, RTS -> EN.
-            // Some boards/adapters swap these lines; swapDtrRts allows a best-effort fallback.
-            if (!swapDtrRts)
-            {
-                serial.DtrEnable = state;
-            }
-            else
-            {
-                serial.RtsEnable = state;
-            }
-        }
-
-        void SetControlLineRTS(bool state, bool swapDtrRts)
-        {
-            if (!swapDtrRts)
-            {
-                serial.RtsEnable = state;
-            }
-            else
-            {
-                serial.DtrEnable = state;
-            }
-
-            // esptool has a Windows usbser.sys work-around: after setting RTS, also "touch" DTR
-            // so the control-line-state request is sent with the updated RTS state.
-            // Keep this as best-effort (some drivers ignore no-op sets).
-            try
-            {
-                if (!swapDtrRts)
-                    serial.DtrEnable = serial.DtrEnable;
-                else
-                    serial.RtsEnable = serial.RtsEnable;
-            }
-            catch { }
-        }
-
-        void ResetToBootloaderClassic(bool swapDtrRts)
-        {
-            // Match esptool ClassicReset sequence as closely as SerialPort allows.
-            // DTR=False (IO0=HIGH), RTS=True (EN=LOW), wait; DTR=True (IO0=LOW), RTS=False (EN=HIGH), wait; DTR=False.
-            SetControlLineDTR(false, swapDtrRts); // IO0=HIGH
-            SetControlLineRTS(true, swapDtrRts);  // EN=LOW (reset asserted)
-            Thread.Sleep(100);
-
-            SetControlLineDTR(true, swapDtrRts);  // IO0=LOW (boot strap asserted)
-            SetControlLineRTS(false, swapDtrRts); // EN=HIGH (release reset)
-            Thread.Sleep(50); // esptool default reset_delay is 0.05s
-
-            SetControlLineDTR(false, swapDtrRts); // IO0=HIGH (done)
-            Thread.Sleep(50);
-        }
-
-        bool TryConnectWithReset(bool swapDtrRts)
-        {
-            try
-            {
-                addLogLine(swapDtrRts ? "Reset-to-bootloader: trying swapped DTR/RTS mapping..." : "Reset-to-bootloader: trying default DTR/RTS mapping...");
-                ResetToBootloaderClassic(swapDtrRts);
-                serial.DiscardInBuffer();
-                serial.DiscardOutBuffer();
-            }
-            catch (Exception ex)
-            {
-                addLogLine("Reset-to-bootloader failed: " + ex.Message);
-            }
-
-            return Sync();
-        }
-
-
 
         public bool Connect()
         {
             logger.setState("Connecting to ESP32...", Color.Yellow);
             addLogLine("Attempting to connect to ESP32...");
-            if (!openPort())
+            if(!openPort())
             {
                 return false;
             }
 
-            bool synced = false;
+            // Reset strategy: DTR=0, RTS=1 -> DTR=1, RTS=0
+            serial.DtrEnable = false;
+            serial.RtsEnable = true;
+            Thread.Sleep(100);
+            serial.DtrEnable = true;
+            serial.RtsEnable = false;
+            Thread.Sleep(500);
 
-            // esptool default behavior is to try resetting into bootloader mode using DTR/RTS,
-            // but some boards/adapters wire these differently. Try the classic sequence first,
-            // then a swapped mapping fallback, then finally try without any toggling.
-            synced = TryConnectWithReset(false);
-
-            if (!synced)
-            {
-                synced = TryConnectWithReset(true);
-            }
-
-            if (!synced)
-            {
-                addLogLine("Reset-to-bootloader: trying no-reset (no DTR/RTS toggles)...");
-                try
-                {
-                    serial.DtrEnable = false;
-                    serial.RtsEnable = false;
-                    Thread.Sleep(50);
-                    serial.DiscardInBuffer();
-                    serial.DiscardOutBuffer();
-                }
-                catch { }
-
-                synced = Sync();
-            }
-
-            if (synced)
+            if (Sync())
             {
                 logger.setState("ESP32 synced", Color.LightGreen);
                 addSuccess(Environment.NewLine + "Synced with ESP32!" + Environment.NewLine);
@@ -933,10 +841,9 @@ namespace BK7231Flasher
                 }
                 return true;
             }
-
-            addErrorLine("Failed to sync with ESP32.");
-            return false;
+            return false; // Placeholder return
         }
+
 
         bool SpiAttach()
         {
