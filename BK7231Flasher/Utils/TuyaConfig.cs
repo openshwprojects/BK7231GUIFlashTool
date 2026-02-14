@@ -51,7 +51,7 @@ namespace BK7231Flasher
 
         int magicPosition = -1;
         byte[] descryptedRaw;
-        // Always holds the decrypted config blob produced by TryVaultExtract() (vault) or alternate extractors (e.g. ESP8266 PSM).
+        // Always holds the decrypted KV-pages blob produced by TryVaultExtract().
         // Enhanced extraction must only operate on this buffer (never on the full original flash dump).
         byte[] vaultDecryptedRaw;
         byte[] original;
@@ -482,6 +482,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             idx = null;
 
+            bool vaultMagicHeaderNotFound = false;
+
             try
             {
                 // Layout mirrors the Tuya KVStorage DataBlock.IndexPage layout, but some firmwares
@@ -675,7 +677,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
         bool bLastBinaryOBKConfig;
         bool bGivenBinaryIsFullOf0xff;
-        bool bVaultMagicHeaderNotFound;
         // warn users that they have erased flash sector with cfg
         public bool isLastBinaryFullOf0xff()
         {
@@ -690,7 +691,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             descryptedRaw = null;
             vaultDecryptedRaw = null;
-            bVaultMagicHeaderNotFound = false;
             original = data;
             if (isFullOf(data, 0xff))
             {
@@ -709,8 +709,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             {
                 if(TryVaultExtract(data)) return false;
                 if(TryExtractPSM(data)) return false;
-                if(bVaultMagicHeaderNotFound)
-                    FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
             }
             finally
             {
@@ -721,6 +719,11 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
                     File.WriteAllBytes(debugName, descryptedRaw);
                 }
+            }
+
+            if(vaultMagicHeaderNotFound)
+            {
+                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
             }
 
             return true;
@@ -734,7 +737,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
             {
-                bVaultMagicHeaderNotFound = true;
+                vaultMagicHeaderNotFound = true;
                 return false;
             }
 
@@ -902,10 +905,10 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             if(TryLocatePsm(vaultData, null, out magicPosition, out descryptedRaw))
             {
-                vaultDecryptedRaw = descryptedRaw;
                 FormMain.Singleton.addLog(
                     $"Found plaintext PSM at 0x{magicPosition:X}" + Environment.NewLine,
                     System.Drawing.Color.DarkSlateGray);
+                vaultDecryptedRaw = descryptedRaw;
                 return true;
             }
 
@@ -915,12 +918,11 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             if(!TryLocatePsm(vaultData, psmAesKey, out magicPosition, out descryptedRaw))
                 return false;
 
-            vaultDecryptedRaw = descryptedRaw;
-
             FormMain.Singleton.addLog(
                 $"Found AES PSM at 0x{magicPosition:X}" + Environment.NewLine,
                 System.Drawing.Color.DarkSlateGray);
 
+            vaultDecryptedRaw = descryptedRaw;
             return true;
         }
 
