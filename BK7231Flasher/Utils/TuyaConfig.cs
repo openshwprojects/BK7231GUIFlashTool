@@ -337,6 +337,90 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             return buf[i] == (byte)'P' && buf[i + 1] == (byte)'S' && buf[i + 2] == (byte)'M' && buf[i + 3] == (byte)'1';
         }
 
+        static bool LooksLikePsmKeyValueTable(byte[] buf)
+        {
+            if (buf == null || buf.Length < 128)
+                return false;
+
+            // Heuristic: scan a capped prefix and look for multiple printable "key=value" segments
+            // separated by NUL/0xFF padding. This reduces false positives when we fail the normal vault extractor.
+            int max = Math.Min(buf.Length, SECTOR_SIZE * 32); // cap scan to 128KB
+            int i = 0;
+            int pairs = 0;
+            bool hasKnown = false;
+
+            while (i < max)
+            {
+                while (i < max && (buf[i] == 0x00 || buf[i] == 0xFF))
+                    i++;
+
+                int start = i;
+
+                while (i < max && buf[i] != 0x00 && buf[i] != 0xFF)
+                    i++;
+
+                int end = i;
+                int len = end - start;
+                if (len < 6)
+                    continue;
+
+                // Must be mostly printable ASCII (plus whitespace).
+                int printable = 0;
+                for (int k = start; k < end; k++)
+                {
+                    byte b = buf[k];
+                    if (b == 0x09 || b == 0x0A || b == 0x0D || (b >= 0x20 && b <= 0x7E))
+                        printable++;
+                }
+
+                if (printable < (len * 9) / 10)
+                    continue;
+
+                int eq = -1;
+                for (int k = start; k < end; k++)
+                {
+                    if (buf[k] == (byte)'=')
+                    {
+                        eq = k;
+                        break;
+                    }
+                }
+
+                if (eq <= start || eq >= end - 1)
+                    continue;
+
+                int keyLen = eq - start;
+                if (keyLen <= 0 || keyLen > 96)
+                    continue;
+
+                pairs++;
+
+                if (!hasKnown)
+                {
+                    int klen = Math.Min(keyLen, 96);
+                    string key = Encoding.ASCII.GetString(buf, start, klen);
+
+                    if (key.IndexOf("local_key", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("ssid", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("passwd", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("ty_ws_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("gw_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("device_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("ESP.", StringComparison.Ordinal) >= 0)
+                    {
+                        hasKnown = true;
+                    }
+                }
+
+                // Quick accept thresholds.
+                if ((pairs >= 3 && hasKnown) || pairs >= 10)
+                    return true;
+            }
+
+            return false;
+        }
+
+
         static string NormalizePsmKey(string key)
         {
             if (string.IsNullOrWhiteSpace(key))
@@ -1042,30 +1126,43 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             psmData = null;
 
             using var aes = aesKey != null ? Aes.Create() : null;
-            ICryptoTransform dec = null;
 
-            if(aes != null)
+            if (aes != null)
             {
                 aes.Mode = CipherMode.ECB;
                 aes.Padding = PaddingMode.None;
                 aes.KeySize = 128;
                 aes.Key = aesKey;
-                dec = aes.CreateDecryptor();
             }
 
-            for(int ofs = 0; ofs + 16 < data.Length; ofs += SECTOR_SIZE)
+            using var dec = aes != null ? aes.CreateDecryptor() : null;
+
+            for (int ofs = 0; ofs + 16 <= data.Length; ofs += SECTOR_SIZE)
             {
                 var hdr = new byte[16];
                 Array.Copy(data, ofs, hdr, 0, 16);
 
-                if(dec != null)
+                if (dec != null)
                     hdr = dec.TransformFinalBlock(hdr, 0, 16);
 
-                if(!(hdr[0] == 'P' && hdr[1] == 'S' && hdr[2] == 'M'))
+                // Require strict PSM1 header to avoid false positives.
+                if (!(hdr[0] == (byte)'P' && hdr[1] == (byte)'S' && hdr[2] == (byte)'M' && hdr[3] == (byte)'1'))
+                    continue;
+
+                var region = ExtractPsmRegion(data, ofs, dec);
+
+                // Validate the extracted region looks like a PSM key=value table.
+                if (region == null || region.Length < 128)
+                    continue;
+
+                if (!LooksLikePsmBlob(region))
+                    continue;
+
+                if (!LooksLikePsmKeyValueTable(region))
                     continue;
 
                 foundOffset = ofs;
-                psmData = ExtractPsmRegion(data, ofs, dec);
+                psmData = region;
                 return true;
             }
 
@@ -1121,11 +1218,11 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             key = null;
 
-            for(byte mac4 = 0; mac4 < byte.MaxValue; mac4++)
+            for(int mac4 = 0; mac4 <= 0xFF; mac4++)
             {
                 var k = new byte[16];
                 Encoding.ASCII.GetBytes("Qby6").CopyTo(k, 0);
-                k[4] = mac4;
+                k[4] = (byte)mac4;
                 Encoding.ASCII.GetBytes("TH9bj8GiexU").CopyTo(k, 5);
 
                 if(TryLocatePsm(data, k, out _, out _))
