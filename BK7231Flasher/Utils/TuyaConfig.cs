@@ -45,6 +45,7 @@ namespace BK7231Flasher
         const int USUAL_LN8825_MAGIC_POSITION = 1994752;
         const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
         const int USUAL_BK7252_MAGIC_POSITION = 3764224;
+        const int USUAL_ESP8266_MAGIC_POSITION = 503808 ;
 
         const int KVHeaderSize = 0x12;
 
@@ -263,7 +264,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             {
                 byte b = pageData[i];
                 if(!(b == 0 || (b >= 0x20 && b <= 0x7E)))
-                	return false;
+                    return false;
                 if(b == 0)
                     break;
                 keyBytes.Add(b);
@@ -705,6 +706,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             try
             {
                 if(TryVaultExtract(data)) return false;
+                if(TryExtractPSM(data)) return false;
             }
             finally
             {
@@ -890,6 +892,131 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
             return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
+        }
+
+        bool TryExtractPSM(byte[] vaultData)
+        {
+            if(TryLocatePsm(vaultData, null, out magicPosition, out descryptedRaw))
+            {
+                FormMain.Singleton.addLog(
+                    $"Found plaintext PSM at 0x{magicPosition:X}" + Environment.NewLine,
+                    System.Drawing.Color.DarkSlateGray);
+                return true;
+            }
+
+            if(!TryFindPsmKeyByBruteforce(vaultData, out var psmAesKey))
+                return false;
+
+            if(!TryLocatePsm(vaultData, psmAesKey, out magicPosition, out descryptedRaw))
+                return false;
+
+            FormMain.Singleton.addLog(
+                $"Found AES PSM at 0x{magicPosition:X}" + Environment.NewLine,
+                System.Drawing.Color.DarkSlateGray);
+
+            return true;
+        }
+
+        bool TryLocatePsm(byte[] data, byte[] aesKey, out int foundOffset, out byte[] psmData)
+        {
+            foundOffset = -1;
+            psmData = null;
+
+            using var aes = aesKey != null ? Aes.Create() : null;
+            ICryptoTransform dec = null;
+
+            if(aes != null)
+            {
+                aes.Mode = CipherMode.ECB;
+                aes.Padding = PaddingMode.None;
+                aes.KeySize = 128;
+                aes.Key = aesKey;
+                dec = aes.CreateDecryptor();
+            }
+
+            for(int ofs = 0; ofs + 16 < data.Length; ofs += SECTOR_SIZE)
+            {
+                var hdr = new byte[16];
+                Array.Copy(data, ofs, hdr, 0, 16);
+
+                if(dec != null)
+                    hdr = dec.TransformFinalBlock(hdr, 0, 16);
+
+                if(!(hdr[0] == 'P' && hdr[1] == 'S' && hdr[2] == 'M'))
+                    continue;
+
+                foundOffset = ofs;
+                psmData = ExtractPsmRegion(data, ofs, dec);
+                return true;
+            }
+
+            return false;
+        }
+
+        byte[] ExtractPsmRegion(byte[] data, int start, ICryptoTransform dec)
+        {
+            using var ms = new MemoryStream();
+            int misses = 0;
+
+            for(int ofs = start; ofs + SECTOR_SIZE <= data.Length; ofs += SECTOR_SIZE)
+            {
+                var buf = new byte[SECTOR_SIZE];
+                Array.Copy(data, ofs, buf, 0, SECTOR_SIZE);
+
+                if(dec != null)
+                    buf = dec.TransformFinalBlock(buf, 0, SECTOR_SIZE);
+
+                if(LooksLikePsm(buf))
+                {
+                    ms.Write(buf, 0, buf.Length);
+                    misses = 0;
+                }
+                else
+                {
+                    misses++;
+                    if(misses >= 2)
+                        break;
+                }
+            }
+
+            return ms.ToArray();
+        }
+
+        bool LooksLikePsm(byte[] buf)
+        {
+            var needles = new[]
+            {
+                "ty_ws_", "device_", "gw_", "local_key",
+                "ssid", "passwd", "ESP."
+            };
+
+            var s = Encoding.ASCII.GetString(buf);
+            foreach(var n in needles)
+                if(s.Contains(n))
+                    return true;
+
+            return buf[0] == 'P' && buf[1] == 'S' && buf[2] == 'M';
+        }
+
+        bool TryFindPsmKeyByBruteforce(byte[] data, out byte[] key)
+        {
+            key = null;
+
+            for(byte mac4 = 0; mac4 < byte.MaxValue; mac4++)
+            {
+                var k = new byte[16];
+                Encoding.ASCII.GetBytes("Qby6").CopyTo(k, 0);
+                k[4] = mac4;
+                Encoding.ASCII.GetBytes("TH9bj8GiexU").CopyTo(k, 5);
+
+                if(TryLocatePsm(data, k, out _, out _))
+                {
+                    key = k;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public string getKeysHumanReadable(OBKConfig tg = null)
@@ -1457,6 +1584,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     break;
                 case USUAL_BK7252_MAGIC_POSITION:
                     printposdevice("BK7252");
+                    break;
+                case USUAL_ESP8266_MAGIC_POSITION:
+                    printposdevice("ESP8266");
                     break;
                 default:
                     desc += "And the Tuya section starts at an UNCOMMON POSITION " + getMagicPositionDecAndHex() + Environment.NewLine;
@@ -2750,8 +2880,13 @@ public bool extractKeys()
                                     keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
                                     if(keys_at == -1)
                                     {
-                                        FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                                        return true;
+                                        // 8266 addition
+                                        keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("dev_if_rec_key"));
+                                        if(keys_at == -1)
+                                        {
+                                            FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                                            return true;
+                                        }
                                     }
                                 }
                             }
