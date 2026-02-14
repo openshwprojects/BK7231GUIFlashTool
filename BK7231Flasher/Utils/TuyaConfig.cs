@@ -482,8 +482,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             idx = null;
 
-            bool vaultMagicHeaderNotFound = false;
-
             try
             {
                 // Layout mirrors the Tuya KVStorage DataBlock.IndexPage layout, but some firmwares
@@ -677,6 +675,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
         bool bLastBinaryOBKConfig;
         bool bGivenBinaryIsFullOf0xff;
+        bool bVaultMagicHeaderNotFound;
         // warn users that they have erased flash sector with cfg
         public bool isLastBinaryFullOf0xff()
         {
@@ -691,6 +690,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             descryptedRaw = null;
             vaultDecryptedRaw = null;
+            bVaultMagicHeaderNotFound = false;
             original = data;
             if (isFullOf(data, 0xff))
             {
@@ -709,6 +709,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             {
                 if(TryVaultExtract(data)) return false;
                 if(TryExtractPSM(data)) return false;
+                if(bVaultMagicHeaderNotFound)
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
             }
             finally
             {
@@ -719,11 +721,6 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
                     File.WriteAllBytes(debugName, descryptedRaw);
                 }
-            }
-
-            if(vaultMagicHeaderNotFound)
-            {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
             }
 
             return true;
@@ -737,7 +734,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
             {
-                vaultMagicHeaderNotFound = true;
+                bVaultMagicHeaderNotFound = true;
                 return false;
             }
 
@@ -908,7 +905,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 FormMain.Singleton.addLog(
                     $"Found plaintext PSM at 0x{magicPosition:X}" + Environment.NewLine,
                     System.Drawing.Color.DarkSlateGray);
+
                 vaultDecryptedRaw = descryptedRaw;
+
                 return true;
             }
 
@@ -922,7 +921,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 $"Found AES PSM at 0x{magicPosition:X}" + Environment.NewLine,
                 System.Drawing.Color.DarkSlateGray);
 
+
             vaultDecryptedRaw = descryptedRaw;
+
             return true;
         }
 
