@@ -691,17 +691,20 @@ namespace BK7231Flasher
         bool getBus()
         {
             int maxTries = 100;
-            int loops = 1000;
+            int loops = 100;
             bool bOk = false;
             addLog("Getting bus... (now, please do reboot by CEN or by power off/on)" + Environment.NewLine);
             for (int tr = 0; tr < maxTries && !bOk; tr++)
             {
-                if(tr % 10 == 0)
+                // Hardware reset via RTS/DTR (same pattern as ESP32/RTL/ECR6600)
+                serial.DtrEnable = true;
+                serial.RtsEnable = true;
+                Thread.Sleep(50);
+                serial.DtrEnable = false;
+                serial.RtsEnable = false;
+                if(tr % 5 == 0)
                 {
-                    //serial.RtsEnable = true;
-                   // Thread.Sleep(10);
-                   // serial.RtsEnable = false;
-                    // OBK commandline reboot
+                    // Also try OBK commandline reboot as fallback
                     serial.WriteLine("reboot");
                 }
                 for (int l = 0; l < loops && !bOk; l++)
