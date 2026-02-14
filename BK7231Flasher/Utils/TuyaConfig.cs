@@ -51,7 +51,7 @@ namespace BK7231Flasher
 
         int magicPosition = -1;
         byte[] descryptedRaw;
-        // Always holds the decrypted KV-pages blob produced by TryVaultExtract().
+        // Always holds the decrypted config blob produced by TryVaultExtract() (vault) or alternate extractors (e.g. ESP8266 PSM).
         // Enhanced extraction must only operate on this buffer (never on the full original flash dump).
         byte[] vaultDecryptedRaw;
         byte[] original;
@@ -321,8 +321,120 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         }
 
             
+        static bool LooksLikePsmBlob(byte[] buf)
+        {
+            if (buf == null || buf.Length < 4)
+                return false;
+
+            // Some images may have padding before the header.
+            int i = 0;
+            while (i < buf.Length && (buf[i] == 0x00 || buf[i] == 0xFF))
+                i++;
+
+            if (i + 3 >= buf.Length)
+                return false;
+
+            return buf[i] == (byte)'P' && buf[i + 1] == (byte)'S' && buf[i + 2] == (byte)'M' && buf[i + 3] == (byte)'1';
+        }
+
+        static string NormalizePsmKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return "";
+
+            key = key.Trim();
+
+            // PSM partitions often contain stray leading bytes before the key name.
+            int esp = key.IndexOf("ESP.", StringComparison.Ordinal);
+            if (esp > 0)
+                key = key.Substring(esp);
+
+            // Strip leading junk (keep letters, digits, underscore).
+            int j = 0;
+            while (j < key.Length && !char.IsLetterOrDigit(key[j]) && key[j] != '_')
+                j++;
+
+            if (j > 0 && j < key.Length)
+                key = key.Substring(j);
+
+            return key.Trim();
+        }
+
+        List<KvEntry> ParseVaultPsm()
+        {
+            var result = new List<KvEntry>();
+            if (vaultDecryptedRaw == null || vaultDecryptedRaw.Length == 0)
+                return result;
+
+            // PSM is a NUL-separated key=value string table.
+            // We surface each key as a KV entry so enhanced extraction can render all JSON blocks.
+            int i = 0;
+            while (i < vaultDecryptedRaw.Length)
+            {
+                // Skip padding and NULs.
+                while (i < vaultDecryptedRaw.Length && (vaultDecryptedRaw[i] == 0x00 || vaultDecryptedRaw[i] == 0xFF))
+                    i++;
+
+                int start = i;
+
+                while (i < vaultDecryptedRaw.Length && vaultDecryptedRaw[i] != 0x00 && vaultDecryptedRaw[i] != 0xFF)
+                    i++;
+
+                int end = i;
+                int len = end - start;
+                if (len < 4)
+                    continue;
+
+                // Ensure the segment is mostly printable ASCII (plus common whitespace).
+                int printable = 0;
+                for (int k = start; k < end; k++)
+                {
+                    byte b = vaultDecryptedRaw[k];
+                    if (b == 0x09 || b == 0x0A || b == 0x0D || (b >= 0x20 && b <= 0x7E))
+                        printable++;
+                }
+
+                if (printable < (len * 9) / 10)
+                    continue;
+
+                string s = Encoding.ASCII.GetString(vaultDecryptedRaw, start, len).Trim();
+                if (s.Length < 4)
+                    continue;
+
+                int eq = s.IndexOf('=');
+                if (eq <= 0 || eq >= s.Length - 1)
+                    continue;
+
+                string key = NormalizePsmKey(s.Substring(0, eq));
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                // Ignore the PSM header token itself if it appears in the table.
+                if (string.Equals(key, "PSM1", StringComparison.Ordinal))
+                    continue;
+
+                string val = s.Substring(eq + 1).Trim();
+                byte[] valBytes = Encoding.UTF8.GetBytes(val);
+
+                result.Add(new KvEntry
+                {
+                    Key = key,
+                    Value = valBytes,
+                    ValueLength = (uint)valBytes.Length,
+                    KeyId = 0,
+                    ChecksumStored = 0,
+                    ChecksumCalculated = 0
+                });
+            }
+
+            return result;
+        }
+
         List<KvEntry> ParseVaultPreferred()
         {
+            if (LooksLikePsmBlob(vaultDecryptedRaw))
+                return ParseVaultPsm();
+
             // Prefer KVStorage-style indexed parsing when it clearly applies.
             // Fall back to the classic fixed-stride parser otherwise.
             try
@@ -902,12 +1014,10 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             if(TryLocatePsm(vaultData, null, out magicPosition, out descryptedRaw))
             {
+                vaultDecryptedRaw = descryptedRaw;
                 FormMain.Singleton.addLog(
                     $"Found plaintext PSM at 0x{magicPosition:X}" + Environment.NewLine,
                     System.Drawing.Color.DarkSlateGray);
-
-                vaultDecryptedRaw = descryptedRaw;
-
                 return true;
             }
 
@@ -917,12 +1027,11 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             if(!TryLocatePsm(vaultData, psmAesKey, out magicPosition, out descryptedRaw))
                 return false;
 
+            vaultDecryptedRaw = descryptedRaw;
+
             FormMain.Singleton.addLog(
                 $"Found AES PSM at 0x{magicPosition:X}" + Environment.NewLine,
                 System.Drawing.Color.DarkSlateGray);
-
-
-            vaultDecryptedRaw = descryptedRaw;
 
             return true;
         }
