@@ -1,3 +1,3 @@
 @echo off
-..\BK7231Flasher\bin\Release\BK7231Flasher.exe -test -chip ESP32 -ofs 0x10000 -len 0x10000 -baud 921600
+..\BK7231Flasher\bin\Release\BK7231Flasher.exe --chip ESP32 -b 921600 test --addr 0x10000 --size 0x10000
 pause

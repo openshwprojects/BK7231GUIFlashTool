@@ -1,3 +1,3 @@
 
-..\BK7231Flasher\bin\Release\BK7231Flasher.exe -cread -chip ESP32 -ofs 0 -len 0x800000 -baud 230400
+..\BK7231Flasher\bin\Release\BK7231Flasher.exe --chip ESP32 -b 230400 read_flash --addr 0 --size 0x800000
 pause
