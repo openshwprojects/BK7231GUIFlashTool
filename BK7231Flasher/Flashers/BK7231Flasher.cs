@@ -25,6 +25,18 @@ namespace BK7231Flasher
         public static string EMPTY_ENCRYPTION_KEY = "00000000 00000000 00000000 00000000";
         bool openPort()
         {
+            // Close any previously open port before re-opening
+            if (serial != null)
+            {
+                try
+                {
+                    if (serial.IsOpen)
+                        serial.Close();
+                    serial.Dispose();
+                }
+                catch { }
+                serial = null;
+            }
             try
             {
                 serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
@@ -60,8 +72,10 @@ namespace BK7231Flasher
             {
                 serial.Close();
                 serial.Dispose();
+                serial = null;
             }
         }
+
        enum CommandCode
         {
             LinkCheck = 0,
@@ -691,17 +705,21 @@ namespace BK7231Flasher
         bool getBus()
         {
             int maxTries = 100;
-            int loops = 1000;
+            int loops = 100;
             bool bOk = false;
             addLog("Getting bus... (now, please do reboot by CEN or by power off/on)" + Environment.NewLine);
+            // Chip bootloader always starts at 115200, ensure port matches
+            serial.BaudRate = 115200;
             for (int tr = 0; tr < maxTries && !bOk; tr++)
             {
-                if(tr % 10 == 0)
+                serial.DtrEnable = true;
+                serial.RtsEnable = true;
+                Thread.Sleep(50);
+                serial.DtrEnable = false;
+                serial.RtsEnable = false;
+                if(tr % 5 == 0)
                 {
-                    //serial.RtsEnable = true;
-                   // Thread.Sleep(10);
-                   // serial.RtsEnable = false;
-                    // OBK commandline reboot
+                    // Also try OBK commandline reboot as fallback
                     serial.WriteLine("reboot");
                 }
                 for (int l = 0; l < loops && !bOk; l++)
