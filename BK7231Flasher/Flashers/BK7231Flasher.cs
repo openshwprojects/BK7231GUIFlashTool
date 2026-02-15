@@ -708,9 +708,10 @@ namespace BK7231Flasher
             int loops = 100;
             bool bOk = false;
             addLog("Getting bus... (now, please do reboot by CEN or by power off/on)" + Environment.NewLine);
+            // Chip bootloader always starts at 115200, ensure port matches
+            serial.BaudRate = 115200;
             for (int tr = 0; tr < maxTries && !bOk; tr++)
             {
-                // Hardware reset via RTS/DTR (same pattern as ESP32/RTL/ECR6600)
                 serial.DtrEnable = true;
                 serial.RtsEnable = true;
                 Thread.Sleep(50);
