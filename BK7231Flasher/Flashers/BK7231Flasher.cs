@@ -25,6 +25,18 @@ namespace BK7231Flasher
         public static string EMPTY_ENCRYPTION_KEY = "00000000 00000000 00000000 00000000";
         bool openPort()
         {
+            // Close any previously open port before re-opening
+            if (serial != null)
+            {
+                try
+                {
+                    if (serial.IsOpen)
+                        serial.Close();
+                    serial.Dispose();
+                }
+                catch { }
+                serial = null;
+            }
             try
             {
                 serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
@@ -60,8 +72,10 @@ namespace BK7231Flasher
             {
                 serial.Close();
                 serial.Dispose();
+                serial = null;
             }
         }
+
        enum CommandCode
         {
             LinkCheck = 0,
