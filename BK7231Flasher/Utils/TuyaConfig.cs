@@ -45,7 +45,7 @@ namespace BK7231Flasher
         const int USUAL_LN8825_MAGIC_POSITION = 1994752;
         const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
         const int USUAL_BK7252_MAGIC_POSITION = 3764224;
-        const int USUAL_ESP8266_MAGIC_POSITION = 503808 ;
+        const int USUAL_ESP8266_MAGIC_POSITION = 503808;
 
         const int KVHeaderSize = 0x12;
 
@@ -913,9 +913,24 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 if(descryptedRaw != null)
                 {
                     string debugName = "lastRawDecryptedStrings.bin";
-                    FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+                    try
+                    {
+                        FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+                    }
+                    catch { }
 
-                    File.WriteAllBytes(debugName, descryptedRaw);
+                    try
+                    {
+                        File.WriteAllBytes(debugName, descryptedRaw);
+                    }
+                    catch(Exception ex)
+                    {
+                        try
+                        {
+                            FormMain.Singleton.addLog("WARNING - failed to write " + debugName + ": " + ex.Message + Environment.NewLine, System.Drawing.Color.Purple);
+                        }
+                        catch { }
+                    }
                 }
             }
 
@@ -949,6 +964,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             int bestCount = 0;
             var obj = new object();
             var time = Stopwatch.StartNew();
+            var crcBadOffsets = new System.Collections.Concurrent.ConcurrentDictionary<int, byte>();
+            int crcBadCount = 0;
             foreach(var devKey in deviceKeys)
             {
                 Parallel.ForEach(baseKeyCandidates, baseKey =>
@@ -979,7 +996,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                             var crc = ReadU32LE(dec, 4);
                             if(!checkCRC(crc, dec, 8, dec.Length - 8))
                             {
-                                FormMain.Singleton.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
+                                System.Threading.Interlocked.Increment(ref crcBadCount);
+                                // Don't log from worker threads. Buffer a bounded set of unique offsets and emit after the parallel scan.
+                                if(crcBadOffsets.Count < 200) crcBadOffsets.TryAdd(ofs, 0);
                                 continue;
                             }
 
@@ -1004,6 +1023,23 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 });
             }
             time.Stop();
+
+            // Emit buffered CRC warnings (avoid UI/threading issues from logging inside Parallel.ForEach)
+            if(crcBadCount > 0)
+            {
+                try
+                {
+                    var sample = crcBadOffsets.Keys.OrderBy(x => x).Take(50).ToArray();
+                    var msg = $"WARNING - {crcBadCount} bad block CRC(s) encountered during Tuya vault scan.";
+                    if(sample.Length > 0)
+                        msg += " Sample offsets: " + string.Join(", ", sample.Select(o => "0x" + o.ToString("X")));
+                    if(crcBadOffsets.Count > sample.Length)
+                        msg += $" (+{crcBadOffsets.Count - sample.Length} more unique offset(s) recorded)";
+                    FormMain.Singleton.addLog(msg + Environment.NewLine, System.Drawing.Color.Purple);
+                }
+                catch { }
+            }
+
             if(bestPages == null)
             {
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
@@ -1034,7 +1070,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         static byte[] DeriveVaultKey(byte[] baseKey, byte[] deviceKey)
         {
             if(baseKey.Length != 16)
-                throw new Exception($"baseKey.Length != 16 ({baseKey.Length}");
+                throw new Exception($"baseKey.Length != 16 ({baseKey.Length})");
             var vaultKey = new byte[16];
             if(deviceKey.Length != 16)
             {
@@ -1208,10 +1244,10 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             var s = Encoding.ASCII.GetString(buf);
             foreach(var n in needles)
-                if(s.Contains(n))
+                if (s.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0)
                     return true;
 
-            return buf[0] == 'P' && buf[1] == 'S' && buf[2] == 'M';
+            return buf[0] == 'P' && buf[1] == 'S' && buf[2] == 'M' && buf[3] == '1';
         }
 
         bool TryFindPsmKeyByBruteforce(byte[] data, out byte[] key)
