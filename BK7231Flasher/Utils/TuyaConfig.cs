@@ -45,12 +45,13 @@ namespace BK7231Flasher
         const int USUAL_LN8825_MAGIC_POSITION = 1994752;
         const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
         const int USUAL_BK7252_MAGIC_POSITION = 3764224;
+        const int USUAL_ESP8266_MAGIC_POSITION = 503808;
 
         const int KVHeaderSize = 0x12;
 
         int magicPosition = -1;
         byte[] descryptedRaw;
-        // Always holds the decrypted KV-pages blob produced by TryVaultExtract().
+        // Always holds the decrypted config blob produced by TryVaultExtract() (vault) or alternate extractors (e.g. ESP8266 PSM).
         // Enhanced extraction must only operate on this buffer (never on the full original flash dump).
         byte[] vaultDecryptedRaw;
         byte[] original;
@@ -263,7 +264,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             {
                 byte b = pageData[i];
                 if(!(b == 0 || (b >= 0x20 && b <= 0x7E)))
-                	return false;
+                    return false;
                 if(b == 0)
                     break;
                 keyBytes.Add(b);
@@ -320,8 +321,204 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         }
 
             
+        static bool LooksLikePsmBlob(byte[] buf)
+        {
+            if (buf == null || buf.Length < 4)
+                return false;
+
+            // Some images may have padding before the header.
+            int i = 0;
+            while (i < buf.Length && (buf[i] == 0x00 || buf[i] == 0xFF))
+                i++;
+
+            if (i + 3 >= buf.Length)
+                return false;
+
+            return buf[i] == (byte)'P' && buf[i + 1] == (byte)'S' && buf[i + 2] == (byte)'M' && buf[i + 3] == (byte)'1';
+        }
+
+        static bool LooksLikePsmKeyValueTable(byte[] buf)
+        {
+            if (buf == null || buf.Length < 128)
+                return false;
+
+            // Heuristic: scan a capped prefix and look for multiple printable "key=value" segments
+            // separated by NUL/0xFF padding. This reduces false positives when we fail the normal vault extractor.
+            int max = Math.Min(buf.Length, SECTOR_SIZE * 32); // cap scan to 128KB
+            int i = 0;
+            int pairs = 0;
+            bool hasKnown = false;
+
+            while (i < max)
+            {
+                while (i < max && (buf[i] == 0x00 || buf[i] == 0xFF))
+                    i++;
+
+                int start = i;
+
+                while (i < max && buf[i] != 0x00 && buf[i] != 0xFF)
+                    i++;
+
+                int end = i;
+                int len = end - start;
+                if (len < 6)
+                    continue;
+
+                // Must be mostly printable ASCII (plus whitespace).
+                int printable = 0;
+                for (int k = start; k < end; k++)
+                {
+                    byte b = buf[k];
+                    if (b == 0x09 || b == 0x0A || b == 0x0D || (b >= 0x20 && b <= 0x7E))
+                        printable++;
+                }
+
+                if (printable < (len * 9) / 10)
+                    continue;
+
+                int eq = -1;
+                for (int k = start; k < end; k++)
+                {
+                    if (buf[k] == (byte)'=')
+                    {
+                        eq = k;
+                        break;
+                    }
+                }
+
+                if (eq <= start || eq >= end - 1)
+                    continue;
+
+                int keyLen = eq - start;
+                if (keyLen <= 0 || keyLen > 96)
+                    continue;
+
+                pairs++;
+
+                if (!hasKnown)
+                {
+                    int klen = Math.Min(keyLen, 96);
+                    string key = Encoding.ASCII.GetString(buf, start, klen);
+
+                    if (key.IndexOf("local_key", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("ssid", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("passwd", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("ty_ws_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("gw_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("device_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        key.IndexOf("ESP.", StringComparison.Ordinal) >= 0)
+                    {
+                        hasKnown = true;
+                    }
+                }
+
+                // Quick accept thresholds.
+                if ((pairs >= 3 && hasKnown) || pairs >= 10)
+                    return true;
+            }
+
+            return false;
+        }
+
+
+        static string NormalizePsmKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return "";
+
+            key = key.Trim();
+
+            // PSM partitions often contain stray leading bytes before the key name.
+            int esp = key.IndexOf("ESP.", StringComparison.Ordinal);
+            if (esp > 0)
+                key = key.Substring(esp);
+
+            // Strip leading junk (keep letters, digits, underscore).
+            int j = 0;
+            while (j < key.Length && !char.IsLetterOrDigit(key[j]) && key[j] != '_')
+                j++;
+
+            if (j > 0 && j < key.Length)
+                key = key.Substring(j);
+
+            return key.Trim();
+        }
+
+        List<KvEntry> ParseVaultPsm()
+        {
+            var result = new List<KvEntry>();
+            if (vaultDecryptedRaw == null || vaultDecryptedRaw.Length == 0)
+                return result;
+
+            // PSM is a NUL-separated key=value string table.
+            // We surface each key as a KV entry so enhanced extraction can render all JSON blocks.
+            int i = 0;
+            while (i < vaultDecryptedRaw.Length)
+            {
+                // Skip padding and NULs.
+                while (i < vaultDecryptedRaw.Length && (vaultDecryptedRaw[i] == 0x00 || vaultDecryptedRaw[i] == 0xFF))
+                    i++;
+
+                int start = i;
+
+                while (i < vaultDecryptedRaw.Length && vaultDecryptedRaw[i] != 0x00 && vaultDecryptedRaw[i] != 0xFF)
+                    i++;
+
+                int end = i;
+                int len = end - start;
+                if (len < 4)
+                    continue;
+
+                // Ensure the segment is mostly printable ASCII (plus common whitespace).
+                int printable = 0;
+                for (int k = start; k < end; k++)
+                {
+                    byte b = vaultDecryptedRaw[k];
+                    if (b == 0x09 || b == 0x0A || b == 0x0D || (b >= 0x20 && b <= 0x7E))
+                        printable++;
+                }
+
+                if (printable < (len * 9) / 10)
+                    continue;
+
+                string s = Encoding.ASCII.GetString(vaultDecryptedRaw, start, len).Trim();
+                if (s.Length < 4)
+                    continue;
+
+                int eq = s.IndexOf('=');
+                if (eq <= 0 || eq >= s.Length - 1)
+                    continue;
+
+                string key = NormalizePsmKey(s.Substring(0, eq));
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                // Ignore the PSM header token itself if it appears in the table.
+                if (string.Equals(key, "PSM1", StringComparison.Ordinal))
+                    continue;
+
+                string val = s.Substring(eq + 1).Trim();
+                byte[] valBytes = Encoding.UTF8.GetBytes(val);
+
+                result.Add(new KvEntry
+                {
+                    Key = key,
+                    Value = valBytes,
+                    ValueLength = (uint)valBytes.Length,
+                    KeyId = 0,
+                    ChecksumStored = 0,
+                    ChecksumCalculated = 0
+                });
+            }
+
+            return result;
+        }
+
         List<KvEntry> ParseVaultPreferred()
         {
+            if (LooksLikePsmBlob(vaultDecryptedRaw))
+                return ParseVaultPsm();
+
             // Prefer KVStorage-style indexed parsing when it clearly applies.
             // Fall back to the classic fixed-stride parser otherwise.
             try
@@ -674,6 +871,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
         bool bLastBinaryOBKConfig;
         bool bGivenBinaryIsFullOf0xff;
+        bool bVaultMagicHeaderNotFound;
         // warn users that they have erased flash sector with cfg
         public bool isLastBinaryFullOf0xff()
         {
@@ -688,6 +886,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             descryptedRaw = null;
             vaultDecryptedRaw = null;
+            bVaultMagicHeaderNotFound = false;
             original = data;
             if (isFullOf(data, 0xff))
             {
@@ -705,15 +904,33 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             try
             {
                 if(TryVaultExtract(data)) return false;
+                if(TryExtractPSM(data)) return false;
+                if(bVaultMagicHeaderNotFound)
+                    FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
             }
             finally
             {
                 if(descryptedRaw != null)
                 {
                     string debugName = "lastRawDecryptedStrings.bin";
-                    FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+                    try
+                    {
+                        FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+                    }
+                    catch { }
 
-                    File.WriteAllBytes(debugName, descryptedRaw);
+                    try
+                    {
+                        File.WriteAllBytes(debugName, descryptedRaw);
+                    }
+                    catch(Exception ex)
+                    {
+                        try
+                        {
+                            FormMain.Singleton.addLog("WARNING - failed to write " + debugName + ": " + ex.Message + Environment.NewLine, System.Drawing.Color.Purple);
+                        }
+                        catch { }
+                    }
                 }
             }
 
@@ -728,7 +945,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
+                bVaultMagicHeaderNotFound = true;
                 return false;
             }
 
@@ -747,6 +964,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             int bestCount = 0;
             var obj = new object();
             var time = Stopwatch.StartNew();
+            var crcBadOffsets = new System.Collections.Concurrent.ConcurrentDictionary<int, byte>();
+            int crcBadCount = 0;
             foreach(var devKey in deviceKeys)
             {
                 Parallel.ForEach(baseKeyCandidates, baseKey =>
@@ -777,7 +996,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                             var crc = ReadU32LE(dec, 4);
                             if(!checkCRC(crc, dec, 8, dec.Length - 8))
                             {
-                                FormMain.Singleton.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
+                                System.Threading.Interlocked.Increment(ref crcBadCount);
+                                // Don't log from worker threads. Buffer a bounded set of unique offsets and emit after the parallel scan.
+                                if(crcBadOffsets.Count < 200) crcBadOffsets.TryAdd(ofs, 0);
                                 continue;
                             }
 
@@ -802,6 +1023,23 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 });
             }
             time.Stop();
+
+            // Emit buffered CRC warnings (avoid UI/threading issues from logging inside Parallel.ForEach)
+            if(crcBadCount > 0)
+            {
+                try
+                {
+                    var sample = crcBadOffsets.Keys.OrderBy(x => x).Take(50).ToArray();
+                    var msg = $"WARNING - {crcBadCount} bad block CRC(s) encountered during Tuya vault scan.";
+                    if(sample.Length > 0)
+                        msg += " Sample offsets: " + string.Join(", ", sample.Select(o => "0x" + o.ToString("X")));
+                    if(crcBadOffsets.Count > sample.Length)
+                        msg += $" (+{crcBadOffsets.Count - sample.Length} more unique offset(s) recorded)";
+                    FormMain.Singleton.addLog(msg + Environment.NewLine, System.Drawing.Color.Purple);
+                }
+                catch { }
+            }
+
             if(bestPages == null)
             {
                 FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
@@ -832,7 +1070,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         static byte[] DeriveVaultKey(byte[] baseKey, byte[] deviceKey)
         {
             if(baseKey.Length != 16)
-                throw new Exception($"baseKey.Length != 16 ({baseKey.Length}");
+                throw new Exception($"baseKey.Length != 16 ({baseKey.Length})");
             var vaultKey = new byte[16];
             if(deviceKey.Length != 16)
             {
@@ -890,6 +1128,147 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             Array.Copy(flash, ofs, buffer, 0, SECTOR_SIZE);
             return decryptor.TransformFinalBlock(buffer, 0, SECTOR_SIZE);
+        }
+
+        bool TryExtractPSM(byte[] vaultData)
+        {
+            if(TryLocatePsm(vaultData, null, out magicPosition, out descryptedRaw))
+            {
+                vaultDecryptedRaw = descryptedRaw;
+                FormMain.Singleton.addLog(
+                    $"Found plaintext PSM at 0x{magicPosition:X}" + Environment.NewLine,
+                    System.Drawing.Color.DarkSlateGray);
+                return true;
+            }
+
+            if(!TryFindPsmKeyByBruteforce(vaultData, out var psmAesKey))
+                return false;
+
+            if(!TryLocatePsm(vaultData, psmAesKey, out magicPosition, out descryptedRaw))
+                return false;
+
+            vaultDecryptedRaw = descryptedRaw;
+
+            FormMain.Singleton.addLog(
+                $"Found AES PSM at 0x{magicPosition:X}" + Environment.NewLine,
+                System.Drawing.Color.DarkSlateGray);
+
+            return true;
+        }
+
+        bool TryLocatePsm(byte[] data, byte[] aesKey, out int foundOffset, out byte[] psmData)
+        {
+            foundOffset = -1;
+            psmData = null;
+
+            using var aes = aesKey != null ? Aes.Create() : null;
+
+            if (aes != null)
+            {
+                aes.Mode = CipherMode.ECB;
+                aes.Padding = PaddingMode.None;
+                aes.KeySize = 128;
+                aes.Key = aesKey;
+            }
+
+            using var dec = aes != null ? aes.CreateDecryptor() : null;
+
+            for (int ofs = 0; ofs + 16 <= data.Length; ofs += SECTOR_SIZE)
+            {
+                var hdr = new byte[16];
+                Array.Copy(data, ofs, hdr, 0, 16);
+
+                if (dec != null)
+                    hdr = dec.TransformFinalBlock(hdr, 0, 16);
+
+                // Require strict PSM1 header to avoid false positives.
+                if (!(hdr[0] == (byte)'P' && hdr[1] == (byte)'S' && hdr[2] == (byte)'M' && hdr[3] == (byte)'1'))
+                    continue;
+
+                var region = ExtractPsmRegion(data, ofs, dec);
+
+                // Validate the extracted region looks like a PSM key=value table.
+                if (region == null || region.Length < 128)
+                    continue;
+
+                if (!LooksLikePsmBlob(region))
+                    continue;
+
+                if (!LooksLikePsmKeyValueTable(region))
+                    continue;
+
+                foundOffset = ofs;
+                psmData = region;
+                return true;
+            }
+
+            return false;
+        }
+
+        byte[] ExtractPsmRegion(byte[] data, int start, ICryptoTransform dec)
+        {
+            using var ms = new MemoryStream();
+            int misses = 0;
+
+            for(int ofs = start; ofs + SECTOR_SIZE <= data.Length; ofs += SECTOR_SIZE)
+            {
+                var buf = new byte[SECTOR_SIZE];
+                Array.Copy(data, ofs, buf, 0, SECTOR_SIZE);
+
+                if(dec != null)
+                    buf = dec.TransformFinalBlock(buf, 0, SECTOR_SIZE);
+
+                if(LooksLikePsm(buf))
+                {
+                    ms.Write(buf, 0, buf.Length);
+                    misses = 0;
+                }
+                else
+                {
+                    misses++;
+                    if(misses >= 2)
+                        break;
+                }
+            }
+
+            return ms.ToArray();
+        }
+
+        bool LooksLikePsm(byte[] buf)
+        {
+            var needles = new[]
+            {
+                "ty_ws_", "device_", "gw_", "local_key",
+                "ssid", "passwd", "ESP."
+            };
+
+            var s = Encoding.ASCII.GetString(buf);
+            foreach(var n in needles)
+                if (s.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+
+            return buf[0] == 'P' && buf[1] == 'S' && buf[2] == 'M' && buf[3] == '1';
+        }
+
+        bool TryFindPsmKeyByBruteforce(byte[] data, out byte[] key)
+        {
+            key = null;
+
+            for(int mac4 = 0; mac4 <= 0xFF; mac4++)
+            {
+                var k = new byte[16];
+                Encoding.ASCII.GetBytes("Qby6").CopyTo(k, 0);
+                k[4] = (byte)mac4;
+                Encoding.ASCII.GetBytes("TH9bj8GiexU").CopyTo(k, 5);
+
+                if(TryLocatePsm(data, k, out _, out _))
+                {
+                    key = k;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public string getKeysHumanReadable(OBKConfig tg = null)
@@ -1457,6 +1836,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     break;
                 case USUAL_BK7252_MAGIC_POSITION:
                     printposdevice("BK7252");
+                    break;
+                case USUAL_ESP8266_MAGIC_POSITION:
+                    printposdevice("ESP8266");
                     break;
                 default:
                     desc += "And the Tuya section starts at an UNCOMMON POSITION " + getMagicPositionDecAndHex() + Environment.NewLine;
@@ -2750,8 +3132,13 @@ public bool extractKeys()
                                     keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
                                     if(keys_at == -1)
                                     {
-                                        FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
-                                        return true;
+                                        // 8266 addition
+                                        keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("dev_if_rec_key"));
+                                        if(keys_at == -1)
+                                        {
+                                            FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                                            return true;
+                                        }
                                     }
                                 }
                             }
