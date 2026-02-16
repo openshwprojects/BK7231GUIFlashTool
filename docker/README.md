@@ -13,7 +13,7 @@ It allows building the project on Linux without requiring Windows or Visual Stud
 
 From inside the `docker` folder:
 
-```bash
+```powershell
 python build_app.py
 ```
 
