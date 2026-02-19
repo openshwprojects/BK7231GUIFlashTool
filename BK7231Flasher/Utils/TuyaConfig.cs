@@ -691,13 +691,13 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             original = data;
             if (isFullOf(data, 0xff))
             {
-                FormMain.Singleton.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Purple);
+                FormMain.Singleton?.addLog("It seems that dragged binary is full of 0xff, someone must have erased the flash" + Environment.NewLine, System.Drawing.Color.Purple);
                 bGivenBinaryIsFullOf0xff = true;
                 return true;
             }
             if(data.Length>3 && data[0] == (byte)'C' && data[1] == (byte)'F' && data[2] == (byte)'G')
             {
-                FormMain.Singleton.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Purple);
+                FormMain.Singleton?.addLog("It seems that dragged binary is OBK config, not a Tuya one" + Environment.NewLine, System.Drawing.Color.Purple);
                 bLastBinaryOBKConfig = true;
                 return true;
             }
@@ -711,7 +711,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 if(descryptedRaw != null)
                 {
                     string debugName = "lastRawDecryptedStrings.bin";
-                    FormMain.Singleton.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+                    FormMain.Singleton?.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
                     File.WriteAllBytes(debugName, descryptedRaw);
                 }
@@ -728,7 +728,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             var deviceKeys = FindDeviceKeys(flash);
             if(deviceKeys.Count == 0)
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
+                FormMain.Singleton?.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
                 return false;
             }
 
@@ -777,7 +777,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                             var crc = ReadU32LE(dec, 4);
                             if(!checkCRC(crc, dec, 8, dec.Length - 8))
                             {
-                                FormMain.Singleton.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
+                                FormMain.Singleton?.addLog($"WARNING - bad block CRC at offset {ofs}" + Environment.NewLine, System.Drawing.Color.Purple);
                                 continue;
                             }
 
@@ -804,18 +804,18 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             time.Stop();
             if(bestPages == null)
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
+                FormMain.Singleton?.addLog("Failed to extract Tuya keys - decryption failed" + Environment.NewLine, System.Drawing.Color.Orange);
                 return false;
             }
-            FormMain.Singleton.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+            FormMain.Singleton?.addLog($"Decryption took {time.ElapsedMilliseconds} ms" + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
             var dataFlashOffset = bestPages.Min(x => x.FlashOffset);
             magicPosition = magicPosition < dataFlashOffset ? magicPosition : dataFlashOffset;
-            FormMain.Singleton.addLog($"Tuya config extractor - magic is at {magicPosition} (0x{magicPosition:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
+            FormMain.Singleton?.addLog($"Tuya config extractor - magic is at {magicPosition} (0x{magicPosition:X}) " + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
 
             if(bestPages.Count < 2)
             {
-                FormMain.Singleton.addLog("Failed to extract Tuya keys - config not found" + Environment.NewLine, System.Drawing.Color.Orange);
+                FormMain.Singleton?.addLog("Failed to extract Tuya keys - config not found" + Environment.NewLine, System.Drawing.Color.Orange);
                 return false;
             }
 
@@ -2714,7 +2714,7 @@ public bool extractKeys()
             if(str == null)
             {
                 if(KVs.Any(x => x.Key == "user_param_key"))
-                    FormMain.Singleton.addLog("Tuya user_param_key is corrupted, using old extraction method" + Environment.NewLine, System.Drawing.Color.Orange);
+                    FormMain.Singleton?.addLog("Tuya user_param_key is corrupted, using old extraction method" + Environment.NewLine, System.Drawing.Color.Orange);
                 int first_at = 0;
                 int keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("user_param_key"));
                 //var t = Encoding.ASCII.GetString(descryptedRaw.Where(x => x != 0).ToArray());
@@ -2750,7 +2750,7 @@ public bool extractKeys()
                                     keys_at = MiscUtils.indexOf(descryptedRaw, Encoding.ASCII.GetBytes("gw_bi"));
                                     if(keys_at == -1)
                                     {
-                                        FormMain.Singleton.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
+                                        FormMain.Singleton?.addLog("Failed to extract Tuya keys - no json start found" + Environment.NewLine, System.Drawing.Color.Orange);
                                         return true;
                                     }
                                 }
@@ -2795,7 +2795,7 @@ public bool extractKeys()
                 string []kp = pairs[i].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
                 if(kp.Length < 2)
                 {
-                    FormMain.Singleton.addLog("Malformed key? " + Environment.NewLine, System.Drawing.Color.Orange);
+                    FormMain.Singleton?.addLog("Malformed key? " + Environment.NewLine, System.Drawing.Color.Orange);
 
                     continue;
                 }
@@ -2813,7 +2813,7 @@ public bool extractKeys()
             {
                 parms.Add("em_sys_env", bytesToAsciiStr(em_sys_env));
             }
-            FormMain.Singleton.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
+            FormMain.Singleton?.addLog("Tuya keys extraction has found " + parms.Count + " keys" + Environment.NewLine, System.Drawing.Color.Black);
 
             return false;
         }
