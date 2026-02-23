@@ -801,7 +801,21 @@ namespace BK7231Flasher
                           return System.Text.Encoding.ASCII.GetString(resp).ToUpper();
                       }
                  }
+                 // Diagnostic: try raw read to see if stub sent anything unexpected
                  addErrorLine($"MD5 command returned no response (timeout after {timeout}ms)");
+                 try
+                 {
+                     serial.ReadTimeout = 500;
+                     int avail = serial.BytesToRead;
+                     addLogLine($"Serial buffer has {avail} bytes after MD5 timeout.");
+                     if (avail > 0)
+                     {
+                         byte[] raw = new byte[Math.Min(avail, 64)];
+                         int read = serial.Read(raw, 0, raw.Length);
+                         addLogLine($"Raw bytes: {BitConverter.ToString(raw, 0, read)}");
+                     }
+                 }
+                 catch { }
              }
              catch (Exception ex)
              {
@@ -1418,15 +1432,6 @@ namespace BK7231Flasher
                     logger.setProgress((int)((i + 1) * blockSize), data.Length);
                 }
 
-                // FLASH_END: execute (1 = run, 0 = stay)
-                addLogLine("Sending FLASH_END...");
-                sendCommand(ESPCommand.FLASH_END, BitConverter.GetBytes((uint)0));
-                var endResp = readPacket(1000, ESPCommand.FLASH_END);
-                if (endResp == null)
-                    addWarningLine("FLASH_END: no response (non-fatal).");
-                else
-                    addLogLine("FLASH_END OK.");
-
                 swWrite.Stop();
                 double secsWrite = swWrite.Elapsed.TotalSeconds;
                 double kbitsWrite = (data.Length * 8.0 / 1000.0) / secsWrite;
@@ -1434,13 +1439,12 @@ namespace BK7231Flasher
                 addLogLine($"Wrote {data.Length} bytes at 0x{offset:X8} in {secsWrite:F1}s ({kbitsWrite:F1} kbit/s, {kbytesWrite:F1} KB/s)");
                 addSuccess("Flash Write Complete!" + Environment.NewLine);
                 logger.setState("Write complete", Color.LightGreen);
-                
+
+                // Verify with MD5 BEFORE sending FLASH_END (stub must still be running)
                 if (isStub)
                 {
                      logger.setState("Verifying MD5...", Color.LightBlue);
                      addLogLine("Verifying write with MD5...");
-                     // Small delay to let stub settle after FLASH_END
-                     System.Threading.Thread.Sleep(100);
                      try
                      {
                          using(var md5 = MD5.Create())
@@ -1451,7 +1455,7 @@ namespace BK7231Flasher
                              string actual = FlashMd5Sum(offset, (uint)data.Length);
                              if(actual == null) addErrorLine("Failed to get Flash MD5");
                              else if(actual != expected) addErrorLine($"MD5 Mismatch! Expected {expected}, Got {actual}");
-                             else { addLogLine("Write Verified Successfully!"); logger.setState("Write verified", Color.LightGreen); }
+                             else { addSuccess("Write Verified Successfully!" + Environment.NewLine); logger.setState("Write verified", Color.LightGreen); }
                          }
                      }
                      catch(Exception ex)
@@ -1459,6 +1463,16 @@ namespace BK7231Flasher
                          addErrorLine("Verification exception: " + ex.Message);
                      }
                 }
+
+                // FLASH_END: no_entry=1 means stay in bootloader (don't reboot)
+                // esptool: struct.pack("<I", int(not reboot)) where reboot=False sends 1
+                addLogLine("Sending FLASH_END...");
+                sendCommand(ESPCommand.FLASH_END, BitConverter.GetBytes((uint)1));
+                var endResp = readPacket(1000, ESPCommand.FLASH_END);
+                if (endResp == null)
+                    addWarningLine("FLASH_END: no response (non-fatal).");
+                else
+                    addLogLine("FLASH_END OK.");
             }
         }
     }
