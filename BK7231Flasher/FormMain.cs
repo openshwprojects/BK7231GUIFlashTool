@@ -52,6 +52,7 @@ namespace BK7231Flasher
             { BKType.BekenSPI,   "Beken SPI CH341" },
             { BKType.GenericSPI, "Generic SPI CH341" },
             { BKType.ESP32,      "ESP32" },
+            { BKType.ESP8266,    "ESP8266" },
         };
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
@@ -511,6 +512,7 @@ namespace BK7231Flasher
                     flasher = new RDAFlasher(cts.Token);
                     break;
                 case BKType.ESP32:
+                case BKType.ESP8266:
                     flasher = new ESPFlasher(cts.Token);
                     break;
                 default:

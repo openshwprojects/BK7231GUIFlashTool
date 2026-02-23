@@ -42,6 +42,8 @@ namespace BK7231Flasher
         const int ESP_RAM_BLOCK = 0x1800; // Must match esptool default
 
         bool isStub = false;
+        bool isESP8266 = false;
+        string detectedChip = "ESP";
         byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
 
@@ -253,27 +255,39 @@ namespace BK7231Flasher
         }
 
         const uint ESP32_SPI_REG_BASE = 0x3FF42000;
+        const uint ESP32_SPI_W0_OFFS = 0x80;
+        const uint ESP8266_SPI_REG_BASE = 0x60000200;
+        const uint ESP8266_SPI_USR1_OFFS = 0x20;
+        const uint ESP8266_SPI_W0_OFFS = 0x40;
         const uint SPI_USR_OFFS = 0x1C;
         const uint SPI_USR2_OFFS = 0x24;
         const uint SPI_MOSI_DLEN_OFFS = 0x28;
         const uint SPI_MISO_DLEN_OFFS = 0x2C;
-        const uint SPI_W0_OFFS = 0x80;
 
         uint RunSpiFlashCmd(byte cmd, int readBits = 0)
         {
-            // Assuming ESP32 Registers for now
-            uint baseAddr = ESP32_SPI_REG_BASE;
+            uint baseAddr = isESP8266 ? ESP8266_SPI_REG_BASE : ESP32_SPI_REG_BASE;
+            uint w0Offs = isESP8266 ? ESP8266_SPI_W0_OFFS : ESP32_SPI_W0_OFFS;
             
             // Set lengths (0 MOSI, readBits MISO)
-            if(readBits > 0)
+            if (isESP8266)
             {
-                 WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, (uint)(readBits - 1));
+                // ESP8266 has no MOSI/MISO_DLEN registers.
+                // Bit lengths are set via SPI_USR1: bits[31:26]=MISO, bits[25:17]=MOSI
+                uint usr1 = 0;
+                if (readBits > 0)
+                    usr1 |= (uint)((readBits - 1) << 8); // MISO bit length in bits [14:8]
+                // MOSI length = 0 (we're not sending data, just command)
+                WriteReg(baseAddr + ESP8266_SPI_USR1_OFFS, usr1);
             }
             else
             {
-                 WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, 0);
+                if(readBits > 0)
+                     WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, (uint)(readBits - 1));
+                else
+                     WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, 0);
+                WriteReg(baseAddr + SPI_MOSI_DLEN_OFFS, 0); // 0 bits MOSI
             }
-            WriteReg(baseAddr + SPI_MOSI_DLEN_OFFS, 0); // 0 bits MOSI
 
             // SPI_USR_REG flags
             // COMMAND(31) | MISO(28) if read | MOSI(27) if write
@@ -283,7 +297,6 @@ namespace BK7231Flasher
             WriteReg(baseAddr + SPI_USR_OFFS, usrFlags);
 
             // SPI_USR2_REG: (7 << 28) | cmd
-            // 7 bits command length? esptool uses 7 << 28
             uint usr2 = (7u << 28) | cmd;
             WriteReg(baseAddr + SPI_USR2_OFFS, usr2);
 
@@ -302,8 +315,7 @@ namespace BK7231Flasher
             // Read result from W0
             if(readBits > 0)
             {
-                uint w0 = ReadReg(baseAddr + SPI_W0_OFFS);
-                // Mask? esptool just reads.
+                uint w0 = ReadReg(baseAddr + w0Offs);
                 return w0;
             }
             return 0;
@@ -426,8 +438,10 @@ namespace BK7231Flasher
             addLogLine("Uploading stub flasher...");
             try
             {
-                // Load stub from embedded resource (Floaders/ESP32_Stub.json)
-                string jsonContent = FLoaders.GetStringFromAssembly("ESP32_Stub");
+                // Load chip-specific stub from embedded resource
+                string stubName = isESP8266 ? "ESP8266_Stub" : "ESP32_Stub";
+                string jsonContent = FLoaders.GetStringFromAssembly(stubName);
+                addLogLine($"Loaded stub: {stubName}");
                 
                 // Simple JSON parsing for our known fields
                 string textB64 = ExtractJsonString(jsonContent, "text");
@@ -439,9 +453,13 @@ namespace BK7231Flasher
                 byte[] text = Convert.FromBase64String(textB64);
                 byte[] data = Convert.FromBase64String(dataB64);
 
-                // Console.WriteLine($"[DEBUG] Stub loaded: text={text.Length}B @0x{textStart:X}, data={data.Length}B @0x{dataStart:X}, entry=0x{entry:X}");
+                int totalStubBytes = text.Length + data.Length;
+                addLogLine($"Stub text: {text.Length} bytes @0x{textStart:X}, data: {data.Length} bytes @0x{dataStart:X}, entry: 0x{entry:X}");
+
+                int stubBytesSent = 0;
 
                 // Upload text (IRAM)
+                logger.setState("Uploading stub text...", Color.LightBlue);
                 uint blocks = (uint)((text.Length + ESP_RAM_BLOCK - 1) / ESP_RAM_BLOCK);
                 if (!MemBegin((uint)text.Length, blocks, (uint)ESP_RAM_BLOCK, textStart))
                 {
@@ -453,15 +471,18 @@ namespace BK7231Flasher
                     int len = Math.Min(ESP_RAM_BLOCK, text.Length - (int)(i * ESP_RAM_BLOCK));
                     byte[] block = new byte[len];
                     Array.Copy(text, i * ESP_RAM_BLOCK, block, 0, len);
-                    // Console.WriteLine($"[DEBUG] Sending text block {i}, Len {len}");
                     if (!MemData(block, i))
                     {
-                        addErrorLine($"Failed to MEM_DATA text block {i}");
+                        addErrorLine($"Failed to MEM_DATA text block {i}/{blocks}");
                         return false;
                     }
+                    stubBytesSent += len;
+                    logger.setProgress(stubBytesSent, totalStubBytes);
                 }
+                addLogLine($"Stub text uploaded ({blocks} blocks).");
 
                 // Upload data (DRAM)
+                logger.setState("Uploading stub data...", Color.LightBlue);
                 blocks = (uint)((data.Length + ESP_RAM_BLOCK - 1) / ESP_RAM_BLOCK);
                 if (!MemBegin((uint)data.Length, blocks, (uint)ESP_RAM_BLOCK, dataStart))
                 {
@@ -475,16 +496,21 @@ namespace BK7231Flasher
                     Array.Copy(data, i * ESP_RAM_BLOCK, block, 0, len);
                     if (!MemData(block, i))
                     {
-                        addErrorLine($"Failed to MEM_DATA data block {i}");
+                        addErrorLine($"Failed to MEM_DATA data block {i}/{blocks}");
                         return false;
                     }
+                    stubBytesSent += len;
+                    logger.setProgress(stubBytesSent, totalStubBytes);
                 }
+                addLogLine($"Stub data uploaded ({blocks} blocks).");
 
                 // Execute stub
-                addLogLine("Running stub flasher...");
+                logger.setState("Starting stub...", Color.LightBlue);
+                addLogLine("Running stub entry point...");
                 MemEnd(entry);
 
                 // Wait for OHAI
+                addLogLine("Waiting for stub handshake (OHAI)...");
                 if (!CheckForOHAI(5000))
                 {
                     addErrorLine("Stub did not respond with OHAI.");
@@ -492,7 +518,8 @@ namespace BK7231Flasher
                 }
 
                 isStub = true;
-                addLogLine("Stub flasher running.");
+                addSuccess("Stub flasher running!" + Environment.NewLine);
+                logger.setProgress(0, 1); // Reset progress bar
                 return true;
             }
             catch (Exception ex)
@@ -740,34 +767,45 @@ namespace BK7231Flasher
 
         public string FlashMd5Sum(uint addr, uint size)
         {
-             // esptool: struct.pack("<IIII", addr, size, 0, 0)
-             List<byte> payload = new List<byte>();
-             payload.AddRange(BitConverter.GetBytes(addr));
-             payload.AddRange(BitConverter.GetBytes(size));
-             payload.AddRange(BitConverter.GetBytes((uint)0));
-             payload.AddRange(BitConverter.GetBytes((uint)0));
-             
-             sendCommand(ESPCommand.SPI_FLASH_MD5, payload.ToArray());
-             // esptool: timeout = timeout_per_mb(MD5_TIMEOUT_PER_MB, size)
-             // MD5_TIMEOUT_PER_MB = 8 seconds per MB, minimum 3s
-             int timeout = Math.Max(3000, (int)(8.0 * size / 1000000.0 * 1000));
-             
-             // esptool: resp_data_len = 16 for stub, 32 for ROM
-             // Stub returns 16 raw MD5 bytes, ROM returns 32 hex chars
-             int rdl = isStub ? 16 : 32;
-             var resp = readPacket(timeout, ESPCommand.SPI_FLASH_MD5, rdl);
-             if(resp != null)
+             try
              {
-                  if (isStub)
-                  {
-                      // Stub: resp is 16 raw bytes, convert to hex string
-                      return BitConverter.ToString(resp).Replace("-","");
-                  }
-                  else
-                  {
-                      // ROM: resp is 32 hex chars as ASCII
-                      return System.Text.Encoding.ASCII.GetString(resp).ToUpper();
-                  }
+                 // esptool: struct.pack("<IIII", addr, size, 0, 0)
+                 List<byte> payload = new List<byte>();
+                 payload.AddRange(BitConverter.GetBytes(addr));
+                 payload.AddRange(BitConverter.GetBytes(size));
+                 payload.AddRange(BitConverter.GetBytes((uint)0));
+                 payload.AddRange(BitConverter.GetBytes((uint)0));
+                 
+                 // esptool: timeout = timeout_per_mb(MD5_TIMEOUT_PER_MB, size)
+                 // MD5_TIMEOUT_PER_MB = 8 seconds per MB, minimum 5s
+                 int timeout = Math.Max(5000, (int)(8.0 * size / 1000000.0 * 1000));
+                 
+                 // esptool: resp_data_len = 16 for stub, 32 for ROM
+                 // Stub returns 16 raw MD5 bytes, ROM returns 32 hex chars
+                 int rdl = isStub ? 16 : 32;
+                 addLogLine($"Requesting MD5 for 0x{addr:X}-0x{addr + size:X} ({size} bytes), timeout={timeout}ms, resp_data_len={rdl}...");
+                 
+                 sendCommand(ESPCommand.SPI_FLASH_MD5, payload.ToArray());
+                 var resp = readPacket(timeout, ESPCommand.SPI_FLASH_MD5, rdl);
+                 if(resp != null)
+                 {
+                      addLogLine($"MD5 response: {resp.Length} bytes");
+                      if (isStub)
+                      {
+                          // Stub: resp is 16 raw bytes, convert to hex string
+                          return BitConverter.ToString(resp).Replace("-","");
+                      }
+                      else
+                      {
+                          // ROM: resp is 32 hex chars as ASCII
+                          return System.Text.Encoding.ASCII.GetString(resp).ToUpper();
+                      }
+                 }
+                 addErrorLine($"MD5 command returned no response (timeout after {timeout}ms)");
+             }
+             catch (Exception ex)
+             {
+                 addErrorLine($"MD5 exception: {ex.Message}");
              }
              return null;
         }
@@ -790,17 +828,52 @@ namespace BK7231Flasher
         {
              try
              {
-                 uint baseAddr = 0x3FF5A000;
-                 uint w1 = ReadReg(baseAddr + 0x04);
-                 uint w2 = ReadReg(baseAddr + 0x08);
-                 
-                 byte[] mac = new byte[6];
-                 mac[0] = (byte)((w2 >> 8) & 0xFF);
-                 mac[1] = (byte)((w2 >> 0) & 0xFF);
-                 mac[2] = (byte)((w1 >> 24) & 0xFF);
-                 mac[3] = (byte)((w1 >> 16) & 0xFF);
-                 mac[4] = (byte)((w1 >> 8) & 0xFF);
-                 mac[5] = (byte)((w1 >> 0) & 0xFF);
+                 byte[] mac;
+                 if (isESP8266)
+                 {
+                     // ESP8266: Read MAC from OTP ROM registers
+                     uint mac0 = ReadReg(0x3FF00050);
+                     uint mac1 = ReadReg(0x3FF00054);
+                     uint mac3 = ReadReg(0x3FF0005C);
+
+                     byte oui0, oui1, oui2;
+                     if (mac3 != 0)
+                     {
+                         oui0 = (byte)((mac3 >> 16) & 0xFF);
+                         oui1 = (byte)((mac3 >> 8) & 0xFF);
+                         oui2 = (byte)(mac3 & 0xFF);
+                     }
+                     else if (((mac1 >> 16) & 0xFF) == 0)
+                     {
+                         oui0 = 0x18; oui1 = 0xFE; oui2 = 0x34;
+                     }
+                     else if (((mac1 >> 16) & 0xFF) == 1)
+                     {
+                         oui0 = 0xAC; oui1 = 0xD0; oui2 = 0x74;
+                     }
+                     else
+                     {
+                         oui0 = 0x00; oui1 = 0x00; oui2 = 0x00;
+                         addWarningLine("Unknown ESP8266 OUI");
+                     }
+                     mac = new byte[] { oui0, oui1, oui2,
+                         (byte)((mac1 >> 8) & 0xFF), (byte)(mac1 & 0xFF), (byte)((mac0 >> 24) & 0xFF) };
+                 }
+                 else
+                 {
+                     // ESP32: Read from eFuse registers
+                     uint baseAddr = 0x3FF5A000;
+                     uint w1 = ReadReg(baseAddr + 0x04);
+                     uint w2 = ReadReg(baseAddr + 0x08);
+
+                     mac = new byte[6];
+                     mac[0] = (byte)((w2 >> 8) & 0xFF);
+                     mac[1] = (byte)((w2 >> 0) & 0xFF);
+                     mac[2] = (byte)((w1 >> 24) & 0xFF);
+                     mac[3] = (byte)((w1 >> 16) & 0xFF);
+                     mac[4] = (byte)((w1 >> 8) & 0xFF);
+                     mac[5] = (byte)((w1 >> 0) & 0xFF);
+                 }
                  
                  string s = BitConverter.ToString(mac);
                  addLogLine($"MAC Address: {s}");
@@ -815,8 +888,8 @@ namespace BK7231Flasher
 
         public bool Connect()
         {
-            logger.setState("Connecting to ESP32...", Color.Yellow);
-            addLogLine("Attempting to connect to ESP32...");
+            logger.setState("Connecting to ESP...", Color.Yellow);
+            addLogLine("Attempting to connect to ESP...");
             if(!openPort())
             {
                 return false;
@@ -832,8 +905,20 @@ namespace BK7231Flasher
 
             if (Sync())
             {
-                logger.setState("ESP32 synced", Color.LightGreen);
-                addSuccess(Environment.NewLine + "Synced with ESP32!" + Environment.NewLine);
+                // Detect chip type from magic register
+                uint? chipMagic = GetChipId();
+                if (chipMagic.HasValue)
+                {
+                    if (ChipMagicValues.ContainsKey(chipMagic.Value))
+                        detectedChip = ChipMagicValues[chipMagic.Value];
+                    else
+                        detectedChip = $"Unknown(0x{chipMagic.Value:X})";
+                    isESP8266 = (chipMagic.Value == 0xFFF0C101);
+                }
+
+                logger.setState($"{detectedChip} synced", Color.LightGreen);
+                addSuccess(Environment.NewLine + $"Synced with {detectedChip}!" + Environment.NewLine);
+
                 if (!SpiAttach())
                 {
                     addErrorLine("Failed to configure SPI pins.");
@@ -841,7 +926,7 @@ namespace BK7231Flasher
                 }
                 return true;
             }
-            return false; // Placeholder return
+            return false;
         }
 
 
@@ -850,7 +935,29 @@ namespace BK7231Flasher
              try
              {
                  addLogLine("Configuring SPI flash pins (SpiAttach)...");
-                 // esptool: stub needs 4 bytes, ROM needs 8 bytes
+
+                 if (isESP8266 && !isStub)
+                 {
+                     // ESP8266 ROM has no SPI_ATTACH command.
+                     // Use FLASH_BEGIN(size=0, offset=0) which initializes SPI as a side effect.
+                     addLogLine("ESP8266 ROM: using FLASH_BEGIN to init SPI...");
+                     List<byte> fbPayload = new List<byte>();
+                     fbPayload.AddRange(BitConverter.GetBytes((uint)0)); // size
+                     fbPayload.AddRange(BitConverter.GetBytes((uint)0)); // blocks
+                     fbPayload.AddRange(BitConverter.GetBytes((uint)0)); // block size
+                     fbPayload.AddRange(BitConverter.GetBytes((uint)0)); // offset
+                     sendCommand(ESPCommand.FLASH_BEGIN, fbPayload.ToArray());
+                     var fbResp = readPacket(5000, ESPCommand.FLASH_BEGIN);
+                     if (fbResp == null)
+                     {
+                         addErrorLine("FLASH_BEGIN (SPI init) failed.");
+                         return false;
+                     }
+                     addLogLine("SPI initialized via FLASH_BEGIN.");
+                     return true;
+                 }
+
+                 // ESP32 (and stubs for all chips) use the SPI_ATTACH command
                  int payloadSize = isStub ? 4 : 8;
                  byte[] payload = new byte[payloadSize];
                  sendCommand(ESPCommand.SPI_ATTACH, payload);
@@ -1102,7 +1209,7 @@ namespace BK7231Flasher
         {
             if (Connect())
             {
-                GetChipId();
+                // GetChipId already called in Connect()
                 ReadMac();
                 uint? fid = ReadFlashId();
                 uint flashSize = 0;
@@ -1132,11 +1239,15 @@ namespace BK7231Flasher
                 if (!LegacyMode && UploadStub())
                 {
                     // Re-attach SPI after stub starts
+                    addLogLine("Re-attaching SPI after stub...");
                     SpiAttach();
                     if (baudrate > 115200)
                     {
+                        addLogLine($"Changing baud rate to {baudrate}...");
                         ChangeBaudrate(baudrate);
+                        addLogLine($"Baud rate changed to {baudrate}.");
                     }
+                    logger.setState($"Reading flash (stub, {baudrate} baud)...", Color.LightBlue);
 
                     try
                     {
@@ -1227,10 +1338,13 @@ namespace BK7231Flasher
                     UploadStub();
                     if (isStub)
                     {
+                        addLogLine("Re-attaching SPI after stub...");
                         SpiAttach();
                         if (baudrate > 115200)
                         {
+                            addLogLine($"Changing baud rate to {baudrate}...");
                             ChangeBaudrate(baudrate);
+                            addLogLine($"Baud rate changed to {baudrate}.");
                         }
                     }
                 }
@@ -1238,8 +1352,9 @@ namespace BK7231Flasher
                 uint blockSize = 0x400; // 1024 bytes
                 uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
 
-                logger.setState("Writing flash...", Color.LightBlue);
+                logger.setState("Erasing flash...", Color.LightBlue);
                 addLogLine($"Starting Flash Write: {data.Length} bytes ({numBlocks} blocks) at 0x{offset:X}...");
+                addLogLine("Sending FLASH_BEGIN (may erase, this can take a while)...");
                 var swWrite = Stopwatch.StartNew();
 
                 // FLASH_BEGIN: size, numBlocks, blockSize, offset
@@ -1251,11 +1366,13 @@ namespace BK7231Flasher
 
                 sendCommand(ESPCommand.FLASH_BEGIN, beginPayload.ToArray());
                 // FLASH_BEGIN can take a long time if it triggers an erase
-                if (readPacket(10000, ESPCommand.FLASH_BEGIN) == null)
+                if (readPacket(30000, ESPCommand.FLASH_BEGIN) == null)
                 {
-                    addErrorLine("FLASH_BEGIN failed.");
+                    addErrorLine("FLASH_BEGIN failed (erase timeout or error).");
                     return;
                 }
+                addLogLine("FLASH_BEGIN OK, erase complete.");
+                logger.setState("Writing flash...", Color.LightBlue);
 
                 for (uint i = 0; i < numBlocks; i++)
                 {
@@ -1302,21 +1419,28 @@ namespace BK7231Flasher
                 }
 
                 // FLASH_END: execute (1 = run, 0 = stay)
+                addLogLine("Sending FLASH_END...");
                 sendCommand(ESPCommand.FLASH_END, BitConverter.GetBytes((uint)0));
-                readPacket(1000, ESPCommand.FLASH_END);
+                var endResp = readPacket(1000, ESPCommand.FLASH_END);
+                if (endResp == null)
+                    addWarningLine("FLASH_END: no response (non-fatal).");
+                else
+                    addLogLine("FLASH_END OK.");
 
                 swWrite.Stop();
                 double secsWrite = swWrite.Elapsed.TotalSeconds;
                 double kbitsWrite = (data.Length * 8.0 / 1000.0) / secsWrite;
                 double kbytesWrite = (data.Length / 1024.0) / secsWrite;
                 addLogLine($"Wrote {data.Length} bytes at 0x{offset:X8} in {secsWrite:F1}s ({kbitsWrite:F1} kbit/s, {kbytesWrite:F1} KB/s)");
-                addLogLine("Flash Write Complete.");
+                addSuccess("Flash Write Complete!" + Environment.NewLine);
                 logger.setState("Write complete", Color.LightGreen);
                 
                 if (isStub)
                 {
                      logger.setState("Verifying MD5...", Color.LightBlue);
                      addLogLine("Verifying write with MD5...");
+                     // Small delay to let stub settle after FLASH_END
+                     System.Threading.Thread.Sleep(100);
                      try
                      {
                          using(var md5 = MD5.Create())

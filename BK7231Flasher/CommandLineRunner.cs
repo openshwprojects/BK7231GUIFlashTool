@@ -407,6 +407,7 @@ namespace BK7231Flasher
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
                 case BKType.ESP32:
+                case BKType.ESP8266:
                 case BKType.LN882H:
                 case BKType.LN8825:
                 case BKType.BL602:
@@ -608,6 +609,7 @@ namespace BK7231Flasher
                 case BKType.RDA5981:
                     return new RDAFlasher(ct);
                 case BKType.ESP32:
+                case BKType.ESP8266:
                     return new ESPFlasher(ct);
                 default:
                     return new BK7231Flasher(ct);
@@ -647,7 +649,7 @@ namespace BK7231Flasher
             Console.WriteLine("  --addr <0x11000>       Start address (hex or decimal, for read_flash/write_flash)");
             Console.WriteLine("  --size <0x1000>        Length in bytes (hex or decimal, for read_flash/write_flash)");
             Console.WriteLine("  --out <name>           Output name for backup (default: cliBackup)");
-            Console.WriteLine("  --no-stub              Use legacy (ROM-only) mode for ESP32 (disable stub flasher)");
+            Console.WriteLine("  --no-stub              Use legacy (ROM-only) mode for ESP32/ESP8266 (disable stub flasher)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  BK7231Flasher.exe --port COM3 --chip BK7231N fread --out mybackup");
