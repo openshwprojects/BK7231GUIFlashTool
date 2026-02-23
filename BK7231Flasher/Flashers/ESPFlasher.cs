@@ -43,6 +43,7 @@ namespace BK7231Flasher
 
         bool isStub = false;
         bool isESP8266 = false;
+        bool isESP32S3 = false;
         string detectedChip = "ESP";
         byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
@@ -264,10 +265,50 @@ namespace BK7231Flasher
         const uint SPI_MOSI_DLEN_OFFS = 0x28;
         const uint SPI_MISO_DLEN_OFFS = 0x2C;
 
+        // ESP32-S3 SPI register addresses (from esptool esp32s3.py)
+        const uint ESP32S3_SPI_REG_BASE = 0x60002000;
+        const uint ESP32S3_SPI_USR_OFFS = 0x18;
+        const uint ESP32S3_SPI_USR2_OFFS = 0x20;
+        const uint ESP32S3_SPI_MOSI_DLEN_OFFS = 0x24;
+        const uint ESP32S3_SPI_MISO_DLEN_OFFS = 0x28;
+        const uint ESP32S3_SPI_W0_OFFS = 0x58;
+
         uint RunSpiFlashCmd(byte cmd, int readBits = 0)
         {
-            uint baseAddr = isESP8266 ? ESP8266_SPI_REG_BASE : ESP32_SPI_REG_BASE;
-            uint w0Offs = isESP8266 ? ESP8266_SPI_W0_OFFS : ESP32_SPI_W0_OFFS;
+            uint baseAddr;
+            uint w0Offs;
+            uint usrOffs;
+            uint usr2Offs;
+            uint mosiDlenOffs;
+            uint misoDlenOffs;
+
+            if (isESP8266)
+            {
+                baseAddr = ESP8266_SPI_REG_BASE;
+                w0Offs = ESP8266_SPI_W0_OFFS;
+                usrOffs = SPI_USR_OFFS;
+                usr2Offs = SPI_USR2_OFFS;
+                mosiDlenOffs = 0; // not used for ESP8266
+                misoDlenOffs = 0; // not used for ESP8266
+            }
+            else if (isESP32S3)
+            {
+                baseAddr = ESP32S3_SPI_REG_BASE;
+                w0Offs = ESP32S3_SPI_W0_OFFS;
+                usrOffs = ESP32S3_SPI_USR_OFFS;
+                usr2Offs = ESP32S3_SPI_USR2_OFFS;
+                mosiDlenOffs = ESP32S3_SPI_MOSI_DLEN_OFFS;
+                misoDlenOffs = ESP32S3_SPI_MISO_DLEN_OFFS;
+            }
+            else
+            {
+                baseAddr = ESP32_SPI_REG_BASE;
+                w0Offs = ESP32_SPI_W0_OFFS;
+                usrOffs = SPI_USR_OFFS;
+                usr2Offs = SPI_USR2_OFFS;
+                mosiDlenOffs = SPI_MOSI_DLEN_OFFS;
+                misoDlenOffs = SPI_MISO_DLEN_OFFS;
+            }
             
             // Set lengths (0 MOSI, readBits MISO)
             if (isESP8266)
@@ -283,10 +324,10 @@ namespace BK7231Flasher
             else
             {
                 if(readBits > 0)
-                     WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, (uint)(readBits - 1));
+                     WriteReg(baseAddr + misoDlenOffs, (uint)(readBits - 1));
                 else
-                     WriteReg(baseAddr + SPI_MISO_DLEN_OFFS, 0);
-                WriteReg(baseAddr + SPI_MOSI_DLEN_OFFS, 0); // 0 bits MOSI
+                     WriteReg(baseAddr + misoDlenOffs, 0);
+                WriteReg(baseAddr + mosiDlenOffs, 0); // 0 bits MOSI
             }
 
             // SPI_USR_REG flags
@@ -294,11 +335,11 @@ namespace BK7231Flasher
             uint usrFlags = (1u << 31); // COMMAND
             if(readBits > 0) usrFlags |= (1u << 28); // MISO
             
-            WriteReg(baseAddr + SPI_USR_OFFS, usrFlags);
+            WriteReg(baseAddr + usrOffs, usrFlags);
 
             // SPI_USR2_REG: (7 << 28) | cmd
             uint usr2 = (7u << 28) | cmd;
-            WriteReg(baseAddr + SPI_USR2_OFFS, usr2);
+            WriteReg(baseAddr + usr2Offs, usr2);
 
             // Execute: SPI_CMD_REG (offset 0) bit 18 (USR)
             WriteReg(baseAddr, (1u << 18));
@@ -439,7 +480,7 @@ namespace BK7231Flasher
             try
             {
                 // Load chip-specific stub from embedded resource
-                string stubName = isESP8266 ? "ESP8266_Stub" : "ESP32_Stub";
+                string stubName = isESP8266 ? "ESP8266_Stub" : isESP32S3 ? "ESP32S3_Stub" : "ESP32_Stub";
                 string jsonContent = FLoaders.GetStringFromAssembly(stubName);
                 addLogLine($"Loaded stub: {stubName}");
                 
@@ -873,21 +914,36 @@ namespace BK7231Flasher
                      mac = new byte[] { oui0, oui1, oui2,
                          (byte)((mac1 >> 8) & 0xFF), (byte)(mac1 & 0xFF), (byte)((mac0 >> 24) & 0xFF) };
                  }
-                 else
-                 {
-                     // ESP32: Read from eFuse registers
-                     uint baseAddr = 0x3FF5A000;
-                     uint w1 = ReadReg(baseAddr + 0x04);
-                     uint w2 = ReadReg(baseAddr + 0x08);
+                  else if (isESP32S3)
+                  {
+                      // ESP32-S3: EFUSE_BASE=0x60007000, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                      uint mac0 = ReadReg(0x60007044);
+                      uint mac1 = ReadReg(0x60007048);
 
-                     mac = new byte[6];
-                     mac[0] = (byte)((w2 >> 8) & 0xFF);
-                     mac[1] = (byte)((w2 >> 0) & 0xFF);
-                     mac[2] = (byte)((w1 >> 24) & 0xFF);
-                     mac[3] = (byte)((w1 >> 16) & 0xFF);
-                     mac[4] = (byte)((w1 >> 8) & 0xFF);
-                     mac[5] = (byte)((w1 >> 0) & 0xFF);
-                 }
+                      // esptool: struct.pack(">II", mac1, mac0)[2:] → 6 bytes big-endian
+                      mac = new byte[6];
+                      mac[0] = (byte)((mac1 >> 8) & 0xFF);
+                      mac[1] = (byte)((mac1 >> 0) & 0xFF);
+                      mac[2] = (byte)((mac0 >> 24) & 0xFF);
+                      mac[3] = (byte)((mac0 >> 16) & 0xFF);
+                      mac[4] = (byte)((mac0 >> 8) & 0xFF);
+                      mac[5] = (byte)((mac0 >> 0) & 0xFF);
+                  }
+                  else
+                  {
+                      // ESP32: Read from eFuse registers
+                      uint baseAddr = 0x3FF5A000;
+                      uint w1 = ReadReg(baseAddr + 0x04);
+                      uint w2 = ReadReg(baseAddr + 0x08);
+
+                      mac = new byte[6];
+                      mac[0] = (byte)((w2 >> 8) & 0xFF);
+                      mac[1] = (byte)((w2 >> 0) & 0xFF);
+                      mac[2] = (byte)((w1 >> 24) & 0xFF);
+                      mac[3] = (byte)((w1 >> 16) & 0xFF);
+                      mac[4] = (byte)((w1 >> 8) & 0xFF);
+                      mac[5] = (byte)((w1 >> 0) & 0xFF);
+                  }
                  
                  string s = BitConverter.ToString(mac);
                  addLogLine($"MAC Address: {s}");
@@ -919,14 +975,24 @@ namespace BK7231Flasher
 
             if (Sync())
             {
-                // Detect chip type from magic register
+                // Detect chip type from magic register / security info
                 uint? chipMagic = GetChipId();
                 if (chipMagic.HasValue)
                 {
-                    if (ChipMagicValues.ContainsKey(chipMagic.Value))
+                    // Check if this is a chip ID from GET_SECURITY_INFO (small values)
+                    if (ChipIDs.ContainsKey(chipMagic.Value))
+                    {
+                        detectedChip = ChipIDs[chipMagic.Value];
+                        isESP32S3 = (chipMagic.Value == 9);
+                    }
+                    else if (ChipMagicValues.ContainsKey(chipMagic.Value))
+                    {
                         detectedChip = ChipMagicValues[chipMagic.Value];
+                    }
                     else
+                    {
                         detectedChip = $"Unknown(0x{chipMagic.Value:X})";
+                    }
                     isESP8266 = (chipMagic.Value == 0xFFF0C101);
                 }
 
@@ -1261,7 +1327,7 @@ namespace BK7231Flasher
                         ChangeBaudrate(baudrate);
                         addLogLine($"Baud rate changed to {baudrate}.");
                     }
-                    logger.setState($"Reading flash (stub, {baudrate} baud)...", Color.LightBlue);
+                    logger.setState($"Reading flash...", Color.LightBlue);
 
                     try
                     {

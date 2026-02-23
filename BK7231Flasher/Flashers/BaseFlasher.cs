@@ -36,6 +36,7 @@ namespace BK7231Flasher
         BekenSPI,
         GenericSPI,
         ESP32,
+        ESP32S3,
         ESP8266,
 
         Detect,
