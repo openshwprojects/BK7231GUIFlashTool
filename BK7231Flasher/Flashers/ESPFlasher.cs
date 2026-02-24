@@ -44,6 +44,7 @@ namespace BK7231Flasher
         bool isStub = false;
         bool isESP8266 = false;
         bool isESP32S3 = false;
+        bool isESP32C3 = false;
         string detectedChip = "ESP";
         byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
@@ -291,7 +292,7 @@ namespace BK7231Flasher
                 mosiDlenOffs = 0; // not used for ESP8266
                 misoDlenOffs = 0; // not used for ESP8266
             }
-            else if (isESP32S3)
+            else if (isESP32S3 || isESP32C3)
             {
                 baseAddr = ESP32S3_SPI_REG_BASE;
                 w0Offs = ESP32S3_SPI_W0_OFFS;
@@ -480,7 +481,7 @@ namespace BK7231Flasher
             try
             {
                 // Load chip-specific stub from embedded resource
-                string stubName = isESP8266 ? "ESP8266_Stub" : isESP32S3 ? "ESP32S3_Stub" : "ESP32_Stub";
+                string stubName = isESP8266 ? "ESP8266_Stub" : isESP32S3 ? "ESP32S3_Stub" : isESP32C3 ? "ESP32C3_Stub" : "ESP32_Stub";
                 string jsonContent = FLoaders.GetStringFromAssembly(stubName);
                 addLogLine($"Loaded stub: {stubName}");
                 
@@ -914,7 +915,22 @@ namespace BK7231Flasher
                      mac = new byte[] { oui0, oui1, oui2,
                          (byte)((mac1 >> 8) & 0xFF), (byte)(mac1 & 0xFF), (byte)((mac0 >> 24) & 0xFF) };
                  }
-                  else if (isESP32S3)
+                   else if (isESP32C3)
+                   {
+                       // ESP32-C3: EFUSE_BASE=0x60008800, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       uint mac0 = ReadReg(0x60008844);
+                       uint mac1 = ReadReg(0x60008848);
+
+                       // esptool: struct.pack(">II", mac1, mac0)[2:] → 6 bytes big-endian
+                       mac = new byte[6];
+                       mac[0] = (byte)((mac1 >> 8) & 0xFF);
+                       mac[1] = (byte)((mac1 >> 0) & 0xFF);
+                       mac[2] = (byte)((mac0 >> 24) & 0xFF);
+                       mac[3] = (byte)((mac0 >> 16) & 0xFF);
+                       mac[4] = (byte)((mac0 >> 8) & 0xFF);
+                       mac[5] = (byte)((mac0 >> 0) & 0xFF);
+                   }
+                   else if (isESP32S3)
                   {
                       // ESP32-S3: EFUSE_BASE=0x60007000, MAC_EFUSE_REG=EFUSE_BASE+0x044
                       uint mac0 = ReadReg(0x60007044);
@@ -975,25 +991,43 @@ namespace BK7231Flasher
 
             if (Sync())
             {
-                // Detect chip type from magic register / security info
+                // Always use user-selected chipType for flags
+                switch (chipType)
+                {
+                    case BKType.ESP32C3:
+                        detectedChip = "ESP32-C3";
+                        isESP32C3 = true;
+                        break;
+                    case BKType.ESP32S3:
+                        detectedChip = "ESP32-S3";
+                        isESP32S3 = true;
+                        break;
+                    case BKType.ESP8266:
+                        detectedChip = "ESP8266";
+                        isESP8266 = true;
+                        break;
+                    case BKType.ESP32:
+                        detectedChip = "ESP32";
+                        break;
+                    default:
+                        detectedChip = chipType.ToString();
+                        break;
+                }
+
+                // Try auto-detect and warn if it disagrees with user selection
                 uint? chipMagic = GetChipId();
                 if (chipMagic.HasValue)
                 {
-                    // Check if this is a chip ID from GET_SECURITY_INFO (small values)
+                    string autoName = null;
                     if (ChipIDs.ContainsKey(chipMagic.Value))
-                    {
-                        detectedChip = ChipIDs[chipMagic.Value];
-                        isESP32S3 = (chipMagic.Value == 9);
-                    }
+                        autoName = ChipIDs[chipMagic.Value];
                     else if (ChipMagicValues.ContainsKey(chipMagic.Value))
-                    {
-                        detectedChip = ChipMagicValues[chipMagic.Value];
-                    }
-                    else
-                    {
-                        detectedChip = $"Unknown(0x{chipMagic.Value:X})";
-                    }
-                    isESP8266 = (chipMagic.Value == 0xFFF0C101);
+                        autoName = ChipMagicValues[chipMagic.Value];
+
+                    if (autoName != null && autoName != detectedChip)
+                        addWarningLine($"Warning: auto-detected chip is {autoName}, but user selected {detectedChip}");
+                    else if (autoName != null)
+                        addLogLine($"Auto-detect confirmed: {autoName}");
                 }
 
                 logger.setState($"{detectedChip} synced", Color.LightGreen);

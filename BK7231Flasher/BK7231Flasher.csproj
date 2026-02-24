@@ -216,6 +216,7 @@
     <EmbeddedResource Include="Floaders\LN88xx_RamCode.bin" />
     <EmbeddedResource Include="Floaders\ESP32_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32S3_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32C3_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP8266_Stub.json" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">

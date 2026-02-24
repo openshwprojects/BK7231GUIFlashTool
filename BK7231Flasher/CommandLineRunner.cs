@@ -407,6 +407,8 @@ namespace BK7231Flasher
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
                 case BKType.ESP32:
+                case BKType.ESP32C3:
+                case BKType.ESP32S3:
                 case BKType.ESP8266:
                 case BKType.LN882H:
                 case BKType.LN8825:
@@ -609,6 +611,8 @@ namespace BK7231Flasher
                 case BKType.RDA5981:
                     return new RDAFlasher(ct);
                 case BKType.ESP32:
+                case BKType.ESP32C3:
+                case BKType.ESP32S3:
                 case BKType.ESP8266:
                     return new ESPFlasher(ct);
                 default:
