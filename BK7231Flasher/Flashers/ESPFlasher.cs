@@ -1025,7 +1025,11 @@ namespace BK7231Flasher
                         autoName = ChipMagicValues[chipMagic.Value];
 
                     if (autoName != null && autoName != detectedChip)
-                        addWarningLine($"Warning: auto-detected chip is {autoName}, but user selected {detectedChip}");
+                    {
+                        addErrorLine("==========================================================");
+                        addErrorLine($"Are you sure about chip type? Specified: {detectedChip} Detected: {autoName}");
+                        addErrorLine("==========================================================");
+                    }
                     else if (autoName != null)
                         addLogLine($"Auto-detect confirmed: {autoName}");
                 }
