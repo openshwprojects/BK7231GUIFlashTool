@@ -19,6 +19,7 @@ namespace BK7231Flasher
 		};
 		readonly uint FLASH_MMAP_BASE = 0x98000000;
 		readonly int DumpAmount = 0x1000;
+		readonly int ReadVerifySpan = 0x20000;
 		uint? FuncPtr = null;
 		string FuncName = string.Empty;
 		int? FlashMode;
@@ -699,6 +700,8 @@ namespace BK7231Flasher
 				uint startAddr = (uint)addr;
 				int progress = 0;
 				int errCount = 0;
+				int verifyStart = 0;
+				int verifyLength = 0;
 				while(startAmount > 0 && errCount < 10)
 				{
 					byte[] bytes = new byte[DumpAmount];
@@ -706,14 +709,6 @@ namespace BK7231Flasher
 					try
 					{
 						DumpBytes(startAddr | FLASH_MMAP_BASE, DumpAmount, out bytes);
-						// Verify each chunk against the chip hash.
-						var chunkHash = HashToStr(sha256Hash.ComputeHash(bytes));
-						FlashHashOffset = null;
-						var expectedChunkHash = HashToStr(FlashReadHash(startAddr, DumpAmount));
-						if(chunkHash != expectedChunkHash)
-						{
-							throw new Exception($"Hash mismatch (got {chunkHash}, expected {expectedChunkHash})");
-						}
 						addLogLine("OK");
 						errCount = 0;
 					}
@@ -731,9 +726,24 @@ namespace BK7231Flasher
 					}
 					startAddr += (uint)DumpAmount;
 					startAmount -= DumpAmount;
-					logger.setProgress(amount - startAmount, amount);
 					bytes.CopyTo(ret, progress);
 					progress += DumpAmount;
+					verifyLength += DumpAmount;
+					logger.setProgress(amount - startAmount, amount);
+					bool verifyNow = verifyLength >= ReadVerifySpan || startAmount == 0;
+					if(verifyNow)
+					{
+						var block = ret.Skip(verifyStart).Take(verifyLength).ToArray();
+						var blockHash = HashToStr(sha256Hash.ComputeHash(block));
+						FlashHashOffset = null;
+						var expectedBlockHash = HashToStr(FlashReadHash((uint)(addr + verifyStart), verifyLength));
+						if(blockHash != expectedBlockHash)
+						{
+							throw new Exception($"Hash mismatch in 0x{addr + verifyStart:X6}-0x{addr + verifyStart + verifyLength - 1:X6} (got {blockHash}, expected {expectedBlockHash})");
+						}
+						verifyStart += verifyLength;
+						verifyLength = 0;
+					}
 				}
 				if(errCount >= 10)
 				{
