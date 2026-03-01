@@ -276,7 +276,7 @@ namespace BK7231Flasher
 				xm.PacketSent += Xm_PacketSent;
 				try
 				{
-					var res = xm.Send(data.ToArray(), offset ^ FLASH_MMAP_BASE);
+					var res = xm.Send(data.ToArray(), offset | FLASH_MMAP_BASE);
 					Thread.Sleep(100);
 					if(res == data.Length)
 					{
@@ -287,7 +287,8 @@ namespace BK7231Flasher
 						var localHash = HashToStr(sha256.ComputeHash(data.ToArray()));
 						sha256.Clear();
 						FlashHashOffset = null; // force FlashReadHash to reposition
-						var flashHash = HashToStr(FlashReadHash(offset ^ FLASH_MMAP_BASE, data.Length));
+						// offset is raw flash address here - pass directly
+						var flashHash = HashToStr(FlashReadHash(offset, (int)data.Length));
 						if(localHash != flashHash)
 						{
 							logger.setState("Write verify failed!", Color.Red);
@@ -376,9 +377,11 @@ namespace BK7231Flasher
 				}
 				logger.setProgress(0, size);
 				addLog(Environment.NewLine + "Starting write!" + Environment.NewLine);
+				// startSector is a sector index, not a byte address.
+				// Byte address = startSector * SECTOR_SIZE. Sector number = startSector as-is.
 				addLog("Write parms: start 0x" +
-					(startSector).ToString("X2")
-					+ " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
+					(startSector * BK7231Flasher.SECTOR_SIZE).ToString("X")
+					+ " (sector " + startSector + "), len 0x" +
 					(size).ToString("X2")
 					+ " (" + (((size + 0xFFF) & ~0xFFF) / BK7231Flasher.SECTOR_SIZE) + " sectors)"
 					+ Environment.NewLine);
@@ -417,7 +420,8 @@ namespace BK7231Flasher
 					writeOffset |= FLASH_MMAP_BASE;
 
 					var ms = new MemoryStream(data);
-					if(!FlashTransmit(ms, (uint)(startSector * 0x1000) | FLASH_MMAP_BASE))
+					// Pass raw flash offset to FlashTransmit - fwd command needs raw, not virtual (MMAP) address
+					if(!FlashTransmit(ms, (uint)(startSector * 0x1000)))
 					{
 						addLog("Error: Write Flash!" + Environment.NewLine);
 						ChangeBaud(115200);
@@ -463,7 +467,8 @@ namespace BK7231Flasher
 					addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
 					addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
 					addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-					offset |= FLASH_MMAP_BASE;
+					addLog("Writing config sector " + formatHex(offset) + "..." + Environment.NewLine);
+					// Do NOT OR in FLASH_MMAP_BASE here - FlashTransmit expects raw flash offset for fwd command
 					bool bOk = FlashTransmit(ms, offset);
 					if(bOk == false)
 					{
