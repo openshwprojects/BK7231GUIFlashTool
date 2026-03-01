@@ -211,7 +211,9 @@ namespace BK7231Flasher
 		int RegisterRead(uint addr)
 		{
 			DumpWords((uint)(addr & ~0x3), 4, out var shorts);
-			return shorts[addr - addr & ~0x3];
+			// Bug was: shorts[addr - addr & ~0x3] which always evaluated to shorts[0]
+			// due to precedence: (addr - addr) & ~0x3 == 0. Fixed to word offset within aligned block.
+			return shorts[(addr & 0x3) == 0 ? 0 : (addr & 0x3)];
 		}
 
 		void RegisterWrite(uint addr, uint value)
@@ -264,7 +266,7 @@ namespace BK7231Flasher
 				Thread.Sleep(10);
 				var bytes = new char[3];
 				serial.Read(bytes, 0, 3);
-				if(bytes[0] != 24 && bytes[1] != 'E' && bytes[2] != 'R')
+				if(bytes[0] != 24 || bytes[1] != 'E' || bytes[2] != 'R')
 					throw new Exception($"expected CAN, got {new string(bytes)}");
 				return true;
 			}
@@ -278,6 +280,21 @@ namespace BK7231Flasher
 					Thread.Sleep(100);
 					if(res == data.Length)
 					{
+						// Verify what actually landed in flash matches what we sent
+						logger.setState("Verifying write...", Color.Transparent);
+						addLogLine("Verifying write via hash...");
+						var sha256 = SHA256.Create();
+						var localHash = HashToStr(sha256.ComputeHash(data.ToArray()));
+						sha256.Clear();
+						FlashHashOffset = null; // force FlashReadHash to reposition
+						var flashHash = HashToStr(FlashReadHash(offset ^ FLASH_MMAP_BASE, data.Length));
+						if(localHash != flashHash)
+						{
+							logger.setState("Write verify failed!", Color.Red);
+							addErrorLine($"Write hash mismatch!\r\nexpected\t{localHash}\r\ngot\t\t{flashHash}");
+							return false;
+						}
+						addSuccess($"Write verified OK ({localHash})!" + Environment.NewLine);
 						logger.setProgress(1, 1);
 						addLog("Write complete!" + Environment.NewLine);
 						logger.setState("Write complete!", Color.Transparent);
@@ -551,12 +568,15 @@ namespace BK7231Flasher
 					try
 					{
 						DumpBytes(startAddr | FLASH_MMAP_BASE, DumpAmount, out bytes);
-						//var treadHash = HashToStr(sha256Hash.ComputeHash(bytes));
-						//var texpectedHash = HashToStr(FlashReadHash(startAddr, DumpAmount));
-						//if(treadHash != texpectedHash)
-						//{
-						//	throw new Exception("Hash mismatch");
-						//}
+						// Verify each chunk against the chip's own hash to catch silent data corruption
+						var chunkHash = HashToStr(sha256Hash.ComputeHash(bytes));
+						FlashHashOffset = null; // reposition for each chunk verify
+						var expectedChunkHash = HashToStr(FlashReadHash(startAddr, DumpAmount));
+						if(chunkHash != expectedChunkHash)
+						{
+							throw new Exception($"Hash mismatch (got {chunkHash}, expected {expectedChunkHash})");
+						}
+						addLogLine("OK");
 						errCount = 0;
 					}
 					catch(InvalidOperationException ioex)
