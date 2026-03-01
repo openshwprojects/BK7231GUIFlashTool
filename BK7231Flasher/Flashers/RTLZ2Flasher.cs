@@ -37,6 +37,55 @@ namespace BK7231Flasher
 			serial.DiscardOutBuffer();
 		}
 
+		// serial.Read() may return fewer bytes than requested (returns as soon as ANY bytes arrive).
+		// This helper blocks until exactly 'count' bytes are received.
+		byte[] ReadExactly(int count)
+		{
+			var buffer = new byte[count];
+			int offset = 0;
+			while(offset < count)
+			{
+				try
+				{
+					int read = serial.Read(buffer, offset, count - offset);
+					offset += read;
+				}
+				catch { return null; }
+			}
+			return buffer;
+		}
+
+		// Actively read serial data for up to 'waitMs' milliseconds.
+		// Unlike ReadExisting(), this waits for data rather than snapshotting the buffer at one instant.
+		// Push_timeout(t) + read() pattern, fixing missed fallback responses
+		// on USB-UART adapters that deliver bytes slightly after the Sleep() deadline.
+		string ReadWithTimeout(int waitMs)
+		{
+			var sb = new StringBuilder();
+			var deadline = DateTime.Now.AddMilliseconds(waitMs);
+			var savedTimeout = serial.ReadTimeout;
+			serial.ReadTimeout = 20;
+			try
+			{
+				while(DateTime.Now < deadline)
+				{
+					try
+					{
+						var chunk = serial.ReadExisting();
+						if(chunk.Length > 0)
+							sb.Append(chunk);
+					}
+					catch { }
+					Thread.Sleep(10);
+				}
+			}
+			finally
+			{
+				serial.ReadTimeout = savedTimeout;
+			}
+			return sb.ToString();
+		}
+
 		void Command(string cmd)
 		{
 			Flush();
@@ -44,56 +93,53 @@ namespace BK7231Flasher
 			var cmdascii = Encoding.ASCII.GetBytes($"{cmd}\n");
 			serial.Write(cmdascii, 0, cmdascii.Length);
 			if(IsInFallbackMode)
-				serial.ReadLine();
+			{
+				// Read back the echoed command + \r\n )
+				// Previously used ReadLine() which only consumed up to \n, leaving \r in the buffer
+				ReadExactly(cmdascii.Length + 1); // cmd\n echoed as cmd\r\n
+			}
 		}
 
 		bool Link()
 		{
+			// Try to enter fallback mode once (must happen before any ping attempt)
 			LinkFallback();
-			Command("ping");
-			byte[] bytes = { 0, 0, 0, 0 };
-			Thread.Sleep(25);
-			try
+			// Retry ping for up to 10 seconds.
+			// The old code attempted ping exactly once with a 25ms wait, which fails on
+			// any chip or adapter that takes more than a moment to become ready.
+			var deadline = DateTime.Now.AddSeconds(10);
+			while(DateTime.Now < deadline)
 			{
-				serial.Read(bytes, 0, 4);
-			}
-			catch { }
-
-			if(Encoding.ASCII.GetString(bytes) != "ping")
-			{
-				addErrorLine("Ping response is incorrect");
-				addErrorLine("Link failed!");
-				return false;
-			}
-			var extra = string.Empty;
-			try
-			{
-				extra = serial.ReadExisting();
-			}
-			catch { }
-			if(extra.Length > 0)
-			{
-				//addLogLine($"<<< {extra}");
-				if(extra.Contains("$8710c"))
+				try
 				{
-					addErrorLine("Ping fallback");
-					addErrorLine("Link failed!");
-					return false;
+					Command("ping");
+					// Use ReadExactly to guarantee all 4 bytes before comparing.
+					// serial.Read() can return partial data (e.g. just "p"), causing false failures.
+					var resp = ReadExactly(4);
+					if(resp != null && Encoding.ASCII.GetString(resp) == "ping")
+					{
+						var extra = string.Empty;
+						try { extra = serial.ReadExisting(); } catch { }
+						if(!extra.Contains("$8710c"))
+							return true;
+						// Got fallback-mode ping echo - keep retrying
+					}
 				}
+				catch { }
+				Thread.Sleep(100);
 			}
-			return true;
+			addErrorLine("Ping response is incorrect");
+			addErrorLine("Link failed!");
+			return false;
 		}
 
 		bool LinkFallback()
 		{
 			Command("Rtk8710C");
-			Thread.Sleep(100);
-			string resp = string.Empty;
-			try
-			{
-				resp = serial.ReadExisting();
-			}
-			catch { }
+			// Actively read for 200ms rather than snapshotting with ReadExisting() after Sleep(100).
+			// If the USB-UART driver delivers the response even slightly late, ReadExisting() returns
+			// empty and fallback mode is silently missed.
+			var resp = ReadWithTimeout(200);
 			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
 			{
 				IsInFallbackMode = true;
@@ -112,8 +158,15 @@ namespace BK7231Flasher
 			if(baud == serial.BaudRate)
 				return Link();
 			addLogLine($"Setting baud rate to {baud}");
+			// Python pings first to confirm the link is alive before switching baud
+			if(!Link()) return false;
 			Command($"ucfg {baud} 0 0");
-			Thread.Sleep(500);
+			// Wait for the chip's "OK\r\n" response before changing our baud rate.
+			// Previously just Sleep(500) which is racy - if the chip sends OK just after
+			// we switch baud, the response is garbage.
+			var ok = ReadWithTimeout(500);
+			if(!ok.Contains("OK"))
+				addLogLine($"Warning: unexpected baud change response: {ok}");
 			serial.BaudRate = baud;
 			Flush();
 			return Link();
