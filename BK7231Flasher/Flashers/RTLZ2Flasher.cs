@@ -202,24 +202,81 @@ namespace BK7231Flasher
 			return true;
 		}
 
+		bool WaitForTxIdle(int waitMs)
+		{
+			var deadline = DateTime.Now.AddMilliseconds(waitMs);
+			while(DateTime.Now < deadline)
+			{
+				try
+				{
+					if(serial.BytesToWrite == 0)
+						return true;
+				}
+				catch
+				{
+				}
+				Thread.Sleep(5);
+			}
+			return false;
+		}
+
+		bool HasAck(string response)
+		{
+			if(string.IsNullOrWhiteSpace(response))
+				return false;
+			return response.Replace("\0", string.Empty).Contains("OK");
+		}
+
+		string CleanSnippet(string value)
+		{
+			if(value == null)
+				return string.Empty;
+			value = value.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\0", string.Empty);
+			return value.Length <= 80 ? value : value.Substring(0, 80);
+		}
+
 		bool ChangeBaud(int baud)
 		{
 			if(baud == serial.BaudRate)
 				return Link();
 			addLogLine($"Setting baud rate to {baud}");
-			if(!Link())
-				return false;
-			Flush();
-			var cmd = Encoding.ASCII.GetBytes($"ucfg {baud} 0 0\n");
-			serial.Write(cmd, 0, cmd.Length);
-			serial.BaudRate = baud;
-			var response = ReadForWindow(1000).Trim();
-			if(response != "OK")
+			int initialBaud = serial.BaudRate;
+			for(int attempt = 1; attempt <= 2; attempt++)
 			{
-				addErrorLine($"Baud change response is incorrect: {response}");
-				return false;
+				if(serial.BaudRate != initialBaud)
+					serial.BaudRate = initialBaud;
+				if(!Link())
+					return false;
+				Flush();
+				var cmd = Encoding.ASCII.GetBytes($"ucfg {baud} 0 0\n");
+				serial.Write(cmd, 0, cmd.Length);
+				WaitForTxIdle(250);
+				var responseBeforeSwitch = ReadForWindow(attempt == 1 ? 60 : 220);
+				serial.BaudRate = baud;
+				Thread.Sleep(25);
+				var responseAfterSwitch = ReadForWindow(350);
+				bool sawAck = HasAck(responseBeforeSwitch) || HasAck(responseAfterSwitch);
+				if(Link())
+				{
+					if(!sawAck)
+						addWarningLine("Baud change completed without explicit OK response");
+					return true;
+				}
+				try
+				{
+					serial.BaudRate = initialBaud;
+					TryRepairLink();
+				}
+				catch
+				{
+				}
+				if(attempt == 2)
+				{
+					addErrorLine($"Baud change response is incorrect: {CleanSnippet(responseBeforeSwitch + responseAfterSwitch)}");
+					return false;
+				}
 			}
-			return Link();
+			return false;
 		}
 
 		bool DumpBytes(uint start, int count, out byte[] bytes)
