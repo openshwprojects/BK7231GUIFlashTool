@@ -36,7 +36,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r5";
+		const string InternalBuildId = "rtlz2-resiliency-r6";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -146,6 +146,10 @@ namespace BK7231Flasher
 				{
 					if(action())
 					{
+						if(attempt > 1)
+						{
+							addLogLine($"{label} recovered on attempt {attempt}/{attempts}");
+						}
 						return true;
 					}
 				}
@@ -175,6 +179,10 @@ namespace BK7231Flasher
 					var result = action();
 					if(result != null)
 					{
+						if(attempt > 1)
+						{
+							addLogLine($"{label} recovered on attempt {attempt}/{attempts}");
+						}
 						return result;
 					}
 					last = new Exception("No data returned");
