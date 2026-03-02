@@ -36,7 +36,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r1";
+		const string InternalBuildId = "rtlz2-resiliency-r2";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -209,6 +209,18 @@ namespace BK7231Flasher
 			{
 				throw new ArgumentOutOfRangeException(nameof(count), "Requested range exceeds supported flash window");
 			}
+		}
+
+		void LogAddressSpan(uint start, int length, bool mapped)
+		{
+			uint baseAddr = mapped ? FLASH_MMAP_BASE + start : start;
+			for(int offset = 0; offset < length; offset += ReadUnitSize)
+			{
+				string fmt = mapped ? "X8" : "X6";
+				uint addr = baseAddr + (uint)offset;
+				addLog($"0x{addr.ToString(fmt)}... ");
+			}
+			addLogLine(string.Empty);
 		}
 
 		void Command(string cmd)
@@ -584,19 +596,11 @@ namespace BK7231Flasher
 				}
 
 				logger.setState("Writing...", Color.Transparent);
-				xm.PacketSent += Xm_PacketSent;
-				try
+				var res = xm.Send(data.ToArray(), offset | FLASH_MMAP_BASE);
+				if(res != data.Length)
 				{
-					var res = xm.Send(data.ToArray(), offset | FLASH_MMAP_BASE);
-					if(res != data.Length)
-					{
-						logger.setState("Write error!", Color.Transparent);
-						return false;
-					}
-				}
-				finally
-				{
-					xm.PacketSent -= Xm_PacketSent;
+					logger.setState("Write error!", Color.Transparent);
+					return false;
 				}
 			}
 			finally
@@ -612,6 +616,7 @@ namespace BK7231Flasher
 			for(int attempt = 1; attempt <= WriteWindowRetryLimit; attempt++)
 			{
 				addLogLine($"Write window 0x{offset:X6} len 0x{window.Length:X} attempt {attempt}/{WriteWindowRetryLimit}");
+				LogAddressSpan(offset, window.Length, true);
 				using(var stream = new MemoryStream(window, false))
 				{
 					if(!RunWithRecovery("Flash write", CommandRetryLimit, () => FlashTransmit(stream, offset)))
@@ -623,6 +628,8 @@ namespace BK7231Flasher
 						continue;
 					}
 				}
+				logger.setState("Verifying write...", Color.Transparent);
+				addLogLine($"Verifying write window 0x{offset:X6} len 0x{window.Length:X}");
 				if(VerifyFlashWindow(window, offset))
 				{
 					return true;
@@ -654,6 +661,7 @@ namespace BK7231Flasher
 					return false;
 				}
 				done += windowLen;
+				logger.setProgress(done, data.Length);
 			}
 			return true;
 		}
@@ -805,6 +813,9 @@ namespace BK7231Flasher
 				{
 					addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
 				}
+				logger.setProgress(size, size);
+				addSuccess("Flash complete!" + Environment.NewLine);
+				logger.setState("Flash complete!", Color.DarkGreen);
 				ChangeBaud(115200);
 				return false;
 			}
@@ -873,12 +884,12 @@ namespace BK7231Flasher
 				var window = new byte[windowLength];
 				int copied = 0;
 				bool failed = false;
+				LogAddressSpan(startAddr, windowLength, false);
 				for(int chunkOffset = 0; chunkOffset < windowLength; chunkOffset += ReadUnitSize)
 				{
 					int chunkLength = Math.Min(ReadUnitSize, windowLength - chunkOffset);
 					uint chunkAddr = startAddr + (uint)chunkOffset;
 					byte[] chunk = null;
-					addLog($"Reading at 0x{chunkAddr:X6}... ");
 					for(int chunkAttempt = 1; chunkAttempt <= ReadChunkRetryLimit; chunkAttempt++)
 					{
 						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpBytes(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
@@ -899,7 +910,6 @@ namespace BK7231Flasher
 					}
 					Buffer.BlockCopy(chunk, 0, window, copied, chunkLength);
 					copied += chunkLength;
-					addLogLine("OK");
 				}
 
 				if(failed)
@@ -912,6 +922,8 @@ namespace BK7231Flasher
 					continue;
 				}
 
+				logger.setState("Verifying read...", Color.Transparent);
+				addLogLine($"Verifying read window 0x{startAddr:X6} len 0x{windowLength:X}");
 				if(VerifyFlashWindow(window, startAddr))
 				{
 					return window;
