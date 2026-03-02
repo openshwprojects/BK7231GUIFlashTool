@@ -36,7 +36,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r3";
+		const string InternalBuildId = "rtlz2-resiliency-r4";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -885,7 +885,7 @@ namespace BK7231Flasher
 			ms = res != null ? new MemoryStream(res) : null;
 		}
 
-		byte[] ReadVerifiedWindow(uint startAddr, int windowLength)
+		byte[] ReadVerifiedWindow(uint startAddr, int windowLength, int progressBase, int progressTotal)
 		{
 			EnsureWindowBounds(startAddr, windowLength);
 			for(int attempt = 1; attempt <= ReadWindowRetryLimit; attempt++)
@@ -923,6 +923,7 @@ namespace BK7231Flasher
 					}
 					Buffer.BlockCopy(chunk, 0, window, copied, chunkLength);
 					copied += chunkLength;
+					logger.setProgress(progressBase + copied, progressTotal);
 				}
 
 				if(failed)
@@ -1000,7 +1001,7 @@ namespace BK7231Flasher
 					{
 						int windowLength = Math.Min(VerifyWindowSize, remaining);
 						var windowTimer = Stopwatch.StartNew();
-						var window = ReadVerifiedWindow(currentAddr, windowLength);
+						var window = ReadVerifiedWindow(currentAddr, windowLength, copied, amount);
 						windowTimer.Stop();
 						if(window == null)
 						{
