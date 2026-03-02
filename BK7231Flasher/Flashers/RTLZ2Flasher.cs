@@ -29,6 +29,7 @@ namespace BK7231Flasher
 		int flashSizeMB = 2;
 		byte[] flashID = { 0, 0, 0 };
 		readonly Stack<int> ReadTimeoutStack = new Stack<int>();
+		readonly CancellationToken _ct;
 		const int ReadUnitSize = 0x1000;
 		const int VerifyWindowSize = 256 * 1024;
 		const int ReadChunkRetryLimit = 3;
@@ -41,6 +42,7 @@ namespace BK7231Flasher
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
+			_ct = ct;
 		}
 
 		void Flush()
@@ -249,7 +251,7 @@ namespace BK7231Flasher
 			var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
 				while(DateTime.Now < deadline)
 			{
-				if(ct.IsCancellationRequested) { addLogLine("Link cancelled."); return false; }
+				if(_ct.IsCancellationRequested) { addLogLine("Link cancelled."); return false; }
 				try
 				{
 					Command("ping");
@@ -366,7 +368,7 @@ namespace BK7231Flasher
 			{
 				while(readCount < count && DateTime.Now < deadline)
 				{
-					ct.ThrowIfCancellationRequested();
+					_ct.ThrowIfCancellationRequested();
 					string line;
 					try
 					{
@@ -435,7 +437,7 @@ namespace BK7231Flasher
 			{
 				while(bytesRead < expectedBytes && DateTime.Now < deadline)
 				{
-					ct.ThrowIfCancellationRequested();
+					_ct.ThrowIfCancellationRequested();
 					string line;
 					try
 					{
@@ -655,7 +657,7 @@ namespace BK7231Flasher
 			{
 				for(int attempt = 1; attempt <= WriteWindowRetryLimit; attempt++)
 				{
-					ct.ThrowIfCancellationRequested();
+					_ct.ThrowIfCancellationRequested();
 					logger.setState("Writing...", Color.Transparent);
 					// Only log attempt number when actually retrying, not on the clean first pass
 					if(attempt == 1)
@@ -713,7 +715,7 @@ namespace BK7231Flasher
 			int done = 0;
 			while(done < data.Length)
 			{
-				ct.ThrowIfCancellationRequested();
+				_ct.ThrowIfCancellationRequested();
 				int windowLen = Math.Min(VerifyWindowSize, data.Length - done);
 				var window = new byte[windowLen];
 				Buffer.BlockCopy(data, done, window, 0, windowLen);
@@ -959,7 +961,7 @@ namespace BK7231Flasher
 			EnsureWindowBounds(startAddr, windowLength);
 			for(int attempt = 1; attempt <= ReadWindowRetryLimit; attempt++)
 			{
-				ct.ThrowIfCancellationRequested();
+				_ct.ThrowIfCancellationRequested();
 				logger.setState("Reading...", Color.Transparent);
 				var window = new byte[windowLength];
 				int copied = 0;
@@ -967,7 +969,7 @@ namespace BK7231Flasher
 				LogAddressSpan(startAddr, windowLength, false);
 				for(int chunkOffset = 0; chunkOffset < windowLength; chunkOffset += ReadUnitSize)
 				{
-					ct.ThrowIfCancellationRequested();
+					_ct.ThrowIfCancellationRequested();
 					int chunkLength = Math.Min(ReadUnitSize, windowLength - chunkOffset);
 					uint chunkAddr = startAddr + (uint)chunkOffset;
 					byte[] chunk = null;
@@ -1072,7 +1074,7 @@ namespace BK7231Flasher
 
 					while(remaining > 0)
 					{
-						ct.ThrowIfCancellationRequested();
+						_ct.ThrowIfCancellationRequested();
 						int windowLength = Math.Min(VerifyWindowSize, remaining);
 						var windowTimer = Stopwatch.StartNew();
 						var window = ReadVerifiedWindow(currentAddr, windowLength, copied, amount);
