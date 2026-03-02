@@ -36,9 +36,9 @@ namespace BK7231Flasher
 		const int ReadWindowRetryLimit = 3;
 		const int WriteWindowRetryLimit = 3;
 		const int HashRetryLimit = 3;
-		const int CommandRetryLimit = 2;
+		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r9";
+		const string InternalBuildId = "rtlz2-resiliency-r10";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -151,6 +151,7 @@ namespace BK7231Flasher
 					{
 						if(attempt > 1)
 						{
+							EndProgressLineIfNeeded();
 							addLogLine($"{label} recovered on attempt {attempt}/{attempts}");
 						}
 						return true;
@@ -160,10 +161,12 @@ namespace BK7231Flasher
 				{
 					if(attempt >= attempts)
 					{
-						addErrorLine($"{label} failed: {ex.Message}");
+						EndProgressLineIfNeeded();
+						addErrorLine($"{label} failed after {attempts} attempts: {ex.Message}");
 						return false;
 					}
-					addWarningLine($"{label} failed on attempt {attempt}/{attempts}: {ex.Message}");
+					EndProgressLineIfNeeded();
+					addWarningLine($"{label} retrying attempt {attempt + 1}/{attempts}: {ex.Message}");
 				}
 				try { Flush(); } catch { }
 				try { Link(); } catch { }
@@ -184,6 +187,7 @@ namespace BK7231Flasher
 					{
 						if(attempt > 1)
 						{
+							EndProgressLineIfNeeded();
 							addLogLine($"{label} recovered on attempt {attempt}/{attempts}");
 						}
 						return result;
@@ -196,7 +200,8 @@ namespace BK7231Flasher
 				}
 				if(attempt < attempts)
 				{
-					addWarningLine($"{label} failed on attempt {attempt}/{attempts}: {last.Message}");
+					EndProgressLineIfNeeded();
+					addWarningLine($"{label} retrying attempt {attempt + 1}/{attempts}: {last.Message}");
 					try { Flush(); } catch { }
 					try { Link(); } catch { }
 					Thread.Sleep(50);
@@ -204,7 +209,8 @@ namespace BK7231Flasher
 			}
 			if(last != null)
 			{
-				addErrorLine($"{label} failed: {last.Message}");
+				EndProgressLineIfNeeded();
+				addErrorLine($"{label} failed after {attempts} attempts: {last.Message}");
 			}
 			return null;
 		}
@@ -222,6 +228,8 @@ namespace BK7231Flasher
 			}
 		}
 
+		bool HasOpenProgressLine;
+
 		string FormatProgressAddress(uint address, bool mapped)
 		{
 			uint displayAddr = mapped ? FLASH_MMAP_BASE + address : address;
@@ -229,15 +237,20 @@ namespace BK7231Flasher
 			return $"0x{displayAddr.ToString(fmt)}... ";
 		}
 
+		void EndProgressLineIfNeeded()
+		{
+			if(HasOpenProgressLine)
+			{
+				addLogLine(string.Empty);
+				HasOpenProgressLine = false;
+			}
+		}
+
 		int LogProgressAddress(uint address, bool mapped, int itemsOnLine)
 		{
 			addLog(FormatProgressAddress(address, mapped));
+			HasOpenProgressLine = true;
 			itemsOnLine++;
-			if(itemsOnLine >= 16)
-			{
-				addLogLine(string.Empty);
-				itemsOnLine = 0;
-			}
 			return itemsOnLine;
 		}
 
@@ -675,6 +688,7 @@ namespace BK7231Flasher
 					logger.setState("Writing...", Color.Transparent);
 					itemsOnLine = 0;
 					nextLoggedOffset = 0;
+					EndProgressLineIfNeeded();
 					if(attempt == 1)
 						addLogLine($"Writing {window.Length / 1024}KiB to 0x{offset:X6}");
 					else
@@ -683,10 +697,8 @@ namespace BK7231Flasher
 					{
 						if(!RunWithRecovery("Flash write", CommandRetryLimit, () => FlashTransmit(stream, offset)))
 						{
-							if(itemsOnLine > 0)
-							{
-								addLogLine(string.Empty);
-							}
+							EndProgressLineIfNeeded();
+							itemsOnLine = 0;
 							if(attempt == WriteWindowRetryLimit)
 							{
 								return false;
@@ -699,10 +711,8 @@ namespace BK7231Flasher
 						itemsOnLine = LogProgressAddress(offset + nextLoggedOffset, false, itemsOnLine);
 						nextLoggedOffset += ReadUnitSize;
 					}
-					if(itemsOnLine > 0)
-					{
-						addLogLine(string.Empty);
-					}
+					EndProgressLineIfNeeded();
+					itemsOnLine = 0;
 					logger.setState("Verifying write...", Color.Transparent);
 					addLogLine($"Verifying 0x{offset:X6} len 0x{window.Length:X}...");
 					if(VerifyFlashWindow(window, offset))
@@ -715,6 +725,7 @@ namespace BK7231Flasher
 						logger.setState("Writing...", Color.Transparent);
 						return true;
 					}
+
 					addWarningLine($"Write verify failed at 0x{offset:X6}");
 					if(attempt == 2 && serial.BaudRate > FallbackBaudRate)
 					{
@@ -1007,18 +1018,21 @@ namespace BK7231Flasher
 						{
 							if(chunkAttempt > 1)
 							{
+								EndProgressLineIfNeeded();
 								addLogLine($"Read retry succeeded at 0x{chunkAddr:X6} on attempt {chunkAttempt}/{ReadChunkRetryLimit}");
 							}
 							break;
 						}
 						if(chunkAttempt < ReadChunkRetryLimit)
 						{
+							EndProgressLineIfNeeded();
 							addWarningLine($"Read retry at 0x{chunkAddr:X6} ({chunkAttempt + 1}/{ReadChunkRetryLimit})");
 							Thread.Sleep(75);
 						}
 					}
 					if(chunk == null || chunk.Length != chunkLength)
 					{
+						EndProgressLineIfNeeded();
 						addWarningLine($"Read failed at 0x{chunkAddr:X6}");
 						failed = true;
 						break;
@@ -1029,10 +1043,8 @@ namespace BK7231Flasher
 					logger.setProgress(progressBase + copied, progressTotal);
 				}
 
-				if(itemsOnLine > 0)
-				{
-					addLogLine(string.Empty);
-				}
+				EndProgressLineIfNeeded();
+				itemsOnLine = 0;
 
 				if(failed)
 				{
