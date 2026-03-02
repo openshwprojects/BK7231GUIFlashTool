@@ -23,6 +23,7 @@ namespace BK7231Flasher
 		uint? FuncPtr = null;
 		string FuncName = string.Empty;
 		int? FlashMode;
+		bool FlashConfigured;
 		uint? FlashHashOffset;
 		bool IsInFallbackMode = false;
 		int flashSizeMB = 2;
@@ -36,7 +37,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r6";
+		const string InternalBuildId = "rtlz2-resiliency-r7";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -243,10 +244,9 @@ namespace BK7231Flasher
 			}
 		}
 
-		bool Link()
+		bool TryPingLink(int timeoutMs)
 		{
-			LinkFallback();
-			var deadline = DateTime.Now.AddSeconds(10);
+			var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
 			while(DateTime.Now < deadline)
 			{
 				try
@@ -266,6 +266,20 @@ namespace BK7231Flasher
 				catch { }
 				Thread.Sleep(100);
 			}
+			return false;
+		}
+
+		bool Link()
+		{
+			if(TryPingLink(400))
+			{
+				return true;
+			}
+			LinkFallback();
+			if(TryPingLink(10000))
+			{
+				return true;
+			}
 			addErrorLine("Ping response is incorrect");
 			addErrorLine("Link failed!");
 			return false;
@@ -274,7 +288,7 @@ namespace BK7231Flasher
 		bool LinkFallback()
 		{
 			Command("Rtk8710C");
-			var resp = ReadWithTimeout(200);
+			var resp = ReadWithTimeout(100);
 			if(resp == "\r\n$8710c>\r\n$8710c>" || resp == "Rtk8710C\r\nCommand NOT found.\r\n$8710c>")
 			{
 				IsInFallbackMode = true;
@@ -409,14 +423,15 @@ namespace BK7231Flasher
 
 		bool DumpWords(uint start, int count, out int[] ints)
 		{
-			int readCount = 0;
-			var data = new List<int>(Math.Max(1, count / 4));
+			int bytesRead = 0;
+			int expectedBytes = count * 4;
+			var data = new List<int>(Math.Max(1, count));
 			Command($"DW {start:X} {count}");
-			var deadline = DateTime.Now.AddMilliseconds(Math.Max(1500, count * 50));
+			var deadline = DateTime.Now.AddMilliseconds(Math.Max(1500, expectedBytes * 50));
 			PushReadTimeout(500);
 			try
 			{
-				while(readCount < count && DateTime.Now < deadline)
+				while(bytesRead < expectedBytes && DateTime.Now < deadline)
 				{
 					string line;
 					try
@@ -439,7 +454,7 @@ namespace BK7231Flasher
 					{
 						continue;
 					}
-					if(addr != start + readCount)
+					if(addr != start + bytesRead)
 					{
 						throw new Exception("Unexpected word dump address");
 					}
@@ -448,14 +463,14 @@ namespace BK7231Flasher
 						throw new Exception("Incomplete word dump line");
 					}
 
-					for(int i = 1; i < 5 && readCount < count; i++)
+					for(int i = 1; i < 5 && bytesRead < expectedBytes; i++)
 					{
 						if(!int.TryParse(parts[i].Trim('\r'), System.Globalization.NumberStyles.HexNumber, null, out var value))
 						{
 							throw new Exception("Invalid word dump data");
 						}
 						data.Add(value);
-						readCount += 4;
+						bytesRead += 4;
 					}
 				}
 			}
@@ -464,7 +479,7 @@ namespace BK7231Flasher
 				PopReadTimeout();
 			}
 
-			if(readCount != count)
+			if(bytesRead != expectedBytes || data.Count != count)
 			{
 				ints = null;
 				return false;
@@ -476,11 +491,17 @@ namespace BK7231Flasher
 
 		int RegisterRead(uint addr)
 		{
-			if(!DumpWords((uint)(addr & ~0x3), 4, out var words) || words == null || words.Length == 0)
+			uint start = addr & ~0xFU;
+			if(!DumpWords(start, 4, out var words) || words == null || words.Length != 4)
 			{
 				throw new Exception($"Register read failed at 0x{addr:X}");
 			}
-			return words[0];
+			int index = (int)((addr - start) >> 2);
+			if(index < 0 || index >= words.Length)
+			{
+				throw new Exception($"Register read index failed at 0x{addr:X}");
+			}
+			return words[index];
 		}
 
 		void RegisterWrite(uint addr, uint value)
@@ -625,7 +646,7 @@ namespace BK7231Flasher
 			{
 				logger.setState("Writing...", Color.Transparent);
 				addLogLine($"Write window 0x{offset:X6} len 0x{window.Length:X} attempt {attempt}/{WriteWindowRetryLimit}");
-				LogAddressSpan(offset, window.Length, true);
+				LogAddressSpan(offset, window.Length, false);
 				using(var stream = new MemoryStream(window, false))
 				{
 					if(!RunWithRecovery("Flash write", CommandRetryLimit, () => FlashTransmit(stream, offset)))
@@ -687,8 +708,15 @@ namespace BK7231Flasher
 
 		void FlashInit(bool configure = true)
 		{
-			FlashMode = (RegisterRead(0x40000038) >> 5) & 0b11;
-			RegisterWrite(0x40002800, 0x7EFFFFFF);
+			if(FlashMode == null)
+			{
+				FlashMode = (RegisterRead(0x40000038) >> 5) & 0b11;
+			}
+			if(!FlashConfigured)
+			{
+				RegisterWrite(0x40002800, 0x7EFFFFFF);
+				FlashConfigured = true;
+			}
 			if(configure && FlashHashOffset == null)
 			{
 				FlashReadHash(0, 0);
@@ -701,7 +729,7 @@ namespace BK7231Flasher
 			addLog("Flasher mode: " + chipType + Environment.NewLine);
 			addLog("Going to open port: " + serialName + "." + Environment.NewLine);
 			addLog("Engine: " + InternalBuildId + Environment.NewLine);
-			if(serial == null)
+			if(serial == null || !serial.IsOpen)
 			{
 				serial = new SerialPort(serialName, 115200);
 				serial.ReadBufferSize = 1024 * 1024;
@@ -1077,8 +1105,8 @@ namespace BK7231Flasher
 		public bool doReadInternal(int startSector, int sectors)
 		{
 			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
-			ms = new MemoryStream(res);
-			return false;
+			ms = res != null ? new MemoryStream(res) : null;
+			return ms == null;
 		}
 
 		public override byte[] getReadResult()
@@ -1095,9 +1123,17 @@ namespace BK7231Flasher
 		{
 			if(serial != null)
 			{
-				serial.Close();
-				serial.Dispose();
+				try { serial.Close(); } catch { }
+				try { serial.Dispose(); } catch { }
+				serial = null;
 			}
+			FlashMode = null;
+			FlashConfigured = false;
+			FlashHashOffset = null;
+			FuncPtr = null;
+			FuncName = string.Empty;
+			IsInFallbackMode = false;
+			ReadTimeoutStack.Clear();
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
