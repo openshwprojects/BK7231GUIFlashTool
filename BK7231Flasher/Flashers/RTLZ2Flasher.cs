@@ -29,14 +29,14 @@ namespace BK7231Flasher
 		byte[] flashID = { 0, 0, 0 };
 		readonly Stack<int> ReadTimeoutStack = new Stack<int>();
 		const int ReadUnitSize = 0x1000;
-		const int VerifyWindowSize = 128 * 1024;
+		const int VerifyWindowSize = 256 * 1024;
 		const int ReadChunkRetryLimit = 3;
 		const int ReadWindowRetryLimit = 3;
 		const int WriteWindowRetryLimit = 3;
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r2";
+		const string InternalBuildId = "rtlz2-resiliency-r3";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -632,6 +632,11 @@ namespace BK7231Flasher
 				addLogLine($"Verifying write window 0x{offset:X6} len 0x{window.Length:X}");
 				if(VerifyFlashWindow(window, offset))
 				{
+					if(attempt > 1)
+					{
+						addLogLine($"Write window recovered at 0x{offset:X6} on attempt {attempt}/{WriteWindowRetryLimit}");
+					}
+					addLogLine($"Write window verified at 0x{offset:X6} len 0x{window.Length:X}");
 					return true;
 				}
 				addWarningLine($"Write verify failed at 0x{offset:X6}");
@@ -642,6 +647,10 @@ namespace BK7231Flasher
 				}
 				try { Flush(); } catch { }
 				try { Link(); } catch { }
+				if(attempt < WriteWindowRetryLimit)
+				{
+					addWarningLine($"Retrying write window 0x{offset:X6} ({attempt + 1}/{WriteWindowRetryLimit})");
+				}
 			}
 			return false;
 		}
@@ -894,11 +903,15 @@ namespace BK7231Flasher
 					{
 						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpBytes(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
 						{
+							if(chunkAttempt > 1)
+							{
+								addLogLine($"Read retry succeeded at 0x{chunkAddr:X6} on attempt {chunkAttempt}/{ReadChunkRetryLimit}");
+							}
 							break;
 						}
 						if(chunkAttempt < ReadChunkRetryLimit)
 						{
-							addWarningLine($"Read retry at 0x{chunkAddr:X6} ({chunkAttempt}/{ReadChunkRetryLimit})");
+							addWarningLine($"Read retry at 0x{chunkAddr:X6} ({chunkAttempt + 1}/{ReadChunkRetryLimit})");
 							Thread.Sleep(75);
 						}
 					}
@@ -919,6 +932,10 @@ namespace BK7231Flasher
 						addWarningLine($"Lowering baud rate to {FallbackBaudRate} for read recovery");
 						ChangeBaud(FallbackBaudRate);
 					}
+					if(attempt < ReadWindowRetryLimit)
+					{
+						addWarningLine($"Retrying read window 0x{startAddr:X6} ({attempt + 1}/{ReadWindowRetryLimit})");
+					}
 					continue;
 				}
 
@@ -926,6 +943,11 @@ namespace BK7231Flasher
 				addLogLine($"Verifying read window 0x{startAddr:X6} len 0x{windowLength:X}");
 				if(VerifyFlashWindow(window, startAddr))
 				{
+					if(attempt > 1)
+					{
+						addLogLine($"Read window recovered at 0x{startAddr:X6} on attempt {attempt}/{ReadWindowRetryLimit}");
+					}
+					addLogLine($"Read window verified at 0x{startAddr:X6} len 0x{windowLength:X}");
 					return window;
 				}
 
@@ -936,6 +958,10 @@ namespace BK7231Flasher
 				{
 					addWarningLine($"Lowering baud rate to {FallbackBaudRate} for read recovery");
 					ChangeBaud(FallbackBaudRate);
+				}
+				if(attempt < ReadWindowRetryLimit)
+				{
+					addWarningLine($"Retrying read window 0x{startAddr:X6} ({attempt + 1}/{ReadWindowRetryLimit})");
 				}
 			}
 			return null;
