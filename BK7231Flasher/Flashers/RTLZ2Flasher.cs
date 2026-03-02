@@ -102,16 +102,6 @@ namespace BK7231Flasher
 							sb.Append(chunk);
 						}
 					}
-					catch { }
-					Thread.Sleep(10);
-				}
-			}
-			finally
-			{
-				PopReadTimeout();
-			}
-			return sb.ToString();
-		}
 
 		bool WaitForTxIdle(int timeoutMs)
 		{
@@ -209,16 +199,6 @@ namespace BK7231Flasher
 			{
 				throw new ArgumentOutOfRangeException(nameof(count), "Requested range exceeds supported flash window");
 			}
-		}
-					catch { }
-					Thread.Sleep(10);
-				}
-			}
-			finally
-			{
-				serial.ReadTimeout = savedTimeout;
-			}
-			return sb.ToString();
 		}
 
 		void Command(string cmd)
