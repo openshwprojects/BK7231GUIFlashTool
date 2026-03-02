@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r8";
+		const string InternalBuildId = "rtlz2-resiliency-r9";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -222,16 +222,23 @@ namespace BK7231Flasher
 			}
 		}
 
-		void LogAddressSpan(uint start, int length, bool mapped)
+		string FormatProgressAddress(uint address, bool mapped)
 		{
-			uint baseAddr = mapped ? FLASH_MMAP_BASE + start : start;
-			for(int offset = 0; offset < length; offset += ReadUnitSize)
+			uint displayAddr = mapped ? FLASH_MMAP_BASE + address : address;
+			string fmt = mapped ? "X8" : "X6";
+			return $"0x{displayAddr.ToString(fmt)}... ";
+		}
+
+		int LogProgressAddress(uint address, bool mapped, int itemsOnLine)
+		{
+			addLog(FormatProgressAddress(address, mapped));
+			itemsOnLine++;
+			if(itemsOnLine >= 16)
 			{
-				string fmt = mapped ? "X8" : "X6";
-				uint addr = baseAddr + (uint)offset;
-				addLog($"0x{addr.ToString(fmt)}... ");
+				addLogLine(string.Empty);
+				itemsOnLine = 0;
 			}
-			addLogLine(string.Empty);
+			return itemsOnLine;
 		}
 
 		void Command(string cmd)
@@ -647,11 +654,18 @@ namespace BK7231Flasher
 
 		bool WriteWindow(byte[] window, uint offset, int progressBase, int progressTotal)
 		{
-			// Hook XMODEM packet-sent event to drive incremental progress during transfer.
-			// PacketSent fires after each 1KiB packet with cumulative sentBytes for this window,
-			// giving smooth progress instead of a single jump at window completion.
+			int itemsOnLine = 0;
+			uint nextLoggedOffset = 0;
 			XMODEM.PacketSentEventHandler progressHandler =
-				(sentBytes, total, seq, off) => logger.setProgress(progressBase + sentBytes, progressTotal);
+				(sentBytes, total, seq, off) =>
+				{
+					logger.setProgress(progressBase + sentBytes, progressTotal);
+					while(nextLoggedOffset < sentBytes && nextLoggedOffset < (uint)window.Length)
+					{
+						itemsOnLine = LogProgressAddress(offset + nextLoggedOffset, false, itemsOnLine);
+						nextLoggedOffset += ReadUnitSize;
+					}
+				};
 			xm.PacketSent += progressHandler;
 			try
 			{
@@ -659,22 +673,35 @@ namespace BK7231Flasher
 				{
 					_ct.ThrowIfCancellationRequested();
 					logger.setState("Writing...", Color.Transparent);
-					// Only log attempt number when actually retrying, not on the clean first pass
+					itemsOnLine = 0;
+					nextLoggedOffset = 0;
 					if(attempt == 1)
 						addLogLine($"Writing {window.Length / 1024}KiB to 0x{offset:X6}");
 					else
 						addLogLine($"Retrying write 0x{offset:X6} (attempt {attempt}/{WriteWindowRetryLimit})");
-					LogAddressSpan(offset, window.Length, false);
 					using(var stream = new MemoryStream(window, false))
 					{
 						if(!RunWithRecovery("Flash write", CommandRetryLimit, () => FlashTransmit(stream, offset)))
 						{
+							if(itemsOnLine > 0)
+							{
+								addLogLine(string.Empty);
+							}
 							if(attempt == WriteWindowRetryLimit)
 							{
 								return false;
 							}
 							continue;
 						}
+					}
+					while(nextLoggedOffset < (uint)window.Length)
+					{
+						itemsOnLine = LogProgressAddress(offset + nextLoggedOffset, false, itemsOnLine);
+						nextLoggedOffset += ReadUnitSize;
+					}
+					if(itemsOnLine > 0)
+					{
+						addLogLine(string.Empty);
 					}
 					logger.setState("Verifying write...", Color.Transparent);
 					addLogLine($"Verifying 0x{offset:X6} len 0x{window.Length:X}...");
@@ -708,6 +735,7 @@ namespace BK7231Flasher
 				xm.PacketSent -= progressHandler;
 			}
 		}
+
 
 		bool WriteFlashWindows(byte[] data, uint offset)
 		{
@@ -966,7 +994,7 @@ namespace BK7231Flasher
 				var window = new byte[windowLength];
 				int copied = 0;
 				bool failed = false;
-				LogAddressSpan(startAddr, windowLength, false);
+				int itemsOnLine = 0;
 				for(int chunkOffset = 0; chunkOffset < windowLength; chunkOffset += ReadUnitSize)
 				{
 					_ct.ThrowIfCancellationRequested();
@@ -996,8 +1024,14 @@ namespace BK7231Flasher
 						break;
 					}
 					Buffer.BlockCopy(chunk, 0, window, copied, chunkLength);
+					itemsOnLine = LogProgressAddress(chunkAddr, false, itemsOnLine);
 					copied += chunkLength;
 					logger.setProgress(progressBase + copied, progressTotal);
+				}
+
+				if(itemsOnLine > 0)
+				{
+					addLogLine(string.Empty);
 				}
 
 				if(failed)
