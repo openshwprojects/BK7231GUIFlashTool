@@ -102,6 +102,16 @@ namespace BK7231Flasher
 							sb.Append(chunk);
 						}
 					}
+					catch { }
+					Thread.Sleep(10);
+				}
+			}
+			finally
+			{
+				PopReadTimeout();
+			}
+			return sb.ToString();
+		}
 
 		bool WaitForTxIdle(int timeoutMs)
 		{
