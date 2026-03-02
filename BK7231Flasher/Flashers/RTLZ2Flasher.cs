@@ -37,7 +37,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 2;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r7";
+		const string InternalBuildId = "rtlz2-resiliency-r8";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -247,8 +247,9 @@ namespace BK7231Flasher
 		bool TryPingLink(int timeoutMs)
 		{
 			var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
-			while(DateTime.Now < deadline)
+				while(DateTime.Now < deadline)
 			{
+				if(ct.IsCancellationRequested) { addLogLine("Link cancelled."); return false; }
 				try
 				{
 					Command("ping");
@@ -359,12 +360,13 @@ namespace BK7231Flasher
 			int readCount = 0;
 			var data = new List<byte>(count);
 			Command($"DB {start:X} {count}");
-			var deadline = DateTime.Now.AddMilliseconds(Math.Max(2000, count / 8));
+			var deadline = DateTime.Now.AddMilliseconds(Math.Max(1000, count / 4));
 			PushReadTimeout(500);
 			try
 			{
 				while(readCount < count && DateTime.Now < deadline)
 				{
+					ct.ThrowIfCancellationRequested();
 					string line;
 					try
 					{
@@ -427,12 +429,13 @@ namespace BK7231Flasher
 			int expectedBytes = count * 4;
 			var data = new List<int>(Math.Max(1, count));
 			Command($"DW {start:X} {count}");
-			var deadline = DateTime.Now.AddMilliseconds(Math.Max(1500, expectedBytes * 50));
+			var deadline = DateTime.Now.AddMilliseconds(Math.Max(500, count * 10));
 			PushReadTimeout(500);
 			try
 			{
 				while(bytesRead < expectedBytes && DateTime.Now < deadline)
 				{
+					ct.ThrowIfCancellationRequested();
 					string line;
 					try
 					{
@@ -640,50 +643,68 @@ namespace BK7231Flasher
 			return Link();
 		}
 
-		bool WriteWindow(byte[] window, uint offset)
+		bool WriteWindow(byte[] window, uint offset, int progressBase, int progressTotal)
 		{
-			for(int attempt = 1; attempt <= WriteWindowRetryLimit; attempt++)
+			// Hook XMODEM packet-sent event to drive incremental progress during transfer.
+			// PacketSent fires after each 1KiB packet with cumulative sentBytes for this window,
+			// giving smooth progress instead of a single jump at window completion.
+			XMODEM.PacketSentEventHandler progressHandler =
+				(sentBytes, total, seq, off) => logger.setProgress(progressBase + sentBytes, progressTotal);
+			xm.PacketSent += progressHandler;
+			try
 			{
-				logger.setState("Writing...", Color.Transparent);
-				addLogLine($"Write window 0x{offset:X6} len 0x{window.Length:X} attempt {attempt}/{WriteWindowRetryLimit}");
-				LogAddressSpan(offset, window.Length, false);
-				using(var stream = new MemoryStream(window, false))
+				for(int attempt = 1; attempt <= WriteWindowRetryLimit; attempt++)
 				{
-					if(!RunWithRecovery("Flash write", CommandRetryLimit, () => FlashTransmit(stream, offset)))
-					{
-						if(attempt == WriteWindowRetryLimit)
-						{
-							return false;
-						}
-						continue;
-					}
-				}
-				logger.setState("Verifying write...", Color.Transparent);
-				addLogLine($"Verifying write window 0x{offset:X6} len 0x{window.Length:X}");
-				if(VerifyFlashWindow(window, offset))
-				{
-					if(attempt > 1)
-					{
-						addLogLine($"Write window recovered at 0x{offset:X6} on attempt {attempt}/{WriteWindowRetryLimit}");
-					}
-					addLogLine($"Write window verified at 0x{offset:X6} len 0x{window.Length:X}");
+					ct.ThrowIfCancellationRequested();
 					logger.setState("Writing...", Color.Transparent);
-					return true;
+					// Only log attempt number when actually retrying, not on the clean first pass
+					if(attempt == 1)
+						addLogLine($"Writing {window.Length / 1024}KiB to 0x{offset:X6}");
+					else
+						addLogLine($"Retrying write 0x{offset:X6} (attempt {attempt}/{WriteWindowRetryLimit})");
+					LogAddressSpan(offset, window.Length, false);
+					using(var stream = new MemoryStream(window, false))
+					{
+						if(!RunWithRecovery("Flash write", CommandRetryLimit, () => FlashTransmit(stream, offset)))
+						{
+							if(attempt == WriteWindowRetryLimit)
+							{
+								return false;
+							}
+							continue;
+						}
+					}
+					logger.setState("Verifying write...", Color.Transparent);
+					addLogLine($"Verifying 0x{offset:X6} len 0x{window.Length:X}...");
+					if(VerifyFlashWindow(window, offset))
+					{
+						if(attempt > 1)
+						{
+							addLogLine($"Write window recovered at 0x{offset:X6} on attempt {attempt}/{WriteWindowRetryLimit}");
+						}
+						addLogLine($"Write verified OK at 0x{offset:X6}");
+						logger.setState("Writing...", Color.Transparent);
+						return true;
+					}
+					addWarningLine($"Write verify failed at 0x{offset:X6}");
+					if(attempt == 2 && serial.BaudRate > FallbackBaudRate)
+					{
+						addWarningLine($"Lowering baud rate to {FallbackBaudRate} for write recovery");
+						ChangeBaud(FallbackBaudRate);
+					}
+					try { Flush(); } catch { }
+					try { Link(); } catch { }
+					if(attempt < WriteWindowRetryLimit)
+					{
+						addWarningLine($"Retrying write window 0x{offset:X6} ({attempt + 1}/{WriteWindowRetryLimit})");
+					}
 				}
-				addWarningLine($"Write verify failed at 0x{offset:X6}");
-				if(attempt == 2 && serial.BaudRate > FallbackBaudRate)
-				{
-					addWarningLine($"Lowering baud rate to {FallbackBaudRate} for write recovery");
-					ChangeBaud(FallbackBaudRate);
-				}
-				try { Flush(); } catch { }
-				try { Link(); } catch { }
-				if(attempt < WriteWindowRetryLimit)
-				{
-					addWarningLine($"Retrying write window 0x{offset:X6} ({attempt + 1}/{WriteWindowRetryLimit})");
-				}
+				return false;
 			}
-			return false;
+			finally
+			{
+				xm.PacketSent -= progressHandler;
+			}
 		}
 
 		bool WriteFlashWindows(byte[] data, uint offset)
@@ -692,15 +713,17 @@ namespace BK7231Flasher
 			int done = 0;
 			while(done < data.Length)
 			{
+				ct.ThrowIfCancellationRequested();
 				int windowLen = Math.Min(VerifyWindowSize, data.Length - done);
 				var window = new byte[windowLen];
 				Buffer.BlockCopy(data, done, window, 0, windowLen);
-				if(!WriteWindow(window, offset + (uint)done))
+				if(!WriteWindow(window, offset + (uint)done, done, data.Length))
 				{
 					addErrorLine($"Write window failed at 0x{offset + (uint)done:X6}");
 					return false;
 				}
 				done += windowLen;
+				// Snap to exact position after successful verify
 				logger.setProgress(done, data.Length);
 			}
 			return true;
@@ -866,6 +889,14 @@ namespace BK7231Flasher
 				ChangeBaud(115200);
 				return false;
 			}
+			catch(OperationCanceledException)
+			{
+				addLogLine("Write cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				try { ChangeBaud(FallbackBaudRate); } catch { }
+				closePort();
+				return true;
+			}
 			catch(Exception ex)
 			{
 				addError(ex.ToString() + Environment.NewLine);
@@ -928,6 +959,7 @@ namespace BK7231Flasher
 			EnsureWindowBounds(startAddr, windowLength);
 			for(int attempt = 1; attempt <= ReadWindowRetryLimit; attempt++)
 			{
+				ct.ThrowIfCancellationRequested();
 				logger.setState("Reading...", Color.Transparent);
 				var window = new byte[windowLength];
 				int copied = 0;
@@ -935,6 +967,7 @@ namespace BK7231Flasher
 				LogAddressSpan(startAddr, windowLength, false);
 				for(int chunkOffset = 0; chunkOffset < windowLength; chunkOffset += ReadUnitSize)
 				{
+					ct.ThrowIfCancellationRequested();
 					int chunkLength = Math.Min(ReadUnitSize, windowLength - chunkOffset);
 					uint chunkAddr = startAddr + (uint)chunkOffset;
 					byte[] chunk = null;
@@ -1039,6 +1072,7 @@ namespace BK7231Flasher
 
 					while(remaining > 0)
 					{
+						ct.ThrowIfCancellationRequested();
 						int windowLength = Math.Min(VerifyWindowSize, remaining);
 						var windowTimer = Stopwatch.StartNew();
 						var window = ReadVerifiedWindow(currentAddr, windowLength, copied, amount);
@@ -1091,6 +1125,14 @@ namespace BK7231Flasher
 				addLogLine("Read complete!");
 				ChangeBaud(FallbackBaudRate);
 				return ret;
+			}
+			catch(OperationCanceledException)
+			{
+				addLogLine("Read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				try { ChangeBaud(FallbackBaudRate); } catch { }
+				closePort();
+				return null;
 			}
 			catch(Exception ex)
 			{
