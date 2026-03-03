@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r12";
+		const string InternalBuildId = "rtlz2-resiliency-r13";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -390,7 +390,11 @@ namespace BK7231Flasher
 			int readCount = 0;
 			var data = new List<byte>(count);
 			Command($"DB {start:X} {count}");
-			var deadline = DateTime.Now.AddMilliseconds(Math.Max(1000, count / 4));
+			// DB outputs ~3.7 ASCII chars per binary byte (hex digits + spaces + address).
+			// Deadline must account for actual wire time at the current baud rate,
+			// otherwise 115200 baud 4KB reads (1311ms on wire) time out at the old 1024ms floor.
+			var deadline = DateTime.Now.AddMilliseconds(
+				Math.Max(1500, count * 37000 / serial.BaudRate + 500));
 			PushReadTimeout(500);
 			try
 			{
@@ -973,77 +977,6 @@ namespace BK7231Flasher
 			addLogLine($"{flashSizeMB}MB flash size detected");
 		}
 
-		// Issue a JEDEC SPI command via the RTL8710C memory-mapped SPI controller.
-		// The same controller and register layout used by ReadFlashId:
-		//   0x40020060 = SPI TX/RX FIFO  (EB writes the command byte)
-		//   0x40020004 = RX byte count    (0 = command-only, N = read N bytes back)
-		//   0x40020008 = CS control       (1 = assert/start, 0 = deassert)
-		void SpiFlashCmd(byte cmd, int rxBytes = 0)
-		{
-			Command($"EB 0x40020060 0x{cmd:X2}");
-			Command($"EW 0x40020004 {rxBytes}");
-			Command($"EW 0x40020008 1");
-			Command($"EW 0x40020008 0");
-		}
-
-		// Full chip erase using JEDEC Chip Erase (0xC7).
-		// Sequence: Write Enable (0x06) → Chip Erase (0xC7) → poll WIP bit via
-		// Read Status Register (0x05) until bit 0 clears.
-		// Typical duration: 10–40s for 2MB, up to 60s for 4MB.
-		bool EraseFlash()
-		{
-			const byte WREN        = 0x06;
-			const byte CHIP_ERASE  = 0xC7;
-			const byte READ_STATUS = 0x05;
-			const int  WIP_BIT     = 0x01; // Write In Progress
-			const int  POLL_MS     = 500;
-			const int  TIMEOUT_MS  = 120_000; // 2 min ceiling
-
-			addLogLine("Sending Write Enable (0x06)...");
-			SpiFlashCmd(WREN);
-
-			addLogLine("Sending Chip Erase (0xC7)...");
-			addLogLine("This will take 10-60 seconds depending on your flash chip.");
-			SpiFlashCmd(CHIP_ERASE);
-
-			addLogLine("Polling WIP bit until erase completes...");
-			var deadline = DateTime.Now.AddMilliseconds(TIMEOUT_MS);
-			var sw = Stopwatch.StartNew();
-			while(DateTime.Now < deadline)
-			{
-				_ct.ThrowIfCancellationRequested();
-				Thread.Sleep(POLL_MS);
-
-				// Issue READ_STATUS with 1 RX byte, then read the FIFO
-				SpiFlashCmd(READ_STATUS, rxBytes: 1);
-				if(!DumpBytes(0x40020060, 4, out var statusBytes)
-					|| statusBytes == null || statusBytes.Length == 0)
-				{
-					addWarningLine("Could not read flash status register, retrying...");
-					continue;
-				}
-
-				byte status = statusBytes[0];
-				int elapsed = (int)sw.Elapsed.TotalSeconds;
-				addLogLine($"Flash status: 0x{status:X2} (WIP={(status & WIP_BIT) != 0}) [{elapsed}s]");
-
-				if((status & WIP_BIT) == 0)
-				{
-					sw.Stop();
-					addSuccess($"Chip erase complete in {sw.Elapsed.TotalSeconds:F1}s!" + Environment.NewLine);
-					logger.setState("Erase complete!", Color.DarkGreen);
-					logger.setProgress(1, 1);
-					return true;
-				}
-
-				// Move progress bar proportionally within timeout ceiling
-				logger.setProgress(elapsed, TIMEOUT_MS / 1000);
-			}
-
-			addErrorLine($"Chip erase timed out after {TIMEOUT_MS / 1000}s - WIP bit still set.");
-			return false;
-		}
-
 		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
 		{
 			if(doGenericSetup() == false)
@@ -1285,61 +1218,7 @@ namespace BK7231Flasher
 
 		public override bool doErase(int startSector, int sectors, bool bAll)
 		{
-			try
-			{
-				if(!doGenericSetup())
-					return false;
-
-				// FlashInit(false) sets up the SPI flash controller (0x40002800 register)
-				// without starting an XMODEM/hash session.
-				FlashInit(false);
-
-				if(!bAll)
-				{
-					// Partial erase: write a blank (0xFF) image over the requested range.
-					// fwd erases each sector before programming, so this reliably clears them.
-					int byteCount  = sectors * BK7231Flasher.SECTOR_SIZE;
-					uint byteOffset = (uint)(startSector * BK7231Flasher.SECTOR_SIZE);
-					addLogLine($"Erasing {sectors} sector(s) from sector {startSector} (0x{byteOffset:X6})...");
-					var blank = new byte[byteCount];
-					for(int i = 0; i < blank.Length; i++) blank[i] = 0xFF;
-					logger.setProgress(0, byteCount);
-					if(!ChangeBaud(baudrate)) return false;
-					bool ok = WriteFlashWindows(blank, byteOffset);
-					ChangeBaud(FallbackBaudRate);
-					closePort();
-					if(ok) addSuccess("Sector erase complete!" + Environment.NewLine);
-					else    addErrorLine("Sector erase failed.");
-					return ok;
-				}
-
-				// Full chip erase via JEDEC Chip Erase (0xC7)
-				addLogLine("Starting full chip erase via JEDEC 0xC7...");
-				logger.setState("Erasing...", Color.Orange);
-				logger.setProgress(0, 1);
-				bool result = EraseFlash();
-				ChangeBaud(FallbackBaudRate);
-				closePort();
-				return result;
-			}
-			catch(OperationCanceledException)
-			{
-				EndProgressLineIfNeeded();
-				addLogLine("Erase cancelled by user.");
-				logger.setState("Cancelled", Color.DarkGray);
-				try { ChangeBaud(FallbackBaudRate); } catch { }
-				closePort();
-				return false;
-			}
-			catch(Exception ex)
-			{
-				EndProgressLineIfNeeded();
-				addErrorLine("Erase failed: " + ex.Message);
-				logger.setState("Erase error", Color.Red);
-				try { ChangeBaud(FallbackBaudRate); } catch { }
-				closePort();
-				return false;
-			}
+			return false;
 		}
 
 		public override void closePort()
