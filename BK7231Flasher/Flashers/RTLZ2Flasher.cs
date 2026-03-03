@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r16";
+		const string InternalBuildId = "rtlz2-resiliency-r17";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -79,6 +79,10 @@ namespace BK7231Flasher
 						return null;
 					}
 					offset += read;
+				}
+				catch(OperationCanceledException)
+				{
+					throw;
 				}
 				catch
 				{
@@ -915,6 +919,7 @@ namespace BK7231Flasher
 					if(efdata == null)
 					{
 						addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+						closePort();
 						return false;
 					}
 					ms?.Dispose();
@@ -929,6 +934,7 @@ namespace BK7231Flasher
 					{
 						logger.setState("Writing error!", Color.Red);
 						addError("Writing OBK config data to chip failed." + Environment.NewLine);
+						closePort();
 						return false;
 					}
 					logger.setState("OBK config write success!", Color.Green);
@@ -1174,6 +1180,7 @@ namespace BK7231Flasher
 						addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
 						logger.setState("SHA mismatch!", Color.Red);
 						ChangeBaud(FallbackBaudRate);
+						closePort();
 						return null;
 					}
 
