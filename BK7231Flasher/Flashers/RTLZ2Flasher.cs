@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r13";
+		const string InternalBuildId = "rtlz2-resiliency-r14";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -279,7 +279,7 @@ namespace BK7231Flasher
 			var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
 				while(DateTime.Now < deadline)
 			{
-				if(_ct.IsCancellationRequested) { addLogLine("Link cancelled."); return false; }
+				_ct.ThrowIfCancellationRequested();
 				try
 				{
 					Command("ping");
