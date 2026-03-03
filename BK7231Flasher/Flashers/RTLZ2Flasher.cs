@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r14";
+		const string InternalBuildId = "rtlz2-resiliency-r15";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -173,7 +173,7 @@ namespace BK7231Flasher
 					addWarningLine($"{label} retrying attempt {attempt + 1}/{attempts}: {ex.Message}");
 				}
 				try { Flush(); } catch { }
-				try { Link(); } catch { }
+				try { Link(); } catch(OperationCanceledException) { throw; } catch { }
 				Thread.Sleep(50);
 			}
 			return false;
@@ -211,7 +211,7 @@ namespace BK7231Flasher
 					EndProgressLineIfNeeded();
 					addWarningLine($"{label} retrying attempt {attempt + 1}/{attempts}: {last.Message}");
 					try { Flush(); } catch { }
-					try { Link(); } catch { }
+					try { Link(); } catch(OperationCanceledException) { throw; } catch { }
 					Thread.Sleep(50);
 				}
 			}
@@ -745,7 +745,7 @@ namespace BK7231Flasher
 						ChangeBaud(FallbackBaudRate);
 					}
 					try { Flush(); } catch { }
-					try { Link(); } catch { }
+					try { Link(); } catch(OperationCanceledException) { throw; } catch { }
 					if(attempt < WriteWindowRetryLimit)
 					{
 						addWarningLine($"Retrying write window 0x{offset:X6} ({attempt + 1}/{WriteWindowRetryLimit})");
@@ -1087,7 +1087,7 @@ namespace BK7231Flasher
 
 				addWarningLine($"Read verify failed at 0x{startAddr:X6} len 0x{windowLength:X} attempt {attempt}/{ReadWindowRetryLimit}");
 				try { Flush(); } catch { }
-				try { Link(); } catch { }
+				try { Link(); } catch(OperationCanceledException) { throw; } catch { }
 				if(attempt == 2 && serial.BaudRate > FallbackBaudRate)
 				{
 					addWarningLine($"Lowering baud rate to {FallbackBaudRate} for read recovery");
