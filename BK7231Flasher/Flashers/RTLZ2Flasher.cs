@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r15";
+		const string InternalBuildId = "rtlz2-resiliency-r16";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -881,7 +881,8 @@ namespace BK7231Flasher
 					if(!WriteFlashWindows(data, (uint)(startSector * 0x1000)))
 					{
 						addLog("Error: Write Flash!" + Environment.NewLine);
-						ChangeBaud(FallbackBaudRate);
+						try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { } // write failed; chip state unknown, skip Link()
+						closePort();
 						return true;
 					}
 					addLog("Write done!" + Environment.NewLine);
@@ -946,7 +947,7 @@ namespace BK7231Flasher
 			{
 				addLogLine("Write cancelled by user.");
 				logger.setState("Cancelled", Color.DarkGray);
-				try { ChangeBaud(FallbackBaudRate); } catch { }
+				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { } // chip may be gone; skip Link()
 				closePort();
 				return true;
 			}
@@ -1190,7 +1191,7 @@ namespace BK7231Flasher
 			{
 				addLogLine("Read cancelled by user.");
 				logger.setState("Cancelled", Color.DarkGray);
-				try { ChangeBaud(FallbackBaudRate); } catch { }
+				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { } // chip may be gone; skip Link()
 				closePort();
 				return null;
 			}
@@ -1198,7 +1199,7 @@ namespace BK7231Flasher
 			{
 				addError(ex.ToString() + Environment.NewLine);
 				logger.setState("Read error", Color.Red);
-				ChangeBaud(FallbackBaudRate);
+				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { } // chip may be gone; skip Link()
 			}
 			closePort();
 			return null;
