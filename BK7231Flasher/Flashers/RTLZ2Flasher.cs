@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r18";
+		const string InternalBuildId = "rtlz2-resiliency-r20";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -803,12 +803,34 @@ namespace BK7231Flasher
 			return true;
 		}
 
+		static string FlashPinName(int pin)
+		{
+			// RTL8720C register 0x40000038 bits[6:5] = FLASH_PIN_SEL.
+			// Pin group names proven from decompiled mainwindow.baml (comboBoxFlashPin item order):
+			//   0 = PIN_A7_A12  (default, comboBox index 0)
+			//   1 = PIN_B6_B12  (comboBox index 1)
+			//   2 = PIN_A15_A20 (comboBox index 2)
+			//
+			// Important caveat: PGTool's ParseFlashPinSel() extracts bits 6:5 as a binary
+			// string ("00"/"01"/"10"/"11") but then calls int.Parse() on it as if it were
+			// decimal text. This means values 2 and 3 (binary "10"/"11") would parse as 10
+			// and 11 — out of range for the comboBox. Only values 0 and 1 are reliably
+			// supported by PGTool's own autodetect. Treat 2+ as reserved/unverified on
+			// actual silicon until confirmed by vendor.
+			switch(pin)
+			{
+				case 0: return "0 (PIN_A7_A12 - default)";
+				case 1: return "1 (PIN_B6_B12)";
+				default: return $"{pin} (reserved - not reliably supported by PGTool autodetect)";
+			}
+		}
+
 		void FlashInit(bool configure = true)
 		{
 			if(FlashMode == null)
 			{
 				FlashMode = (RegisterRead(0x40000038) >> 5) & 0b11;
-				addLogLine($"Flash pin detected: {FlashMode}");
+				addLogLine($"Flash pin detected: {FlashPinName(FlashMode.Value)}");
 			}
 			if(!FlashConfigured)
 			{
