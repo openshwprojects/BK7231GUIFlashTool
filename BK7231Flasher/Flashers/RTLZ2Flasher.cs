@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r21";
+		const string InternalBuildId = "rtlz2-resiliency-r22";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -834,6 +834,8 @@ namespace BK7231Flasher
 			}
 			if(!FlashConfigured)
 			{
+				// Disable WDT (register 0x40002800 = WDT_CTRL, value 0x7EFFFFFF disables it).
+				// Guarded by FlashConfigured so it only runs once per session.
 				RegisterWrite(0x40002800, 0x7EFFFFFF);
 				FlashConfigured = true;
 			}
@@ -863,7 +865,8 @@ namespace BK7231Flasher
 			xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
 			if(Link() == false)
 			{
-				// Port was opened above — close it so the GUI releases the COM port and re-enables buttons.
+				// Close port regardless of whether we just opened it, so the GUI
+				// releases the COM port and re-enables buttons on link failure.
 				logger.setState("Link failed!", Color.Red);
 				closePort();
 				return false;
@@ -913,8 +916,6 @@ namespace BK7231Flasher
 					}
 				}
 				int address = startSector * BK7231Flasher.SECTOR_SIZE;
-				int count = (size + 4095) / 4096;
-
 
 				if(ChangeBaud(baudrate) == false)
 				{
@@ -1276,7 +1277,7 @@ namespace BK7231Flasher
 				{
 					return false;
 				}
-				// Ensure FlashMode (flash pin) is detected and WDT disabled.
+				// Detect flash pin and disable WDT.
 				// configure:false skips FlashHashOffset pre-read — not needed for erase.
 				FlashInit(configure: false);
 
@@ -1289,11 +1290,13 @@ namespace BK7231Flasher
 				}
 				else
 				{
-					int offset = startSector * 4096; // startSector is already sector-aligned by definition
-					int length = sectors * 4096;
-					addLogLine($"Sector erase: offset=0x{offset:X6} length=0x{length:X6} pin={FlashMode}");
-					logger.setState("Erasing sectors...", Color.Orange);
-					result = RunWithRecovery("Sector erase", 2, () => SendEraseCommand($"seras 0x{offset:X8} 0x{length:X8} 0 {FlashMode}"));
+					// Sector erase is not yet wired to any GUI action.
+					// The seras command is valid on the chip but leave it stubbed
+					// until there is a concrete use case and test path.
+					addErrorLine("Sector erase is not implemented in this build.");
+					logger.setState("Erase failed!", Color.Red);
+					closePort();
+					return false;
 				}
 
 				if(result)
@@ -1327,18 +1330,31 @@ namespace BK7231Flasher
 		bool SendEraseCommand(string eraseCmd)
 		{
 			_ct.ThrowIfCancellationRequested();
-			// Erase requires 60-second timeout (matches PGTool's erase timeout).
-			// Push/pop ensures the previous timeout is always restored.
-			PushReadTimeout(60000);
+			Command(eraseCmd);
+			// Poll for 2-byte ACK ("OK", 0x4F 0x4B) with short read slices so the
+			// cancellation token is checked regularly. PGTool allows up to 60 seconds
+			// for the erase to complete before treating it as a failure.
+			var deadline = DateTime.Now.AddSeconds(60);
+			PushReadTimeout(200);
 			try
 			{
-				Command(eraseCmd);
-				// PGTool reads a 2-byte ACK: 'O' (0x4F) 'K' (0x4B).
-				var ack = ReadExactly(2);
-				if(ack == null || ack.Length < 2 || ack[0] != 0x4F || ack[1] != 0x4B)
+				var buf = new byte[2];
+				int got = 0;
+				while(got < 2)
 				{
-					var got = ack != null ? BitConverter.ToString(ack) : "null";
-					throw new Exception($"Unexpected erase ACK: {got}");
+					_ct.ThrowIfCancellationRequested();
+					if(DateTime.Now > deadline)
+						throw new Exception("Erase timed out waiting for ACK after 60 seconds");
+					try
+					{
+						int n = serial.Read(buf, got, 2 - got);
+						if(n > 0) got += n;
+					}
+					catch(TimeoutException) { continue; }
+				}
+				if(buf[0] != 0x4F || buf[1] != 0x4B)
+				{
+					throw new Exception($"Unexpected erase ACK: {BitConverter.ToString(buf)}");
 				}
 				addLogLine("Erase ACK: OK");
 				return true;
