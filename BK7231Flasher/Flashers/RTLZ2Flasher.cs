@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r17";
+		const string InternalBuildId = "rtlz2-resiliency-r18";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -281,7 +281,7 @@ namespace BK7231Flasher
 		bool TryPingLink(int timeoutMs)
 		{
 			var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
-				while(DateTime.Now < deadline)
+			while(DateTime.Now < deadline)
 			{
 				_ct.ThrowIfCancellationRequested();
 				try
@@ -337,6 +337,21 @@ namespace BK7231Flasher
 			return true;
 		}
 
+		void WdtDisableRaw()
+		{
+			// Mirror PGTool: send WDT disable before baud change to prevent chip reset
+			// during the protocol transition window. Raw write (not via Command/RegisterWrite)
+			// to avoid IsInFallbackMode echo-read side-effects at this point in the flow.
+			try
+			{
+				var wdtCmd = Encoding.ASCII.GetBytes("EW 40002800 7EFFFFFF\n");
+				serial.Write(wdtCmd, 0, wdtCmd.Length);
+				Thread.Sleep(50);
+				try { serial.ReadExisting(); } catch { }
+			}
+			catch { }
+		}
+
 		bool TryChangeBaudOnce(int fromBaud, int toBaud, int txIdleMs, int oldReadMs, int newReadMs)
 		{
 			serial.BaudRate = fromBaud;
@@ -345,6 +360,8 @@ namespace BK7231Flasher
 			{
 				return false;
 			}
+			// Disable WDT before baud change (matches PGTool: sent immediately before ucfg).
+			WdtDisableRaw();
 			var cmd = Encoding.ASCII.GetBytes($"ucfg {toBaud} 0 0\n");
 			serial.Write(cmd, 0, cmd.Length);
 			WaitForTxIdle(txIdleMs);
@@ -791,6 +808,7 @@ namespace BK7231Flasher
 			if(FlashMode == null)
 			{
 				FlashMode = (RegisterRead(0x40000038) >> 5) & 0b11;
+				addLogLine($"Flash pin detected: {FlashMode}");
 			}
 			if(!FlashConfigured)
 			{
@@ -1226,7 +1244,68 @@ namespace BK7231Flasher
 
 		public override bool doErase(int startSector, int sectors, bool bAll)
 		{
-			return false;
+			try
+			{
+				_ct.ThrowIfCancellationRequested();
+				if(doGenericSetup() == false)
+				{
+					return false;
+				}
+				// Ensure FlashMode (flash pin) is detected and WDT disabled.
+				// configure:false skips FlashHashOffset pre-read — not needed for erase.
+				FlashInit(configure: false);
+
+				if(bAll)
+				{
+					addLogLine($"Chip erase: ceras 0 {FlashMode}");
+					return RunWithRecovery("Chip erase", 2, () => SendEraseCommand($"ceras 0 {FlashMode}"));
+				}
+				else
+				{
+					int offset = startSector * 4096; // startSector is already sector-aligned by definition
+					int length = sectors * 4096;
+					addLogLine($"Sector erase: offset=0x{offset:X6} length=0x{length:X6} pin={FlashMode}");
+					return RunWithRecovery("Sector erase", 2, () => SendEraseCommand($"seras 0x{offset:X8} 0x{length:X8} 0 {FlashMode}"));
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				addLogLine("Erase cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { }
+				closePort();
+				return false;
+			}
+			catch(Exception ex)
+			{
+				addErrorLine($"Erase failed: {ex.Message}");
+				return false;
+			}
+		}
+
+		bool SendEraseCommand(string eraseCmd)
+		{
+			_ct.ThrowIfCancellationRequested();
+			// Erase requires 60-second timeout (matches PGTool's erase timeout).
+			// Push/pop ensures the previous timeout is always restored.
+			PushReadTimeout(60000);
+			try
+			{
+				Command(eraseCmd);
+				// PGTool reads a 2-byte ACK: 'O' (0x4F) 'K' (0x4B).
+				var ack = ReadExactly(2);
+				if(ack == null || ack.Length < 2 || ack[0] != 0x4F || ack[1] != 0x4B)
+				{
+					var got = ack != null ? BitConverter.ToString(ack) : "null";
+					throw new Exception($"Unexpected erase ACK: {got}");
+				}
+				addLogLine("Erase ACK: OK");
+				return true;
+			}
+			finally
+			{
+				PopReadTimeout();
+			}
 		}
 
 		public override void closePort()
