@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r20";
+		const string InternalBuildId = "rtlz2-resiliency-r21";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -863,6 +863,9 @@ namespace BK7231Flasher
 			xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
 			if(Link() == false)
 			{
+				// Port was opened above — close it so the GUI releases the COM port and re-enables buttons.
+				logger.setState("Link failed!", Color.Red);
+				closePort();
 				return false;
 			}
 			return true;
@@ -1277,18 +1280,32 @@ namespace BK7231Flasher
 				// configure:false skips FlashHashOffset pre-read — not needed for erase.
 				FlashInit(configure: false);
 
+				bool result;
 				if(bAll)
 				{
 					addLogLine($"Chip erase: ceras 0 {FlashMode}");
-					return RunWithRecovery("Chip erase", 2, () => SendEraseCommand($"ceras 0 {FlashMode}"));
+					logger.setState("Erasing chip...", Color.Orange);
+					result = RunWithRecovery("Chip erase", 2, () => SendEraseCommand($"ceras 0 {FlashMode}"));
 				}
 				else
 				{
 					int offset = startSector * 4096; // startSector is already sector-aligned by definition
 					int length = sectors * 4096;
 					addLogLine($"Sector erase: offset=0x{offset:X6} length=0x{length:X6} pin={FlashMode}");
-					return RunWithRecovery("Sector erase", 2, () => SendEraseCommand($"seras 0x{offset:X8} 0x{length:X8} 0 {FlashMode}"));
+					logger.setState("Erasing sectors...", Color.Orange);
+					result = RunWithRecovery("Sector erase", 2, () => SendEraseCommand($"seras 0x{offset:X8} 0x{length:X8} 0 {FlashMode}"));
 				}
+
+				if(result)
+				{
+					logger.setState("Erase complete!", Color.DarkGreen);
+				}
+				else
+				{
+					logger.setState("Erase failed!", Color.Red);
+				}
+				closePort();
+				return result;
 			}
 			catch(OperationCanceledException)
 			{
@@ -1301,6 +1318,8 @@ namespace BK7231Flasher
 			catch(Exception ex)
 			{
 				addErrorLine($"Erase failed: {ex.Message}");
+				logger.setState("Erase failed!", Color.Red);
+				closePort();
 				return false;
 			}
 		}
