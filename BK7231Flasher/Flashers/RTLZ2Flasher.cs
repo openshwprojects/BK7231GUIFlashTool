@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r22";
+		const string InternalBuildId = "rtlz2-resiliency-r23";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -584,6 +584,8 @@ namespace BK7231Flasher
 					if(namePtr == 0)
 						break;
 					DumpBytes((uint)namePtr, 16, out var nameBytes);
+					if(nameBytes == null)
+						continue;
 					var fname = Encoding.ASCII.GetString(nameBytes).Split('\0')[0];
 					if(USED_COMMANDS.Contains(fname))
 						continue;
@@ -617,20 +619,33 @@ namespace BK7231Flasher
 			var timeoutSeconds = Math.Ceiling((double)Math.Max(length, 1) / 1500.0 * 10.0) / 10.0;
 			var timeoutMs = Math.Max(serial.ReadTimeout, (int)(timeoutSeconds * 1000.0) + 250);
 			Command($"hashq {length} 0 {FlashMode}");
-			PushReadTimeout(timeoutMs);
+			// Poll for the 38-byte hash response ("hashs " + 32-byte SHA256) in 200ms slices
+			// so the cancellation token is checked regularly. The chip may take up to
+			// several minutes to compute a hash over a large flash region.
+			var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
+			PushReadTimeout(200);
 			try
 			{
-				var response = ReadExactly(6 + 32);
-				if(response == null || response.Length != 38)
+				var buf = new byte[38];
+				int got = 0;
+				while(got < 38)
 				{
-					throw new Exception("Incomplete hash response");
+					_ct.ThrowIfCancellationRequested();
+					if(DateTime.Now > deadline)
+						throw new Exception("Hash response timed out");
+					try
+					{
+						int n = serial.Read(buf, got, 38 - got);
+						if(n > 0) got += n;
+					}
+					catch(TimeoutException) { continue; }
 				}
-				var prefix = Encoding.ASCII.GetString(response, 0, 6);
+				var prefix = Encoding.ASCII.GetString(buf, 0, 6);
 				if(prefix != "hashs ")
 				{
-					throw new Exception($"Unexpected response to hashq: {Encoding.ASCII.GetString(response)}");
+					throw new Exception($"Unexpected response to hashq: {Encoding.ASCII.GetString(buf)}");
 				}
-				return response.Skip(6).Take(32).ToArray();
+				return buf.Skip(6).Take(32).ToArray();
 			}
 			finally
 			{
@@ -919,6 +934,7 @@ namespace BK7231Flasher
 
 				if(ChangeBaud(baudrate) == false)
 				{
+					closePort();
 					return true;
 				}
 				if(mode != WriteMode.OnlyOBKConfig)
@@ -1020,6 +1036,10 @@ namespace BK7231Flasher
 			Thread.Sleep(10);
 			Flush();
 			DumpBytes(0x40020060, 16, out var bytes);
+			if(bytes == null)
+			{
+				throw new Exception("Failed to read flash ID from register dump");
+			}
 			flashSizeMB = (1 << (bytes[1] - 0x11)) / 8;
 			flashID[0] = bytes[0];
 			flashID[1] = bytes[4];
@@ -1036,7 +1056,24 @@ namespace BK7231Flasher
 			}
 			if(fullRead)
 			{
-				ReadFlashId();
+				try
+				{
+					ReadFlashId();
+				}
+				catch(OperationCanceledException)
+				{
+					addLogLine("Read cancelled by user.");
+					logger.setState("Cancelled", Color.DarkGray);
+					closePort();
+					return;
+				}
+				catch(Exception ex)
+				{
+					addErrorLine($"Flash ID read failed: {ex.Message}");
+					logger.setState("Read error", Color.Red);
+					closePort();
+					return;
+				}
 				sectors = flashSizeMB * 256;
 				//while(sectors < 4096)
 				//{
@@ -1170,6 +1207,7 @@ namespace BK7231Flasher
 				FlashInit();
 				if(ChangeBaud(baudrate) == false)
 				{
+					closePort();
 					return null;
 				}
 
