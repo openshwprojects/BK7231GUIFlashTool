@@ -723,8 +723,9 @@ namespace BK7231Flasher
             {
                 worker = null;
                 //setButtonReadLabel(label_startRead);
-                clearUp();
                 setButtonStates(true);
+                try { clearUp(); }
+                catch(Exception cleanEx) { addLog("Erase cleanup error: " + cleanEx.Message + Environment.NewLine, Color.Red); }
             }
         }
         void verifyThread(object oParm)
