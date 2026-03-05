@@ -707,15 +707,25 @@ namespace BK7231Flasher
 
         void eraseAll()
         {
-            clearUp();
-            createFlasher();
-            int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
-            int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
-            flasher.doErase(startOfs, sectors, true);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
+            try
+            {
+                clearUp();
+                createFlasher();
+                int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
+                int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
+                flasher.doErase(startOfs, sectors, true);
+            }
+            catch(Exception ex)
+            {
+                addLog("Erase error: " + ex.Message + Environment.NewLine, Color.Red);
+            }
+            finally
+            {
+                worker = null;
+                //setButtonReadLabel(label_startRead);
+                clearUp();
+                setButtonStates(true);
+            }
         }
         void verifyThread(object oParm)
         {
