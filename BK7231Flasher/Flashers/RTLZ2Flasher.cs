@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r23";
+		const string InternalBuildId = "rtlz2-resiliency-r24";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -1324,7 +1324,7 @@ namespace BK7231Flasher
 				{
 					addLogLine($"Chip erase: ceras 0 {FlashMode}");
 					logger.setState("Erasing chip...", Color.Orange);
-					result = RunWithRecovery("Chip erase", 2, () => SendEraseCommand($"ceras 0 {FlashMode}"));
+					result = RunWithRecovery("Chip erase", 1, () => SendEraseCommand($"ceras 0 {FlashMode}"));
 				}
 				else
 				{

@@ -1432,9 +1432,32 @@ namespace BK7231Flasher
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
         {
-            var res = MessageBox.Show("This will remove everything from 0x11000, including configuration of OBK and MAC address and RF partition. "+
-                "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
-                "Do it if you have RF issues. Flash OBK after doing erase. This option might require a lower baud rate. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
+            string _nl = Environment.NewLine;
+            string _msg =
+                "WARNING: Erase All permanently erases flash. Reflash firmware before rebooting." + _nl + _nl +
+                "Platform behaviour:" + _nl + _nl +
+                "BK7231T / BK7231U / BK7252:" + _nl +
+                "  Erases 0x11000 to end of flash. Bootloader (0x000000-0x010FFF) must be preserved on these platforms." + _nl +
+                "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
+                "  Erases 0x11000 to end of flash (conservative - bootloader area is safe to erase on these but tool preserves it)." + _nl +
+                "  Config, RF and MAC data above 0x11000 will be removed on all BK7231 family chips." + _nl + _nl +
+                "BL602 / BL702:" + _nl +
+                "  Full chip erase via platform command." + _nl + _nl +
+                "ECR6600:" + _nl +
+                "  Full chip erase command." + _nl + _nl +
+                "RTL87X0C (AmebaZ2):" + _nl +
+                "  Full chip erase command." + _nl + _nl +
+                "RTL8710B / RTL8720DN / RTL8721DA / RTL8720E (AmebaZ / AmebaD):" + _nl +
+                "  Erases 0x000000 to end of detected flash size. Safe - all RTL platforms boot from internal ROM." + _nl + _nl +
+                "RDA5981:" + _nl +
+                "  Erases full detected flash size from flash base." + _nl + _nl +
+                "Beken SPI CH341 / Generic SPI CH341:" + _nl +
+                "  Full SPI chip erase." + _nl + _nl +
+                "LN882H / LN8825B / W800 / W600 / ESP32 family:" + _nl +
+                "  Erase not implemented - no erase will be performed." + _nl + _nl +
+                "BK7231 family and RTL AmebaZ/D targets negotiate to the GUI baud rate before erasing - lower baud may help if erase fails on those platforms." + _nl + _nl +
+                "Continue?";
+            var res = MessageBox.Show(_msg, "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
                 if (doGenericOperationPreparations() == false)
