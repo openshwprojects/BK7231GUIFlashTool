@@ -1434,7 +1434,6 @@ namespace BK7231Flasher
         {
             string _nl = Environment.NewLine;
             string _msg =
-                "WARNING: Erase All permanently erases flash. Reflash firmware before rebooting." + _nl + _nl +
                 "Platform behaviour:" + _nl + _nl +
                 "BK7231T / BK7231U / BK7252:" + _nl +
                 "  Erases 0x11000 to end of flash. Bootloader (0x000000-0x010FFF) must be preserved on these platforms." + _nl +
