@@ -469,7 +469,9 @@ namespace BK7231Flasher
         {
             if (flasher != null)
             {
-                cts.Cancel();
+                // cts.Cancel() can throw AggregateException if internal Task callbacks
+                // fire when the task is already completing (RanToCompletion). Swallow it.
+                try { cts.Cancel(); } catch { }
                 flasher.Dispose();
                 //flasher.closePort();
                 flasher = null;
