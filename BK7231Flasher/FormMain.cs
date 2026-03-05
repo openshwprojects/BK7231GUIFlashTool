@@ -1430,9 +1430,34 @@ namespace BK7231Flasher
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
         {
-            var res = MessageBox.Show("This will remove everything from 0x11000, including configuration of OBK and MAC address and RF partition. "+
-                "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
-                "Do it if you have RF issues. Flash OBK after doing erase. This option might require a lower baud rate. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
+            string nl = Environment.NewLine;
+            string msg =
+                "Erase behavior depends on selected platform:" + nl + nl +
+                "- BK7231T / BK7231U / BK7231N (T2, T34) / BK7231M / BK7236 (T3) / BK7238 (T1) / BK7252 / BK7252N (T4) / BK7258 (T5):" + nl +
+                "  erases from 0x011000 upward using the current GUI range. In a fresh/default session this is typically 0x011000-0x1FFFFF," + nl +
+                "  preserving 0x000000-0x010FFF bootloader area. Config / RF / MAC data above 0x11000 may be removed." + nl + nl +
+                "- BL602 / BL702:" + nl +
+                "  uses platform erase-all command." + nl + nl +
+                "- ECR6600:" + nl +
+                "  uses chip-erase command." + nl + nl +
+                "- RTL87X0C (AmebaZ2):" + nl +
+                "  uses chip-erase command." + nl + nl +
+                "- RTL8710B (AmebaZ) / RTL8720DN (AmebaD):" + nl +
+                "  erases first 2MB only (0x000000-0x1FFFFF)." + nl + nl +
+                "- RDA5981:" + nl +
+                "  erases from flash base over detected flash size." + nl + nl +
+                "- Beken SPI CH341 / Generic SPI CH341:" + nl +
+                "  uses SPI chip erase." + nl + nl +
+                "- LN882H / LN8825:" + nl +
+                "  erase all is not implemented. No erase will be performed." + nl + nl +
+                "- W800 / W600 (write):" + nl +
+                "  erase all is currently stubbed / not implemented. No erase will be performed." + nl + nl +
+                "- ESP32 / ESP32-S3 / ESP32-C3 / ESP8266:" + nl +
+                "  erase all is not implemented in this tool. No erase will be performed." + nl + nl +
+                "After any real erase, reflash firmware before rebooting." + nl +
+                "Some targets may need a lower baud rate for erase to succeed." + nl + nl +
+                "Continue?";
+            var res = MessageBox.Show(msg, "WARNING! ERASE FLASH", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
                 if (doGenericOperationPreparations() == false)
