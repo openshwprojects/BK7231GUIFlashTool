@@ -212,6 +212,9 @@ namespace BK7231Flasher
                 case 115200:
                     baudCode = 1;
                     break;
+                case 380400:
+                    baudCode = 4;
+                    break;
                 case 460800:
                     baudCode = 5;
                     break;
@@ -680,13 +683,21 @@ namespace BK7231Flasher
                     return false;
 
                 bool ok = EraseViaUboot(offset, length);
-                if(ok)
-                    RunUploadedProgram();
                 return ok;
             }
             finally
             {
                 closePort();
+            }
+        }
+
+        public override void closePort()
+        {
+            if(serial != null)
+            {
+                try { serial.Close(); } catch { }
+                try { serial.Dispose(); } catch { }
+                serial = null;
             }
         }
 
