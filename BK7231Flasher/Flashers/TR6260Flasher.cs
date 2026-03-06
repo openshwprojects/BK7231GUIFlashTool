@@ -20,6 +20,9 @@ namespace BK7231Flasher
         const int RAM_ADDR = 0x10000;
         const uint TRS_SYNC = 0x73796E63;
 
+        static readonly int[] SUPPORTED_BAUDS = { 57600, 115200, 460800, 576000, 691200, 806400, 921600, 2000000 };
+        const string SUPPORTED_BAUDS_TEXT = "57600, 115200, 460800, 576000, 691200, 806400, 921600, 2000000";
+
         const byte TRS_ROM_SYNC_ACK = 1;
         const byte TRS_UBOOT_SYNC_ACK = 2;
         const byte TRS_ROM_BAUD_ACK = 3;
@@ -143,6 +146,21 @@ namespace BK7231Flasher
             return false;
         }
 
+        bool IsSupportedBaud(int requested)
+        {
+            return SUPPORTED_BAUDS.Contains(requested);
+        }
+
+        bool ValidateRequestedBaud()
+        {
+            int requested = baudrate > 0 ? baudrate : DEFAULT_BAUD;
+            if(IsSupportedBaud(requested))
+                return true;
+
+            addErrorLine($"TR6260: baud {requested} is not supported. Supported values: {SUPPORTED_BAUDS_TEXT}");
+            return false;
+        }
+
         bool PrepareSession(bool needUbootProtocol)
         {
             if(!ValidateRequestedBaud())
@@ -243,8 +261,8 @@ namespace BK7231Flasher
                     baudCode = 13;
                     break;
                 default:
-                    addWarningLine($"TR6260: unsupported baud {requested}, keeping default {DEFAULT_BAUD}");
-                    return true;
+                    addErrorLine($"TR6260: baud {requested} is not supported. Supported values: {SUPPORTED_BAUDS_TEXT}");
+                    return false;
             }
 
             if(!WriteRaw(new[] { baudCode }))
