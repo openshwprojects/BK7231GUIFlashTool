@@ -49,6 +49,7 @@ namespace BK7231Flasher
             { BKType.W800,       "W800" },
             { BKType.W600,       "W600 (write)" },
             { BKType.RDA5981,    "RDA5981" },
+            { BKType.TR6260,     "TR6260" },
             { BKType.BekenSPI,   "Beken SPI CH341" },
             { BKType.GenericSPI, "Generic SPI CH341" },
             { BKType.ESP32,      "ESP32" },
@@ -202,6 +203,11 @@ namespace BK7231Flasher
             foreach(var chip in Chips)
             {
                 comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
+            }
+
+            if(comboBoxChipType.Items.Cast<ChipType>().Any(x => x.Type == BKType.TR6260) == false)
+            {
+                comboBoxChipType.Items.Add(new ChipType(BKType.TR6260, "TR6260"));
             }
 
             comboBoxChipType.SelectedIndex = 0;
@@ -514,6 +520,9 @@ namespace BK7231Flasher
                     break;
                 case BKType.RDA5981:
                     flasher = new RDAFlasher(cts.Token);
+                    break;
+                case BKType.TR6260:
+                    flasher = new TR6260Flasher(cts.Token);
                     break;
                 case BKType.ESP32:
                 case BKType.ESP32S3:
