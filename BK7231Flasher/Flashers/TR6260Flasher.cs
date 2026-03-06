@@ -52,6 +52,26 @@ namespace BK7231Flasher
         {
         }
 
+        void SetState(string text, Color color)
+        {
+            logger?.setState(text, color);
+        }
+
+        void SetBusyState(string text)
+        {
+            SetState(text, Color.Transparent);
+        }
+
+        void SetErrorState(string text)
+        {
+            SetState(text, Color.Red);
+        }
+
+        void SetDoneState(string text)
+        {
+            SetState(text, Color.DarkGreen);
+        }
+
         bool SetupPort(int initialBaud = DEFAULT_BAUD)
         {
             try
@@ -71,6 +91,7 @@ namespace BK7231Flasher
             catch(Exception ex)
             {
                 addErrorLine("TR6260: failed to open port: " + ex.Message);
+                SetErrorState("Open port failed");
                 return false;
             }
         }
@@ -158,6 +179,7 @@ namespace BK7231Flasher
                 return true;
 
             addErrorLine($"TR6260: baud {requested} is not supported. Supported values: {SUPPORTED_BAUDS_TEXT}");
+            SetErrorState("Unsupported baud");
             return false;
         }
 
@@ -166,9 +188,11 @@ namespace BK7231Flasher
             if(!ValidateRequestedBaud())
                 return false;
 
+            SetBusyState("Opening port...");
             if(!SetupPort())
                 return false;
 
+            SetBusyState("Syncing bootrom...");
             addLogLine("TR6260: syncing bootrom...");
             byte syncResp = 0;
             for(int loop = 1; loop <= 10; loop++)
@@ -183,6 +207,7 @@ namespace BK7231Flasher
             if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
             {
                 addErrorLine("TR6260: sync failed");
+                SetErrorState("Sync failed");
                 return false;
             }
 
@@ -196,6 +221,7 @@ namespace BK7231Flasher
                     if(!WaitForUbootSync())
                     {
                         addErrorLine("TR6260: RAM boot upload completed, but sync to uboot failed");
+                        SetErrorState("Sync failed");
                         return false;
                     }
                     addLogLine("TR6260: sync OK (uboot mode)");
@@ -206,15 +232,21 @@ namespace BK7231Flasher
                 addLogLine("TR6260: sync OK (uboot/flash mode)");
             }
 
-            if(needUbootProtocol && !ConfigureBaudrateIfNeeded())
-                return false;
+            if(needUbootProtocol)
+            {
+                SetBusyState("Changing baud...");
+                if(!ConfigureBaudrateIfNeeded())
+                    return false;
+            }
 
             if(needUbootProtocol)
             {
+                SetBusyState("Verifying protocol...");
                 byte verify = SyncOnce();
                 if(verify != TRS_UBOOT_SYNC_ACK)
                 {
                     addErrorLine("TR6260: download/read protocol sync failed after baud change");
+                    SetErrorState("Protocol sync failed");
                     return false;
                 }
             }
@@ -262,6 +294,7 @@ namespace BK7231Flasher
                     break;
                 default:
                     addErrorLine($"TR6260: baud {requested} is not supported. Supported values: {SUPPORTED_BAUDS_TEXT}");
+                    SetErrorState("Unsupported baud");
                     return false;
             }
 
@@ -275,6 +308,7 @@ namespace BK7231Flasher
             catch(Exception ex)
             {
                 addErrorLine("TR6260: failed to switch serial port baud rate: " + ex.Message);
+                SetErrorState("Baud change failed");
                 return false;
             }
 
@@ -283,6 +317,7 @@ namespace BK7231Flasher
             if(ack != TRS_ROM_BAUD_ACK)
             {
                 addErrorLine($"TR6260: set baud failed, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
+                SetErrorState("Baud change failed");
                 return false;
             }
 
@@ -350,13 +385,16 @@ namespace BK7231Flasher
             if(boot == null || boot.Length == 0)
             {
                 addErrorLine("TR6260: TR6260_Boot.bin not found (embedded or disk)");
+                SetErrorState("Bootloader missing");
                 return false;
             }
 
+            SetBusyState("Uploading bootloader...");
             addLogLine("TR6260: uploading bootloader to RAM...");
             if(!BeginTransfer(TRS_FRM_TYPE_UBOOT, 0, boot.Length, 30))
             {
                 addErrorLine("TR6260: RAM bootloader header failed");
+                SetErrorState("Bootloader upload failed");
                 return false;
             }
 
@@ -397,6 +435,7 @@ namespace BK7231Flasher
                 if(ack != TRS_ROM_FILE_ACK)
                 {
                     addErrorLine($"TR6260: {description} failed at block {blockIndex + 1}/{Math.Max(totalBlocks, 1)}, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
+                    SetErrorState("Transfer failed");
                     return false;
                 }
 
@@ -590,10 +629,12 @@ namespace BK7231Flasher
         bool ReadFlashViaUboot(int offset, int length)
         {
             ms = new MemoryStream();
+            SetBusyState("Reading...");
             addLogLine($"TR6260: reading {length} bytes at 0x{offset:X}");
             if(!BeginTransfer(TRS_FRM_TYPE_UPLOAD, offset, length, 30))
             {
                 addErrorLine("TR6260: read begin failed");
+                SetErrorState("Read error");
                 return false;
             }
 
@@ -605,6 +646,7 @@ namespace BK7231Flasher
                 if(chunk == null || chunk.Length != take)
                 {
                     addErrorLine("TR6260: read data timed out");
+                    SetErrorState("Read error");
                     ms = null;
                     return false;
                 }
@@ -615,25 +657,30 @@ namespace BK7231Flasher
 
                 if(!WriteRaw(new[] { TRS_ROM_FILE_ACK }))
                 {
+                    SetErrorState("Read error");
                     ms = null;
                     return false;
                 }
             }
 
             addSuccess("TR6260 read completed.\n");
+            SetDoneState("Read done");
             return true;
         }
 
         bool EraseViaUboot(int offset, int length)
         {
+            SetBusyState("Erasing...");
             addLogLine($"TR6260: erasing 0x{length:X} bytes at 0x{offset:X}");
             if(!BeginTransfer(TRS_FRM_TYPE_ERASE, offset, length, 600))
             {
                 addErrorLine("TR6260: erase failed");
+                SetErrorState("Erase failed!");
                 return false;
             }
 
             addSuccess("TR6260 erase completed.\n");
+            SetDoneState("Erase complete!");
             return true;
         }
 
@@ -642,6 +689,7 @@ namespace BK7231Flasher
             if(data == null || data.Length == 0)
             {
                 addErrorLine("TR6260: no data supplied for write");
+                SetErrorState("Write error");
                 return;
             }
 
@@ -650,11 +698,17 @@ namespace BK7231Flasher
                 if(!PrepareSession(true))
                     return;
 
+                SetBusyState("Writing...");
                 if(!WriteFirmwarePayload(startSector, data))
+                {
+                    SetErrorState("Write error");
                     return;
+                }
 
+                SetBusyState("Finalizing write...");
                 RunUploadedProgram();
                 addSuccess("TR6260 write completed.\n");
+                SetDoneState("Write done");
             }
             finally
             {
