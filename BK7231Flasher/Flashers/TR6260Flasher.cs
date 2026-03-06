@@ -13,6 +13,7 @@ namespace BK7231Flasher
     {
         const int DEFAULT_BAUD = 57600;
         const int DEFAULT_FLASH_SIZE = 0x100000;
+        const int ERASE_OPERATION_BAUD = 115200;
         const int FLASH_BLOCK = 1024;
         const int PARTITION_ADDR = 0x6000;
         const int APP_ADDR = 0x7000;
@@ -39,6 +40,8 @@ namespace BK7231Flasher
         const uint TRS_FRM_TYPE_UPLOAD = 8;
 
         MemoryStream ms;
+        bool sessionPortUnavailable;
+        bool sessionClosedPortWriteLogged;
 
         sealed class TransferSegment
         {
@@ -72,11 +75,69 @@ namespace BK7231Flasher
             SetState(text, Color.DarkGreen);
         }
 
+        void ResetSessionFlags()
+        {
+            sessionPortUnavailable = false;
+            sessionClosedPortWriteLogged = false;
+        }
+
+        int GetRequestedBaud(int? requestedBaudOverride = null)
+        {
+            return requestedBaudOverride ?? (baudrate > 0 ? baudrate : DEFAULT_BAUD);
+        }
+
+        bool IsPortUnavailable()
+        {
+            try
+            {
+                return serial == null || !serial.IsOpen;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        bool IsPortUnavailableException(Exception ex)
+        {
+            if(ex is ObjectDisposedException || ex is InvalidOperationException || ex is NullReferenceException)
+                return true;
+
+            string msg = ex?.Message ?? string.Empty;
+            return msg.IndexOf("port is closed", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("instance of an object", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        void MarkPortUnavailable()
+        {
+            sessionPortUnavailable = true;
+        }
+
+        void LogPortClosedWriteFailureOnce()
+        {
+            if(sessionClosedPortWriteLogged)
+                return;
+
+            addErrorLine("TR6260: serial write failed: The port is closed.");
+            sessionClosedPortWriteLogged = true;
+        }
+
+        bool PrepareReadOrWriteSession()
+        {
+            return PrepareSession(true);
+        }
+
+        bool PrepareEraseSession()
+        {
+            return PrepareSession(true, ERASE_OPERATION_BAUD);
+        }
+
         bool SetupPort(int initialBaud = DEFAULT_BAUD)
         {
             try
             {
                 closePort();
+                ResetSessionFlags();
                 serial = new SerialPort(serialName, initialBaud)
                 {
                     ReadTimeout = 2000,
@@ -121,9 +182,17 @@ namespace BK7231Flasher
                 catch(TimeoutException)
                 {
                 }
-                catch
+                catch(Exception ex)
                 {
+                    if(IsPortUnavailableException(ex) || IsPortUnavailable())
+                    {
+                        MarkPortUnavailable();
+                        return null;
+                    }
                 }
+
+                if(sessionPortUnavailable || cancellationToken.IsCancellationRequested)
+                    return null;
 
                 if(delayMs > 0)
                     Thread.Sleep(delayMs);
@@ -133,6 +202,16 @@ namespace BK7231Flasher
 
         bool WriteRaw(byte[] data)
         {
+            if(data == null || data.Length == 0)
+                return true;
+
+            if(IsPortUnavailable())
+            {
+                MarkPortUnavailable();
+                LogPortClosedWriteFailureOnce();
+                return false;
+            }
+
             try
             {
                 serial.Write(data, 0, data.Length);
@@ -140,6 +219,13 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
+                if(IsPortUnavailableException(ex) || IsPortUnavailable())
+                {
+                    MarkPortUnavailable();
+                    LogPortClosedWriteFailureOnce();
+                    return false;
+                }
+
                 addErrorLine("TR6260: serial write failed: " + ex.Message);
                 return false;
             }
@@ -161,6 +247,9 @@ namespace BK7231Flasher
                 if(resp == TRS_UBOOT_SYNC_ACK)
                     return true;
 
+                if(sessionPortUnavailable || cancellationToken.IsCancellationRequested)
+                    break;
+
                 addLogLine($"TR6260: response {resp} after RAM boot upload, retry {loop}/{attempts}");
                 Thread.Sleep(150);
             }
@@ -172,9 +261,9 @@ namespace BK7231Flasher
             return SUPPORTED_BAUDS.Contains(requested);
         }
 
-        bool ValidateRequestedBaud()
+        bool ValidateRequestedBaud(int? requestedBaudOverride = null)
         {
-            int requested = baudrate > 0 ? baudrate : DEFAULT_BAUD;
+            int requested = GetRequestedBaud(requestedBaudOverride);
             if(IsSupportedBaud(requested))
                 return true;
 
@@ -183,10 +272,9 @@ namespace BK7231Flasher
             return false;
         }
 
-        bool PrepareSession(bool needUbootProtocol)
+        bool PrepareSession(bool needUbootProtocol, int? requestedBaudOverride = null)
         {
-            // Regression guard: unsupported baud must abort before any device I/O.
-            if(!ValidateRequestedBaud())
+            if(!ValidateRequestedBaud(requestedBaudOverride))
                 return false;
 
             SetBusyState("Opening port...");
@@ -200,6 +288,9 @@ namespace BK7231Flasher
             {
                 syncResp = SyncOnce();
                 if(syncResp == TRS_ROM_SYNC_ACK || syncResp == TRS_UBOOT_SYNC_ACK)
+                    break;
+
+                if(sessionPortUnavailable || cancellationToken.IsCancellationRequested)
                     break;
 
                 Thread.Sleep(1000);
@@ -236,7 +327,7 @@ namespace BK7231Flasher
             if(needUbootProtocol)
             {
                 SetBusyState("Changing baud...");
-                if(!ConfigureBaudrateIfNeeded())
+                if(!ConfigureBaudrateIfNeeded(requestedBaudOverride))
                     return false;
             }
 
@@ -255,9 +346,9 @@ namespace BK7231Flasher
             return true;
         }
 
-        bool ConfigureBaudrateIfNeeded()
+        bool ConfigureBaudrateIfNeeded(int? requestedBaudOverride = null)
         {
-            int requested = baudrate > 0 ? baudrate : DEFAULT_BAUD;
+            int requested = GetRequestedBaud(requestedBaudOverride);
             byte baudCode;
             switch(requested)
             {
@@ -619,8 +710,10 @@ namespace BK7231Flasher
                 {
                     return null;
                 }
-                catch
+                catch(Exception ex)
                 {
+                    if(IsPortUnavailableException(ex) || IsPortUnavailable())
+                        MarkPortUnavailable();
                     return null;
                 }
             }
@@ -696,7 +789,7 @@ namespace BK7231Flasher
 
             try
             {
-                if(!PrepareSession(true))
+                if(!PrepareReadOrWriteSession())
                     return;
 
                 SetBusyState("Writing...");
@@ -729,7 +822,7 @@ namespace BK7231Flasher
 
             try
             {
-                if(!PrepareSession(true))
+                if(!PrepareReadOrWriteSession())
                     return;
 
                 ReadFlashViaUboot(offset, length);
@@ -752,15 +845,44 @@ namespace BK7231Flasher
 
             try
             {
-                if(!PrepareSession(true))
+                if(!PrepareEraseSession())
                     return false;
 
-                // Regression guard: erase must not attempt to boot afterwards.
                 return EraseViaUboot(offset, length);
             }
             finally
             {
                 closePort();
+            }
+        }
+
+        public override void closePort()
+        {
+            try
+            {
+                if(serial != null)
+                {
+                    try
+                    {
+                        if(serial.IsOpen)
+                            serial.Close();
+                    }
+                    catch
+                    {
+                    }
+
+                    try
+                    {
+                        serial.Dispose();
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+            finally
+            {
+                serial = null;
             }
         }
 
