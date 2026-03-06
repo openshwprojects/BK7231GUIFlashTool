@@ -185,6 +185,7 @@ namespace BK7231Flasher
 
         bool PrepareSession(bool needUbootProtocol)
         {
+            // Regression guard: unsupported baud must abort before any device I/O.
             if(!ValidateRequestedBaud())
                 return false;
 
@@ -754,10 +755,8 @@ namespace BK7231Flasher
                 if(!PrepareSession(true))
                     return false;
 
-                bool ok = EraseViaUboot(offset, length);
-                if(ok)
-                    RunUploadedProgram();
-                return ok;
+                // Regression guard: erase must not attempt to boot afterwards.
+                return EraseViaUboot(offset, length);
             }
             finally
             {
