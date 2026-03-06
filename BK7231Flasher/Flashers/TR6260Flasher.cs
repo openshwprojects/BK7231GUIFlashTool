@@ -35,6 +35,8 @@ namespace BK7231Flasher
         const uint TRS_FRM_TYPE_ERASE = 6;
         const uint TRS_FRM_TYPE_UPLOAD = 8;
 
+        static readonly int[] UTPMAIN_GUI_SUPPORTED_BAUDS = new[] { 57600, 115200, 460800, 576000, 691200, 806400, 921600, 2000000 };
+
         MemoryStream ms;
         bool abortLogged;
         bool portUnavailable;
@@ -325,9 +327,25 @@ namespace BK7231Flasher
             return true;
         }
 
+        bool IsUtpMainUserBaudSupported(int requested)
+        {
+            return UTPMAIN_GUI_SUPPORTED_BAUDS.Contains(requested);
+        }
+
+        string DescribeSupportedBauds()
+        {
+            return string.Join(", ", UTPMAIN_GUI_SUPPORTED_BAUDS);
+        }
+
         bool ConfigureBaudrateIfNeeded()
         {
             int requested = baudrate > 0 ? baudrate : DEFAULT_BAUD;
+            if(!IsUtpMainUserBaudSupported(requested))
+            {
+                addErrorLine($"TR6260: baud {requested} is not supported by the UTPmain GUI flow. Supported values: {DescribeSupportedBauds()}");
+                return false;
+            }
+
             byte baudCode;
             switch(requested)
             {
@@ -335,12 +353,6 @@ namespace BK7231Flasher
                     return true;
                 case 115200:
                     baudCode = 1;
-                    break;
-                case 230400:
-                    baudCode = 2;
-                    break;
-                case 380400:
-                    baudCode = 3;
                     break;
                 case 460800:
                     baudCode = 5;
@@ -357,21 +369,12 @@ namespace BK7231Flasher
                 case 921600:
                     baudCode = 9;
                     break;
-                case 1400000:
-                    baudCode = 10;
-                    break;
-                case 1660000:
-                    baudCode = 11;
-                    break;
-                case 1840000:
-                    baudCode = 12;
-                    break;
                 case 2000000:
                     baudCode = 13;
                     break;
                 default:
-                    addWarningLine($"TR6260: unsupported baud {requested}, keeping default {DEFAULT_BAUD}");
-                    return true;
+                    addErrorLine($"TR6260: baud {requested} is listed as supported but no download-mode baud code is defined for it in the current flasher implementation");
+                    return false;
             }
 
             if(!WriteRaw(new[] { baudCode }))
