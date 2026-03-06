@@ -35,11 +35,7 @@ namespace BK7231Flasher
         const uint TRS_FRM_TYPE_ERASE = 6;
         const uint TRS_FRM_TYPE_UPLOAD = 8;
 
-        static readonly int[] UTPMAIN_GUI_SUPPORTED_BAUDS = new[] { 57600, 115200, 460800, 576000, 691200, 806400, 921600, 2000000 };
-
         MemoryStream ms;
-        bool abortLogged;
-        bool portUnavailable;
 
         sealed class TransferSegment
         {
@@ -53,74 +49,11 @@ namespace BK7231Flasher
         {
         }
 
-        bool IsPortUnavailableException(Exception ex)
-        {
-            return ex is InvalidOperationException || ex is ObjectDisposedException || ex is IOException || ex is NullReferenceException;
-        }
-
-        bool IsAbortState()
-        {
-            return isCancelled || cancellationToken.IsCancellationRequested || portUnavailable;
-        }
-
-        bool WaitCancelable(int delayMs)
-        {
-            if(ShouldAbort())
-                return false;
-
-            if(delayMs <= 0)
-                return true;
-
-            return !cancellationToken.WaitHandle.WaitOne(delayMs) && !ShouldAbort();
-        }
-
-        bool ShouldAbort(bool requireOpenPort = false, string message = null)
-        {
-            if(isCancelled || cancellationToken.IsCancellationRequested)
-            {
-                if(!abortLogged)
-                {
-                    addWarningLine(message ?? "TR6260: operation cancelled");
-                    abortLogged = true;
-                }
-                return true;
-            }
-
-            if(requireOpenPort)
-            {
-                bool unavailable;
-                var port = serial;
-                try
-                {
-                    unavailable = portUnavailable || port == null || !port.IsOpen;
-                }
-                catch
-                {
-                    unavailable = true;
-                }
-
-                if(unavailable)
-                {
-                    portUnavailable = true;
-                    if(!abortLogged)
-                    {
-                        addWarningLine(message ?? "TR6260: serial port is not available");
-                        abortLogged = true;
-                    }
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         bool SetupPort(int initialBaud = DEFAULT_BAUD)
         {
             try
             {
                 closePort();
-                abortLogged = false;
-                portUnavailable = false;
                 serial = new SerialPort(serialName, initialBaud)
                 {
                     ReadTimeout = 2000,
@@ -143,11 +76,8 @@ namespace BK7231Flasher
         {
             try
             {
-                var port = serial;
-                if(port == null || !port.IsOpen)
-                    return;
-                port.DiscardInBuffer();
-                port.DiscardOutBuffer();
+                serial?.DiscardInBuffer();
+                serial?.DiscardOutBuffer();
             }
             catch
             {
@@ -158,76 +88,34 @@ namespace BK7231Flasher
         {
             for(int i = 0; i < attempts; i++)
             {
-                if(ShouldAbort(true))
-                    return null;
-
                 try
                 {
-                    var port = serial;
-                    if(port == null || !port.IsOpen)
-                    {
-                        portUnavailable = true;
-                        return null;
-                    }
-
-                    int v = port.ReadByte();
+                    int v = serial.ReadByte();
                     if(v >= 0)
                         return (byte)v;
                 }
                 catch(TimeoutException)
                 {
                 }
-                catch(Exception ex)
+                catch
                 {
-                    if(IsPortUnavailableException(ex))
-                    {
-                        portUnavailable = true;
-                        if(!abortLogged)
-                        {
-                            addWarningLine("TR6260: serial port became unavailable while waiting for a response");
-                            abortLogged = true;
-                        }
-                        return null;
-                    }
-                    return null;
                 }
 
-                if(delayMs > 0 && !WaitCancelable(delayMs))
-                    return null;
+                if(delayMs > 0)
+                    Thread.Sleep(delayMs);
             }
             return null;
         }
 
         bool WriteRaw(byte[] data)
         {
-            if(ShouldAbort(true))
-                return false;
-
             try
             {
-                var port = serial;
-                if(port == null || !port.IsOpen)
-                {
-                    portUnavailable = true;
-                    return false;
-                }
-
-                port.Write(data, 0, data.Length);
+                serial.Write(data, 0, data.Length);
                 return true;
             }
             catch(Exception ex)
             {
-                if(IsPortUnavailableException(ex))
-                {
-                    portUnavailable = true;
-                    if(!abortLogged)
-                    {
-                        addWarningLine("TR6260: serial port became unavailable during transfer");
-                        abortLogged = true;
-                    }
-                    return false;
-                }
-
                 addErrorLine("TR6260: serial write failed: " + ex.Message);
                 return false;
             }
@@ -237,8 +125,7 @@ namespace BK7231Flasher
         {
             if(!WriteRaw(BitConverter.GetBytes(TRS_SYNC)))
                 return 0;
-            if(!WaitCancelable(50))
-                return 0;
+            Thread.Sleep(50);
             return ReadResponseByte(1, 0) ?? (byte)0;
         }
 
@@ -246,24 +133,21 @@ namespace BK7231Flasher
         {
             for(int loop = 1; loop <= attempts; loop++)
             {
-                if(ShouldAbort(true, "TR6260: uboot sync aborted because the serial port is unavailable"))
-                    return false;
-
                 byte resp = SyncOnce();
                 if(resp == TRS_UBOOT_SYNC_ACK)
                     return true;
-                if(ShouldAbort(true, "TR6260: uboot sync aborted because the serial port is unavailable"))
-                    return false;
 
                 addLogLine($"TR6260: response {resp} after RAM boot upload, retry {loop}/{attempts}");
-                if(!WaitCancelable(150))
-                    return false;
+                Thread.Sleep(150);
             }
             return false;
         }
 
         bool PrepareSession(bool needUbootProtocol)
         {
+            if(!ValidateRequestedBaud())
+                return false;
+
             if(!SetupPort())
                 return false;
 
@@ -271,17 +155,11 @@ namespace BK7231Flasher
             byte syncResp = 0;
             for(int loop = 1; loop <= 10; loop++)
             {
-                if(ShouldAbort(true, "TR6260: sync aborted because the serial port is unavailable"))
-                    return false;
-
                 syncResp = SyncOnce();
                 if(syncResp == TRS_ROM_SYNC_ACK || syncResp == TRS_UBOOT_SYNC_ACK)
                     break;
-                if(ShouldAbort(true, "TR6260: sync aborted because the serial port is unavailable"))
-                    return false;
 
-                if(!WaitCancelable(1000))
-                    return false;
+                Thread.Sleep(1000);
             }
 
             if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
@@ -318,8 +196,7 @@ namespace BK7231Flasher
                 byte verify = SyncOnce();
                 if(verify != TRS_UBOOT_SYNC_ACK)
                 {
-                    if(!IsAbortState())
-                        addErrorLine("TR6260: download/read protocol sync failed after baud change");
+                    addErrorLine("TR6260: download/read protocol sync failed after baud change");
                     return false;
                 }
             }
@@ -327,25 +204,9 @@ namespace BK7231Flasher
             return true;
         }
 
-        bool IsUtpMainUserBaudSupported(int requested)
-        {
-            return UTPMAIN_GUI_SUPPORTED_BAUDS.Contains(requested);
-        }
-
-        string DescribeSupportedBauds()
-        {
-            return string.Join(", ", UTPMAIN_GUI_SUPPORTED_BAUDS);
-        }
-
         bool ConfigureBaudrateIfNeeded()
         {
             int requested = baudrate > 0 ? baudrate : DEFAULT_BAUD;
-            if(!IsUtpMainUserBaudSupported(requested))
-            {
-                addErrorLine($"TR6260: baud {requested} is not supported by the UTPmain GUI flow. Supported values: {DescribeSupportedBauds()}");
-                return false;
-            }
-
             byte baudCode;
             switch(requested)
             {
@@ -369,12 +230,21 @@ namespace BK7231Flasher
                 case 921600:
                     baudCode = 9;
                     break;
+                case 1400000:
+                    baudCode = 10;
+                    break;
+                case 1660000:
+                    baudCode = 11;
+                    break;
+                case 1840000:
+                    baudCode = 12;
+                    break;
                 case 2000000:
                     baudCode = 13;
                     break;
                 default:
-                    addErrorLine($"TR6260: baud {requested} is listed as supported but no download-mode baud code is defined for it in the current flasher implementation");
-                    return false;
+                    addWarningLine($"TR6260: unsupported baud {requested}, keeping default {DEFAULT_BAUD}");
+                    return true;
             }
 
             if(!WriteRaw(new[] { baudCode }))
@@ -390,13 +260,11 @@ namespace BK7231Flasher
                 return false;
             }
 
-            if(!WaitCancelable(50))
-                return false;
+            Thread.Sleep(50);
             byte? ack = ReadResponseByte(1, 0);
             if(ack != TRS_ROM_BAUD_ACK)
             {
-                if(!IsAbortState())
-                    addErrorLine($"TR6260: set baud failed, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
+                addErrorLine($"TR6260: set baud failed, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
                 return false;
             }
 
@@ -510,8 +378,7 @@ namespace BK7231Flasher
                 byte? ack = ReadResponseByte(30, 50);
                 if(ack != TRS_ROM_FILE_ACK)
                 {
-                    if(!IsAbortState())
-                        addErrorLine($"TR6260: {description} failed at block {blockIndex + 1}/{Math.Max(totalBlocks, 1)}, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
+                    addErrorLine($"TR6260: {description} failed at block {blockIndex + 1}/{Math.Max(totalBlocks, 1)}, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
                     return false;
                 }
 
@@ -683,19 +550,9 @@ namespace BK7231Flasher
             int offset = 0;
             while(offset < count)
             {
-                if(ShouldAbort(true))
-                    return null;
-
                 try
                 {
-                    var port = serial;
-                    if(port == null || !port.IsOpen)
-                    {
-                        portUnavailable = true;
-                        return null;
-                    }
-
-                    int got = port.Read(buffer, offset, count - offset);
+                    int got = serial.Read(buffer, offset, count - offset);
                     if(got <= 0)
                         return null;
                     offset += got;
@@ -704,17 +561,8 @@ namespace BK7231Flasher
                 {
                     return null;
                 }
-                catch(Exception ex)
+                catch
                 {
-                    if(IsPortUnavailableException(ex))
-                    {
-                        portUnavailable = true;
-                        if(!abortLogged)
-                        {
-                            addWarningLine("TR6260: serial port became unavailable during read");
-                            abortLogged = true;
-                        }
-                    }
                     return null;
                 }
             }
@@ -727,8 +575,7 @@ namespace BK7231Flasher
             addLogLine($"TR6260: reading {length} bytes at 0x{offset:X}");
             if(!BeginTransfer(TRS_FRM_TYPE_UPLOAD, offset, length, 30))
             {
-                if(!IsAbortState())
-                    addErrorLine("TR6260: read begin failed");
+                addErrorLine("TR6260: read begin failed");
                 return false;
             }
 
@@ -739,8 +586,7 @@ namespace BK7231Flasher
                 byte[] chunk = ReadExact(take);
                 if(chunk == null || chunk.Length != take)
                 {
-                    if(!IsAbortState())
-                        addErrorLine("TR6260: read data timed out");
+                    addErrorLine("TR6260: read data timed out");
                     ms = null;
                     return false;
                 }
@@ -765,8 +611,7 @@ namespace BK7231Flasher
             addLogLine($"TR6260: erasing 0x{length:X} bytes at 0x{offset:X}");
             if(!BeginTransfer(TRS_FRM_TYPE_ERASE, offset, length, 600))
             {
-                if(!IsAbortState())
-                    addErrorLine("TR6260: erase failed");
+                addErrorLine("TR6260: erase failed");
                 return false;
             }
 
@@ -837,7 +682,10 @@ namespace BK7231Flasher
                 if(!PrepareSession(true))
                     return false;
 
-                return EraseViaUboot(offset, length);
+                bool ok = EraseViaUboot(offset, length);
+                if(ok)
+                    RunUploadedProgram();
+                return ok;
             }
             finally
             {
@@ -897,18 +745,6 @@ namespace BK7231Flasher
         {
             string fileName = MiscUtils.formatDateNowFileName("readResult_" + chipType, backupName, "bin");
             return saveReadResult(fileName);
-        }
-
-        public override void closePort()
-        {
-            var port = serial;
-            serial = null;
-            portUnavailable = true;
-            if(port != null)
-            {
-                try { port.Close(); } catch { }
-                try { port.Dispose(); } catch { }
-            }
         }
     }
 }
