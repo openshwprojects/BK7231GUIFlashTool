@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r24";
+		const string InternalBuildId = "rtlz2-resiliency-r25";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -484,7 +484,10 @@ namespace BK7231Flasher
 			int expectedBytes = count * 4;
 			var data = new List<int>(Math.Max(1, count));
 			Command($"DW {start:X} {count}");
-			var deadline = DateTime.Now.AddMilliseconds(Math.Max(500, count * 10));
+			// DW outputs ~11.75 ASCII chars per 4-byte word (address + 4 hex words per line + separators).
+			// Use a baud-aware deadline matching DumpBytes to avoid false timeouts at any baud rate.
+			var deadline = DateTime.Now.AddMilliseconds(
+				Math.Max(1500, count * 118000 / serial.BaudRate + 500));
 			PushReadTimeout(500);
 			try
 			{
@@ -544,6 +547,24 @@ namespace BK7231Flasher
 			}
 
 			ints = data.ToArray();
+			return true;
+		}
+
+		// Flash-read variant of DumpWords: takes a byte count (must be a multiple of 4),
+		// calls DumpWords with the mapped flash address, and converts the returned 32-bit words
+		// to a byte array. ARM is little-endian, so BitConverter.GetBytes preserves byte order
+		// correctly on any LE host (x86/x64 Windows or Linux).
+		bool DumpFlashWords(uint start, int byteCount, out byte[] bytes)
+		{
+			int wordCount = byteCount / 4;
+			if(!DumpWords(start, wordCount, out var words) || words == null || words.Length != wordCount)
+			{
+				bytes = null;
+				return false;
+			}
+			bytes = new byte[wordCount * 4];
+			for(int i = 0; i < wordCount; i++)
+				Buffer.BlockCopy(BitConverter.GetBytes(words[i]), 0, bytes, i * 4, 4);
 			return true;
 		}
 
@@ -1114,7 +1135,7 @@ namespace BK7231Flasher
 					byte[] chunk = null;
 					for(int chunkAttempt = 1; chunkAttempt <= ReadChunkRetryLimit; chunkAttempt++)
 					{
-						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpBytes(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
+						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpFlashWords(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
 						{
 							if(chunkAttempt > 1)
 							{
