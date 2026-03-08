@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -69,6 +70,46 @@ namespace BK7231Flasher
 		static class EF64_GRAN8
 		{
 			const string Dll = "easyflash/WinEF_GRAN8_x64.dll";
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern uint easyflash_init();
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern uint set_env_size(uint size);
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern unsafe byte* get_env_area();
+		}
+
+		static class EF32_GRAN32
+		{
+			const string Dll = "easyflash/WinEF_GRAN32_x86.dll";
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern uint easyflash_init();
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern uint set_env_size(uint size);
+
+			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+			public static extern unsafe byte* get_env_area();
+		}
+
+		static class EF64_GRAN32
+		{
+			const string Dll = "easyflash/WinEF_GRAN32_x64.dll";
 
 			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
 			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
@@ -166,6 +207,26 @@ namespace BK7231Flasher
 			public static extern unsafe byte* get_env_area();
 		}
 
+		static class EFLinux_GRAN32
+		{
+			const string Dll = "easyflash/libef_GRAN32.so";
+
+			[DllImport(Dll)]
+			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
+
+			[DllImport(Dll)]
+			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
+
+			[DllImport(Dll)]
+			public static extern uint easyflash_init();
+
+			[DllImport(Dll)]
+			public static extern uint set_env_size(uint size);
+
+			[DllImport(Dll)]
+			public static extern unsafe byte* get_env_area();
+		}
+
 		static class EFLinux_ECR
 		{
 			const string Dll = "easyflash/libef_ECR.so";
@@ -192,6 +253,18 @@ namespace BK7231Flasher
 		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
 		public static extern IntPtr memset(IntPtr dest, int c, int count);
 
+		static bool HasLinuxGran32()
+		{
+			try
+			{
+				return File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "easyflash", "libef_GRAN32.so"));
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
 		private static unsafe bool SetupBase(byte[] data, int size, BKType type, out byte* env)
 		{
 			try
@@ -202,6 +275,16 @@ namespace BK7231Flasher
 					{
 						case BKType.BL602:
 							EFLinux_GRAN8.set_env_size((uint)size);
+							break;
+						case BKType.TR6260:
+							if(HasLinuxGran32())
+							{
+								EFLinux_GRAN32.set_env_size((uint)size);
+							}
+							else
+							{
+								EFLinux.set_env_size((uint)size);
+							}
 							break;
 						case BKType.ECR6600:
 							EFLinux_ECR.set_env_size((uint)size);
@@ -218,6 +301,9 @@ namespace BK7231Flasher
 						case BKType.BL602:
 							EF64_GRAN8.set_env_size((uint)size);
 							break;
+						case BKType.TR6260:
+							EF64_GRAN32.set_env_size((uint)size);
+							break;
 						case BKType.ECR6600:
 							EF64_ECR.set_env_size((uint)size);
 							break;
@@ -232,6 +318,9 @@ namespace BK7231Flasher
 					{
 						case BKType.BL602:
 							EF32_GRAN8.set_env_size((uint)size);
+							break;
+						case BKType.TR6260:
+							EF32_GRAN32.set_env_size((uint)size);
 							break;
 						case BKType.ECR6600:
 							EF32_ECR.set_env_size((uint)size);
@@ -249,6 +338,9 @@ namespace BK7231Flasher
 						case BKType.BL602:
 							env = EFLinux_GRAN8.get_env_area();
 							break;
+						case BKType.TR6260:
+							env = HasLinuxGran32() ? EFLinux_GRAN32.get_env_area() : EFLinux.get_env_area();
+							break;
 						case BKType.ECR6600:
 							env = EFLinux_ECR.get_env_area();
 							break;
@@ -264,6 +356,9 @@ namespace BK7231Flasher
 						case BKType.BL602:
 							env = EF64_GRAN8.get_env_area();
 							break;
+						case BKType.TR6260:
+							env = EF64_GRAN32.get_env_area();
+							break;
 						case BKType.ECR6600:
 							env = EF64_ECR.get_env_area();
 							break;
@@ -278,6 +373,9 @@ namespace BK7231Flasher
 					{
 						case BKType.BL602:
 							env = EF32_GRAN8.get_env_area();
+							break;
+						case BKType.TR6260:
+							env = EF32_GRAN32.get_env_area();
 							break;
 						case BKType.ECR6600:
 							env = EF32_ECR.get_env_area();
@@ -298,6 +396,16 @@ namespace BK7231Flasher
 						case BKType.BL602:
 							EFLinux_GRAN8.easyflash_init();
 							break;
+						case BKType.TR6260:
+							if(HasLinuxGran32())
+							{
+								EFLinux_GRAN32.easyflash_init();
+							}
+							else
+							{
+								EFLinux.easyflash_init();
+							}
+							break;
 						case BKType.ECR6600:
 							EFLinux_ECR.easyflash_init();
 							break;
@@ -313,6 +421,9 @@ namespace BK7231Flasher
 						case BKType.BL602:
 							EF64_GRAN8.easyflash_init();
 							break;
+						case BKType.TR6260:
+							EF64_GRAN32.easyflash_init();
+							break;
 						case BKType.ECR6600:
 							EF64_ECR.easyflash_init();
 							break;
@@ -327,6 +438,9 @@ namespace BK7231Flasher
 					{
 						case BKType.BL602:
 							EF32_GRAN8.easyflash_init();
+							break;
+						case BKType.TR6260:
+							EF32_GRAN32.easyflash_init();
 							break;
 						case BKType.ECR6600:
 							EF32_ECR.easyflash_init();
@@ -353,6 +467,8 @@ namespace BK7231Flasher
 				{
 					case BKType.BL602:
 						return EFLinux_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
+					case BKType.TR6260:
+						return HasLinuxGran32() ? EFLinux_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len) : EFLinux.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					case BKType.ECR6600:
 						return EFLinux_ECR.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					default:
@@ -365,6 +481,8 @@ namespace BK7231Flasher
 				{
 					case BKType.BL602:
 						return EF64_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
+					case BKType.TR6260:
+						return EF64_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					case BKType.ECR6600:
 						return EF64_ECR.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					default:
@@ -377,6 +495,8 @@ namespace BK7231Flasher
 				{
 					case BKType.BL602:
 						return EF32_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
+					case BKType.TR6260:
+						return EF32_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					case BKType.ECR6600:
 						return EF32_ECR.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					default:
@@ -393,6 +513,8 @@ namespace BK7231Flasher
 				{
 					case BKType.BL602:
 						return EFLinux_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
+					case BKType.TR6260:
+						return HasLinuxGran32() ? EFLinux_GRAN32.ef_set_env_blob(key, value_buf, buf_len) : EFLinux.ef_set_env_blob(key, value_buf, buf_len);
 					case BKType.ECR6600:
 						return EFLinux_ECR.ef_set_env_blob(key, value_buf, buf_len);
 					default:
@@ -405,6 +527,8 @@ namespace BK7231Flasher
 				{
 					case BKType.BL602:
 						return EF64_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
+					case BKType.TR6260:
+						return EF64_GRAN32.ef_set_env_blob(key, value_buf, buf_len);
 					case BKType.ECR6600:
 						return EF64_ECR.ef_set_env_blob(key, value_buf, buf_len);
 					default:
@@ -417,6 +541,8 @@ namespace BK7231Flasher
 				{
 					case BKType.BL602:
 						return EF32_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
+					case BKType.TR6260:
+						return EF32_GRAN32.ef_set_env_blob(key, value_buf, buf_len);
 					case BKType.ECR6600:
 						return EF32_ECR.ef_set_env_blob(key, value_buf, buf_len);
 					default:

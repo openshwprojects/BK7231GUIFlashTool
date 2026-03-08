@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -661,9 +661,9 @@ namespace BK7231Flasher
             return data.Length >= (DEFAULT_FLASH_SIZE - APP_ADDR);
         }
 
-        bool WriteFirmwarePayload(int startSector, byte[] data)
+        bool WriteFirmwarePayload(int startOffset, byte[] data)
         {
-            int address = startSector * BK7231Flasher.SECTOR_SIZE;
+            int address = startOffset;
             List<TransferSegment> oneb = TryParseOneB(data);
             if(oneb != null)
             {
@@ -831,7 +831,7 @@ namespace BK7231Flasher
                 if(!PrepareReadOrWriteSession())
                     return;
 
-                int writeOfs = startSector * BK7231Flasher.SECTOR_SIZE;
+                int writeOfs = startSector;
                 addLogLine($"Starting flash write, ofs 0x{writeOfs:X}, len 0x{data.Length:X}");
                 SetBusyState("Writing...");
                 if(!WriteFirmwarePayload(startSector, data))
@@ -853,7 +853,7 @@ namespace BK7231Flasher
 
         public override void doRead(int startSector = 0, int sectors = 10, bool fullRead = false)
         {
-            int offset = startSector * BK7231Flasher.SECTOR_SIZE;
+            int offset = startSector;
             int length = sectors * BK7231Flasher.SECTOR_SIZE;
             if(fullRead)
             {
@@ -881,7 +881,7 @@ namespace BK7231Flasher
 
         public override bool doErase(int startSector = 0, int sectors = 10, bool bAll = false)
         {
-            int offset = bAll ? 0 : (startSector * BK7231Flasher.SECTOR_SIZE);
+            int offset = bAll ? 0 : startSector;
             int length = bAll ? DEFAULT_FLASH_SIZE : (sectors * BK7231Flasher.SECTOR_SIZE);
 
             try
@@ -934,7 +934,7 @@ namespace BK7231Flasher
                 doRead(startSector, sectors, false);
                 if(ms == null)
                     return;
-                if(!saveReadResult(startSector * BK7231Flasher.SECTOR_SIZE))
+                if(!saveReadResult(startSector))
                     return;
             }
 
@@ -966,15 +966,15 @@ namespace BK7231Flasher
                     if(!PrepareReadOrWriteSession())
                         return;
 
-                    var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
-                    if(offset == 0 || sectors == 0)
+                    var offset = OBKFlashLayout.getConfigLocation(chipType, out var cfgSectors);
+                    if(offset == 0 || cfgSectors == 0)
                     {
                         addErrorLine("OBK config location not defined for TR6260.");
                         SetErrorState("OBK config error");
                         return;
                     }
 
-                    var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+                    var areaSize = cfgSectors * BK7231Flasher.SECTOR_SIZE;
                     cfg.saveConfig(chipType);
                     var cfgData = cfg.getData();
 
