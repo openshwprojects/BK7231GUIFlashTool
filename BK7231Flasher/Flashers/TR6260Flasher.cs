@@ -518,7 +518,8 @@ namespace BK7231Flasher
             int nextPrintOffset = baseAddress >= 0 ? baseAddress : -1;
             while(done < data.Length)
             {
-                if(baseAddress >= 0)
+                if(cancellationToken.IsCancellationRequested)
+                    return false;
                 {
                     int currentOffset = baseAddress + done;
                     if(currentOffset >= nextPrintOffset)
@@ -753,6 +754,14 @@ namespace BK7231Flasher
             int nextPrintOffset = offset;
             while(remaining > 0)
             {
+                if(cancellationToken.IsCancellationRequested)
+                {
+                    addLog(Environment.NewLine);
+                    SetErrorState("Cancelled");
+                    ms = null;
+                    return false;
+                }
+
                 int done = length - remaining;
                 int currentOffset = offset + done;
                 if(currentOffset >= nextPrintOffset)
@@ -795,7 +804,7 @@ namespace BK7231Flasher
         {
             SetBusyState("Erasing...");
             addLogLine($"Starting flash erase, ofs 0x{offset:X}, len 0x{length:X}");
-            if(!BeginTransfer(TRS_FRM_TYPE_ERASE, offset, length, 600))
+            if(!BeginTransfer(TRS_FRM_TYPE_ERASE, offset, length, 100))
             {
                 addErrorLine("Erase failed");
                 SetErrorState("Erase failed!");
