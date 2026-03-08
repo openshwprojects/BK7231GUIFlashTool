@@ -520,6 +520,7 @@ namespace BK7231Flasher
             {
                 if(cancellationToken.IsCancellationRequested)
                     return false;
+                if(baseAddress >= 0)
                 {
                     int currentOffset = baseAddress + done;
                     if(currentOffset >= nextPrintOffset)
@@ -953,7 +954,75 @@ namespace BK7231Flasher
 
             if(rwMode == WriteMode.OnlyOBKConfig)
             {
-                addWarningLine("OBK config write is not implemented");
+                OBKConfig cfg = logger.getConfig();
+                if(cfg == null)
+                {
+                    addWarningLine("No OBK config to write.");
+                    return;
+                }
+
+                try
+                {
+                    if(!PrepareReadOrWriteSession())
+                        return;
+
+                    var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
+                    if(offset == 0 || sectors == 0)
+                    {
+                        addErrorLine("OBK config location not defined for TR6260.");
+                        SetErrorState("OBK config error");
+                        return;
+                    }
+
+                    var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+                    cfg.saveConfig(chipType);
+                    var cfgData = cfg.getData();
+
+                    byte[] efdata;
+                    if(cfg.efdata != null)
+                    {
+                        try
+                        {
+                            efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+                        }
+                        catch(Exception ex)
+                        {
+                            addLog("Saving to existing EasyFlash failed, creating new: " + ex.Message + Environment.NewLine);
+                            efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                        }
+                    }
+                    else
+                    {
+                        efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                    }
+
+                    if(efdata == null)
+                    {
+                        addErrorLine("EasyFlash serialisation failed.");
+                        SetErrorState("OBK config error");
+                        return;
+                    }
+
+                    addLog("Now will also write OBK config..." + Environment.NewLine);
+                    addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                    addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                    addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+
+                    bool bOk = WriteSingleSegment(offset, efdata, TRS_FRM_TYPE_NV, "OBK config");
+                    if(!bOk)
+                    {
+                        addErrorLine("Writing OBK config to chip failed.");
+                        SetErrorState("OBK config write failed");
+                        return;
+                    }
+
+                    RunUploadedProgram();
+                    logger.setState("OBK config write success!", Color.Green);
+                }
+                finally
+                {
+                    closePort();
+                }
             }
         }
 
