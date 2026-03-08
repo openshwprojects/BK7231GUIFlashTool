@@ -38,7 +38,7 @@ namespace BK7231Flasher
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
-		const string InternalBuildId = "rtlz2-resiliency-r24";
+		const string InternalBuildId = "rtlz2-resiliency-r26";
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -478,13 +478,16 @@ namespace BK7231Flasher
 			return true;
 		}
 
-		bool DumpWords(uint start, int count, out int[] ints)
+		bool DumpWords(uint start, int count, out uint[] words)
 		{
 			int bytesRead = 0;
 			int expectedBytes = count * 4;
-			var data = new List<int>(Math.Max(1, count));
+			var data = new List<uint>(Math.Max(1, count));
 			Command($"DW {start:X} {count}");
-			var deadline = DateTime.Now.AddMilliseconds(Math.Max(500, count * 10));
+			// DW outputs ~11.75 ASCII chars per 4-byte word (address + 4 hex words per line + separators).
+			// Use a baud-aware deadline matching DumpBytes to avoid false timeouts at any baud rate.
+			var deadline = DateTime.Now.AddMilliseconds(
+				Math.Max(1500, count * 118000 / serial.BaudRate + 500));
 			PushReadTimeout(500);
 			try
 			{
@@ -523,7 +526,10 @@ namespace BK7231Flasher
 
 					for(int i = 1; i < 5 && bytesRead < expectedBytes; i++)
 					{
-						if(!int.TryParse(parts[i].Trim('\r'), System.Globalization.NumberStyles.HexNumber, null, out var value))
+						// uint.TryParse handles the full 32-bit range (0x00000000–0xFFFFFFFF).
+						// int.TryParse would silently fail for values >= 0x80000000, corrupting
+						// flash data with high bits set.
+						if(!uint.TryParse(parts[i].Trim('\r'), System.Globalization.NumberStyles.HexNumber, null, out var value))
 						{
 							throw new Exception("Invalid word dump data");
 						}
@@ -539,11 +545,29 @@ namespace BK7231Flasher
 
 			if(bytesRead != expectedBytes || data.Count != count)
 			{
-				ints = null;
+				words = null;
 				return false;
 			}
 
-			ints = data.ToArray();
+			words = data.ToArray();
+			return true;
+		}
+
+		// Flash-read variant of DumpWords: takes a byte count (must be a multiple of 4),
+		// calls DumpWords with the mapped flash address, and converts the returned 32-bit words
+		// to a byte array. ARM is little-endian, so BitConverter.GetBytes(uint) preserves byte
+		// order correctly on any LE host (x86/x64 Windows or Linux).
+		bool DumpFlashWords(uint start, int byteCount, out byte[] bytes)
+		{
+			int wordCount = byteCount / 4;
+			if(!DumpWords(start, wordCount, out var words) || words == null || words.Length != wordCount)
+			{
+				bytes = null;
+				return false;
+			}
+			bytes = new byte[wordCount * 4];
+			for(int i = 0; i < wordCount; i++)
+				Buffer.BlockCopy(BitConverter.GetBytes(words[i]), 0, bytes, i * 4, 4);
 			return true;
 		}
 
@@ -559,7 +583,7 @@ namespace BK7231Flasher
 			{
 				throw new Exception($"Register read index failed at 0x{addr:X}");
 			}
-			return words[index];
+			return (int)words[index];
 		}
 
 		void RegisterWrite(uint addr, uint value)
@@ -1114,7 +1138,7 @@ namespace BK7231Flasher
 					byte[] chunk = null;
 					for(int chunkAttempt = 1; chunkAttempt <= ReadChunkRetryLimit; chunkAttempt++)
 					{
-						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpBytes(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
+						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpFlashWords(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
 						{
 							if(chunkAttempt > 1)
 							{
