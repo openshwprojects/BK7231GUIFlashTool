@@ -510,13 +510,24 @@ namespace BK7231Flasher
             return ReadResponseByte(responsePolls, 50).HasValue;
         }
 
-        bool WriteFileBlocks(byte[] data, string description)
+        bool WriteFileBlocks(byte[] data, string description, int baseAddress = -1)
         {
             int done = 0;
             int totalBlocks = (data.Length + FLASH_BLOCK - 1) / FLASH_BLOCK;
             int blockIndex = 0;
+            int nextPrintOffset = baseAddress >= 0 ? baseAddress : -1;
             while(done < data.Length)
             {
+                if(baseAddress >= 0)
+                {
+                    int currentOffset = baseAddress + done;
+                    if(currentOffset >= nextPrintOffset)
+                    {
+                        addLog(formatHex(currentOffset) + "... ");
+                        nextPrintOffset = currentOffset + BK7231Flasher.SECTOR_SIZE;
+                    }
+                }
+
                 int take = Math.Min(FLASH_BLOCK, data.Length - done);
                 byte[] block = new byte[take];
                 Buffer.BlockCopy(data, done, block, 0, take);
@@ -526,6 +537,7 @@ namespace BK7231Flasher
                 byte? ack = ReadResponseByte(30, 50);
                 if(ack != TRS_ROM_FILE_ACK)
                 {
+                    addLog(Environment.NewLine);
                     addErrorLine($"{description} failed at block {blockIndex + 1}/{Math.Max(totalBlocks, 1)}, response {(ack.HasValue ? ack.Value.ToString() : "<timeout>")}");
                     SetErrorState("Transfer failed");
                     return false;
@@ -535,6 +547,9 @@ namespace BK7231Flasher
                 blockIndex++;
                 logger.setProgress(done, data.Length);
             }
+
+            if(baseAddress >= 0)
+                addLog(Environment.NewLine);
 
             return true;
         }
@@ -579,7 +594,7 @@ namespace BK7231Flasher
                 return false;
             }
 
-            if(!WriteFileBlocks(data, desc))
+            if(!WriteFileBlocks(data, desc, address))
                 return false;
 
             return true;
@@ -732,13 +747,25 @@ namespace BK7231Flasher
                 return false;
             }
 
+            addLog("Going to start reading at offset " + formatHex(offset) + "..." + Environment.NewLine);
+
             int remaining = length;
+            int nextPrintOffset = offset;
             while(remaining > 0)
             {
+                int done = length - remaining;
+                int currentOffset = offset + done;
+                if(currentOffset >= nextPrintOffset)
+                {
+                    addLog(formatHex(currentOffset) + "... ");
+                    nextPrintOffset = currentOffset + BK7231Flasher.SECTOR_SIZE;
+                }
+
                 int take = Math.Min(FLASH_BLOCK, remaining);
                 byte[] chunk = ReadExact(take);
                 if(chunk == null || chunk.Length != take)
                 {
+                    addLog(Environment.NewLine);
                     addErrorLine("Read data timed out");
                     SetErrorState("Read error");
                     ms = null;
@@ -751,12 +778,14 @@ namespace BK7231Flasher
 
                 if(!WriteRaw(new[] { TRS_ROM_FILE_ACK }))
                 {
+                    addLog(Environment.NewLine);
                     SetErrorState("Read error");
                     ms = null;
                     return false;
                 }
             }
 
+            addLog(Environment.NewLine);
             addSuccess("Read completed.\n");
             SetDoneState("Read done");
             return true;
