@@ -481,19 +481,19 @@ namespace BK7231Flasher
                 return false;
             }
 
-            SetBusyState("Uploading bootloader...");
-            addLogLine("Uploading bootloader to RAM...");
+            SetBusyState("Uploading RAM loader...");
+            addLogLine("Uploading RAM loader...");
             if(!BeginTransfer(TRS_FRM_TYPE_UBOOT, 0, boot.Length, 30))
             {
-                addErrorLine("RAM bootloader header failed");
-                SetErrorState("Bootloader upload failed");
+                addErrorLine("RAM loader header failed");
+                SetErrorState("RAM loader upload failed");
                 return false;
             }
 
-            if(!WriteFileBlocks(boot, "RAM bootloader"))
+            if(!WriteFileBlocks(boot, "RAM loader"))
                 return false;
 
-            addLogLine("RAM bootloader upload completed");
+            addLogLine("RAM loader upload completed.");
             return true;
         }
 
@@ -698,7 +698,7 @@ namespace BK7231Flasher
                     return false;
                 }
 
-                if(!WriteSingleSegment(0, boot, TRS_FRM_TYPE_UBOOT, "bootloader"))
+                if(!WriteSingleSegment(0, boot, TRS_FRM_TYPE_UBOOT, "RAM loader"))
                     return false;
                 if(!WriteSingleSegment(PARTITION_ADDR, partition, TRS_FRM_TYPE_NV, "partition table"))
                     return false;
@@ -840,8 +840,6 @@ namespace BK7231Flasher
                     return;
                 }
 
-                SetBusyState("Finalizing write...");
-                RunUploadedProgram();
                 addSuccess("Write completed.\n");
                 SetDoneState("Write done");
             }
@@ -931,14 +929,50 @@ namespace BK7231Flasher
         {
             if(rwMode == WriteMode.ReadAndWrite)
             {
-                doRead(startSector, sectors, false);
-                if(ms == null)
-                    return;
-                if(!saveReadResult(startSector))
-                    return;
+                // Single shared uboot session for the whole read+write sequence.
+                // PrepareReadOrWriteSession is called once; the port stays open so the
+                // uboot state machine is still live when the write phase begins.
+                try
+                {
+                    if(!PrepareReadOrWriteSession())
+                        return;
+
+                    ReadFlashViaUboot(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+
+                    if(ms == null)
+                        return;
+
+                    if(!saveReadResult(startSector))
+                        return;
+
+                    if(string.IsNullOrEmpty(sourceFileName))
+                    {
+                        addErrorLine("No filename given for write");
+                        return;
+                    }
+
+                    addLogLine("Reading " + sourceFileName + "...");
+                    byte[] data = File.ReadAllBytes(sourceFileName);
+
+                    addLogLine($"Starting flash write, ofs 0x{startSector:X}, len 0x{data.Length:X}");
+                    SetBusyState("Writing...");
+                    if(!WriteFirmwarePayload(startSector, data))
+                    {
+                        SetErrorState("Write error");
+                        return;
+                    }
+
+                    addSuccess("Backup and write completed.\n");
+                    SetDoneState("Write done");
+                }
+                finally
+                {
+                    closePort();
+                }
+                return;
             }
 
-            if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
+            if(rwMode == WriteMode.OnlyWrite)
             {
                 if(string.IsNullOrEmpty(sourceFileName))
                 {
@@ -1016,7 +1050,6 @@ namespace BK7231Flasher
                         return;
                     }
 
-                    RunUploadedProgram();
                     logger.setState("OBK config write success!", Color.Green);
                 }
                 finally
