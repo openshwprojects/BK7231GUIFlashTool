@@ -610,7 +610,14 @@ namespace BK7231Flasher
 		public static unsafe byte[] SaveValueToExistingEasyFlash(string sname, byte[] efData, byte[] cfgData, int areaSize, BKType type)
 		{
 			if(type == BKType.TR6260)
-				return NativeGran32_Save(sname, cfgData, areaSize);
+			{
+				// Read all existing entries, replace/insert the target key, reserialize.
+				// This preserves other keys that the firmware wrote (nv_version, OBK_FV,
+				// StaSSID, StaPW, PMK, etc.) rather than wiping them.
+				var existing = NativeGran32_ReadAllEntries(efData);
+				existing[sname] = cfgData;
+				return NativeGran32_SaveEntries(existing, areaSize);
+			}
 			if(efData.Length != areaSize)
 			{
 				throw new Exception("Saved EF data length != target EF length");
@@ -676,75 +683,174 @@ namespace BK7231Flasher
 		}
 
 		/// <summary>
-		/// Build a fresh GRAN=32 EasyFlash area image containing a single entry.
-		/// The returned buffer is areaSize bytes: one active sector followed by
-		/// blank (magic-only) sectors to fill the rest of the area.
+		/// Build a single GRAN=32 EasyFlash entry (status_table + header + name + value).
 		/// </summary>
-		private static byte[] NativeGran32_Save(string key, byte[] value, int areaSize)
+		private static byte[] NativeGran32_MakeEntry(string key, byte[] value)
 		{
-			const int SECTOR_SIZE = 4096;
-			const int SECTOR_HDR  = 0x24;   // 36 bytes
+			byte[] keyBytes = Encoding.ASCII.GetBytes(key);
+			int    nameLen  = keyBytes.Length;
+			int    valueLen = value.Length;
+			int    nameSz   = WgAlign32(nameLen);
+			int    valueSz  = WgAlign32(valueLen);
+			int    totalLen = 20 + 4 + 4 + 4 + 4 + nameSz + valueSz;
 
-			byte[] keyBytes  = Encoding.ASCII.GetBytes(key);
-			int    nameLen   = keyBytes.Length;
-			int    valueLen  = value.Length;
-			int    nameSz    = WgAlign32(nameLen);
-			int    valueSz   = WgAlign32(valueLen);
-			int    totalLen  = 20 + 4 + 4 + 4 + 4 + nameSz + valueSz; // status+len+crc+name_len_field+value_len_field+name+value
-
-			// Build CRC input: name_len(1) + pad(3) + value_len(4) + name_padded + value_padded
+			// CRC input: name_len(1) + pad(3) + value_len(4) + name_padded + value_padded
 			byte[] crcBuf = new byte[4 + 4 + nameSz + valueSz];
 			crcBuf[0] = (byte)nameLen;
 			crcBuf[1] = 0xFF; crcBuf[2] = 0xFF; crcBuf[3] = 0xFF;
 			crcBuf[4] = (byte)(valueLen      ); crcBuf[5] = (byte)(valueLen >>  8);
 			crcBuf[6] = (byte)(valueLen >> 16); crcBuf[7] = (byte)(valueLen >> 24);
-			// Fill padding with 0xFF, then copy actual bytes
 			for(int i = 8; i < crcBuf.Length; i++) crcBuf[i] = 0xFF;
-			Array.Copy(keyBytes, 0, crcBuf, 8,           nameLen);
-			Array.Copy(value,    0, crcBuf, 8 + nameSz,  valueLen);
+			Array.Copy(keyBytes, 0, crcBuf, 8,          nameLen);
+			Array.Copy(value,    0, crcBuf, 8 + nameSz, valueLen);
 			uint crc32 = Crc32Ieee(crcBuf, 0, crcBuf.Length);
 
-			// Build entry
 			byte[] entry = new byte[totalLen];
 			for(int i = 0; i < totalLen; i++) entry[i] = 0xFF;
-			entry[0]  = 0x00;  // PRE_WRITE status word[0]
-			entry[4]  = 0x00;  // WRITE     status word[1]
+			entry[0] = 0x00;  // PRE_WRITE status word[0]
+			entry[4] = 0x00;  // WRITE     status word[1]
 			WriteUint32LE(entry, 0x14, (uint)totalLen);
 			WriteUint32LE(entry, 0x18, crc32);
 			entry[0x1C] = (byte)nameLen;
 			WriteUint32LE(entry, 0x20, (uint)valueLen);
 			Array.Copy(keyBytes, 0, entry, 0x24,          nameLen);
 			Array.Copy(value,    0, entry, 0x24 + nameSz, valueLen);
+			return entry;
+		}
 
-			// Build active sector header (STORE_USING, DIRTY_FALSE)
-			byte[] secHdr = new byte[SECTOR_HDR];
-			for(int i = 0; i < SECTOR_HDR; i++) secHdr[i] = 0xFF;
-			secHdr[0]  = 0x00;  // store word[0] = EMPTY
-			secHdr[4]  = 0x00;  // store word[1] = USING
-			secHdr[12] = 0x00;  // dirty word[0] = DIRTY_FALSE
-			secHdr[0x18] = 0x45; secHdr[0x19] = 0x46;   // "EF40"
-			secHdr[0x1A] = 0x34; secHdr[0x1B] = 0x30;
+		/// <summary>
+		/// Build a GRAN=32 sector header.
+		/// isActive=true  → STORE_USING (has entries); false → STORE_EMPTY (blank formatted).
+		/// </summary>
+		private static byte[] NativeGran32_MakeSectorHdr(bool isActive)
+		{
+			const int SECTOR_HDR = 0x24;
+			byte[] h = new byte[SECTOR_HDR];
+			for(int i = 0; i < SECTOR_HDR; i++) h[i] = 0xFF;
+			h[0]  = 0x00;  // store word[0] = EMPTY written
+			if(isActive) h[4] = 0x00;  // store word[1] = USING written
+			h[12] = 0x00;  // dirty word[0] = DIRTY_FALSE written
+			h[0x18] = 0x45; h[0x19] = 0x46;  // "EF40"
+			h[0x1A] = 0x34; h[0x1B] = 0x30;
+			return h;
+		}
 
-			// Build active sector
-			byte[] activeSector = new byte[SECTOR_SIZE];
-			for(int i = 0; i < SECTOR_SIZE; i++) activeSector[i] = 0xFF;
-			Array.Copy(secHdr, 0, activeSector, 0,          SECTOR_HDR);
-			Array.Copy(entry,  0, activeSector, SECTOR_HDR, totalLen);
+		/// <summary>
+		/// Serialize key/value pairs into a complete GRAN=32 EasyFlash area image.
+		/// Entries are packed across as many sectors as needed; remaining sectors
+		/// are written as blank-but-formatted (magic present, no entries).
+		/// </summary>
+		private static byte[] NativeGran32_SaveEntries(System.Collections.Generic.Dictionary<string, byte[]> kvPairs, int areaSize)
+		{
+			const int SECTOR_SIZE  = 4096;
+			const int SECTOR_HDR   = 0x24;
+			const int SECTOR_AVAIL = SECTOR_SIZE - SECTOR_HDR;
 
-			// Build blank (formatted but empty) sector
-			byte[] blankSector = new byte[SECTOR_SIZE];
-			for(int i = 0; i < SECTOR_SIZE; i++) blankSector[i] = 0xFF;
-			blankSector[0]  = 0x00;  // store EMPTY
-			blankSector[12] = 0x00;  // dirty FALSE
-			blankSector[0x18] = 0x45; blankSector[0x19] = 0x46;
-			blankSector[0x1A] = 0x34; blankSector[0x1B] = 0x30;
+			// Pack entries into sectors, splitting when a sector would overflow.
+			var sectors = new System.Collections.Generic.List<System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, byte[]>>>();
+			var cur = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, byte[]>>();
+			int curUsed = 0;
 
-			int nSectors = areaSize / SECTOR_SIZE;
+			foreach(var kv in kvPairs)
+			{
+				byte[] entry = NativeGran32_MakeEntry(kv.Key, kv.Value);
+				if(curUsed + entry.Length > SECTOR_AVAIL && cur.Count > 0)
+				{
+					sectors.Add(cur);
+					cur = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, byte[]>>();
+					curUsed = 0;
+				}
+				cur.Add(kv);
+				curUsed += entry.Length;
+			}
+			if(cur.Count > 0) sectors.Add(cur);
+
 			byte[] result = new byte[areaSize];
 			for(int i = 0; i < areaSize; i++) result[i] = 0xFF;
-			Array.Copy(activeSector, 0, result, 0, SECTOR_SIZE);
-			for(int s = 1; s < nSectors; s++)
-				Array.Copy(blankSector, 0, result, s * SECTOR_SIZE, SECTOR_SIZE);
+
+			byte[] blankHdr = NativeGran32_MakeSectorHdr(false);
+			int nSectors = areaSize / SECTOR_SIZE;
+
+			for(int s = 0; s < nSectors; s++)
+			{
+				int base_ = s * SECTOR_SIZE;
+				if(s < sectors.Count)
+				{
+					byte[] hdr = NativeGran32_MakeSectorHdr(true);
+					Array.Copy(hdr, 0, result, base_, SECTOR_HDR);
+					int pos = base_ + SECTOR_HDR;
+					foreach(var kv in sectors[s])
+					{
+						byte[] entry = NativeGran32_MakeEntry(kv.Key, kv.Value);
+						Array.Copy(entry, 0, result, pos, entry.Length);
+						pos += entry.Length;
+					}
+				}
+				else
+				{
+					Array.Copy(blankHdr, 0, result, base_, SECTOR_HDR);
+				}
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Build a fresh GRAN=32 EasyFlash area image containing a single key/value entry.
+		/// Used when no existing EF data is available (SaveValueToNewEasyFlash path).
+		/// </summary>
+		private static byte[] NativeGran32_Save(string key, byte[] value, int areaSize)
+		{
+			var kv = new System.Collections.Generic.Dictionary<string, byte[]> { { key, value } };
+			return NativeGran32_SaveEntries(kv, areaSize);
+		}
+
+		/// <summary>
+		/// Read all WRITE-committed entries from a GRAN=32 EasyFlash area.
+		/// Returns a dictionary of key -> value (latest value wins for duplicate keys).
+		/// </summary>
+		private static System.Collections.Generic.Dictionary<string, byte[]> NativeGran32_ReadAllEntries(byte[] data)
+		{
+			const int SECTOR_SIZE = 4096;
+			const int SECTOR_HDR  = 0x24;
+			var result = new System.Collections.Generic.Dictionary<string, byte[]>();
+
+			for(int sectorOff = 0; sectorOff + SECTOR_SIZE <= data.Length; sectorOff += SECTOR_SIZE)
+			{
+				if(data[sectorOff+0x18] != 0x45 || data[sectorOff+0x19] != 0x46 ||
+				   data[sectorOff+0x1A] != 0x34 || data[sectorOff+0x1B] != 0x30)
+					continue;
+
+				int pos = sectorOff + SECTOR_HDR;
+				while(pos + 36 <= sectorOff + SECTOR_SIZE)
+				{
+					byte s0 = data[pos];
+					if(s0 == 0xFF) break;
+
+					int totalLen = (int)ReadUint32LE(data, pos + 0x14);
+					if(totalLen == unchecked((int)0xFFFFFFFF) || totalLen <= 0 ||
+					   pos + totalLen > sectorOff + SECTOR_SIZE)
+						break;
+
+					byte s1 = data[pos + 4];
+					if(s0 == 0x00 && s1 == 0x00)
+					{
+						int nameLen  = data[pos + 0x1C];
+						int valueLen = (int)ReadUint32LE(data, pos + 0x20);
+						int nameSz   = WgAlign32(nameLen);
+						int valStart = pos + 0x24 + nameSz;
+						if(nameLen > 0 && valStart + valueLen <= sectorOff + SECTOR_SIZE)
+						{
+							string name = Encoding.ASCII.GetString(data, pos + 0x24, nameLen);
+							byte[] val  = new byte[valueLen];
+							Array.Copy(data, valStart, val, 0, valueLen);
+							result[name] = val;  // latest write wins
+						}
+					}
+
+					pos += totalLen;
+				}
+			}
 
 			return result;
 		}
@@ -755,63 +861,8 @@ namespace BK7231Flasher
 		/// </summary>
 		private static byte[] NativeGran32_Load(byte[] data, string key)
 		{
-			const int SECTOR_SIZE = 4096;
-			const int SECTOR_HDR  = 0x24;
-			byte[] magic    = new byte[] { 0x45, 0x46, 0x34, 0x30 }; // "EF40"
-			byte[] keyBytes = Encoding.ASCII.GetBytes(key);
-			int    keyLen   = keyBytes.Length;
-
-			byte[] latest = null;
-
-			for(int sectorOff = 0; sectorOff + SECTOR_SIZE <= data.Length; sectorOff += SECTOR_SIZE)
-			{
-				// Check sector magic
-				if(data[sectorOff + 0x18] != magic[0] || data[sectorOff + 0x19] != magic[1] ||
-				   data[sectorOff + 0x1A] != magic[2] || data[sectorOff + 0x1B] != magic[3])
-					continue;
-
-				int pos = sectorOff + SECTOR_HDR;
-				while(pos + 36 <= sectorOff + SECTOR_SIZE)
-				{
-					byte s0 = data[pos];
-					if(s0 == 0xFF) break;  // ENV_UNUSED – no more entries in sector
-
-					int totalLen = (int)ReadUint32LE(data, pos + 0x14);
-					if(totalLen == unchecked((int)0xFFFFFFFF) || totalLen <= 0 ||
-					   pos + totalLen > sectorOff + SECTOR_SIZE)
-						break;
-
-					// s0==0x00 means at least PRE_WRITE; s1==0x00 means WRITE committed
-					byte s1 = data[pos + 4];
-					if(s0 == 0x00 && s1 == 0x00)
-					{
-						int entryNameLen = data[pos + 0x1C];
-						if(entryNameLen == keyLen)
-						{
-							bool match = true;
-							for(int i = 0; i < keyLen; i++)
-							{
-								if(data[pos + 0x24 + i] != keyBytes[i]) { match = false; break; }
-							}
-							if(match)
-							{
-								int valueLen  = (int)ReadUint32LE(data, pos + 0x20);
-								int nameSz    = WgAlign32(entryNameLen);
-								int valStart  = pos + 0x24 + nameSz;
-								if(valStart + valueLen <= sectorOff + SECTOR_SIZE)
-								{
-									latest = new byte[valueLen];
-									Array.Copy(data, valStart, latest, 0, valueLen);
-								}
-							}
-						}
-					}
-
-					pos += totalLen;
-				}
-			}
-
-			return latest;
+			var all = NativeGran32_ReadAllEntries(data);
+			return all.TryGetValue(key, out var val) ? val : null;
 		}
 
 		private static void WriteUint32LE(byte[] buf, int offset, uint value)
