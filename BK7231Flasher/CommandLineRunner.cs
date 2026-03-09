@@ -414,6 +414,7 @@ namespace BK7231Flasher
                 case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.BL702:
+                case BKType.TR6260:
                     return true;
                 default:
                     return false;
@@ -599,6 +600,8 @@ namespace BK7231Flasher
                 case BKType.BL602:
                 case BKType.BL702:
                     return new BL602Flasher(ct);
+                case BKType.TR6260:
+                    return new TR6260Flasher(ct);
                 case BKType.BekenSPI:
                     return new SPIFlasher_Beken(ct);
                 case BKType.GenericSPI:
