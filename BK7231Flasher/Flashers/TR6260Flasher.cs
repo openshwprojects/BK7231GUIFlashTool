@@ -129,7 +129,7 @@ namespace BK7231Flasher
 
         bool PrepareEraseSession()
         {
-            return PrepareSession(true, ERASE_OPERATION_BAUD);
+            return PrepareSession(true);
         }
 
         bool SetupPort(int initialBaud = DEFAULT_BAUD)
@@ -294,26 +294,6 @@ namespace BK7231Flasher
                     break;
 
                 Thread.Sleep(1000);
-            }
-
-            // If sync failed at the default baud, the device may still be in uboot at
-            // ERASE_OPERATION_BAUD from a previous erase session. Try that baud before giving up.
-            if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK
-               && serial != null && ERASE_OPERATION_BAUD != serial.BaudRate)
-            {
-                addLogLine($"Sync failed at {serial.BaudRate}, retrying at {ERASE_OPERATION_BAUD}...");
-                serial.BaudRate = ERASE_OPERATION_BAUD;
-                for(int loop = 1; loop <= 5; loop++)
-                {
-                    syncResp = SyncOnce();
-                    if(syncResp == TRS_ROM_SYNC_ACK || syncResp == TRS_UBOOT_SYNC_ACK)
-                        break;
-
-                    if(sessionPortUnavailable || cancellationToken.IsCancellationRequested)
-                        break;
-
-                    Thread.Sleep(500);
-                }
             }
 
             if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
@@ -501,19 +481,19 @@ namespace BK7231Flasher
                 return false;
             }
 
-            SetBusyState("Uploading RAM loader...");
-            addLogLine("Uploading RAM loader...");
+            SetBusyState("Uploading uboot...");
+            addLogLine("Uploading uboot...");
             if(!BeginTransfer(TRS_FRM_TYPE_UBOOT, 0, boot.Length, 30))
             {
-                addErrorLine("RAM loader header failed");
-                SetErrorState("RAM loader upload failed");
+                addErrorLine("Uboot header failed");
+                SetErrorState("Uboot upload failed");
                 return false;
             }
 
-            if(!WriteFileBlocks(boot, "RAM loader"))
+            if(!WriteFileBlocks(boot, "uboot"))
                 return false;
 
-            addLogLine("RAM loader upload completed.");
+            addLogLine("Uboot upload completed.");
             return true;
         }
 
@@ -718,7 +698,7 @@ namespace BK7231Flasher
                     return false;
                 }
 
-                if(!WriteSingleSegment(0, boot, TRS_FRM_TYPE_UBOOT, "RAM loader"))
+                if(!WriteSingleSegment(0, boot, TRS_FRM_TYPE_UBOOT, "uboot"))
                     return false;
                 if(!WriteSingleSegment(PARTITION_ADDR, partition, TRS_FRM_TYPE_NV, "partition table"))
                     return false;
@@ -852,10 +832,9 @@ namespace BK7231Flasher
                     return;
 
                 int writeOfs = startSector;
-                addLogLine($"Starting flash write, ofs 0x{writeOfs:X}, len 0x{data.Length:X}");
-                SetBusyState("Erasing...");
                 if(!EraseViaUboot(0, DEFAULT_FLASH_SIZE))
                     return;
+                addLogLine($"Starting flash write, ofs 0x{writeOfs:X}, len 0x{data.Length:X}");
                 SetBusyState("Writing...");
                 if(!WriteFirmwarePayload(startSector, data))
                 {
@@ -977,10 +956,9 @@ namespace BK7231Flasher
                     addLogLine("Reading " + sourceFileName + "...");
                     byte[] data = File.ReadAllBytes(sourceFileName);
 
-                    addLogLine($"Starting flash write, ofs 0x{startSector:X}, len 0x{data.Length:X}");
-                    SetBusyState("Erasing...");
                     if(!EraseViaUboot(0, DEFAULT_FLASH_SIZE))
                         return;
+                    addLogLine($"Starting flash write, ofs 0x{startSector:X}, len 0x{data.Length:X}");
                     SetBusyState("Writing...");
                     if(!WriteFirmwarePayload(startSector, data))
                     {
