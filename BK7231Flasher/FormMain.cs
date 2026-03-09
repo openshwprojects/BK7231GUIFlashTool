@@ -469,7 +469,9 @@ namespace BK7231Flasher
         {
             if (flasher != null)
             {
-                cts.Cancel();
+                // cts.Cancel() can throw AggregateException if internal Task callbacks
+                // fire when the task is already completing (RanToCompletion). Swallow it.
+                try { cts.Cancel(); } catch { }
                 flasher.Dispose();
                 //flasher.closePort();
                 flasher = null;
@@ -707,15 +709,26 @@ namespace BK7231Flasher
 
         void eraseAll()
         {
-            clearUp();
-            createFlasher();
-            int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
-            int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
-            flasher.doErase(startOfs, sectors, true);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
+            try
+            {
+                clearUp();
+                createFlasher();
+                int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
+                int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
+                flasher.doErase(startOfs, sectors, true);
+            }
+            catch(Exception ex)
+            {
+                addLog("Erase error: " + ex.Message + Environment.NewLine, Color.Red);
+            }
+            finally
+            {
+                worker = null;
+                //setButtonReadLabel(label_startRead);
+                setButtonStates(true);
+                try { clearUp(); }
+                catch(Exception cleanEx) { addLog("Erase cleanup error: " + cleanEx.Message + Environment.NewLine, Color.Red); }
+            }
         }
         void verifyThread(object oParm)
         {
@@ -1419,9 +1432,19 @@ namespace BK7231Flasher
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
         {
-            var res = MessageBox.Show("This will remove everything from 0x11000, including configuration of OBK and MAC address and RF partition. "+
-                "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
-                "Do it if you have RF issues. Flash OBK after doing erase. This option might require a lower baud rate. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
+            string _nl = Environment.NewLine;
+            string _msg =
+                "Platform behaviour:" + _nl + _nl +
+                "BK7231T / BK7231U / BK7252:" + _nl +
+                "- Erases from 0x11000. Bootloader (0x000000-0x010FFF) must be preserved on these chips." + _nl + _nl +
+                "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
+                "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
+                "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
+                "Full chip erase: BL602/BL702, ECR6600, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
+                "Erase not implemented: LN882H, LN8825B, W800, W600, ESP32 family." + _nl + _nl +
+                "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
+                "Continue?";
+            var res = MessageBox.Show(_msg, "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
                 if (doGenericOperationPreparations() == false)
