@@ -296,6 +296,26 @@ namespace BK7231Flasher
                 Thread.Sleep(1000);
             }
 
+            // If sync failed at the default baud, the device may still be in uboot at
+            // ERASE_OPERATION_BAUD from a previous erase session. Try that baud before giving up.
+            if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK
+               && serial != null && ERASE_OPERATION_BAUD != serial.BaudRate)
+            {
+                addLogLine($"Sync failed at {serial.BaudRate}, retrying at {ERASE_OPERATION_BAUD}...");
+                serial.BaudRate = ERASE_OPERATION_BAUD;
+                for(int loop = 1; loop <= 5; loop++)
+                {
+                    syncResp = SyncOnce();
+                    if(syncResp == TRS_ROM_SYNC_ACK || syncResp == TRS_UBOOT_SYNC_ACK)
+                        break;
+
+                    if(sessionPortUnavailable || cancellationToken.IsCancellationRequested)
+                        break;
+
+                    Thread.Sleep(500);
+                }
+            }
+
             if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
             {
                 addErrorLine("Sync failed");
@@ -833,6 +853,9 @@ namespace BK7231Flasher
 
                 int writeOfs = startSector;
                 addLogLine($"Starting flash write, ofs 0x{writeOfs:X}, len 0x{data.Length:X}");
+                SetBusyState("Erasing...");
+                if(!EraseViaUboot(0, DEFAULT_FLASH_SIZE))
+                    return;
                 SetBusyState("Writing...");
                 if(!WriteFirmwarePayload(startSector, data))
                 {
@@ -955,6 +978,9 @@ namespace BK7231Flasher
                     byte[] data = File.ReadAllBytes(sourceFileName);
 
                     addLogLine($"Starting flash write, ofs 0x{startSector:X}, len 0x{data.Length:X}");
+                    SetBusyState("Erasing...");
+                    if(!EraseViaUboot(0, DEFAULT_FLASH_SIZE))
+                        return;
                     SetBusyState("Writing...");
                     if(!WriteFirmwarePayload(startSector, data))
                     {
