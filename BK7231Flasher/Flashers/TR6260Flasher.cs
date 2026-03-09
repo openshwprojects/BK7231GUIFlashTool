@@ -296,6 +296,32 @@ namespace BK7231Flasher
                 Thread.Sleep(1000);
             }
 
+            // If sync failed at DEFAULT_BAUD, a previous session may have left the device in uboot
+            // at a higher negotiated baud. Try the user's configured baud before giving up.
+            if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
+            {
+                int fallbackBaud = GetRequestedBaud(requestedBaudOverride);
+                if(serial != null && fallbackBaud != serial.BaudRate)
+                {
+                    addLogLine($"Sync failed at {serial.BaudRate}, retrying at {fallbackBaud}...");
+                    serial.BaudRate = fallbackBaud;
+                    for(int loop = 1; loop <= 5; loop++)
+                    {
+                        syncResp = SyncOnce();
+                        if(syncResp == TRS_ROM_SYNC_ACK || syncResp == TRS_UBOOT_SYNC_ACK)
+                            break;
+
+                        if(sessionPortUnavailable || cancellationToken.IsCancellationRequested)
+                            break;
+
+                        Thread.Sleep(500);
+                    }
+                    // If fallback also failed, restore default baud for consistent error state
+                    if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
+                        serial.BaudRate = DEFAULT_BAUD;
+                }
+            }
+
             if(syncResp != TRS_ROM_SYNC_ACK && syncResp != TRS_UBOOT_SYNC_ACK)
             {
                 addErrorLine("Sync failed");
