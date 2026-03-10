@@ -65,6 +65,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Flashers\RDAFlasher.cs" />
+    <Compile Include="Flashers\XR806Flasher.cs" />
     <Compile Include="Flashers\ESPFlasher.cs" />
     <Compile Include="Utils\Xmodem.cs" />
     <Compile Include="Flashers\WMFlasher.cs" />

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.IO.Ports;
 using System.Text;
@@ -32,6 +32,7 @@ namespace BK7231Flasher
         W800,
         RDA5981,
         TR6260,
+        XR806,
 
         BekenSPI,
         GenericSPI,
