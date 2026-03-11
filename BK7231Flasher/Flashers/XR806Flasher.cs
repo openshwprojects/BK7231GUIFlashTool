@@ -55,7 +55,7 @@ namespace BK7231Flasher
         // -----------------------------------------------------------------------
         MemoryStream readResult;
         byte[]       flashID;
-        int          flashSizeMB  = 2;
+        int          flashSizeBytes = 2 * 0x100000;
         byte         bromVersion  = 0xFF;
 
         // -----------------------------------------------------------------------
@@ -107,11 +107,13 @@ namespace BK7231Flasher
             try
             {
                 serial = new SerialPort(serialName, XR_ROM_BAUD);
+                serial.ReadTimeout = 250;
+                serial.WriteTimeout = 5000;
+                serial.ReadBufferSize = 1024 * 1024;
+                serial.WriteBufferSize = 1024 * 1024;
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
-                serial.ReadTimeout  = 2000;
-                serial.WriteTimeout = 5000;
             }
             catch (Exception ex)
             {
@@ -364,13 +366,13 @@ namespace BK7231Flasher
             // JEDEC size byte: e.g. 0x15 → 1 << (0x15 - 0x11) = 16 Mbit = 2 MB
             if (flashID.Length >= 3 && flashID[2] >= 0x11 && flashID[2] <= 0x20)
             {
-                flashSizeMB = 1 << (flashID[2] - 0x11);
-                addLogLine($"Flash size   : {flashSizeMB} MB");
+                flashSizeBytes = (1 << (flashID[2] - 0x11)) * 0x20000;
+                addLogLine($"Flash size   : {flashSizeBytes / 0x100000} MB");
             }
             else
             {
                 addWarningLine("Could not decode flash size from JEDEC ID; defaulting to 2 MB.");
-                flashSizeMB = 2;
+                flashSizeBytes = 2 * 0x100000;
             }
             return true;
         }
@@ -768,8 +770,8 @@ namespace BK7231Flasher
                 if (fullRead)
                 {
                     startAddress = 0;
-                    length       = flashSizeMB * 0x100000;
-                    addLogLine($"Full read: {flashSizeMB} MB starting at 0x000000");
+                    length       = flashSizeBytes;
+                    addLogLine($"Full read: {flashSizeBytes / 0x100000} MB starting at 0x000000");
                 }
                 else
                 {
@@ -801,8 +803,8 @@ namespace BK7231Flasher
                 if (bAll)
                 {
                     startAddress = 0;
-                    length       = flashSizeMB * 0x100000;
-                    addLogLine($"Full erase: {flashSizeMB} MB");
+                    length       = flashSizeBytes;
+                    addLogLine($"Full erase: {flashSizeBytes / 0x100000} MB");
                 }
                 else
                 {
@@ -837,8 +839,8 @@ namespace BK7231Flasher
                 // ── Backup read (ReadAndWrite mode) ─────────────────────────
                 if (rwMode == WriteMode.ReadAndWrite)
                 {
-                    addLogLine($"Reading full flash ({flashSizeMB} MB) before write...");
-                    byte[] backup = InternalRead(0, flashSizeMB * 0x100000);
+                    addLogLine($"Reading full flash ({flashSizeBytes / 0x100000} MB) before write...");
+                    byte[] backup = InternalRead(0, flashSizeBytes);
                     readResult    = new MemoryStream(backup);
                     if (!saveReadResult(0)) return;
                 }
@@ -876,9 +878,9 @@ namespace BK7231Flasher
                         addWarningLine("Non-.img file: writing raw bytes at caller-specified offset.");
                     }
 
-                    if (effectiveLen > flashSizeMB * 0x100000)
+                    if (effectiveLen > flashSizeBytes)
                     {
-                        addErrorLine($"Image (0x{effectiveLen:X} bytes) exceeds detected flash size ({flashSizeMB} MB).");
+                        addErrorLine($"Image (0x{effectiveLen:X} bytes) exceeds detected flash size ({flashSizeBytes / 0x100000} MB)." );
                         return;
                     }
 
