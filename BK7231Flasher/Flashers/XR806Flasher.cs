@@ -19,6 +19,7 @@ namespace BK7231Flasher
         const int XR_ERASE_BLOCK_SIZE    = 0x10000;     // 64 KB
         const int XR_WRITE_CHUNK_SIZE    = 0x4000;      // 16 KB  (32 sectors)
         const int XR_WRITE_SECTORS       = XR_WRITE_CHUNK_SIZE / XR_SECTOR_SIZE;
+        const int XR_WORK_BAUD           = 921600;      // PhoenixMC default post-ID working baud
 
         // Host->device flag byte (confirmed from ELF: always 0x04, 0x00)
         const byte BROM_HOST_FLAGS       = 0x04;
@@ -29,6 +30,7 @@ namespace BK7231Flasher
 
         // Opcodes
         const byte OP_GET_FLASH_ID       = 0x18;
+        const byte OP_CHANGE_BAUD        = 0x10;
         const byte OP_ERASE              = 0x19;
         const byte OP_READ               = 0x1A;
         const byte OP_WRITE              = 0x1B;
@@ -369,6 +371,64 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(OP_WRITE, payloadPre, payloadWire);
         }
 
+        byte[] BuildChangeBaudPacket(int newBaud)
+        {
+            int bromBaudValue = newBaud | unchecked((int)0x03000000);
+
+            byte[] payloadPre  = new byte[4];
+            byte[] payloadWire = new byte[4];
+
+            payloadPre[0] = (byte)( bromBaudValue        & 0xFF);
+            payloadPre[1] = (byte)((bromBaudValue >>  8) & 0xFF);
+            payloadPre[2] = (byte)((bromBaudValue >> 16) & 0xFF);
+            payloadPre[3] = (byte)((bromBaudValue >> 24) & 0xFF);
+
+            payloadWire[0] = (byte)((bromBaudValue >> 24) & 0xFF);
+            payloadWire[1] = (byte)((bromBaudValue >> 16) & 0xFF);
+            payloadWire[2] = (byte)((bromBaudValue >>  8) & 0xFF);
+            payloadWire[3] = (byte)( bromBaudValue        & 0xFF);
+
+            return BuildPhoenixPacket(OP_CHANGE_BAUD, payloadPre, payloadWire);
+        }
+
+        bool ChangeBaudAndResync(int newBaud)
+        {
+            if (newBaud <= XR_ROM_BAUD)
+                return true;
+
+            byte[] pkt = BuildChangeBaudPacket(newBaud);
+            BROMResponse resp = ExecuteRawPacket(pkt, 2000, 1000, false);
+
+            if (resp.IsError)
+            {
+                addErrorLine($"ChangeBaud returned error flag for {newBaud} baud.");
+                return false;
+            }
+
+            try
+            {
+                DrainInput();
+                serial.DiscardInBuffer();
+                serial.DiscardOutBuffer();
+                serial.BaudRate = newBaud;
+                Thread.Sleep(50);
+            }
+            catch (Exception ex)
+            {
+                addErrorLine("Host UART baud switch failed: " + ex.Message);
+                return false;
+            }
+
+            if (!Sync())
+            {
+                addErrorLine($"Re-sync failed after switching to {newBaud} baud.");
+                return false;
+            }
+
+            addLogLine($"Switched XR806 transport baud to {newBaud}.");
+            return true;
+        }
+
         BROMResponse ReadBromResponse(int headerTimeoutMs, int payloadTimeoutMs)
         {
             byte[] header = ReadExact(12, headerTimeoutMs);
@@ -456,6 +516,7 @@ namespace BK7231Flasher
         {
             if (!Sync())         return false;
             if (!ReadFlashId())  return false;
+            if (!ChangeBaudAndResync(XR_WORK_BAUD)) return false;
 
             if (bromVersion != 0x03)
                 addWarningLine($"Warning: unexpected BROM version 0x{bromVersion:X2} for XR806 " +
@@ -493,22 +554,24 @@ namespace BK7231Flasher
         // Requesting 32 sectors caused the device to fail silently.
         // -----------------------------------------------------------------------
 
-        // Read exactly one 512-byte sector. Returns the 512-byte buffer or null.
-        byte[] ReadOneSector(int sectorIndex)
+        // Read one or more 512-byte sectors. PhoenixMC uses 1 sector on the
+        // initial 115200 ROM path and 4 sectors after ChangeBaud to 921600.
+        byte[] ReadSectors(int sectorIndex, int sectorCount)
         {
-            byte[] pkt = BuildReadPacket(sectorIndex, 1);
+            byte[] pkt = BuildReadPacket(sectorIndex, sectorCount);
 
-            // Generous timeouts: header 4 s, payload (512 bytes @ 115200) ~4 s
-            BROMResponse resp = ExecuteRawPacket(pkt, 4000, 4000, true);
+            int expectedBytes = sectorCount * XR_SECTOR_SIZE;
+            int payloadTimeout = (serial.BaudRate > XR_ROM_BAUD) ? 2000 : 4000;
+            BROMResponse resp = ExecuteRawPacket(pkt, 4000, payloadTimeout, true);
 
             if (resp.IsError)
             {
                 addErrorLine($"Read returned error flag for sector {sectorIndex}.");
                 return null;
             }
-            if (resp.Payload == null || resp.Payload.Length < XR_SECTOR_SIZE)
+            if (resp.Payload == null || resp.Payload.Length < expectedBytes)
             {
-                addErrorLine($"Read sector {sectorIndex}: short payload ({resp.Payload?.Length ?? 0} bytes).");
+                addErrorLine($"Read sector {sectorIndex}: short payload ({resp.Payload?.Length ?? 0} bytes, expected {expectedBytes}).");
                 return null;
             }
             return resp.Payload;
@@ -571,19 +634,22 @@ namespace BK7231Flasher
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
 
-            for (int s = 0; s < totalSectors && !isCancelled; s++)
+            int sectorsPerRead = (serial.BaudRate > XR_ROM_BAUD) ? 4 : 1;
+            for (int s = 0; s < totalSectors && !isCancelled; )
             {
-                byte[] sector = ReadOneSector(sectorIndex + s);
-                if (sector == null)
+                int thisCount = Math.Min(sectorsPerRead, totalSectors - s);
+                byte[] chunk = ReadSectors(sectorIndex + s, thisCount);
+                if (chunk == null)
                 {
                     logger.setState("Read failed", Color.Red);
                     throw new IOException($"Read failed at sector {sectorIndex + s} (address 0x{(startAddress + s * XR_SECTOR_SIZE):X6}).");
                 }
 
-                int copyBytes = Math.Min(XR_SECTOR_SIZE, length - done);
-                Array.Copy(sector, 0, result, done, copyBytes);
-                done += copyBytes;
-                logger.setProgress(s + 1, totalSectors);
+                int chunkBytes = Math.Min(thisCount * XR_SECTOR_SIZE, length - done);
+                Array.Copy(chunk, 0, result, done, chunkBytes);
+                done += chunkBytes;
+                s += thisCount;
+                logger.setProgress(s, totalSectors);
             }
 
             logger.setState("Read complete", Color.DarkGreen);
