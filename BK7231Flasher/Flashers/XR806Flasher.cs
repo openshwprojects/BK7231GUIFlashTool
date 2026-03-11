@@ -19,6 +19,7 @@ namespace BK7231Flasher
         const int XR_ERASE_BLOCK_SIZE    = 0x10000;     // 64 KB
         const int XR_WRITE_CHUNK_SIZE    = 0x4000;      // 16 KB  (32 sectors)
         const int XR_WRITE_SECTORS       = XR_WRITE_CHUNK_SIZE / XR_SECTOR_SIZE;
+        const int XR_WORK_BAUD           = 921600;      // PhoenixMC default working baud after ROM sync
 
         // Host->device flag byte (confirmed from ELF: always 0x04, 0x00)
         const byte BROM_HOST_FLAGS       = 0x04;
@@ -32,6 +33,7 @@ namespace BK7231Flasher
         const byte OP_ERASE              = 0x19;
         const byte OP_READ               = 0x1A;
         const byte OP_WRITE              = 0x1B;
+        const byte OP_CHANGE_BAUD        = 0x10;
 
         // Known-good hardcoded request (checksum pre-verified against PhoenixMC)
         static readonly byte[] GET_FLASH_ID_REQUEST = new byte[]
@@ -57,6 +59,7 @@ namespace BK7231Flasher
         byte[]       flashID;
         int          flashSizeBytes = 2 * 0x100000;
         byte         bromVersion  = 0xFF;
+        int          currentBaud  = XR_ROM_BAUD;
 
         // -----------------------------------------------------------------------
         // Packet structures
@@ -112,6 +115,7 @@ namespace BK7231Flasher
                 serial.ReadBufferSize = 1024 * 1024;
                 serial.WriteBufferSize = 1024 * 1024;
                 serial.Open();
+                currentBaud = XR_ROM_BAUD;
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
             }
@@ -195,154 +199,92 @@ namespace BK7231Flasher
         }
 
         // -----------------------------------------------------------------------
-        // Checksum helpers
+        // Checksum – TWO separate algorithms
         //
-        // These are derived directly from the PhoenixMC ELF, not guessed.
+        // (A) BROM HEADER checksum  – RFC 1071 Internet Checksum (carry-folded)
+        //     Used in the 12-byte packet header and verified by CheckAck.
         //
-        // (A) Write DATA checksum:
-        //     plain 16-bit word accumulation with natural 16-bit overflow,
-        //     then bitwise invert. This is only used for OP_WRITE payload data.
-        //
-        // (B) Command HEADER checksum:
-        //     built per-opcode exactly as PhoenixMC does it in the XR806 ROM path.
-        //     There is no shared generic builder here on purpose.
+        // (B) DATA checksum         – plain 16-bit word accumulation + invert
+        //     Used only in the Write command payload.
+        //     Confirmed from WriteSector SIMD (paddw) loop in the ELF.
         // -----------------------------------------------------------------------
+
+        // (A) RFC 1071 – for BROM packet headers
+        static ushort ComputeBromChecksum(byte[] data, int offset, int count)
+        {
+            uint sum = 0;
+            int  i   = 0;
+            while (i < count)
+            {
+                byte lo = data[offset + i];
+                byte hi = (i + 1 < count) ? data[offset + i + 1] : (byte)0xFF;
+                sum += (uint)(lo | (hi << 8));
+                // fold 32-bit carry back into 16 bits
+                sum = (sum & 0xFFFF) + (sum >> 16);
+                i  += 2;
+            }
+            sum = (sum & 0xFFFF) + (sum >> 16);
+            return (ushort)(~sum & 0xFFFF);
+        }
+
+        // (B) Plain 16-bit word sum + invert – for write data payload
+        //     Matches the SIMD paddw loop in WriteSector (natural 16-bit overflow,
+        //     no carry propagation between words).
         static ushort ComputeDataChecksum(byte[] data, int offset, int count)
         {
             ushort sum = 0;
             int i = 0;
             for (; i + 1 < count; i += 2)
-                unchecked { sum += (ushort)(data[offset + i] | (data[offset + i + 1] << 8)); }
+                sum += (ushort)(data[offset + i] | (data[offset + i + 1] << 8));
             if ((count & 1) != 0)
-                unchecked { sum += data[offset + count - 1]; }
+                sum += data[offset + count - 1];
             return (ushort)(~sum);
         }
 
-        static ushort Rol8(ushort value)
+        // -----------------------------------------------------------------------
+        // Packet builder
+        // -----------------------------------------------------------------------
+        byte[] BuildBromPacket(byte opcode, byte[] payload)
         {
-            return (ushort)(((value << 8) | (value >> 8)) & 0xFFFF);
-        }
+            if (payload == null) payload = new byte[0];
 
-        static void WriteBE32(byte[] buffer, int offset, int value)
-        {
-            buffer[offset + 0] = (byte)((value >> 24) & 0xFF);
-            buffer[offset + 1] = (byte)((value >> 16) & 0xFF);
-            buffer[offset + 2] = (byte)((value >>  8) & 0xFF);
-            buffer[offset + 3] = (byte)( value        & 0xFF);
-        }
+            // logical length = opcode byte + payload bytes
+            int logicalLength = 1 + payload.Length;
 
-        // PhoenixMC GetFlashId packet is hardcoded because that exact wire image
-        // is already proven on real XR806 hardware.
-        static byte[] BuildGetFlashIdPacket()
-        {
-            return GET_FLASH_ID_REQUEST;
-        }
+            // total wire size = 12-byte header + logical payload
+            byte[] pkt = new byte[12 + logicalLength];
 
-        // PhoenixMC EraseFlash(op=0x19) packet builder for XR806 ROM path.
-        // ELF basis: CFlashHost::EraseFlash(unsigned int) at 0x40ced0.
-        static byte[] BuildErasePacket(int address)
-        {
-            byte[] pkt = new byte[0x12];
+            // magic
             pkt[0] = (byte)'B'; pkt[1] = (byte)'R'; pkt[2] = (byte)'O'; pkt[3] = (byte)'M';
-            pkt[4] = 0x04; pkt[5] = 0x00;
-            // checksum at [6..7]
-            pkt[8] = 0x00; pkt[9] = 0x00; pkt[10] = 0x00; pkt[11] = 0x06;
-            pkt[12] = OP_ERASE;
-            pkt[13] = 0x03;
-            WriteBE32(pkt, 14, address);
 
-            uint sum = 0;
-            sum += 0x0004u;                 // WORD PTR [rbx+0x4]
-            sum += 0x0319u;                 // WORD PTR [rbx+0xc]  => 0x19, 0x03
-            sum += (uint)address;           // low 16 via 32-bit add
-            sum += ((uint)address >> 16);   // high 16 via ecx add
-            sum -= 0x6069u;                 // exact ELF constant
-            ushort cs = Rol8((ushort)(~sum));
+            // host flags (always 0x04, 0x00 – confirmed from ELF)
+            pkt[4] = BROM_HOST_FLAGS;
+            pkt[5] = 0x00;
+
+            // checksum placeholder (bytes 6-7) – filled below
+
+            // payload length big-endian (bytes 8-11)
+            pkt[8]  = (byte)((logicalLength >> 24) & 0xFF);
+            pkt[9]  = (byte)((logicalLength >> 16) & 0xFF);
+            pkt[10] = (byte)((logicalLength >>  8) & 0xFF);
+            pkt[11] = (byte)( logicalLength        & 0xFF);
+
+            // opcode
+            pkt[12] = opcode;
+
+            // payload bytes
+            if (payload.Length > 0)
+                Array.Copy(payload, 0, pkt, 13, payload.Length);
+
+            // fill checksum over the complete packet (with zeroed checksum field)
+            ushort cs = ComputeBromChecksum(pkt, 0, pkt.Length);
             pkt[6] = (byte)((cs >> 8) & 0xFF);
-            pkt[7] = (byte)(cs & 0xFF);
+            pkt[7] = (byte)( cs       & 0xFF);
+
             return pkt;
         }
 
-        // PhoenixMC ReadSector(op=0x1A) packet builder for XR806 ROM path.
-        // ELF basis: CFlashHost::ReadSector(unsigned int, unsigned char*, unsigned int) at 0x40c620.
-        static byte[] BuildReadPacket(int sectorIndex, int sectorCount)
-        {
-            byte[] pkt = new byte[0x15];
-            pkt[0] = (byte)'B'; pkt[1] = (byte)'R'; pkt[2] = (byte)'O'; pkt[3] = (byte)'M';
-            pkt[4] = 0x04; pkt[5] = 0x00;
-            pkt[8] = 0x00; pkt[9] = 0x00; pkt[10] = 0x00; pkt[11] = 0x09;
-            pkt[12] = OP_READ;
-            WriteBE32(pkt, 13, sectorIndex);
-            WriteBE32(pkt, 17, sectorCount);
-
-            byte s0 = (byte)(sectorIndex & 0xFF);
-            byte s1 = (byte)((sectorIndex >> 8) & 0xFF);
-            byte s2 = (byte)((sectorIndex >> 16) & 0xFF);
-            byte s3 = (byte)((sectorIndex >> 24) & 0xFF);
-            byte c0 = (byte)(sectorCount & 0xFF);
-            byte c1 = (byte)((sectorCount >> 8) & 0xFF);
-            byte c2 = (byte)((sectorCount >> 16) & 0xFF);
-            byte c3 = (byte)((sectorCount >> 24) & 0xFF);
-
-            uint sum = 0;
-            sum += 0x0004u;                                   // WORD PTR [rbx+0x4]
-            sum += (uint)c3;                                  // count >> 24
-            sum -= 0x6066u;                                   // exact ELF constant
-            sum += (ushort)(OP_READ | (s0 << 8));             // WORD PTR [rbx+0xc]
-            sum += (ushort)(s1 | (s2 << 8));                  // WORD PTR [rbx+0xe]
-            sum += (ushort)(s3 | (c0 << 8));                  // WORD PTR [rbx+0x10]
-            sum += (ushort)(c1 | (c2 << 8));                  // WORD PTR [rbx+0x12]
-            ushort cs = Rol8((ushort)(~sum));
-            pkt[6] = (byte)((cs >> 8) & 0xFF);
-            pkt[7] = (byte)(cs & 0xFF);
-            return pkt;
-        }
-
-        // PhoenixMC WriteSector(op=0x1B) packet builder for XR806 ROM path.
-        // ELF basis: CFlashHost::WriteSector(unsigned int, unsigned char*, unsigned int) at 0x40f1e0.
-        static byte[] BuildWriteCommandPacket(int sectorIndex, int sectorCount, ushort dataChecksum)
-        {
-            byte[] pkt = new byte[0x17];
-            pkt[0] = (byte)'B'; pkt[1] = (byte)'R'; pkt[2] = (byte)'O'; pkt[3] = (byte)'M';
-            pkt[4] = 0x04; pkt[5] = 0x00;
-            pkt[8] = 0x00; pkt[9] = 0x00; pkt[10] = 0x00; pkt[11] = 0x0B;
-            pkt[12] = OP_WRITE;
-            WriteBE32(pkt, 13, sectorIndex);
-            WriteBE32(pkt, 17, sectorCount);
-            pkt[21] = (byte)((dataChecksum >> 8) & 0xFF);
-            pkt[22] = (byte)(dataChecksum & 0xFF);
-
-            byte s0 = (byte)(sectorIndex & 0xFF);
-            byte s1 = (byte)((sectorIndex >> 8) & 0xFF);
-            byte s2 = (byte)((sectorIndex >> 16) & 0xFF);
-            byte s3 = (byte)((sectorIndex >> 24) & 0xFF);
-            byte c0 = (byte)(sectorCount & 0xFF);
-            byte c1 = (byte)((sectorCount >> 8) & 0xFF);
-            byte c2 = (byte)((sectorCount >> 16) & 0xFF);
-            byte c3 = (byte)((sectorCount >> 24) & 0xFF);
-            byte d0 = (byte)(dataChecksum & 0xFF);            // low byte in temp LE layout
-            byte d1 = (byte)((dataChecksum >> 8) & 0xFF);     // high byte in temp LE layout (odd tail byte)
-
-            uint sum = 0;
-            sum += 0x5242u;                                   // WORD PTR [rbp+0x0]  => 'BR'
-            sum += 0x4D4Fu;                                   // WORD PTR [rbp+0x2]  => 'OM'
-            sum += 0x0004u;                                   // WORD PTR [rbp+0x4]
-            // WORD PTR [rbp+0x6] is zero at checksum time
-            sum += 0x000Bu;                                   // temporary little-endian length at [rbp+0x8]
-            // WORD PTR [rbp+0xa] is zero at checksum time
-            sum += (ushort)(OP_WRITE | (s0 << 8));            // WORD PTR [rbp+0xc]
-            sum += (ushort)(s1 | (s2 << 8));                  // WORD PTR [rbp+0xe]
-            sum += (ushort)(s3 | (c0 << 8));                  // WORD PTR [rbp+0x10]
-            sum += (ushort)(c1 | (c2 << 8));                  // WORD PTR [rbp+0x12]
-            sum += (ushort)(c3 | (d0 << 8));                  // WORD PTR [rbp+0x14]
-            sum += d1;                                        // odd tail byte after WORD PTR [rbp+0x14]
-            ushort cs = Rol8((ushort)(~sum));
-            pkt[6] = (byte)((cs >> 8) & 0xFF);
-            pkt[7] = (byte)(cs & 0xFF);
-            return pkt;
-        }
-
-// -----------------------------------------------------------------------
+        // -----------------------------------------------------------------------
         // Response reader
         // -----------------------------------------------------------------------
         BROMResponse ReadBromResponse(int headerTimeoutMs, int payloadTimeoutMs)
@@ -386,13 +328,66 @@ namespace BK7231Flasher
             int headerTimeoutMs  = 1500,
             int payloadTimeoutMs = 3000)
         {
-            if (opcode != OP_GET_FLASH_ID || (payload != null && payload.Length != 0))
-                throw new InvalidOperationException("ExecuteBromCommand is only used for proven GetFlashId on XR806.");
+            // Use the pre-verified hardcoded packet for GetFlashId
+            byte[] pkt = (opcode == OP_GET_FLASH_ID && (payload == null || payload.Length == 0))
+                ? GET_FLASH_ID_REQUEST
+                : BuildBromPacket(opcode, payload);
 
-            byte[] pkt = BuildGetFlashIdPacket();
             serial.Write(pkt, 0, pkt.Length);
             serial.BaseStream.Flush();
+
+            // XR806 BootROM needs 50 ms before responding to a read command
+            // (confirmed: usleep(0xC350) = 50 000 µs in PhoenixMC ReadSector)
+            if (opcode == OP_READ)
+                Thread.Sleep(50);
+
             return ReadBromResponse(headerTimeoutMs, payloadTimeoutMs);
+        }
+
+        // -----------------------------------------------------------------------
+        // ChangeBaud  (opcode 0x10)
+        // PhoenixMC OpenUart always does this after GetFlashId, even on BROM 3.
+        // Command payload is (baud | 0x03000000) encoded big-endian on the wire,
+        // then the host switches its UART baud and re-syncs.
+        // -----------------------------------------------------------------------
+        bool ChangeBaudAndResync(int newBaud)
+        {
+            int bromBaudValue = newBaud | unchecked((int)0x03000000);
+            byte[] payload = new byte[4];
+            payload[0] = (byte)((bromBaudValue >> 24) & 0xFF);
+            payload[1] = (byte)((bromBaudValue >> 16) & 0xFF);
+            payload[2] = (byte)((bromBaudValue >>  8) & 0xFF);
+            payload[3] = (byte)( bromBaudValue        & 0xFF);
+
+            BROMResponse resp = ExecuteBromCommand(OP_CHANGE_BAUD, payload, 1500, 1000);
+            if (resp.IsError)
+            {
+                addErrorLine($"ChangeBaud returned error flag for {newBaud} baud.");
+                return false;
+            }
+
+            try
+            {
+                serial.DiscardInBuffer();
+                serial.DiscardOutBuffer();
+                serial.BaudRate = newBaud;
+                currentBaud = newBaud;
+                Thread.Sleep(50);
+            }
+            catch (Exception ex)
+            {
+                addErrorLine("Host UART baud switch failed: " + ex.Message);
+                return false;
+            }
+
+            if (!Sync())
+            {
+                addErrorLine($"Re-sync failed after switching to {newBaud} baud.");
+                return false;
+            }
+
+            addLogLine($"Switched XR806 transport baud to {newBaud} (PhoenixMC-style).");
+            return true;
         }
 
         // -----------------------------------------------------------------------
@@ -440,6 +435,12 @@ namespace BK7231Flasher
             if (bromVersion != 0x03)
                 addWarningLine($"Warning: unexpected BROM version 0x{bromVersion:X2} for XR806 " +
                                "(expected 0x03). Proceeding anyway.");
+
+            if (currentBaud != XR_WORK_BAUD)
+            {
+                if (!ChangeBaudAndResync(XR_WORK_BAUD))
+                    return false;
+            }
             return true;
         }
 
@@ -454,11 +455,15 @@ namespace BK7231Flasher
         // -----------------------------------------------------------------------
         bool Erase64KBlock(int address)
         {
-            byte[] pkt = BuildErasePacket(address);
-            serial.Write(pkt, 0, pkt.Length);
-            serial.BaseStream.Flush();
+            byte[] payload = new byte[5];
+            payload[0] = 0x03;                                    // ← leading discriminator byte (was MISSING)
+            payload[1] = (byte)((address >> 24) & 0xFF);
+            payload[2] = (byte)((address >> 16) & 0xFF);
+            payload[3] = (byte)((address >>  8) & 0xFF);
+            payload[4] = (byte)( address        & 0xFF);
 
-            BROMResponse resp = ReadBromResponse(8000, 1000);
+            BROMResponse resp = ExecuteBromCommand(OP_ERASE, payload, 8000, 1000);
+
             if (resp.IsError)
             {
                 addErrorLine($"Erase returned error flag at 0x{address:X6}.");
@@ -475,28 +480,40 @@ namespace BK7231Flasher
         // Requesting 32 sectors caused the device to fail silently.
         // -----------------------------------------------------------------------
 
-        // Read exactly one 512-byte sector. Returns the 512-byte buffer or null.
-        byte[] ReadOneSector(int sectorIndex)
+        // Read 1 or 4 sectors depending on the current transport baud.
+        // PhoenixMC ReadFlashLength uses 1 sector at 115200 and 4 sectors at 921600.
+        byte[] ReadSectors(int sectorIndex, int sectorCount)
         {
-            byte[] pkt = BuildReadPacket(sectorIndex, 1);
-            serial.Write(pkt, 0, pkt.Length);
-            serial.BaseStream.Flush();
+            byte[] payload = new byte[8];
+            payload[0] = (byte)((sectorIndex >> 24) & 0xFF);
+            payload[1] = (byte)((sectorIndex >> 16) & 0xFF);
+            payload[2] = (byte)((sectorIndex >>  8) & 0xFF);
+            payload[3] = (byte)( sectorIndex        & 0xFF);
+            payload[4] = (byte)((sectorCount >> 24) & 0xFF);
+            payload[5] = (byte)((sectorCount >> 16) & 0xFF);
+            payload[6] = (byte)((sectorCount >>  8) & 0xFF);
+            payload[7] = (byte)( sectorCount        & 0xFF);
 
-            // Confirmed from PhoenixMC ReadSector: usleep(0xC350) = 50 ms
-            Thread.Sleep(50);
+            int expectedBytes = sectorCount * XR_SECTOR_SIZE;
+            int payloadTimeout = currentBaud >= XR_WORK_BAUD ? 2500 : 4000;
+            BROMResponse resp = ExecuteBromCommand(OP_READ, payload, 4000, payloadTimeout);
 
-            BROMResponse resp = ReadBromResponse(4000, 4000);
             if (resp.IsError)
             {
                 addErrorLine($"Read returned error flag for sector {sectorIndex}.");
                 return null;
             }
-            if (resp.Payload == null || resp.Payload.Length < XR_SECTOR_SIZE)
+            if (resp.Payload == null || resp.Payload.Length < expectedBytes)
             {
-                addErrorLine($"Read sector {sectorIndex}: short payload ({resp.Payload?.Length ?? 0} bytes).");
+                addErrorLine($"Read sector {sectorIndex}: short payload ({resp.Payload?.Length ?? 0} bytes, expected {expectedBytes}).");
                 return null;
             }
-            return resp.Payload;
+            if (resp.Payload.Length == expectedBytes)
+                return resp.Payload;
+
+            byte[] trimmed = new byte[expectedBytes];
+            Array.Copy(resp.Payload, 0, trimmed, 0, expectedBytes);
+            return trimmed;
         }
 
         // -----------------------------------------------------------------------
@@ -515,24 +532,38 @@ namespace BK7231Flasher
         bool WriteSectors(int sectorIndex, byte[] data, int sectorCount)
         {
             int dataLen = sectorCount * XR_SECTOR_SIZE;
-            ushort dataChecksum = ComputeDataChecksum(data, 0, dataLen);
-            byte[] pkt = BuildWriteCommandPacket(sectorIndex, sectorCount, dataChecksum);
 
-            // Stage 1: send write command and wait for command ACK
-            serial.Write(pkt, 0, pkt.Length);
-            serial.BaseStream.Flush();
-            BROMResponse cmdAck = ReadBromResponse(3000, 1000);
+            // Compute data checksum with the CORRECT algorithm
+            ushort dataChecksum = ComputeDataChecksum(data, 0, dataLen);
+
+            byte[] payload = new byte[10];
+            // sector_index big-endian
+            payload[0] = (byte)((sectorIndex >> 24) & 0xFF);
+            payload[1] = (byte)((sectorIndex >> 16) & 0xFF);
+            payload[2] = (byte)((sectorIndex >>  8) & 0xFF);
+            payload[3] = (byte)( sectorIndex        & 0xFF);
+            // sector_count big-endian
+            payload[4] = (byte)((sectorCount >> 24) & 0xFF);
+            payload[5] = (byte)((sectorCount >> 16) & 0xFF);
+            payload[6] = (byte)((sectorCount >>  8) & 0xFF);
+            payload[7] = (byte)( sectorCount        & 0xFF);
+            // data checksum big-endian (byte-swapped for wire, confirmed from rol cx,8 in ELF)
+            payload[8] = (byte)((dataChecksum >> 8) & 0xFF);
+            payload[9] = (byte)( dataChecksum       & 0xFF);
+
+            // Stage 1: send write command, get command ACK
+            BROMResponse cmdAck = ExecuteBromCommand(OP_WRITE, payload, 3000, 1000);
             if (cmdAck.IsError)
             {
                 addErrorLine($"Write command ACK returned error for sector {sectorIndex}.");
                 return false;
             }
 
-            // Stage 2: send raw data exactly like PhoenixMC
+            // Stage 2: send raw data
             serial.Write(data, 0, dataLen);
             serial.BaseStream.Flush();
 
-            // Stage 3: final ACK
+            // Stage 3: get final write result ACK
             BROMResponse finalAck = ReadBromResponse(10000, 1000);
             if (finalAck.IsError)
             {
@@ -555,19 +586,22 @@ namespace BK7231Flasher
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
 
-            for (int s = 0; s < totalSectors && !isCancelled; s++)
+            int sectorsPerRead = currentBaud >= XR_WORK_BAUD ? 4 : 1;
+            for (int s = 0; s < totalSectors && !isCancelled; )
             {
-                byte[] sector = ReadOneSector(sectorIndex + s);
-                if (sector == null)
+                int count = Math.Min(sectorsPerRead, totalSectors - s);
+                byte[] chunk = ReadSectors(sectorIndex + s, count);
+                if (chunk == null)
                 {
                     logger.setState("Read failed", Color.Red);
                     throw new IOException($"Read failed at sector {sectorIndex + s} (address 0x{(startAddress + s * XR_SECTOR_SIZE):X6}).");
                 }
 
-                int copyBytes = Math.Min(XR_SECTOR_SIZE, length - done);
-                Array.Copy(sector, 0, result, done, copyBytes);
+                int copyBytes = Math.Min(chunk.Length, length - done);
+                Array.Copy(chunk, 0, result, done, copyBytes);
                 done += copyBytes;
-                logger.setProgress(s + 1, totalSectors);
+                s += count;
+                logger.setProgress(s, totalSectors);
             }
 
             logger.setState("Read complete", Color.DarkGreen);
