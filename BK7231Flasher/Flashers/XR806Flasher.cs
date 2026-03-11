@@ -61,6 +61,8 @@ namespace BK7231Flasher
             try
             {
                 serial = new SerialPort(serialName, XR_ROM_BAUD);
+                serial.ReadBufferSize = 65536;
+                serial.WriteBufferSize = 65536;
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
@@ -272,6 +274,15 @@ namespace BK7231Flasher
             return true;
         }
 
+
+        int GetReadChunkSectors()
+        {
+            // PhoenixMC uses 1 sector per read on the plain ROM baud path, and 4 sectors only
+            // on its special high-speed path. XR806 support currently stays at 115200, so match
+            // the ROM path and read one 512-byte sector per request.
+            return 1;
+        }
+
         bool Erase64KBlock(int address)
         {
             byte[] payload = new byte[5];
@@ -295,7 +306,12 @@ namespace BK7231Flasher
             payload[5] = (byte)((sectorCount >> 16) & 0xFF);
             payload[6] = (byte)((sectorCount >> 8) & 0xFF);
             payload[7] = (byte)(sectorCount & 0xFF);
-            BROMResponse resp = ExecuteBromCommand(0x1A, payload, 4000, Math.Max(4000, sectorCount * 50));
+            int expectedBytes = sectorCount * XR_SECTOR_SIZE;
+            BROMResponse resp = ExecuteBromCommand(0x1A, payload, 4000, Math.Max(4000, expectedBytes / 8));
+            if(resp.Payload == null || resp.PayloadLength != expectedBytes || resp.Payload.Length != expectedBytes)
+            {
+                throw new IOException($"XR806 read response length mismatch at sector 0x{sectorIndex:X}: expected {expectedBytes} bytes, got header len {resp.PayloadLength} and payload len {(resp.Payload == null ? 0 : resp.Payload.Length)}");
+            }
             return resp.Payload;
         }
 
@@ -324,23 +340,23 @@ namespace BK7231Flasher
         {
             byte[] result = new byte[length];
             int done = 0;
+            int startSector = startAddress / XR_SECTOR_SIZE;
+            int sectorIndex = startSector;
             int totalSectors = (length + XR_SECTOR_SIZE - 1) / XR_SECTOR_SIZE;
-            int sectorIndex = startAddress / XR_SECTOR_SIZE;
+            int readChunkSectors = GetReadChunkSectors();
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
             while(done < length && !isCancelled)
             {
                 int remaining = length - done;
-                int readBytes = Math.Min(XR_WRITE_CHUNK_SIZE, remaining);
-                int sectorCount = (readBytes + XR_SECTOR_SIZE - 1) / XR_SECTOR_SIZE;
+                int sectorCount = Math.Min(readChunkSectors, (remaining + XR_SECTOR_SIZE - 1) / XR_SECTOR_SIZE);
                 addLogLine($"Read at 0x{startAddress + done:X6}, sectors {sectorCount}");
                 byte[] chunk = ReadSectors(sectorIndex, sectorCount);
-                if(chunk == null || chunk.Length < sectorCount * XR_SECTOR_SIZE)
-                    throw new IOException("XR806 read command returned incomplete data");
-                Array.Copy(chunk, 0, result, done, Math.Min(readBytes, chunk.Length));
-                done += readBytes;
+                int copyLen = Math.Min(remaining, chunk.Length);
+                Array.Copy(chunk, 0, result, done, copyLen);
+                done += copyLen;
                 sectorIndex += sectorCount;
-                logger.setProgress(Math.Min(totalSectors, sectorIndex - startAddress / XR_SECTOR_SIZE), totalSectors);
+                logger.setProgress(Math.Min(totalSectors, sectorIndex - startSector), totalSectors);
             }
             logger.setState("Reading done", Color.DarkGreen);
             return result;
