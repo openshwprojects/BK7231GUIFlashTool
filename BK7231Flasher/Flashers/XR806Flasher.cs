@@ -217,31 +217,40 @@ namespace BK7231Flasher
         //     Confirmed from WriteSector SIMD (paddw) loop in the ELF.
         // -----------------------------------------------------------------------
 
-        // (A) RFC 1071 – for BROM packet headers
-        // IMPORTANT: PhoenixMC does NOT checksum the final wire packet.
-        // It first computes the checksum over a *preimage* where:
-        //   - the 32-bit logical length is little-endian
-        //   - multi-byte payload fields are still in host/little-endian form
-        //   - the checksum field is zero
-        //   - an odd trailing byte is padded with 0x00 (not 0xFF)
-        // After that, PhoenixMC writes the final wire packet with:
-        //   - checksum bytes at [6..7] in high/low order
-        //   - 32-bit logical length in big-endian
-        //   - payload fields byte-swapped for the wire where applicable
+        // (A) BROM packet header checksum.
+        //
+        // Confirmed from PhoenixMC ELF disassembly (GetFlashId, ReadSector, WriteSector,
+        // EraseFlash, ChangeBaud): the checksum is computed over the full preimage packet
+        // (checksum field zeroed, length in LE, payload fields in LE host-byte-order),
+        // using PLAIN 16-bit word accumulation with natural uint16 overflow truncation —
+        // identical to ComputeDataChecksum. There is NO carry fold.
+        //
+        // This matches the assembly sequence:
+        //   ADD AX, WORD PTR [buf+n]   (repeated, no fold)
+        //   NOT AX
+        //   ROL AX, 8                  (byte-swap before LE word store)
+        //   MOV WORD PTR [buf+6], AX   → stored LE, so net effect is big-endian wire bytes
+        //
+        // RFC1071 (carry-folded) produces the same result only when the sum does NOT
+        // overflow 0xFFFF. Sums overflow for sector indices >= ~96 and for write commands
+        // where the data checksum field contributes a large word. RFC1071 was WRONG.
+        //
+        // Preimage layout (all multi-byte fields in LE, length in LE, checksum field = 0):
+        //   [0..3]  BROM magic (42 52 4F 4D)
+        //   [4..5]  host flags (04 00)
+        //   [6..7]  checksum field = 0x0000
+        //   [8..11] logical length LE (1 + payload_bytes)
+        //   [12]    opcode
+        //   [13..]  payload bytes in LE / host-byte-order
         static ushort ComputeBromChecksum(byte[] data, int offset, int count)
         {
-            uint sum = 0;
-            int  i   = 0;
-            while (i < count)
-            {
-                byte lo = data[offset + i];
-                byte hi = (i + 1 < count) ? data[offset + i + 1] : (byte)0x00;
-                sum += (uint)(lo | (hi << 8));
-                sum = (sum & 0xFFFF) + (sum >> 16);
-                i += 2;
-            }
-            sum = (sum & 0xFFFF) + (sum >> 16);
-            return (ushort)(~sum & 0xFFFF);
+            ushort sum = 0;
+            int i = 0;
+            for (; i + 1 < count; i += 2)
+                sum += (ushort)(data[offset + i] | (data[offset + i + 1] << 8));
+            if ((count & 1) != 0)
+                sum += data[offset + count - 1];   // odd trailing byte, zero-padded
+            return (ushort)(~sum);
         }
 
         // (B) Plain 16-bit word sum + invert – for write data payload
@@ -554,12 +563,8 @@ namespace BK7231Flasher
         // Requesting 32 sectors caused the device to fail silently.
         // -----------------------------------------------------------------------
 
-        // Read exactly one 512-byte sector.
-        // Although PhoenixMC's ReadFlashLength passes 4 sectors per call at 921600 baud,
-        // this is only proven safe on the RAM-loader path (BROM version <= 1).
-        // On the BROM v3 path (XR806) multi-sector reads cause the device to return
-        // an error flag after ~24 consecutive 4-sector requests (confirmed on hardware
-        // at address 0xC000). Always using 1 sector is the proven-safe BootROM behaviour.
+        // Read one or more 512-byte sectors. PhoenixMC uses 1 sector on the
+        // initial 115200 ROM path and 4 sectors after ChangeBaud to 921600.
         byte[] ReadSectors(int sectorIndex, int sectorCount)
         {
             byte[] pkt = BuildReadPacket(sectorIndex, sectorCount);
@@ -568,13 +573,6 @@ namespace BK7231Flasher
             int payloadTimeout = (serial.BaudRate > XR_ROM_BAUD) ? 2000 : 4000;
             BROMResponse resp = ExecuteRawPacket(pkt, 4000, payloadTimeout, true);
 
-            if (resp.IsError)
-            {
-                // One retry: drain any stale bytes then resend
-                addWarningLine($"Read error for sector {sectorIndex}, retrying...");
-                DrainInput(50, 300);
-                resp = ExecuteRawPacket(pkt, 4000, payloadTimeout, true);
-            }
             if (resp.IsError)
             {
                 addErrorLine($"Read returned error flag for sector {sectorIndex}.");
@@ -645,11 +643,11 @@ namespace BK7231Flasher
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
 
-            // Always read 1 sector per command on the BROM v3 path.
-            // PhoenixMC's ReadFlashLength uses 4 sectors/cmd at 921600 baud, but this is
-            // only safe on the RAM-loader path (bVersion <= 1). On the BootROM v3 path the
-            // device returns an error flag after ~24 consecutive 4-sector reads.
-            // 1 sector/cmd is slower but is the proven-correct BootROM v3 behaviour.
+            // Always use 1 sector per read on the BootROM v3 path.
+            // PhoenixMC uses 4 at 921600 baud, but that is on the RAM-loader path
+            // (BROM version <= 1). On BootROM v3 the device returns an error flag after
+            // approximately 24 consecutive 4-sector reads. 1-sector reads are slower but
+            // the only mode confirmed to work on the BootROM v3 path.
             const int sectorsPerRead = 1;
             for (int s = 0; s < totalSectors && !isCancelled; )
             {
