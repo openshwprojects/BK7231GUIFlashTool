@@ -217,31 +217,18 @@ namespace BK7231Flasher
         //     Confirmed from WriteSector SIMD (paddw) loop in the ELF.
         // -----------------------------------------------------------------------
 
-        // (A) BROM packet header checksum.
+        // BROM packet header checksum — and data checksum (same algorithm for both).
         //
-        // Confirmed from PhoenixMC ELF disassembly (GetFlashId, ReadSector, WriteSector,
-        // EraseFlash, ChangeBaud): the checksum is computed over the full preimage packet
-        // (checksum field zeroed, length in LE, payload fields in LE host-byte-order),
-        // using PLAIN 16-bit word accumulation with natural uint16 overflow truncation —
-        // identical to ComputeDataChecksum. There is NO carry fold.
-        //
-        // This matches the assembly sequence:
-        //   ADD AX, WORD PTR [buf+n]   (repeated, no fold)
+        // Confirmed from PhoenixMC ELF (GetFlashId, ReadSector, WriteSector, EraseFlash,
+        // ChangeBaud): plain 16-bit word accumulation with natural uint16 overflow
+        // truncation. NO carry fold. The assembly is simply:
+        //   ADD AX, WORD PTR [buf+n]  (repeated)
         //   NOT AX
-        //   ROL AX, 8                  (byte-swap before LE word store)
-        //   MOV WORD PTR [buf+6], AX   → stored LE, so net effect is big-endian wire bytes
+        //   ROL AX, 8 / MOV WORD PTR [buf+6], AX   ← big-endian store via LE
         //
-        // RFC1071 (carry-folded) produces the same result only when the sum does NOT
-        // overflow 0xFFFF. Sums overflow for sector indices >= ~96 and for write commands
-        // where the data checksum field contributes a large word. RFC1071 was WRONG.
-        //
-        // Preimage layout (all multi-byte fields in LE, length in LE, checksum field = 0):
-        //   [0..3]  BROM magic (42 52 4F 4D)
-        //   [4..5]  host flags (04 00)
-        //   [6..7]  checksum field = 0x0000
-        //   [8..11] logical length LE (1 + payload_bytes)
-        //   [12]    opcode
-        //   [13..]  payload bytes in LE / host-byte-order
+        // RFC1071 (carry-folded) agrees only when the partial sum never exceeds 0xFFFF.
+        // For sector indices >= ~96 or write commands with large data-checksum fields the
+        // sums overflow and RFC1071 produces a result off by 1 — device rejects the packet.
         static ushort ComputeBromChecksum(byte[] data, int offset, int count)
         {
             ushort sum = 0;
@@ -249,7 +236,7 @@ namespace BK7231Flasher
             for (; i + 1 < count; i += 2)
                 sum += (ushort)(data[offset + i] | (data[offset + i + 1] << 8));
             if ((count & 1) != 0)
-                sum += data[offset + count - 1];   // odd trailing byte, zero-padded
+                sum += data[offset + count - 1];
             return (ushort)(~sum);
         }
 
@@ -643,12 +630,10 @@ namespace BK7231Flasher
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
 
-            // Always use 1 sector per read on the BootROM v3 path.
-            // PhoenixMC uses 4 at 921600 baud, but that is on the RAM-loader path
-            // (BROM version <= 1). On BootROM v3 the device returns an error flag after
-            // approximately 24 consecutive 4-sector reads. 1-sector reads are slower but
-            // the only mode confirmed to work on the BootROM v3 path.
-            const int sectorsPerRead = 1;
+            // Match PhoenixMC ReadFlashLength: 4 sectors per command at 921600 baud,
+            // 1 sector at 115200. With the correct plain-16 checksum this is safe on the
+            // BootROM v3 path. The previous 1-sector workaround was masking the checksum bug.
+            int sectorsPerRead = (serial.BaudRate > XR_ROM_BAUD) ? 4 : 1;
             for (int s = 0; s < totalSectors && !isCancelled; )
             {
                 int thisCount = Math.Min(sectorsPerRead, totalSectors - s);
