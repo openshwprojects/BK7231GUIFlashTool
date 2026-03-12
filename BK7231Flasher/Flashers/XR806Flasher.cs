@@ -222,10 +222,8 @@ namespace BK7231Flasher
         // -----------------------------------------------------------------------
 
         // BROM packet header checksum and write data checksum — same algorithm for both.
-        // Confirmed from PhoenixMC ELF: plain 16-bit word accumulation with natural uint16
-        // overflow truncation. NO carry fold. RFC1071 diverges by 1 when the partial sum
-        // exceeds 0xFFFF (sector index >= ~96, or write commands with large data-checksum
-        // fields), causing the device to reject the packet.
+        // Confirmed from PhoenixMC ELF: plain 16-bit word accumulation, natural uint16
+        // overflow, NO carry fold. RFC1071 diverges by 1 when sum exceeds 0xFFFF.
         static ushort ComputeChecksum(byte[] data, int offset, int count)
         {
             ushort sum = 0;
@@ -767,30 +765,14 @@ namespace BK7231Flasher
             return sum == 0xFFFF;
         }
 
-        // Parse an AWIH section chain (.img or .bin), validate all sections, log the
-        // layout table, and return the effective byte length of the image.
-        //
-        // Column layout (all values fixed-width so the table never shifts):
-        //   Idx 7, Section 9, Offset 0xXXXXXX(8), Size 0xXXXXXX(8),
-        //   LoadAddr 0xXXXXXXXX(10), Entry 0xXXXXXXXXXX(12)
-        // Between-pipe widths: 9, 11, 10, 10, 12, 14  → total row = 74 chars
-        const string TABLE_DIV = " +---------+-----------+----------+----------+------------+--------------+";
-        const string TABLE_HDR = " | Idx     | Section   | Offset   | Size     | LoadAddr   | Entry Point  |";
-
+        // Parse an AWIH section chain, validate checksums, log the section list,
+        // and return the effective image byte length.
         int GetXRImageEffectiveLength(byte[] image, bool logLayout)
         {
-            if (logLayout)
-            {
-                addLogLine("");
-                addLogLine(" XR806 Firmware Section Layout");
-                addLogLine(TABLE_DIV);
-                addLogLine(TABLE_HDR);
-                addLogLine(TABLE_DIV);
-            }
-
             int offset    = 0;
             int loopGuard = 0;
             int lastEnd   = 0;
+            var sections  = new System.Collections.Generic.List<string>();
 
             while (true)
             {
@@ -821,13 +803,11 @@ namespace BK7231Flasher
 
                 lastEnd = dataOffset + dataSize;
 
-                if (logLayout)
-                {
-                    string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n)
-                                  ? n : $"0x{hdr.SectionId:X8}";
-                    addLogLine(
-                        $" | {loopGuard,-7} | {name,-9} | 0x{offset:X6} | 0x{dataSize:X6} | 0x{hdr.LoadAddr:X8} | 0x{hdr.Entry:X10} |");
-                }
+                string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n)
+                              ? n : $"0x{hdr.SectionId:X8}";
+                sections.Add(
+                    $"  [{loopGuard}] {name,-9}  offset=0x{offset:X6}  size=0x{dataSize:X6}" +
+                    $"  load=0x{hdr.LoadAddr:X8}  entry=0x{hdr.Entry:X10}");
 
                 if (++loopGuard > 100)
                     throw new InvalidDataException("Too many sections (> 100); likely corrupt image.");
@@ -840,9 +820,9 @@ namespace BK7231Flasher
 
             if (logLayout)
             {
-                addLogLine(TABLE_DIV);
-                addLogLine($"  Total sections : {loopGuard}");
-                addLogLine($"  Effective size : 0x{lastEnd:X}  ({lastEnd} bytes)");
+                addLogLine("");
+                addLogLine($"  XR806 Firmware Sections  ({loopGuard} sections, {lastEnd} bytes)");
+                foreach (string s in sections) addLogLine(s);
                 addLogLine("");
             }
 
@@ -988,7 +968,7 @@ namespace BK7231Flasher
 
                     if (ext == ".img")
                     {
-                        // .img must be a valid AWIH chain (PhoenixMC FwParser path).
+                        // .img must be a valid AWIH chain (matches PhoenixMC FwParser path).
                         if (fileData.Length < 4 || BitConverter.ToUInt32(fileData, 0) != AWIH_MAGIC)
                         {
                             addErrorLine($"Not a valid XR .img: missing AWIH magic (0x{AWIH_MAGIC:X8}).");
@@ -1000,13 +980,12 @@ namespace BK7231Flasher
                     }
                     else if (ext == ".bin")
                     {
-                        // .bin is a raw write in PhoenixMC (FlashOperate path, no FwParser).
-                        // As a courtesy, if the file starts with AWIH we parse and print the
-                        // layout and derive the effective length; otherwise write the full file.
+                        // .bin is a raw write in PhoenixMC (no FwParser, no AWIH requirement).
+                        // If it happens to start with AWIH, parse and show the layout anyway.
                         if (fileData.Length >= 4 && BitConverter.ToUInt32(fileData, 0) == AWIH_MAGIC)
                         {
                             try { effectiveLen = GetXRImageEffectiveLength(fileData, logLayout: true); writeAddress = 0; }
-                            catch { /* not a valid chain – fall through to raw */ }
+                            catch { /* not a valid chain – write full file raw */ }
                         }
                         addLogLine($"Flashing XR .bin: 0x{effectiveLen:X} bytes to offset 0x{writeAddress:X6}");
                     }
