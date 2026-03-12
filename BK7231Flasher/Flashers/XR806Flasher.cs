@@ -36,14 +36,14 @@ namespace BK7231Flasher
         const byte OP_READ               = 0x1A;
         const byte OP_WRITE              = 0x1B;
 
-        // Baud rates supported by PhoenixMC (name_arr from ELF data section 0x6182c0).
-        // XR806 BROM v3 additionally caps the working baud at XR_MAX_WORK_BAUD (921600).
-        // The ROM always starts at 115200; valid working bauds are entries > 115200.
+        // Baud rates from PhoenixMC name_arr (ELF 0x6182c0). BROM v3 caps at XR_MAX_WORK_BAUD.
         static readonly int[] SUPPORTED_BAUDS = { 115200, 230400, 460800, 921600 };
 
         // Known-good hardcoded request (checksum pre-verified against PhoenixMC)
         static readonly byte[] GET_FLASH_ID_REQUEST = new byte[]
             { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51, 0x00, 0x00, 0x00, 0x01, 0x18 };
+
+        static readonly byte[] BROM_MAGIC = new byte[] { (byte)'B', (byte)'R', (byte)'O', (byte)'M' };
 
         // Known XR .img section IDs
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
@@ -221,18 +221,11 @@ namespace BK7231Flasher
         //     Confirmed from WriteSector SIMD (paddw) loop in the ELF.
         // -----------------------------------------------------------------------
 
-        // BROM packet header checksum — and write data checksum (same algorithm for both).
-        //
-        // Confirmed from PhoenixMC ELF (GetFlashId, ReadSector, WriteSector, EraseFlash,
-        // ChangeBaud): plain 16-bit word accumulation with natural uint16 overflow truncation.
-        // NO carry fold. The assembly is simply:
-        //   ADD AX, WORD PTR [buf+n]  (repeated over preimage with LE payload, LE length)
-        //   NOT AX
-        //   ROL AX, 8 / MOV WORD PTR [buf+6], AX   ← stored LE, giving big-endian wire bytes
-        //
-        // RFC1071 (carry-folded) produces the same result only when the sum stays <= 0xFFFF.
-        // It diverges by 1 for sector indices >= ~96 and write commands with large checksum
-        // fields — causing the device to reject the packet.
+        // BROM packet header checksum and write data checksum — same algorithm for both.
+        // Confirmed from PhoenixMC ELF: plain 16-bit word accumulation with natural uint16
+        // overflow truncation. NO carry fold. RFC1071 (carry-folded) diverges by 1 when
+        // the sum exceeds 0xFFFF (e.g. sector index >= ~96, or write commands with large
+        // data-checksum fields) — causing the device to reject those packets.
         static ushort ComputeChecksum(byte[] data, int offset, int count)
         {
             ushort sum = 0;
@@ -243,9 +236,6 @@ namespace BK7231Flasher
                 sum += data[offset + count - 1];
             return (ushort)(~sum);
         }
-
-        // BuildPhoenixPacket uses ComputeChecksum (see above) for the header.
-        // WriteSectors also uses ComputeChecksum for the data payload checksum.
 
         byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire)
         {
@@ -501,28 +491,20 @@ namespace BK7231Flasher
             return true;
         }
 
-        // Validate the requested working baud against PhoenixMC's name_arr list and the
-        // XR806 BROM v3 hard cap. Returns the clamped/validated baud, or -1 on failure.
         int ValidateWorkingBaud(int requestedBaud)
         {
-            // Clamp to BROM v3 maximum (OpenUart does this silently; we do it explicitly)
             if (requestedBaud > XR_MAX_WORK_BAUD)
             {
-                addWarningLine($"Requested baud {requestedBaud} exceeds XR806 BROM v3 maximum " +
-                               $"({XR_MAX_WORK_BAUD}). Clamping to {XR_MAX_WORK_BAUD}.");
+                addWarningLine($"Baud {requestedBaud} exceeds XR806 BROM v3 cap; clamping to {XR_MAX_WORK_BAUD}.");
                 requestedBaud = XR_MAX_WORK_BAUD;
             }
-
-            // Must be one of PhoenixMC's supported bauds (name_arr) and > ROM baud
             bool found = false;
-            foreach (int b in SUPPORTED_BAUDS)
-                if (b == requestedBaud) { found = true; break; }
-
+            foreach (int b in SUPPORTED_BAUDS) if (b == requestedBaud) { found = true; break; }
             if (!found || requestedBaud <= XR_ROM_BAUD)
             {
                 addErrorLine($"Baud {requestedBaud} is not supported by the XR806 BROM.");
                 addErrorLine("Supported working bauds: " +
-                             string.Join(", ", System.Array.FindAll(SUPPORTED_BAUDS, b => b > XR_ROM_BAUD)));
+                    string.Join(", ", System.Array.FindAll(SUPPORTED_BAUDS, b => b > XR_ROM_BAUD)));
                 return -1;
             }
             return requestedBaud;
@@ -530,18 +512,13 @@ namespace BK7231Flasher
 
         bool EnsureConnectedAndIdentified()
         {
-            // Determine working baud from UI setting (this.baudrate), validated against
-            // PhoenixMC's supported list and the BROM v3 cap.
             int workBaud = ValidateWorkingBaud(this.baudrate);
             if (workBaud < 0) return false;
-
-            if (!Sync())         return false;
-            if (!ReadFlashId())  return false;
+            if (!Sync())        return false;
+            if (!ReadFlashId()) return false;
             if (!ChangeBaudAndResync(workBaud)) return false;
-
             if (bromVersion != 0x03)
-                addWarningLine($"Warning: unexpected BROM version 0x{bromVersion:X2} for XR806 " +
-                               "(expected 0x03). Proceeding anyway.");
+                addWarningLine($"Unexpected BROM version 0x{bromVersion:X2} (expected 0x03). Proceeding.");
             return true;
         }
 
@@ -655,9 +632,6 @@ namespace BK7231Flasher
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
 
-            // Match PhoenixMC ReadFlashLength: 4 sectors per command at 921600 baud,
-            // 1 sector at lower bauds. The previous 1-sector workaround was masking the
-            // checksum bug; with the correct plain-16 checksum this is safe.
             int sectorsPerRead = (serial.BaudRate >= XR_MAX_WORK_BAUD) ? 4 : 1;
             for (int s = 0; s < totalSectors && !isCancelled; )
             {
@@ -793,17 +767,27 @@ namespace BK7231Flasher
             return sum == 0xFFFF;
         }
 
-        // Parse the .img, validate all sections, log the layout, return effective length.
+        // Parse the .img or .bin (AWIH chain), validate all sections, log the layout,
+        // return the effective byte length (offset of last byte of last section).
         int GetXRImageEffectiveLength(byte[] image, bool logLayout)
         {
+            // Column widths (all values fixed-width hex so the table never shifts):
+            //   Idx      3   right
+            //   Section  9   left  ("wlan_sdd" = 8 + 1 pad)
+            //   Offset   8   "0xXXXXXX"    (24-bit max)
+            //   Size     8   "0xXXXXXX"
+            //   LoadAddr 10  "0xXXXXXXXX"  (32-bit)
+            //   Entry    12  "0xXXXXXXXXXX" (PhoenixMC shows 10 hex digits)
+            const string DIV  = " +---------+-----------+----------+----------+------------+------------+";
+            const string HDR  = " | Idx     | Section   | Offset   | Size     | LoadAddr   | Entry Point|";
+
             if (logLayout)
             {
                 addLogLine("");
-                addLogLine("┌─────────────────────────────────────────────────────────────────────┐");
-                addLogLine("│                   XR806 Firmware Section Layout                     │");
-                addLogLine("├────────┬───────────┬──────────┬──────────┬──────────┬───────────────┤");
-                addLogLine("│  Idx   │  Section  │  Offset  │   Size   │ LoadAddr │  Entry Point  │");
-                addLogLine("├────────┼───────────┼──────────┼──────────┼──────────┼───────────────┤");
+                addLogLine(" XR806 Firmware Section Layout");
+                addLogLine(DIV);
+                addLogLine(HDR);
+                addLogLine(DIV);
             }
 
             int  offset    = 0;
@@ -814,11 +798,11 @@ namespace BK7231Flasher
             {
                 if (offset < 0 || offset + 0x40 > image.Length)
                     throw new InvalidDataException(
-                        $"XR .img section header at 0x{offset:X} is out of range.");
+                        $"XR section header at 0x{offset:X} is out of range.");
 
                 XRImageSectionHeader hdr = ParseSectionHeader(image, offset);
 
-                if (hdr.Magic != 0x48495741)
+                if (hdr.Magic != AWIH_MAGIC)
                     throw new InvalidDataException(
                         $"Bad AWIH magic at offset 0x{offset:X}: 0x{hdr.Magic:X8}");
 
@@ -841,9 +825,10 @@ namespace BK7231Flasher
 
                 if (logLayout)
                 {
-                    string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n) ? n : $"0x{hdr.SectionId:X8}";
+                    string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n)
+                                  ? n : $"0x{hdr.SectionId:X8}";
                     addLogLine(
-                        $"│ {loopGuard,5}  │ {name,-9} │ 0x{offset:X6}  │ 0x{dataSize:X6} │ 0x{hdr.LoadAddr:X6} │ 0x{hdr.Entry:X10}  │");
+                        $" | {loopGuard,-7} | {name,-9} | 0x{offset:X6} | 0x{dataSize:X6} | 0x{hdr.LoadAddr:X8} | 0x{hdr.Entry:X10} |");
                 }
 
                 if (++loopGuard > 100)
@@ -857,9 +842,9 @@ namespace BK7231Flasher
 
             if (logLayout)
             {
-                addLogLine("└────────┴───────────┴──────────┴──────────┴──────────┴───────────────┘");
+                addLogLine(DIV);
                 addLogLine($"  Total sections : {loopGuard}");
-                addLogLine($"  Effective size : 0x{lastEnd:X6}  ({lastEnd} bytes)");
+                addLogLine($"  Effective size : 0x{lastEnd:X}  ({lastEnd} bytes)");
                 addLogLine("");
             }
 
@@ -998,34 +983,46 @@ namespace BK7231Flasher
                     }
 
                     addLogLine($"Loading {sourceFileName} ...");
-                    byte[] fileData      = File.ReadAllBytes(sourceFileName);
-                    int    writeAddress  = startSector * BK7231Flasher.SECTOR_SIZE;
-                    int    effectiveLen  = fileData.Length;
-                    string ext           = Path.GetExtension(sourceFileName).ToLowerInvariant();
+                    byte[] fileData     = File.ReadAllBytes(sourceFileName);
+                    int    writeAddress = startSector * BK7231Flasher.SECTOR_SIZE;
+                    int    effectiveLen = fileData.Length;
+                    string ext          = Path.GetExtension(sourceFileName).ToLowerInvariant();
 
-                    bool isImg = ext == ".img";
-                    bool isBin = ext == ".bin";
-
-                    // Both .img and .bin must begin with AWIH magic (0x48495741).
-                    // PhoenixMC's FwParser::Parse checks this at byte 0 before anything else.
-                    if (fileData.Length < 4 ||
-                        BitConverter.ToUInt32(fileData, 0) != AWIH_MAGIC)
+                    if (ext == ".img")
                     {
-                        addErrorLine($"File does not start with AWIH magic (0x{AWIH_MAGIC:X8} / \"AWIH\").");
-                        addErrorLine("Only XR806 firmware images with a valid AWIH section chain are supported.");
-                        return;
-                    }
-
-                    if (isImg || isBin)
-                    {
-                        // Parse, validate checksums, and print the section layout table.
+                        // .img: must be a valid AWIH section chain.  PhoenixMC's FwParser
+                        // checks the AWIH magic immediately after reading the first header,
+                        // then validates header + data checksums for every section.
+                        // Always flashes to offset 0.
+                        if (fileData.Length < 4 || BitConverter.ToUInt32(fileData, 0) != AWIH_MAGIC)
+                        {
+                            addErrorLine($"Not a valid XR .img: missing AWIH magic (0x{AWIH_MAGIC:X8}).");
+                            return;
+                        }
                         effectiveLen = GetXRImageEffectiveLength(fileData, logLayout: true);
-                        writeAddress = 0;   // AWIH images always flash from offset 0
-                        addLogLine($"Validated XR firmware ({ext}): flashing 0x{effectiveLen:X} bytes to flash offset 0x000000");
+                        writeAddress = 0;
+                        addLogLine($"Validated XR .img: flashing 0x{effectiveLen:X} bytes to offset 0x000000");
+                    }
+                    else if (ext == ".bin")
+                    {
+                        // .bin: PhoenixMC treats this as a raw binary (FlashOperate write path,
+                        // no FwParser, no AWIH check). We match that exactly.
+                        // As a courtesy, if the file happens to start with AWIH we parse and
+                        // print the section layout, but we do NOT require it.
+                        if (fileData.Length >= 4 && BitConverter.ToUInt32(fileData, 0) == AWIH_MAGIC)
+                        {
+                            try   { effectiveLen = GetXRImageEffectiveLength(fileData, logLayout: true); writeAddress = 0; }
+                            catch { /* not a valid chain — fall through to raw write */ }
+                            addLogLine($"Flashing XR .bin (AWIH): 0x{effectiveLen:X} bytes to offset 0x{writeAddress:X6}");
+                        }
+                        else
+                        {
+                            addLogLine($"Flashing raw .bin: 0x{effectiveLen:X} bytes to offset 0x{writeAddress:X6}");
+                        }
                     }
                     else
                     {
-                        addWarningLine($"Unrecognised extension '{ext}'; writing raw AWIH image at offset 0x{writeAddress:X6}.");
+                        addWarningLine($"Unrecognised extension '{ext}'; writing raw bytes at offset 0x{writeAddress:X6}.");
                     }
 
                     if (effectiveLen > flashSizeBytes)
