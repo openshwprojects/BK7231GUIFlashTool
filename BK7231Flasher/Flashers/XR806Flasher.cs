@@ -554,8 +554,12 @@ namespace BK7231Flasher
         // Requesting 32 sectors caused the device to fail silently.
         // -----------------------------------------------------------------------
 
-        // Read one or more 512-byte sectors. PhoenixMC uses 1 sector on the
-        // initial 115200 ROM path and 4 sectors after ChangeBaud to 921600.
+        // Read exactly one 512-byte sector.
+        // Although PhoenixMC's ReadFlashLength passes 4 sectors per call at 921600 baud,
+        // this is only proven safe on the RAM-loader path (BROM version <= 1).
+        // On the BROM v3 path (XR806) multi-sector reads cause the device to return
+        // an error flag after ~24 consecutive 4-sector requests (confirmed on hardware
+        // at address 0xC000). Always using 1 sector is the proven-safe BootROM behaviour.
         byte[] ReadSectors(int sectorIndex, int sectorCount)
         {
             byte[] pkt = BuildReadPacket(sectorIndex, sectorCount);
@@ -564,6 +568,13 @@ namespace BK7231Flasher
             int payloadTimeout = (serial.BaudRate > XR_ROM_BAUD) ? 2000 : 4000;
             BROMResponse resp = ExecuteRawPacket(pkt, 4000, payloadTimeout, true);
 
+            if (resp.IsError)
+            {
+                // One retry: drain any stale bytes then resend
+                addWarningLine($"Read error for sector {sectorIndex}, retrying...");
+                DrainInput(50, 300);
+                resp = ExecuteRawPacket(pkt, 4000, payloadTimeout, true);
+            }
             if (resp.IsError)
             {
                 addErrorLine($"Read returned error flag for sector {sectorIndex}.");
@@ -634,7 +645,12 @@ namespace BK7231Flasher
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
 
-            int sectorsPerRead = (serial.BaudRate > XR_ROM_BAUD) ? 4 : 1;
+            // Always read 1 sector per command on the BROM v3 path.
+            // PhoenixMC's ReadFlashLength uses 4 sectors/cmd at 921600 baud, but this is
+            // only safe on the RAM-loader path (bVersion <= 1). On the BootROM v3 path the
+            // device returns an error flag after ~24 consecutive 4-sector reads.
+            // 1 sector/cmd is slower but is the proven-correct BootROM v3 behaviour.
+            const int sectorsPerRead = 1;
             for (int s = 0; s < totalSectors && !isCancelled; )
             {
                 int thisCount = Math.Min(sectorsPerRead, totalSectors - s);
