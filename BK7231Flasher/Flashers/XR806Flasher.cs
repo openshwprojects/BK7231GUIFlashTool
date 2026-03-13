@@ -381,12 +381,15 @@ namespace BK7231Flasher
 
                 if (got == 2 && reply[0] == 'O' && reply[1] == 'K')
                 {
-                    addLogLine("Sync OK!");
+                    // Only mention the attempt number if it wasn't the first try,
+                    // so a normal first-attempt fail (port not yet settled) stays silent.
+                    if (attempt > 1)
+                        addLogLine($"Sync OK (attempt {attempt})");
+                    else
+                        addLogLine("Sync OK");
                     DrainInput();
                     return true;
                 }
-                if (attempt < 5)
-                    addLogLine($"Sync attempt {attempt}/5 failed, retrying...");
             }
             addErrorLine("Sync failed after 5 attempts.");
             return false;
@@ -523,7 +526,7 @@ namespace BK7231Flasher
             if (bromVersion != 0x03)
                 addWarningLine($"Unexpected BROM version 0x{bromVersion:X2} – expected 0x03.  Proceeding.");
 
-            return ChangeBaudAndResync(XR_WORK_BAUD);
+            return ChangeBaudAndResync(this.baudrate);
         }
 
         // ChangeBaudEj (0x40a9f0) + ChangeUartBaudEv (0x40abe0) + Synchron
@@ -683,6 +686,7 @@ namespace BK7231Flasher
 
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
+            addLog("Reading: ");
 
             for (int s = 0; s < totalSectors && !isCancelled; )
             {
@@ -693,6 +697,7 @@ namespace BK7231Flasher
                         $"Read failed at sector {startSector + s} " +
                         $"(0x{startAddress + s * XR_SECTOR_SIZE:X6}).");
 
+                addLog($"0x{startAddress + s * XR_SECTOR_SIZE:X6} ");
                 int take = Math.Min(count * XR_SECTOR_SIZE, length - done);
                 Buffer.BlockCopy(chunk, 0, result, done, take);
                 done += take;
@@ -700,6 +705,7 @@ namespace BK7231Flasher
                 logger.setProgress(s, totalSectors);
             }
 
+            addLog(Environment.NewLine);
             logger.setState("Read complete", Color.DarkGreen);
             return result;
         }
@@ -722,18 +728,21 @@ namespace BK7231Flasher
 
             logger.setProgress(0, total);
             logger.setState("Erasing...", Color.Transparent);
+            addLog("Erasing: ");
 
             for (int addr = eraseStart; addr < eraseEnd && !isCancelled; addr += XR_ERASE_BLOCK_SIZE)
             {
-                addLogLine($"  Erasing 64 KB block at 0x{addr:X6}");
+                addLog($"0x{addr:X6} ");
                 if (!Erase64KBlock(addr))
                 {
+                    addLog(Environment.NewLine);
                     logger.setState("Erase failed", Color.Red);
                     return false;
                 }
                 logger.setProgress(++done, total);
             }
 
+            addLog(Environment.NewLine);
             logger.setState("Erase complete", Color.DarkGreen);
             return !isCancelled;
         }
@@ -751,6 +760,7 @@ namespace BK7231Flasher
 
             logger.setProgress(0, total);
             logger.setState("Writing...", Color.Transparent);
+            addLog("Writing: ");
 
             for (int offset = 0; offset < data.Length && !isCancelled; )
             {
@@ -763,18 +773,19 @@ namespace BK7231Flasher
                 int sectorIndex = (startAddress + offset) / XR_SECTOR_SIZE;
                 int sectorCount = chunk.Length / XR_SECTOR_SIZE;
 
-                addLog($"  0x{startAddress + offset:X6}  ");
+                addLog($"0x{startAddress + offset:X6} ");
                 if (!WriteSectors(sectorIndex, chunk, sectorCount))
                 {
+                    addLog(Environment.NewLine);
                     logger.setState("Write failed", Color.Red);
                     return false;
                 }
-                addLogLine("OK");
 
                 offset += chunkBytes;
                 logger.setProgress(++done, total);
             }
 
+            addLog(Environment.NewLine);
             logger.setState("Write complete", Color.DarkGreen);
             return !isCancelled;
         }
@@ -833,7 +844,7 @@ namespace BK7231Flasher
             return sum == 0xFFFF;
         }
 
-        int ValidateAndLogImgLayout(byte[] img)
+        int ValidateAndLogImgLayout(byte[] img, bool logLayout = true)
         {
             int offset  = 0;
             int count   = 0;
@@ -866,13 +877,13 @@ namespace BK7231Flasher
 
                 lastEnd = dataOffset + dataSize;
 
-                string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n)
-                              ? n : $"id_{hdr.SectionId:X8}";
-
-                // Labeled-field format: log box uses a proportional font so
-                // ASCII-art column borders cannot be made to align reliably.
-                addLogLine($"  [{count}] {name}");
-                addLogLine($"      offset=0x{offset:X6}  size=0x{dataSize:X6}  load=0x{hdr.LoadAddr:X8}  entry=0x{hdr.Entry:X8}");
+                if (logLayout)
+                {
+                    string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n)
+                                  ? n : $"id_{hdr.SectionId:X8}";
+                    addLogLine($"  [{count}] {name}");
+                    addLogLine($"      offset=0x{offset:X6}  size=0x{dataSize:X6}  load=0x{hdr.LoadAddr:X8}  entry=0x{hdr.Entry:X8}");
+                }
 
                 if (++count > 100)
                     throw new InvalidDataException("More than 100 sections – likely corrupt image.");
@@ -881,7 +892,8 @@ namespace BK7231Flasher
                 offset = (int)hdr.NextAddr;
             }
 
-            addLogLine($"  {count} section(s), effective size 0x{lastEnd:X} ({lastEnd} bytes)");
+            if (logLayout)
+                addLogLine($"  {count} section(s), effective size 0x{lastEnd:X} ({lastEnd} bytes)");
             return lastEnd;
         }
 
@@ -987,7 +999,9 @@ namespace BK7231Flasher
                     length    = sectors     * BK7231Flasher.SECTOR_SIZE;
                     addLogLine($"Partial erase: 0x{startAddr:X6} + 0x{length:X6} bytes");
                 }
-                return InternalEraseRange(startAddr, length);
+                bool ok = InternalEraseRange(startAddr, length);
+                if (ok) addSuccess("Erase complete!" + Environment.NewLine);
+                return ok;
             }
             catch (OperationCanceledException)
             {
@@ -1049,22 +1063,14 @@ namespace BK7231Flasher
 
                 if (ext == ".img")
                 {
-                    // Full FwParser-equivalent validation with layout log
-                    effectiveLen = ValidateAndLogImgLayout(fileData);
+                    // Validate now (throws on bad checksum/magic) but defer layout log
+                    // to just before write so it doesn't appear before the erase step.
+                    effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
                     writeAddress = 0;
-                    addLogLine($"Validated .img: writing 0x{effectiveLen:X} bytes to offset 0x000000");
+                    addLogLine($"Validated .img: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
                 }
                 else if (ext == ".bin")
                 {
-                    // Raw write path – matches PhoenixMC -B flag (no FwParser, no AWIH check).
-                    // Opportunistically show layout if AWIH is present.
-                    if (fileData.Length >= 4 &&
-                        BitConverter.ToUInt32(fileData, 0) == 0x48495741)
-                    {
-                        addLogLine(".bin starts with AWIH – showing layout:");
-                        try { ValidateAndLogImgLayout(fileData); }
-                        catch (Exception ex) { addWarningLine("Layout parse error: " + ex.Message); }
-                    }
                     addWarningLine($"Writing raw .bin at byte offset 0x{writeAddress:X6}.");
                 }
                 else
@@ -1086,7 +1092,20 @@ namespace BK7231Flasher
                 if (!InternalEraseRange(writeAddress, effectiveLen)) return;
                 if (isCancelled) return;
 
-                addLogLine("Writing firmware...");
+                // Show layout now, just before writing, so it appears in context
+                if (ext == ".img")
+                {
+                    addLogLine("Image layout:");
+                    ValidateAndLogImgLayout(fileData, logLayout: true);
+                }
+                else if (ext == ".bin" &&
+                         fileData.Length >= 4 &&
+                         BitConverter.ToUInt32(fileData, 0) == 0x48495741)
+                {
+                    addLogLine(".bin starts with AWIH – layout:");
+                    try { ValidateAndLogImgLayout(fileData, logLayout: true); }
+                    catch (Exception ex) { addWarningLine("Layout parse error: " + ex.Message); }
+                }
                 if (!InternalWrite(writeAddress, toWrite)) return;
 
                 addSuccess("XR806 flash write complete!" + Environment.NewLine);
