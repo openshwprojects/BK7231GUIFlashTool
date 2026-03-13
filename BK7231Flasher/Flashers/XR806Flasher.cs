@@ -471,18 +471,18 @@ namespace BK7231Flasher
             }
 
             flashID = resp.Payload;
-            addLogLine($"BROM version : 0x{bromVersion:X2}");
+            addLogLine($"BROM version : {bromVersion}");
             addLogLine($"Flash ID     : {flashID[0]:X2} {flashID[1]:X2} {flashID[2]:X2}");
 
-            if (flashID[2] >= 0x11 && flashID[2] <= 0x20)
+            // JEDEC size byte: e.g. 0x15 → 1 << (0x15 - 0x11) = 16 Mbit = 2 MB
+            if (flashID.Length >= 3 && flashID[2] >= 0x11 && flashID[2] <= 0x20)
             {
                 flashSizeBytes = (1 << (flashID[2] - 0x11)) * 0x20000;
-                addLogLine($"Flash size   : {flashSizeBytes / 0x100000} MB  " +
-                           $"(JEDEC capacity byte 0x{flashID[2]:X2})");
+                addLogLine($"Flash size   : {flashSizeBytes / 0x100000} MB");
             }
             else
             {
-                addWarningLine("JEDEC capacity byte out of expected range – defaulting to 2 MB.");
+                addWarningLine("Could not decode flash size from JEDEC ID; defaulting to 2 MB.");
             }
             return true;
         }
@@ -835,13 +835,6 @@ namespace BK7231Flasher
 
         int ValidateAndLogImgLayout(byte[] img)
         {
-            addLogLine("");
-            addLogLine("┌─────────────────────────────────────────────────────────────────────┐");
-            addLogLine("│                    XR806 .img Section Layout                        │");
-            addLogLine("├────────┬───────────┬──────────┬──────────┬──────────┬───────────────┤");
-            addLogLine("│  Idx   │  Section  │  Offset  │   Size   │ LoadAddr │  Entry Point  │");
-            addLogLine("├────────┼───────────┼──────────┼──────────┼──────────┼───────────────┤");
-
             int offset  = 0;
             int count   = 0;
             int lastEnd = 0;
@@ -875,9 +868,11 @@ namespace BK7231Flasher
 
                 string name = SECTION_NAMES.TryGetValue(hdr.SectionId, out string n)
                               ? n : $"id_{hdr.SectionId:X8}";
-                addLogLine(
-                    $"│ [{count,2}]   │ {name,-9} │ 0x{offset:X6}  │ 0x{dataSize:X6} │" +
-                    $" 0x{hdr.LoadAddr:X6} │ 0x{hdr.Entry:X10}  │");
+
+                // Labeled-field format: log box uses a proportional font so
+                // ASCII-art column borders cannot be made to align reliably.
+                addLogLine($"  [{count}] {name}");
+                addLogLine($"      offset=0x{offset:X6}  size=0x{dataSize:X6}  load=0x{hdr.LoadAddr:X8}  entry=0x{hdr.Entry:X8}");
 
                 if (++count > 100)
                     throw new InvalidDataException("More than 100 sections – likely corrupt image.");
@@ -886,9 +881,7 @@ namespace BK7231Flasher
                 offset = (int)hdr.NextAddr;
             }
 
-            addLogLine("└────────┴───────────┴──────────┴──────────┴──────────┴───────────────┘");
-            addLogLine($"  Sections: {count}   Effective size: 0x{lastEnd:X}  ({lastEnd} bytes)");
-            addLogLine("");
+            addLogLine($"  {count} section(s), effective size 0x{lastEnd:X} ({lastEnd} bytes)");
             return lastEnd;
         }
 
