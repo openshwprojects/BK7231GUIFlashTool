@@ -12,28 +12,27 @@ namespace BK7231Flasher
     public class XR806Flasher : BaseFlasher
     {
         // =====================================================================
-        // Constants  (all confirmed against PhoenixMC ELF)
+        // Constants
         // =====================================================================
 
         const int  XR_ROM_BAUD         = 115200;    // BROM default after reset
-        const int  XR_WORK_BAUD        = 921600;    // 0xe1000 – BROM v3 hard cap (0x40e9c7: cmp r14d,0xe1000; ja → clamp)
+        const int  XR_WORK_BAUD        = 921600;    // BROM v3 hard cap
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
         const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB granularity
-        const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB (WriteFlashLength: 0x410005 mov edx,0x4000)
-        const int  XR_WRITE_SECTORS    = XR_WRITE_CHUNK_SIZE / XR_SECTOR_SIZE;  // 32
+        const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
 
         // BROM packet byte constants
-        const byte BROM_HOST_FLAGS     = 0x04;      // always; flags[1]=0x00 (confirmed from every packet builder)
-        const byte BROM_FLAG_ERROR     = 0x01;      // CheckAckEv (0x409e2c): test al,0x1
+        const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte; high byte always 0x00
+        const byte BROM_FLAG_ERROR     = 0x01;      // bit 0 of device→host flags byte = command failed
 
-        // Opcodes  (confirmed from ELF function bodies)
+        // Opcodes
         const byte OP_CHANGE_BAUD      = 0x10;
         const byte OP_GET_FLASH_ID     = 0x18;
         const byte OP_ERASE            = 0x19;
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
 
-        // Known-good 13-byte GetFlashId request (checksum pre-verified against ELF)
+        // Known-good 13-byte GetFlashId request (bytes pre-verified by hand)
         static readonly byte[] GET_FLASH_ID_REQUEST =
             { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51, 0x00, 0x00, 0x00, 0x01, 0x18 };
 
@@ -63,8 +62,7 @@ namespace BK7231Flasher
         {
             public byte   Flags;
             public byte   BromVersion;
-            public ushort Checksum;         // parsed but intentionally not validated –
-                                            // PhoenixMC CheckAckEv never validates it either
+            public ushort Checksum;         // present in header but never validated by the BROM
             public int    PayloadLength;
             public byte[] Payload;
             public bool   IsError => (Flags & BROM_FLAG_ERROR) != 0;
@@ -95,23 +93,16 @@ namespace BK7231Flasher
         // =====================================================================
         // Checksum
         //
-        // ONE algorithm used for everything – plain 16-bit word accumulation, natural
-        // uint16 overflow, then bitwise NOT.  Confirmed from:
-        //   CFlashHost::CheckSum16 (0x4086d0) – used for all BROM packet headers
-        //   FwParser::CheckSum16   (0x411ba0) – used for .img section header + data
-        // Both compile to identical code (same SIMD paddw loop, same scalar tail).
+        // One algorithm for everything: plain 16-bit word accumulation with
+        // natural uint16 overflow, then bitwise NOT.
         //
-        // This is NOT RFC 1071.  RFC 1071 folds the 32-bit carry back into 16 bits;
-        // this code does not.  The two algorithms diverge whenever the running sum
-        // exceeds 0xFFFF, which happens at sector ~96 on a 2 MB flash read.
+        // This is NOT RFC 1071.  RFC 1071 folds carry back into 16 bits;
+        // this does not.  The two diverge when the running sum exceeds 0xFFFF,
+        // which happens around sector 96 on a 2 MB read.
         //
-        // Preimage rules for BROM packet headers (from OpenUartEv / WriteSectorEjPhj):
-        //   – logical-length field is little-endian in the preimage
-        //   – multi-byte payload fields are little-endian in the preimage
-        //   – checksum field is zeroed in the preimage
-        //   – odd trailing byte is added as-is (matches the scalar tail at 0x4088d4)
-        // The wire packet re-encodes: checksum big-endian (ROL ax,8 / store),
-        // logical-length big-endian, payload fields big-endian where noted.
+        // Used for BROM packet header checksums and .img section validation.
+        // Packet headers use a LE preimage (length and payload fields in LE,
+        // checksum field zeroed); the wire packet re-encodes to BE.
         // =====================================================================
         static ushort ComputeChecksum(byte[] data, int offset, int count)
         {
@@ -127,8 +118,8 @@ namespace BK7231Flasher
         // =====================================================================
         // Packet building
         //
-        // payloadPre  – payload bytes in checksum-preimage order (little-endian)
-        // payloadWire – same bytes in wire order (big-endian where applicable)
+        // payloadPre  – payload in checksum-preimage byte order (little-endian)
+        // payloadWire – same payload in wire byte order (big-endian where required)
         // =====================================================================
         byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire)
         {
@@ -157,7 +148,7 @@ namespace BK7231Flasher
             byte[] pkt = new byte[12 + logicalLen];
             pkt[0] = (byte)'B'; pkt[1] = (byte)'R'; pkt[2] = (byte)'O'; pkt[3] = (byte)'M';
             pkt[4] = BROM_HOST_FLAGS;
-            pkt[6]  = (byte)((cs >> 8) & 0xFF);          // ROL ax,8 then store (from ELF)
+            pkt[6]  = (byte)((cs >> 8) & 0xFF);   // checksum big-endian
             pkt[7]  = (byte)( cs       & 0xFF);
             pkt[8]  = (byte)((logicalLen >> 24) & 0xFF);
             pkt[9]  = (byte)((logicalLen >> 16) & 0xFF);
@@ -169,10 +160,7 @@ namespace BK7231Flasher
             return pkt;
         }
 
-        // EraseFlashEj (0x40ced0):
-        //   mov [rbx+0xd], 0x3     ← payload[0] = 0x03
-        //   bswap ebp              ← address big-endian
-        //   mov [rbx+0xe], ebp     ← payload[1..4] = address BE
+        // Erase packet: payload[0]=0x03, payload[1..4]=address BE.
         byte[] BuildErasePacket(int address)
         {
             var pre  = new byte[5];
@@ -189,7 +177,7 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(OP_ERASE, pre, wire);
         }
 
-        // ReadSectorEjPhj (0x40c620): 21-byte wire packet, 8-byte payload.
+        // Read packet: 21 bytes total, 8-byte payload (sectorIndex BE, sectorCount BE).
         byte[] BuildReadPacket(int sectorIndex, int sectorCount)
         {
             var pre  = new byte[8];
@@ -213,7 +201,7 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(OP_READ, pre, wire);
         }
 
-        // WriteSectorEjPhj (0x40f1e0): 23-byte wire packet, 10-byte payload.
+        // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
         byte[] BuildWritePacket(int sectorIndex, int sectorCount, ushort dataChecksum)
         {
             var pre  = new byte[10];
@@ -241,7 +229,7 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(OP_WRITE, pre, wire);
         }
 
-        // OpenUartEv (0x40e7a6): esi = baud | 0x03000000 before calling ChangeBaudEj
+        // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
         byte[] BuildChangeBaudPacket(int newBaud)
         {
             int val = newBaud | unchecked((int)0x03000000);
@@ -288,10 +276,9 @@ namespace BK7231Flasher
             return true;
         }
 
-        // Matches PhoenixMC CloseEv (0x40ace0):
-        //   ChangeBaud(115200|0x03000000)  → ChangeUartBaud(115200) → Synchron → UART_Close
-        // Leaves the device at 115200 so it doesn't need a power cycle to reconnect.
-        // Best-effort: failures are silently swallowed before calling base.closePort().
+        // Sends ChangeBaud(115200) to the device before closing so it returns to the
+        // default baud and doesn't need a power cycle to reconnect next session.
+        // Best-effort — any failure is swallowed; base.closePort() is always called.
         public override void closePort()
         {
             if (serial != null && serial.IsOpen && serial.BaudRate != XR_ROM_BAUD)
@@ -304,7 +291,6 @@ namespace BK7231Flasher
                     Thread.Sleep(60);
                     serial.BaudRate = XR_ROM_BAUD;
                     Thread.Sleep(40);
-                    // We skip re-Sync here; device will be reset before next session anyway.
                 }
                 catch { /* best-effort */ }
             }
@@ -356,10 +342,9 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Sync  (PhoenixMC Synchron at 0x409320)
+        // Sync
         //
-        // ebp = 5  → 5 attempts (0x40932a)
-        // Each attempt: write 0x55 (1 byte), read 2 bytes, compare with 'OK' (0x4b4f)
+        // Sends 0x55, expects "OK" (2 bytes) back, up to 5 attempts.
         // =====================================================================
         bool Sync()
         {
@@ -397,10 +382,6 @@ namespace BK7231Flasher
 
         // =====================================================================
         // Low-level packet exchange
-        //
-        // ReadBromResponse always reads exactly 12 header bytes then exactly
-        // PayloadLength bytes.  Throws IOException on any framing failure so
-        // callers can catch cleanly without partial-state issues.
         // =====================================================================
         BROMResponse ReadBromResponse(int headerTimeoutMs, int payloadTimeoutMs)
         {
@@ -421,8 +402,7 @@ namespace BK7231Flasher
                 Payload       = new byte[0],
             };
 
-            // CheckAckEv (0x409e2c) checks bit 1 (has-payload) then reads payload.
-            // It does NOT verify the checksum field.  We do the same.
+            // Response checksum is not validated; the BROM itself never checks it either.
             if (resp.PayloadLength > 0)
             {
                 byte[] payload = ReadExact(resp.PayloadLength, payloadTimeoutMs);
@@ -443,8 +423,8 @@ namespace BK7231Flasher
             serial.Write(pkt, 0, pkt.Length);
             serial.BaseStream.Flush();
 
-            // ReadSectorEjPhj (0x40c72e): usleep(0xC350) = 50 ms unconditionally
-            // between WriteMsgEPhj and ReadMsgEPhj on read commands.
+            // The BROM requires a 50 ms delay between sending a read command and
+            // reading back the response header.
             if (sleepBeforeRead)
                 Thread.Sleep(50);
 
@@ -454,11 +434,8 @@ namespace BK7231Flasher
         // =====================================================================
         // GetFlashId  (opcode 0x18)
         //
-        // ELF GetFlashIdEv (0x40aee0):
-        //   Sends 13-byte hardcoded packet; receives 12-byte header.
-        //   On success, CheckAckEv reads payload into [rbx+0x6084].
-        //   [rbx+0x6080] stores logicalLength (usually 3 for 3-byte JEDEC ID).
-        //   [rbx+0x402b] = BromVersion (flags[1] of response header).
+        // Returns a 3-byte JEDEC ID in the payload.  The second byte of the
+        // response header contains the BROM version.
         // =====================================================================
         bool ReadFlashId()
         {
@@ -491,25 +468,13 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Connection sequence  (mirrors OpenUartEv at 0x40e6b0)
+        // Connection sequence
         //
-        // Confirmed flow (BROM v3 / XR806 path):
-        //   1. Uart_Init at 115200                              (0x40e713)
-        //   2. Synchron                                         (0x40e762)
-        //   3. GetFlashId                                       (0x40e77c)
-        //   4. Check BromVersion at [rbx+0x6080]:
-        //      if version <= 1 → WriteMemoryLen + SetPC (RAM loader), then re-Sync (0x40e793)
-        //      if version >  1 → skip RAM loader, go straight to ChangeBaud  (0x40e7a0)
-        //   5. ChangeBaud(baud | 0x03000000)  [capped at 0xe1000 before call] (0x40e7a6/0x40e9c7)
-        //   6. ChangeUartBaud (host side)                       (0x40e7c5)
-        //   7. Synchron again at new baud                       (0x40e7d5)
-        //
-        // What PhoenixMC does on BROM v1 that we do NOT implement:
-        //   WriteMemoryLen(address=0x10000, data=<embedded blob>, len=0x16ec)
-        //   SetPC(0x10101)
-        //   Then switch baud + re-Sync + second pass through the same flow.
-        //   This is the RAM-loader stub upload path for older mask ROM chips.
-        //   XR806 is always BROM v3; this path is documented but not needed.
+        // 1. Sync at 115200
+        // 2. GetFlashId  (reads BROM version and JEDEC flash ID)
+        // 3. If BROM version > 1: ChangeBaud to working rate, re-Sync
+        //    If BROM version ≤ 1: RAM loader upload required — not supported here;
+        //    XR806 is always BROM v3.
         // =====================================================================
         bool EnsureConnectedAndIdentified()
         {
@@ -529,12 +494,12 @@ namespace BK7231Flasher
             return ChangeBaudAndResync(this.baudrate);
         }
 
-        // ChangeBaudEj (0x40a9f0) + ChangeUartBaudEv (0x40abe0) + Synchron
+        // Sends the ChangeBaud command, switches the host serial port, re-Syncs.
+        // The BROM v3 hard cap is 921600; anything higher is clamped.
         bool ChangeBaudAndResync(int newBaud)
         {
             if (newBaud <= XR_ROM_BAUD) return true;
 
-            // OpenUartEv (0x40e9c7): cmp r14d,0xe1000; ja → force g_baud=0xe1000
             if (newBaud > XR_WORK_BAUD)
             {
                 addWarningLine($"Baud {newBaud} exceeds BROM v3 cap; clamping to {XR_WORK_BAUD}.");
@@ -575,8 +540,8 @@ namespace BK7231Flasher
         // =====================================================================
         // Erase  (opcode 0x19)
         //
-        // EraseFlashEj (0x40ced0): sends 18-byte command, receives 12-byte ACK.
-        // No sleep in device-side function; we allow 8 s for worst-case 64 KB erase.
+        // Erases one 64 KB block.  No response payload; allow up to 8 s for
+        // the erase to complete before timing out.
         // =====================================================================
         bool Erase64KBlock(int address)
         {
@@ -593,15 +558,9 @@ namespace BK7231Flasher
         // =====================================================================
         // Read  (opcode 0x1A)
         //
-        // ReadSectorEjPhj (0x40c620):
-        //   WriteMsgEPhj(21 bytes)   ← send command
-        //   usleep(0xC350)           ← 50 ms unconditional
-        //   ReadMsgEPhj(12 bytes)    ← header
-        //   CheckAckEv               ← reads payload (sectorCount × 512 bytes)
-        //
-        // ReadFlashLengthEjPhj (0x40cdb0):
-        //   chunkSize = (baud == 0xe1000) ? 0x800 : 0x200
-        //   → 4 sectors per call at 921600, 1 sector per call otherwise
+        // The BROM requires a 50 ms delay after sending the command before the
+        // response header is available.  At 921600 baud, 4 sectors (2 KB) can
+        // be requested per call; at lower rates only 1 sector at a time.
         // =====================================================================
         byte[] ReadSectors(int sectorIndex, int sectorCount)
         {
@@ -631,24 +590,15 @@ namespace BK7231Flasher
         // =====================================================================
         // Write  (opcode 0x1B)
         //
-        // WriteSectorEjPhj (0x40f1e0) – two-stage protocol:
-        //   Stage 1: WriteMsgEPhj(23)   → ReadMsgEPhj(12)   command ACK
-        //   Stage 2: WriteMsgEPhj(data) → ReadMsgEPhj(12)   final write ACK
-        // No sleep between stages.
-        //
-        // Data checksum: ComputeChecksum over the sector data (same paddw algorithm,
-        // confirmed from the SIMD loop at 0x40f260–0x40f380).
-        //
-        // Sector buffer is zero-padded to a whole sector boundary.  In PhoenixMC this
-        // happens via memset(0x4000) at the top of WriteFlashLengthEjPhj; we replicate
-        // it with MiscUtils.padArray.
+        // Two-stage: send 23-byte command and receive ACK, then send raw sector
+        // data and receive a second ACK.  The data checksum is embedded in the
+        // command packet.  Buffers are zero-padded to a sector boundary.
         // =====================================================================
         bool WriteSectors(int sectorIndex, byte[] data, int sectorCount)
         {
             int    dataLen      = sectorCount * XR_SECTOR_SIZE;
             ushort dataChecksum = ComputeChecksum(data, 0, dataLen);
 
-            // Stage 1: write command → command ACK
             BROMResponse cmdAck = ExecuteRawPacket(
                 BuildWritePacket(sectorIndex, sectorCount, dataChecksum),
                 headerTimeoutMs:  3000,
@@ -659,7 +609,6 @@ namespace BK7231Flasher
                 return false;
             }
 
-            // Stage 2: send raw sector data → final ACK
             serial.Write(data, 0, dataLen);
             serial.BaseStream.Flush();
 
@@ -691,13 +640,13 @@ namespace BK7231Flasher
             for (int s = 0; s < totalSectors && !isCancelled; )
             {
                 int count = Math.Min(perRead, totalSectors - s);
+                addLog($"0x{startAddress + s * XR_SECTOR_SIZE:X6}... ");
                 byte[] chunk = ReadSectors(startSector + s, count);
                 if (chunk == null)
                     throw new IOException(
                         $"Read failed at sector {startSector + s} " +
                         $"(0x{startAddress + s * XR_SECTOR_SIZE:X6}).");
 
-                addLog($"0x{startAddress + s * XR_SECTOR_SIZE:X6} ");
                 int take = Math.Min(count * XR_SECTOR_SIZE, length - done);
                 Buffer.BlockCopy(chunk, 0, result, done, take);
                 done += take;
@@ -711,12 +660,9 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // High-level erase loop  (64 KB blocks, matches EraseFlashLengthEjj)
+        // High-level erase loop
         //
-        // EraseFlashLengthEjj (0x40d0c0):
-        //   eraseStart = startAddr & ~0xFFFF  (rounded down to 64 KB boundary)
-        //   loops in +0x10000 steps until address >= end
-        //   breaks immediately on error
+        // Aligns the start address down and end address up to 64 KB boundaries.
         // =====================================================================
         bool InternalEraseRange(int startAddress, int length)
         {
@@ -732,7 +678,7 @@ namespace BK7231Flasher
 
             for (int addr = eraseStart; addr < eraseEnd && !isCancelled; addr += XR_ERASE_BLOCK_SIZE)
             {
-                addLog($"0x{addr:X6} ");
+                addLog($"0x{addr:X6}... ");
                 if (!Erase64KBlock(addr))
                 {
                     addLog(Environment.NewLine);
@@ -748,10 +694,10 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // High-level write loop  (matches WriteFlashLengthEjPhj at 0x40ffa0)
+        // High-level write loop
         //
-        // PhoenixMC loop: chunk = 0x4000, sectors per write = 0x20 = 32.
-        // Last partial chunk: ⌈remainingBytes / 512⌉ sectors; zero-padded.
+        // Writes in 16 KB chunks (32 sectors).  The last chunk is zero-padded
+        // to a full sector boundary before being sent.
         // =====================================================================
         bool InternalWrite(int startAddress, byte[] data)
         {
@@ -766,14 +712,13 @@ namespace BK7231Flasher
             {
                 int chunkBytes = Math.Min(XR_WRITE_CHUNK_SIZE, data.Length - offset);
 
-                // Zero-pad to next sector boundary (replicates memset in WriteFlashLength)
                 byte[] chunk = MiscUtils.subArray(data, offset, chunkBytes);
                 chunk = MiscUtils.padArray(chunk, XR_SECTOR_SIZE);
 
                 int sectorIndex = (startAddress + offset) / XR_SECTOR_SIZE;
                 int sectorCount = chunk.Length / XR_SECTOR_SIZE;
 
-                addLog($"0x{startAddress + offset:X6} ");
+                addLog($"0x{startAddress + offset:X6}... ");
                 if (!WriteSectors(sectorIndex, chunk, sectorCount))
                 {
                     addLog(Environment.NewLine);
@@ -791,18 +736,12 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // .img parsing + validation  (mirrors FwParser::Parse at 0x4111b0)
+        // .img parsing and validation
         //
-        // FwParser::Parse checks, in order:
-        //   1. AWIH magic (0x48495741) at each section header byte 0
-        //      (0x4111f5: cmp DWORD PTR [rbp+0x18], 0x48495741)
-        //   2. Header checksum: sum of all 16-bit words in the 64-byte header == 0xFFFF
-        //      (using FwParser::CheckSum16, identical algorithm to CFlashHost::CheckSum16)
-        //   3. Data checksum: stored_checksum + sum(data words) == 0xFFFF
-        //   4. NextAddr == 0xFFFFFFFF → end of chain
-        //
-        // FwParser::CheckSum16 (0x411ba0) and CFlashHost::CheckSum16 (0x4086d0) are
-        // byte-for-byte identical.  Both use the same paddw SIMD loop.
+        // Each section has a 64-byte header followed by data.  The header
+        // contains the AWIH magic, header and data checksums, data size, load
+        // address, entry point, and the flash offset of the next section
+        // (0xFFFFFFFF = end of chain).
         // =====================================================================
         XRSectionHeader ParseSectionHeader(byte[] img, int offset)
         {
@@ -925,15 +864,14 @@ namespace BK7231Flasher
         // BaseFlasher virtual overrides
         // =====================================================================
 
-        // Returns the last read data so FormMain's Verify button (line 749) works.
+        // Needed by the Verify button in FormMain.
         public override byte[] getReadResult()
         {
             return readResult?.ToArray();
         }
 
-        // FormMain calls doWrite() for RF partition restore (lines 678, 708) and
-        // test-pattern writes (line 557).  XR806 does not share Beken's RF layout;
-        // log clearly instead of silently no-op'ing.
+        // XR806 does not share Beken's RF partition layout so raw doWrite() calls
+        // (RF restore, test-pattern writes) are not supported on this chip.
         public override void doWrite(int startSector, byte[] data)
         {
             addErrorLine("XR806: raw sector write via doWrite() is not supported on this chip.");
@@ -1106,6 +1044,7 @@ namespace BK7231Flasher
                     try { ValidateAndLogImgLayout(fileData, logLayout: true); }
                     catch (Exception ex) { addWarningLine("Layout parse error: " + ex.Message); }
                 }
+                addLogLine("Writing firmware...");
                 if (!InternalWrite(writeAddress, toWrite)) return;
 
                 addSuccess("XR806 flash write complete!" + Environment.NewLine);
@@ -1120,10 +1059,6 @@ namespace BK7231Flasher
             }
             finally
             {
-                // closePort() is always called regardless of how we exit –
-                // including via exception, cancellation, or early return.
-                // This is the only port-close path; no double-close is possible
-                // because base.closePort() checks serial != null.
                 closePort();
             }
         }
