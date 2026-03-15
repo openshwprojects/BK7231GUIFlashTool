@@ -901,7 +901,6 @@ namespace BK7231Flasher
                 byte[] data = InternalRead(startAddr, length);
                 readResult?.Dispose();
                 readResult = new MemoryStream(data);
-                saveReadResult(startAddr);
             }
             catch (OperationCanceledException)
             {
