@@ -16,10 +16,12 @@ namespace BK7231Flasher
         // =====================================================================
 
         const int  XR_ROM_BAUD         = 115200;    // BROM default after reset
-        const int  XR_WORK_BAUD        = 921600;    // BROM v3 hard cap
+        const int  XR_SAFE_WORK_BAUD   = 921600;    // Default XR806 working baud
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
         const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB granularity
         const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
+        const int  XR_READ_RETRY_COUNT = 3;
+        const int  XR_WRITE_RETRY_COUNT = 2;
 
         // BROM packet byte constants
         const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte; high byte always 0x00
@@ -32,11 +34,14 @@ namespace BK7231Flasher
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
 
-        // Known-good 13-byte GetFlashId request (bytes pre-verified by hand)
+        // Fixed GetFlashId request used for XR806 identification
         static readonly byte[] GET_FLASH_ID_REQUEST =
             { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51, 0x00, 0x00, 0x00, 0x01, 0x18 };
 
-        // .img section ID → human name table  (from FwParser::Parse string table)
+        // Additional baud rates exposed by the Windows PhoenixMC GUI for XR devices.
+        static readonly int[] XR_PHOENIX_HIGH_BAUDS = { 1000000, 1500000, 3000000 };
+
+        // XR .img section ID to name mapping.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
         {
             { 0xA5FF5A00, "boot"     },
@@ -90,19 +95,25 @@ namespace BK7231Flasher
         {
         }
 
+        static bool IsPhoenixHighBaud(int baud)
+        {
+            foreach (int b in XR_PHOENIX_HIGH_BAUDS)
+                if (b == baud) return true;
+            return false;
+        }
+
+        static bool IsAllowedXRBaud(int baud)
+        {
+            if (baud <= XR_SAFE_WORK_BAUD) return true;
+            return IsPhoenixHighBaud(baud);
+        }
+
         // =====================================================================
         // Checksum
         //
-        // One algorithm for everything: plain 16-bit word accumulation with
-        // natural uint16 overflow, then bitwise NOT.
-        //
-        // This is NOT RFC 1071.  RFC 1071 folds carry back into 16 bits;
-        // this does not.  The two diverge when the running sum exceeds 0xFFFF,
-        // which happens around sector 96 on a 2 MB read.
-        //
-        // Used for BROM packet header checksums and .img section validation.
-        // Packet headers use a LE preimage (length and payload fields in LE,
-        // checksum field zeroed); the wire packet re-encodes to BE.
+        // Returns the 16-bit additive checksum used by XR806 packet preimages
+        // and XR .img section validation. The running sum wraps naturally at
+        // 16 bits and the final value is bitwise inverted.
         // =====================================================================
         static ushort ComputeChecksum(byte[] data, int offset, int count)
         {
@@ -118,8 +129,8 @@ namespace BK7231Flasher
         // =====================================================================
         // Packet building
         //
-        // payloadPre  – payload in checksum-preimage byte order (little-endian)
-        // payloadWire – same payload in wire byte order (big-endian where required)
+        // payloadPre is used for checksum calculation.
+        // payloadWire is emitted on the serial wire.
         // =====================================================================
         byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire)
         {
@@ -160,7 +171,7 @@ namespace BK7231Flasher
             return pkt;
         }
 
-        // Erase packet: payload[0]=0x03, payload[1..4]=address BE.
+        // Erase packet payload: command byte 0x03 followed by big-endian address.
         byte[] BuildErasePacket(int address)
         {
             var pre  = new byte[5];
@@ -177,7 +188,7 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(OP_ERASE, pre, wire);
         }
 
-        // Read packet: 21 bytes total, 8-byte payload (sectorIndex BE, sectorCount BE).
+        // Read packet payload: big-endian sector index and sector count.
         byte[] BuildReadPacket(int sectorIndex, int sectorCount)
         {
             var pre  = new byte[8];
@@ -494,16 +505,15 @@ namespace BK7231Flasher
             return ChangeBaudAndResync(this.baudrate);
         }
 
-        // Sends the ChangeBaud command, switches the host serial port, re-Syncs.
-        // The BROM v3 hard cap is 921600; anything higher is clamped.
+        // Sends the ChangeBaud command, switches the host serial port and re-syncs.
         bool ChangeBaudAndResync(int newBaud)
         {
             if (newBaud <= XR_ROM_BAUD) return true;
 
-            if (newBaud > XR_WORK_BAUD)
+            if (!IsAllowedXRBaud(newBaud))
             {
-                addWarningLine($"Baud {newBaud} exceeds BROM v3 cap; clamping to {XR_WORK_BAUD}.");
-                newBaud = XR_WORK_BAUD;
+                addWarningLine($"Baud {newBaud} is not a PhoenixMC XR806 baud; falling back to {XR_SAFE_WORK_BAUD}.");
+                newBaud = XR_SAFE_WORK_BAUD;
             }
 
             BROMResponse resp = ExecuteRawPacket(
@@ -537,6 +547,15 @@ namespace BK7231Flasher
             return true;
         }
 
+        bool RecoverSession(string reason)
+        {
+            addWarningLine($"XR806 transport recovery: {reason}");
+            try { closePort(); } catch { }
+            Thread.Sleep(100);
+            if (!openPort()) return false;
+            return EnsureConnectedAndIdentified();
+        }
+
         // =====================================================================
         // Erase  (opcode 0x19)
         //
@@ -562,10 +581,10 @@ namespace BK7231Flasher
         // response header is available.  At 921600 baud, 4 sectors (2 KB) can
         // be requested per call; at lower rates only 1 sector at a time.
         // =====================================================================
-        byte[] ReadSectors(int sectorIndex, int sectorCount)
+        byte[] ReadSectorsOnce(int sectorIndex, int sectorCount)
         {
             int expectedBytes = sectorCount * XR_SECTOR_SIZE;
-            int payloadMs     = serial.BaudRate >= XR_WORK_BAUD ? 2000 : 4000;
+            int payloadMs     = serial.BaudRate > XR_SAFE_WORK_BAUD ? 2000 : 4000;
 
             BROMResponse resp = ExecuteRawPacket(
                 BuildReadPacket(sectorIndex, sectorCount),
@@ -587,6 +606,48 @@ namespace BK7231Flasher
             return resp.Payload;
         }
 
+        byte[] ReadSectors(int sectorIndex, int sectorCount)
+        {
+            Exception lastEx = null;
+            for (int attempt = 1; attempt <= XR_READ_RETRY_COUNT && !isCancelled; attempt++)
+            {
+                try
+                {
+                    byte[] data = ReadSectorsOnce(sectorIndex, sectorCount);
+                    if (data != null)
+                    {
+                        if (attempt > 1)
+                            addWarningLine($"Read sector {sectorIndex} recovered on attempt {attempt}.");
+                        return data;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    addWarningLine($"Read sector {sectorIndex} attempt {attempt} failed: {ex.Message}");
+                }
+
+                try
+                {
+                    DrainInput();
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                }
+                catch { }
+
+                if (attempt < XR_READ_RETRY_COUNT)
+                {
+                    if (attempt >= 2 && !RecoverSession($"read sector {sectorIndex} retry {attempt + 1}"))
+                        break;
+                    Thread.Sleep(50);
+                }
+            }
+
+            if (lastEx != null)
+                throw new IOException($"Read failed at sector {sectorIndex} after {XR_READ_RETRY_COUNT} attempts.", lastEx);
+            return null;
+        }
+
         // =====================================================================
         // Write  (opcode 0x1B)
         //
@@ -594,7 +655,7 @@ namespace BK7231Flasher
         // data and receive a second ACK.  The data checksum is embedded in the
         // command packet.  Buffers are zero-padded to a sector boundary.
         // =====================================================================
-        bool WriteSectors(int sectorIndex, byte[] data, int sectorCount)
+        bool WriteSectorsOnce(int sectorIndex, byte[] data, int sectorCount)
         {
             int    dataLen      = sectorCount * XR_SECTOR_SIZE;
             ushort dataChecksum = ComputeChecksum(data, 0, dataLen);
@@ -622,6 +683,48 @@ namespace BK7231Flasher
             return true;
         }
 
+        bool WriteSectors(int sectorIndex, byte[] data, int sectorCount)
+        {
+            Exception lastEx = null;
+            for (int attempt = 1; attempt <= XR_WRITE_RETRY_COUNT && !isCancelled; attempt++)
+            {
+                try
+                {
+                    bool ok = WriteSectorsOnce(sectorIndex, data, sectorCount);
+                    if (ok)
+                    {
+                        if (attempt > 1)
+                            addWarningLine($"Write sector {sectorIndex} recovered on attempt {attempt}.");
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    addWarningLine($"Write sector {sectorIndex} attempt {attempt} failed: {ex.Message}");
+                }
+
+                try
+                {
+                    DrainInput();
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                }
+                catch { }
+
+                if (attempt < XR_WRITE_RETRY_COUNT)
+                {
+                    if (!RecoverSession($"write sector {sectorIndex} retry {attempt + 1}"))
+                        break;
+                    Thread.Sleep(50);
+                }
+            }
+
+            if (lastEx != null)
+                throw new IOException($"Write failed at sector {sectorIndex} after {XR_WRITE_RETRY_COUNT} attempts.", lastEx);
+            return false;
+        }
+
         // =====================================================================
         // High-level read loop
         // =====================================================================
@@ -631,7 +734,7 @@ namespace BK7231Flasher
             int done         = 0;
             int totalSectors = (length + XR_SECTOR_SIZE - 1) / XR_SECTOR_SIZE;
             int startSector  = startAddress / XR_SECTOR_SIZE;
-            int perRead      = serial.BaudRate >= XR_WORK_BAUD ? 4 : 1;
+            int perRead      = serial.BaudRate > XR_SAFE_WORK_BAUD ? 4 : 1;
 
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
