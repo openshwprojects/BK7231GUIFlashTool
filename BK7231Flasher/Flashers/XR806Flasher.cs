@@ -552,7 +552,7 @@ namespace BK7231Flasher
             addWarningLine($"XR806 transport recovery: {reason}");
             try { closePort(); } catch { }
             Thread.Sleep(100);
-            if (!openPort()) return false;
+            if (!DoGenericSetup()) return false;
             return EnsureConnectedAndIdentified();
         }
 
