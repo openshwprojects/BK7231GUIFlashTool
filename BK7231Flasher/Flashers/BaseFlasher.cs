@@ -33,7 +33,6 @@ namespace BK7231Flasher
         RDA5981,
         TR6260,
         XR806,
-
         BekenSPI,
         GenericSPI,
         ESP32,
