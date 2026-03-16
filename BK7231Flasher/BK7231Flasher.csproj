@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -76,6 +76,7 @@
     <Compile Include="Misc\BKFlashList.cs" />
     <Compile Include="Flashers\RTLZ2Flasher.cs" />
     <Compile Include="Flashers\BL602Flasher.cs" />
+    <Compile Include="Flashers\TR6260Flasher.cs" />
     <Compile Include="Utils\CH341DEV.cs" />
     <Compile Include="Helpers\Colors.cs" />
     <Compile Include="Misc\ConfigBase.cs" />
@@ -210,6 +211,8 @@
     <EmbeddedResource Include="Floaders\BL602Floader.bin" />
     <EmbeddedResource Include="Floaders\BL602_Boot.bin" />
     <EmbeddedResource Include="Floaders\BL602_Dts.bin" />
+    <EmbeddedResource Include="Floaders\TR6260_Boot.bin" />
+    <EmbeddedResource Include="Floaders\TR6260_Partition.bin" />
     <EmbeddedResource Include="Floaders\BL702Floader.bin" />
     <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
     <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
