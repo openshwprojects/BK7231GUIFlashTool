@@ -33,10 +33,15 @@ namespace BK7231Flasher
         const byte OP_ERASE            = 0x19;
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
+        const byte OP_ERASE_NEW        = 0x1D;
+        const byte OP_READ_NEW         = 0x1E;
+        const byte OP_WRITE_NEW        = 0x1F;
 
         // Fixed GetFlashId request used for XR806 identification
         static readonly byte[] GET_FLASH_ID_REQUEST =
             { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51, 0x00, 0x00, 0x00, 0x01, 0x18 };
+
+        const bool XR_USE_NEW_BROM_OPCODE_FAMILY = true;
 
         // Additional baud rates exposed by the Windows PhoenixMC GUI for XR devices.
         static readonly int[] XR_PHOENIX_HIGH_BAUDS = { 1000000, 1500000, 3000000 };
@@ -106,6 +111,46 @@ namespace BK7231Flasher
         {
             if (baud <= XR_SAFE_WORK_BAUD) return true;
             return IsPhoenixHighBaud(baud);
+        }
+
+        bool UseNewBromOpcodeFamily()
+        {
+            return XR_USE_NEW_BROM_OPCODE_FAMILY && bromVersion >= 0x03;
+        }
+
+        byte CurrentEraseOpcode()
+        {
+            return UseNewBromOpcodeFamily() ? OP_ERASE_NEW : OP_ERASE;
+        }
+
+        byte CurrentReadOpcode()
+        {
+            return UseNewBromOpcodeFamily() ? OP_READ_NEW : OP_READ;
+        }
+
+        byte CurrentWriteOpcode()
+        {
+            return UseNewBromOpcodeFamily() ? OP_WRITE_NEW : OP_WRITE;
+        }
+
+        int GetPhoenixReadWaitMs()
+        {
+            switch (serial?.BaudRate ?? XR_ROM_BAUD)
+            {
+                case 115200:  return 500;
+                case 921600:  return 100;
+                case 1000000: return 100;
+                case 1500000: return 70;
+                case 3000000: return 30;
+                default:      return 500;
+            }
+        }
+
+        int GetPhoenixReadTimeoutMs()
+        {
+            int waitMs = GetPhoenixReadWaitMs();
+            int total = waitMs * 40;
+            return total < 1000 ? 1000 : total;
         }
 
         // =====================================================================
@@ -185,7 +230,7 @@ namespace BK7231Flasher
             wire[2] = (byte)((address >> 16) & 0xFF);
             wire[3] = (byte)((address >>  8) & 0xFF);
             wire[4] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(OP_ERASE, pre, wire);
+            return BuildPhoenixPacket(CurrentEraseOpcode(), pre, wire);
         }
 
         // Read packet payload: big-endian sector index and sector count.
@@ -209,7 +254,7 @@ namespace BK7231Flasher
             wire[5] = (byte)((sectorCount >> 16) & 0xFF);
             wire[6] = (byte)((sectorCount >>  8) & 0xFF);
             wire[7] = (byte)( sectorCount        & 0xFF);
-            return BuildPhoenixPacket(OP_READ, pre, wire);
+            return BuildPhoenixPacket(CurrentReadOpcode(), pre, wire);
         }
 
         // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
@@ -237,7 +282,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( sectorCount        & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(OP_WRITE, pre, wire);
+            return BuildPhoenixPacket(CurrentWriteOpcode(), pre, wire);
         }
 
         // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
@@ -564,33 +609,50 @@ namespace BK7231Flasher
         // =====================================================================
         bool Erase64KBlock(int address)
         {
-            BROMResponse resp = ExecuteRawPacket(
-                BuildErasePacket(address), headerTimeoutMs: 8000, payloadTimeoutMs: 1000);
-            if (resp.IsError)
+            byte[] pkt = BuildErasePacket(address);
+            serial.Write(pkt, 0, pkt.Length);
+            serial.BaseStream.Flush();
+
+            for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
             {
-                addErrorLine($"Erase failed at 0x{address:X6}.");
-                return false;
+                try
+                {
+                    BROMResponse resp = ReadBromResponse(headerTimeoutMs: 300, payloadTimeoutMs: 1000);
+                    if (resp.IsError)
+                    {
+                        addErrorLine($"Erase failed at 0x{address:X6}.");
+                        return false;
+                    }
+                    return true;
+                }
+                catch
+                {
+                    if (attempt >= 10) break;
+                    Thread.Sleep(200);
+                }
             }
-            return true;
+
+            addErrorLine($"Erase timed out at 0x{address:X6}.");
+            return false;
         }
 
         // =====================================================================
         // Read  (opcode 0x1A)
         //
         // The BROM requires a 50 ms delay after sending the command before the
-        // response header is available.  At 921600 baud, 4 sectors (2 KB) can
-        // be requested per call; at lower rates only 1 sector at a time.
+        // response header is available. PhoenixMC Windows uses 0x1000-byte
+        // read chunks in its full-read loop, i.e. 8 sectors per request.
         // =====================================================================
         byte[] ReadSectorsOnce(int sectorIndex, int sectorCount)
         {
             int expectedBytes = sectorCount * XR_SECTOR_SIZE;
-            int payloadMs     = serial.BaudRate > XR_SAFE_WORK_BAUD ? 2000 : 4000;
+            int payloadMs     = GetPhoenixReadTimeoutMs();
 
             BROMResponse resp = ExecuteRawPacket(
                 BuildReadPacket(sectorIndex, sectorCount),
-                headerTimeoutMs:  4000,
+                headerTimeoutMs:  GetPhoenixReadTimeoutMs(),
                 payloadTimeoutMs: payloadMs,
-                sleepBeforeRead:  true);  // ← the unconditional 50 ms usleep
+                sleepBeforeRead:  true);
 
             if (resp.IsError)
             {
@@ -734,7 +796,7 @@ namespace BK7231Flasher
             int done         = 0;
             int totalSectors = (length + XR_SECTOR_SIZE - 1) / XR_SECTOR_SIZE;
             int startSector  = startAddress / XR_SECTOR_SIZE;
-            int perRead      = serial.BaudRate > XR_SAFE_WORK_BAUD ? 4 : 1;
+            int perRead      = 8;
 
             logger.setProgress(0, totalSectors);
             logger.setState("Reading...", Color.Transparent);
