@@ -632,41 +632,6 @@ namespace BK7231Flasher
             return EnsureConnectedAndIdentified();
         }
 
-        // =====================================================================
-        // Erase  (opcode 0x19, matching the observed PhoenixMC XR806 session)
-        //
-        // Erases one 64 KB block.  No response payload; allow up to 8 s for
-        // the erase to complete before timing out.
-        // =====================================================================
-        bool Erase64KBlock(int address)
-        {
-            byte[] pkt = BuildErasePacket(address);
-            serial.Write(pkt, 0, pkt.Length);
-            serial.BaseStream.Flush();
-
-            for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
-            {
-                try
-                {
-                    BROMResponse resp = ReadBromResponse(headerTimeoutMs: 300, payloadTimeoutMs: 1000);
-                    if (resp.IsError)
-                    {
-                        addErrorLine($"Erase failed at 0x{address:X6}.");
-                        return false;
-                    }
-                    return true;
-                }
-                catch
-                {
-                    if (attempt >= 10) break;
-                    Thread.Sleep(200);
-                }
-            }
-
-            addErrorLine($"Erase timed out at 0x{address:X6}.");
-            return false;
-        }
-
         // Full-chip erase observed from PhoenixMC on XR806/BROM4: opcode 0x19 with payload 0x00.
         bool EraseChip()
         {
@@ -886,50 +851,25 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // High-level erase loop
+        // High-level erase
         //
-        // Aligns the start address down and end address up to 64 KB boundaries.
+        // XR806 now uses full-chip erase for both explicit erase actions and the
+        // pre-write erase step.  Addressed 64 KB erase is not used in this path.
         // =====================================================================
         bool InternalEraseRange(int startAddress, int length)
         {
-            int eraseStart = startAddress &  ~(XR_ERASE_BLOCK_SIZE - 1);
-            int eraseEnd   = (startAddress + length + XR_ERASE_BLOCK_SIZE - 1)
-                             & ~(XR_ERASE_BLOCK_SIZE - 1);
-            int total = (eraseEnd - eraseStart) / XR_ERASE_BLOCK_SIZE;
-            int done  = 0;
-
-            logger.setProgress(0, total);
+            logger.setProgress(0, 1);
             logger.setState("Erasing...", Color.Transparent);
+            addLogLine("Full-chip erase...");
 
-            if (eraseStart == 0 && eraseEnd >= flashSizeBytes)
+            bool ok = EraseChip();
+            if (!ok)
             {
-                addLogLine("Full-chip erase...");
-                bool ok = EraseChip();
-                if (!ok)
-                {
-                    logger.setState("Erase failed", Color.Red);
-                    return false;
-                }
-                logger.setProgress(total, total);
-                logger.setState("Erase complete", Color.DarkGreen);
-                return !isCancelled;
+                logger.setState("Erase failed", Color.Red);
+                return false;
             }
 
-            addLog("Erasing: ");
-
-            for (int addr = eraseStart; addr < eraseEnd && !isCancelled; addr += XR_ERASE_BLOCK_SIZE)
-            {
-                addLog($"0x{addr:X6}... ");
-                if (!Erase64KBlock(addr))
-                {
-                    addLog(Environment.NewLine);
-                    logger.setState("Erase failed", Color.Red);
-                    return false;
-                }
-                logger.setProgress(++done, total);
-            }
-
-            addLog(Environment.NewLine);
+            logger.setProgress(1, 1);
             logger.setState("Erase complete", Color.DarkGreen);
             return !isCancelled;
         }
