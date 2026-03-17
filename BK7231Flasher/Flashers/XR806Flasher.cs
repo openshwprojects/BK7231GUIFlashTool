@@ -234,7 +234,12 @@ namespace BK7231Flasher
 
         byte[] BuildGetFlashIdPacket()
         {
-            return BuildPhoenixPacket(OP_GET_FLASH_ID_NEW, null, null);
+            // Known-good XR806 GetFlashId request captured from the working path.
+            return new byte[]
+            {
+                0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51,
+                0x00, 0x00, 0x00, 0x01, 0x18
+            };
         }
 
         // Erase packet payload: command byte 0x03 followed by big-endian address.
@@ -509,10 +514,11 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // GetFlashId  (XR806/BROM3 uses the newer 0x1C opcode family)
+        // GetFlashId
         //
-        // Returns a 3-byte JEDEC ID in the payload.  The second byte of the
-        // response header contains the BROM version.
+        // For XR806, the legacy 0x18 query is the proven working path in this
+        // flasher.  It returns a 3-byte JEDEC ID in the payload, and the second
+        // byte of the response header contains the BROM version.
         // =====================================================================
         bool ReadFlashId()
         {
