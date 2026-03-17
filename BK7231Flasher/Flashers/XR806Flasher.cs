@@ -259,6 +259,13 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(CurrentEraseOpcode(), pre, wire);
         }
 
+        // Full-chip erase packet payload observed from PhoenixMC on XR806/BROM4: a single 0x00 byte.
+        byte[] BuildChipErasePacket()
+        {
+            var payload = new byte[] { 0x00 };
+            return BuildPhoenixPacket(CurrentEraseOpcode(), payload, payload);
+        }
+
         // Read packet payload: big-endian sector index and sector count.
         byte[] BuildReadPacket(int sectorIndex, int sectorCount)
         {
@@ -571,9 +578,6 @@ namespace BK7231Flasher
                     "(used by older XR chips).  This flasher supports XR806 (BROM v3) only.");
                 return false;
             }
-            if (bromVersion != 0x03)
-                addWarningLine($"Unexpected BROM version 0x{bromVersion:X2} – expected 0x03.  Proceeding.");
-
             return ChangeBaudAndResync(this.baudrate);
         }
 
@@ -660,6 +664,36 @@ namespace BK7231Flasher
             }
 
             addErrorLine($"Erase timed out at 0x{address:X6}.");
+            return false;
+        }
+
+        // Full-chip erase observed from PhoenixMC on XR806/BROM4: opcode 0x19 with payload 0x00.
+        bool EraseChip()
+        {
+            byte[] pkt = BuildChipErasePacket();
+            serial.Write(pkt, 0, pkt.Length);
+            serial.BaseStream.Flush();
+
+            for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
+            {
+                try
+                {
+                    BROMResponse resp = ReadBromResponse(headerTimeoutMs: 300, payloadTimeoutMs: 1000);
+                    if (resp.IsError)
+                    {
+                        addErrorLine("Chip erase failed.");
+                        return false;
+                    }
+                    return true;
+                }
+                catch
+                {
+                    if (attempt >= 10) break;
+                    Thread.Sleep(200);
+                }
+            }
+
+            addErrorLine("Chip erase timed out.");
             return false;
         }
 
@@ -866,6 +900,21 @@ namespace BK7231Flasher
 
             logger.setProgress(0, total);
             logger.setState("Erasing...", Color.Transparent);
+
+            if (eraseStart == 0 && eraseEnd >= flashSizeBytes)
+            {
+                addLogLine("Full-chip erase...");
+                bool ok = EraseChip();
+                if (!ok)
+                {
+                    logger.setState("Erase failed", Color.Red);
+                    return false;
+                }
+                logger.setProgress(total, total);
+                logger.setState("Erase complete", Color.DarkGreen);
+                return !isCancelled;
+            }
+
             addLog("Erasing: ");
 
             for (int addr = eraseStart; addr < eraseEnd && !isCancelled; addr += XR_ERASE_BLOCK_SIZE)
