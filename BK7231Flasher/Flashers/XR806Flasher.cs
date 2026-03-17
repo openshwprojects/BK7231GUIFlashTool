@@ -29,7 +29,6 @@ namespace BK7231Flasher
 
         // Opcodes
         const byte OP_CHANGE_BAUD      = 0x10;
-        const byte OP_GET_FLASH_ID     = 0x18;
         const byte OP_GET_FLASH_ID_NEW = 0x1C;
         const byte OP_ERASE            = 0x19;
         const byte OP_READ             = 0x1A;
@@ -38,14 +37,11 @@ namespace BK7231Flasher
         const byte OP_READ_NEW         = 0x1E;
         const byte OP_WRITE_NEW        = 0x1F;
 
-        // The first XR806 identification query uses the legacy GetFlashId opcode.
-        // After BROM v3 is known, Windows PhoenixMC switches to the new family when bUseNewBrom=1.
-        static readonly byte[] LEGACY_GET_FLASH_ID_REQUEST =
-            { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51, 0x00, 0x00, 0x00, 0x01, 0x18 };
-
         const bool XR_USE_NEW_BROM_OPCODE_FAMILY = true;
 
-        // Windows PhoenixMC GUI baud set used for XR806 transport selection.
+        // PhoenixMC Windows exact timeout buckets are known for 115200, 921600,
+        // 1000000, 1500000 and 3000000. Other GUI bauds use the nearest slower
+        // known bucket here rather than being blocked.
 
         // XR .img section ID to name mapping.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
@@ -101,14 +97,18 @@ namespace BK7231Flasher
         {
         }
 
-        static bool IsPhoenixMatchedXRBaud(int baud)
+        static bool IsAllowedXRBaud(int baud)
         {
             switch (baud)
             {
+                case 9600:
                 case 115200:
+                case 230400:
+                case 460800:
                 case 921600:
                 case 1000000:
                 case 1500000:
+                case 2000000:
                 case 3000000:
                     return true;
                 default:
@@ -116,19 +116,9 @@ namespace BK7231Flasher
             }
         }
 
-        static bool IsAllowedXRBaud(int baud)
-        {
-            return IsPhoenixMatchedXRBaud(baud);
-        }
-
         bool UseNewBromOpcodeFamily()
         {
             return XR_USE_NEW_BROM_OPCODE_FAMILY && bromVersion >= 0x03;
-        }
-
-        byte CurrentGetFlashIdOpcode()
-        {
-            return UseNewBromOpcodeFamily() ? OP_GET_FLASH_ID_NEW : OP_GET_FLASH_ID;
         }
 
         byte CurrentEraseOpcode()
@@ -148,20 +138,33 @@ namespace BK7231Flasher
 
         int GetPhoenixReadWaitMs()
         {
-            switch (serial?.BaudRate ?? XR_ROM_BAUD)
+            int baud = serial?.BaudRate ?? XR_ROM_BAUD;
+            switch (baud)
             {
-                case 115200:  return 500;
-                case 921600:  return 100;
-                case 1000000: return 100;
-                case 1500000: return 70;
-                case 3000000: return 30;
-                default:      return 500;
+                case 9600:
+                    return int.MaxValue;
+                case 115200:
+                case 230400:
+                case 460800:
+                    return 500;
+                case 921600:
+                case 1000000:
+                    return 100;
+                case 1500000:
+                case 2000000:
+                    return 70;
+                case 3000000:
+                    return 30;
+                default:
+                    return 500;
             }
         }
 
         int GetPhoenixReadTimeoutMs()
         {
             int waitMs = GetPhoenixReadWaitMs();
+            if (waitMs == int.MaxValue)
+                return int.MaxValue;
             int total = waitMs * 40;
             return total < 1000 ? 1000 : total;
         }
@@ -231,8 +234,6 @@ namespace BK7231Flasher
 
         byte[] BuildGetFlashIdPacket()
         {
-            if (CurrentGetFlashIdOpcode() == OP_GET_FLASH_ID)
-                return LEGACY_GET_FLASH_ID_REQUEST;
             return BuildPhoenixPacket(OP_GET_FLASH_ID_NEW, null, null);
         }
 
@@ -508,7 +509,7 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // GetFlashId  (legacy 0x18 for the first query, 0x1C on later BROM v3 queries)
+        // GetFlashId  (XR806/BROM3 uses the newer 0x1C opcode family)
         //
         // Returns a 3-byte JEDEC ID in the payload.  The second byte of the
         // response header contains the BROM version.
@@ -577,7 +578,7 @@ namespace BK7231Flasher
 
             if (!IsAllowedXRBaud(newBaud))
             {
-                addWarningLine($"Baud {newBaud} is not in the Windows PhoenixMC XR806 baud set; falling back to {XR_SAFE_WORK_BAUD}.");
+                addWarningLine($"Baud {newBaud} is not supported by this XR806 transport profile; falling back to {XR_SAFE_WORK_BAUD}.");
                 newBaud = XR_SAFE_WORK_BAUD;
             }
 
