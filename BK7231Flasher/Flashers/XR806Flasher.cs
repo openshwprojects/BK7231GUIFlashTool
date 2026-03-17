@@ -37,7 +37,7 @@ namespace BK7231Flasher
         const byte OP_READ_NEW         = 0x1E;
         const byte OP_WRITE_NEW        = 0x1F;
 
-        const bool XR_USE_NEW_BROM_OPCODE_FAMILY = true;
+        const bool XR_USE_NEW_BROM_OPCODE_FAMILY = false;
 
         // PhoenixMC Windows exact timeout buckets are known for 115200, 921600,
         // 1000000, 1500000 and 3000000. Other GUI bauds use the nearest slower
@@ -629,7 +629,7 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Erase  (legacy 0x19, new-family 0x1D on BROM v3 with bUseNewBrom)
+        // Erase  (opcode 0x19, matching the observed PhoenixMC XR806 session)
         //
         // Erases one 64 KB block.  No response payload; allow up to 8 s for
         // the erase to complete before timing out.
@@ -664,7 +664,7 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Read  (legacy 0x1A, new-family 0x1E on BROM v3 with bUseNewBrom)
+        // Read  (opcode 0x1A, matching the observed PhoenixMC XR806 session)
         //
         // The BROM requires a 50 ms delay after sending the command before the
         // response header is available. PhoenixMC Windows uses 0x1000-byte
@@ -738,7 +738,7 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Write  (legacy 0x1B, new-family 0x1F on BROM v3 with bUseNewBrom)
+        // Write  (opcode 0x1B, matching the observed PhoenixMC XR806 session)
         //
         // Two-stage: send 23-byte command and receive ACK, then send raw sector
         // data and receive a second ACK.  The data checksum is embedded in the
