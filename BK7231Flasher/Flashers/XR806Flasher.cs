@@ -18,7 +18,6 @@ namespace BK7231Flasher
         const int  XR_ROM_BAUD         = 115200;    // BROM default after reset
         const int  XR_SAFE_WORK_BAUD   = 921600;    // Default XR806 working baud
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
-        const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB granularity
         const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
         const int  XR_READ_RETRY_COUNT = 3;
         const int  XR_WRITE_RETRY_COUNT = 2;
@@ -169,6 +168,20 @@ namespace BK7231Flasher
             return total < 1000 ? 1000 : total;
         }
 
+        // Easy Flasher passes XR806 startSector/sectors in the shared public
+        // 4 KB framework unit used by several platform front-ends. Convert that
+        // contract to byte addresses here, then later to the native 512-byte
+        // XR transport sectors used on the wire.
+        static int PublicSectorIndexToByteAddress(int startSector)
+        {
+            return startSector * BK7231Flasher.SECTOR_SIZE;
+        }
+
+        static int PublicSectorCountToByteLength(int sectors)
+        {
+            return sectors * BK7231Flasher.SECTOR_SIZE;
+        }
+
         // =====================================================================
         // Checksum
         //
@@ -240,23 +253,6 @@ namespace BK7231Flasher
                 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51,
                 0x00, 0x00, 0x00, 0x01, 0x18
             };
-        }
-
-        // Erase packet payload: command byte 0x03 followed by big-endian address.
-        byte[] BuildErasePacket(int address)
-        {
-            var pre  = new byte[5];
-            var wire = new byte[5];
-            pre[0] = wire[0] = 0x03;
-            pre[1]  = (byte)( address        & 0xFF);
-            pre[2]  = (byte)((address >>  8) & 0xFF);
-            pre[3]  = (byte)((address >> 16) & 0xFF);
-            pre[4]  = (byte)((address >> 24) & 0xFF);
-            wire[1] = (byte)((address >> 24) & 0xFF);
-            wire[2] = (byte)((address >> 16) & 0xFF);
-            wire[3] = (byte)((address >>  8) & 0xFF);
-            wire[4] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(CurrentEraseOpcode(), pre, wire);
         }
 
         // Full-chip erase packet payload observed from PhoenixMC on XR806/BROM4: a single 0x00 byte.
@@ -854,9 +850,10 @@ namespace BK7231Flasher
         // High-level erase
         //
         // XR806 now uses full-chip erase for both explicit erase actions and the
-        // pre-write erase step.  Addressed 64 KB erase is not used in this path.
+        // pre-write erase step. Addressed erase is intentionally not used in this
+        // implementation.
         // =====================================================================
-        bool InternalEraseRange(int startAddress, int length)
+        bool InternalChipErase()
         {
             logger.setProgress(0, 1);
             logger.setState("Erasing...", Color.Transparent);
@@ -1074,9 +1071,9 @@ namespace BK7231Flasher
                 }
                 else
                 {
-                    startAddr = startSector * BK7231Flasher.SECTOR_SIZE;
-                    length    = sectors     * BK7231Flasher.SECTOR_SIZE;
-                    addLogLine($"Partial read: 0x{startAddr:X6} + 0x{length:X6} bytes");
+                    startAddr = PublicSectorIndexToByteAddress(startSector);
+                    length    = PublicSectorCountToByteLength(sectors);
+                    addLogLine($"Partial read: 0x{startAddr:X6} + 0x{length:X6} bytes (framework 4 KB units)");
                 }
 
                 byte[] data = InternalRead(startAddr, length);
@@ -1104,20 +1101,18 @@ namespace BK7231Flasher
                 if (!DoGenericSetup())               return false;
                 if (!EnsureConnectedAndIdentified()) return false;
 
-                int startAddr, length;
                 if (bAll)
                 {
-                    startAddr = 0;
-                    length    = flashSizeBytes;
-                    addLogLine($"Full erase: {flashSizeBytes / 0x100000} MB");
+                    addLogLine($"Full erase requested: {flashSizeBytes / 0x100000} MB");
                 }
                 else
                 {
-                    startAddr = startSector * BK7231Flasher.SECTOR_SIZE;
-                    length    = sectors     * BK7231Flasher.SECTOR_SIZE;
-                    addLogLine($"Partial erase: 0x{startAddr:X6} + 0x{length:X6} bytes");
+                    int requestedStartAddr = PublicSectorIndexToByteAddress(startSector);
+                    int requestedLength    = PublicSectorCountToByteLength(sectors);
+                    addWarningLine("XR806 erase is full-chip only; ignoring requested " +
+                                   $"range 0x{requestedStartAddr:X6} + 0x{requestedLength:X6} bytes.");
                 }
-                bool ok = InternalEraseRange(startAddr, length);
+                bool ok = InternalChipErase();
                 if (ok) addSuccess("Erase complete!" + Environment.NewLine);
                 return ok;
             }
@@ -1174,16 +1169,22 @@ namespace BK7231Flasher
                 }
 
                 addLogLine($"Loading: {sourceFileName}");
-                byte[] fileData  = File.ReadAllBytes(sourceFileName);
-                int writeAddress = startSector * BK7231Flasher.SECTOR_SIZE;
-                int effectiveLen = fileData.Length;
-                string ext       = Path.GetExtension(sourceFileName).ToLowerInvariant();
+                byte[] fileData           = File.ReadAllBytes(sourceFileName);
+                int requestedWriteAddress = PublicSectorIndexToByteAddress(startSector);
+                int writeAddress          = requestedWriteAddress;
+                int effectiveLen          = fileData.Length;
+                string ext                = Path.GetExtension(sourceFileName).ToLowerInvariant();
 
                 if (ext == ".img")
                 {
                     // Validate now (throws on bad checksum/magic) but defer layout log
                     // to just before write so it doesn't appear before the erase step.
                     effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
+                    if (requestedWriteAddress != 0)
+                    {
+                        addWarningLine($".img write ignores requested offset 0x{requestedWriteAddress:X6} " +
+                                       "and starts at 0x000000.");
+                    }
                     writeAddress = 0;
                     addLogLine($"Validated .img: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
                 }
@@ -1206,8 +1207,9 @@ namespace BK7231Flasher
                 byte[] toWrite = new byte[effectiveLen];
                 Buffer.BlockCopy(fileData, 0, toWrite, 0, effectiveLen);
 
-                addLogLine("Erasing target region...");
-                if (!InternalEraseRange(writeAddress, effectiveLen)) return;
+                addLogLine("XR806 write path performs a full-chip erase before programming.");
+                addLogLine($"Post-erase write destination: 0x{writeAddress:X6}");
+                if (!InternalChipErase()) return;
                 if (isCancelled) return;
 
                 // Show layout now, just before writing, so it appears in context

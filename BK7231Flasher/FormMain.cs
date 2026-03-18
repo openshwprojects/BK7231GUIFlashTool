@@ -619,6 +619,8 @@ namespace BK7231Flasher
             if(parms!=null)
             {
                 startSector = parms.ofs;
+                if(curType == BKType.XR806)
+                    startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 chosenSourceFile = parms.sourceFileName;
             }
@@ -798,7 +800,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B || curType == BKType.XR806)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 isFullRead = false;
