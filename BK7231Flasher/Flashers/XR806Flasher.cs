@@ -23,6 +23,7 @@ namespace BK7231Flasher
         const int  XR_WRITE_RETRY_COUNT = 2;
         const int  XR_SYNC_RETRY_COUNT  = 10;
         const int  XR_UPGRADE_SETTLE_MS = 120;
+        const int  XR_MAX_BROM_PAYLOAD  = XR_WRITE_CHUNK_SIZE;
 
         // BROM packet byte constants
         const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte; high byte always 0x00
@@ -34,11 +35,6 @@ namespace BK7231Flasher
         const byte OP_ERASE            = 0x19;
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
-        const byte OP_ERASE_NEW        = 0x1D;
-        const byte OP_READ_NEW         = 0x1E;
-        const byte OP_WRITE_NEW        = 0x1F;
-
-        const bool XR_USE_NEW_BROM_OPCODE_FAMILY = false;
 
         // PhoenixMC Windows exact timeout buckets are known for 115200, 921600,
         // 1000000, 1500000 and 3000000. Other GUI bauds use the nearest slower
@@ -115,26 +111,6 @@ namespace BK7231Flasher
                 default:
                     return false;
             }
-        }
-
-        bool UseNewBromOpcodeFamily()
-        {
-            return XR_USE_NEW_BROM_OPCODE_FAMILY && bromVersion >= 0x03;
-        }
-
-        byte CurrentEraseOpcode()
-        {
-            return UseNewBromOpcodeFamily() ? OP_ERASE_NEW : OP_ERASE;
-        }
-
-        byte CurrentReadOpcode()
-        {
-            return UseNewBromOpcodeFamily() ? OP_READ_NEW : OP_READ;
-        }
-
-        byte CurrentWriteOpcode()
-        {
-            return UseNewBromOpcodeFamily() ? OP_WRITE_NEW : OP_WRITE;
         }
 
         int GetPhoenixReadWaitMs()
@@ -275,7 +251,7 @@ namespace BK7231Flasher
         byte[] BuildChipErasePacket()
         {
             var payload = new byte[] { 0x00 };
-            return BuildPhoenixPacket(CurrentEraseOpcode(), payload, payload);
+            return BuildPhoenixPacket(OP_ERASE, payload, payload);
         }
 
         // Read packet payload: big-endian sector index and sector count.
@@ -299,7 +275,7 @@ namespace BK7231Flasher
             wire[5] = (byte)((sectorCount >> 16) & 0xFF);
             wire[6] = (byte)((sectorCount >>  8) & 0xFF);
             wire[7] = (byte)( sectorCount        & 0xFF);
-            return BuildPhoenixPacket(CurrentReadOpcode(), pre, wire);
+            return BuildPhoenixPacket(OP_READ, pre, wire);
         }
 
         // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
@@ -327,7 +303,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( sectorCount        & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(CurrentWriteOpcode(), pre, wire);
+            return BuildPhoenixPacket(OP_WRITE, pre, wire);
         }
 
         // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
@@ -536,6 +512,12 @@ namespace BK7231Flasher
                 PayloadLength = (header[8] << 24) | (header[9] << 16) | (header[10] << 8) | header[11],
                 Payload       = new byte[0],
             };
+
+            if (resp.PayloadLength < 0)
+                throw new IOException($"Negative BROM payload length {resp.PayloadLength}.");
+            if (resp.PayloadLength > XR_MAX_BROM_PAYLOAD)
+                throw new IOException(
+                    $"BROM payload length {resp.PayloadLength} exceeds XR806 transport ceiling {XR_MAX_BROM_PAYLOAD}.");
 
             // Response checksum is not validated; the BROM itself never checks it either.
             if (resp.PayloadLength > 0)
@@ -1017,9 +999,13 @@ namespace BK7231Flasher
             int offset  = 0;
             int count   = 0;
             int lastEnd = 0;
+            var seenOffsets = new HashSet<int>();
 
             while (true)
             {
+                if (!seenOffsets.Add(offset))
+                    throw new InvalidDataException(
+                        $"Section chain loops back to 0x{offset:X}.");
                 if (offset < 0 || offset + 0x40 > img.Length)
                     throw new InvalidDataException(
                         $"Section header at 0x{offset:X} is out of file range.");
@@ -1036,12 +1022,19 @@ namespace BK7231Flasher
                 int dataOffset = offset + 0x40;
                 int dataSize   = (int)hdr.DataSize;
 
+                if (dataSize < 0)
+                    throw new InvalidDataException(
+                        $"Negative section size at 0x{offset:X}.");
                 if (dataOffset + dataSize > img.Length)
                     throw new InvalidDataException(
                         $"Section data at 0x{offset:X} overruns file.");
                 if (!ValidateDataChecksum(img, dataOffset, dataSize, hdr.DataChecksum))
                     throw new InvalidDataException(
                         $"Data checksum mismatch at 0x{offset:X}.");
+
+                if (offset < lastEnd)
+                    throw new InvalidDataException(
+                        $"Section at 0x{offset:X} overlaps earlier image data ending at 0x{lastEnd:X}.");
 
                 lastEnd = dataOffset + dataSize;
 
@@ -1057,6 +1050,17 @@ namespace BK7231Flasher
                     throw new InvalidDataException("More than 100 sections – likely corrupt image.");
 
                 if (hdr.NextAddr == 0xFFFFFFFF) break;
+
+                if (hdr.NextAddr < (uint)lastEnd)
+                    throw new InvalidDataException(
+                        $"Next section pointer 0x{hdr.NextAddr:X} falls inside current section ending at 0x{lastEnd:X}.");
+                if (hdr.NextAddr > (uint)(img.Length - 0x40))
+                    throw new InvalidDataException(
+                        $"Next section pointer 0x{hdr.NextAddr:X} is out of file range.");
+                if (hdr.NextAddr <= (uint)offset)
+                    throw new InvalidDataException(
+                        $"Next section pointer 0x{hdr.NextAddr:X} does not advance past 0x{offset:X}.");
+
                 offset = (int)hdr.NextAddr;
             }
 
