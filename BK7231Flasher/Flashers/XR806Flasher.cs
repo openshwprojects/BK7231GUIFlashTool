@@ -458,8 +458,10 @@ namespace BK7231Flasher
                 addLogLine("Attempting XR806 software upgrade command before sync...");
                 DrainInput(quietMs: 40, hardLimitMs: 120);
 
+                serial.Write(new byte[] { 0x0A }, 0, 1);
                 byte[] cmd = Encoding.ASCII.GetBytes("upgrade");
                 serial.Write(cmd, 0, cmd.Length);
+                serial.Write(new byte[] { 0x0A, 0x00 }, 0, 2);
                 serial.BaseStream.Flush();
                 Thread.Sleep(XR_UPGRADE_SETTLE_MS);
 
