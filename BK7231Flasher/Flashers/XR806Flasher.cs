@@ -22,6 +22,7 @@ namespace BK7231Flasher
         const int  XR_READ_RETRY_COUNT  = 3;
         const int  XR_WRITE_RETRY_COUNT = 2;
         const int  XR_SYNC_RETRY_COUNT  = 10;
+        const int  XR_UPGRADE_SETTLE_MS = 120;
 
         // BROM packet byte constants
         const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte; high byte always 0x00
@@ -441,6 +442,38 @@ namespace BK7231Flasher
             return partial;
         }
 
+        void TryEnterDownloadModeByUpgradeCommand()
+        {
+            if (serial == null || !serial.IsOpen)
+                return;
+
+            try
+            {
+                if (serial.BaudRate != XR_ROM_BAUD)
+                {
+                    serial.BaudRate = XR_ROM_BAUD;
+                    Thread.Sleep(30);
+                }
+
+                addLogLine("Attempting XR806 software upgrade command before sync...");
+                DrainInput(quietMs: 40, hardLimitMs: 120);
+
+                byte[] cmd = Encoding.ASCII.GetBytes("upgrade");
+                serial.Write(cmd, 0, cmd.Length);
+                serial.BaseStream.Flush();
+                Thread.Sleep(XR_UPGRADE_SETTLE_MS);
+
+                // The running app may echo console text or briefly emit its own
+                // response before dropping into BROM. Clear any such bytes so the
+                // normal 0x55/"OK" sync starts from a clean state.
+                DrainInput(quietMs: 40, hardLimitMs: 200);
+            }
+            catch (Exception ex)
+            {
+                addLogLine($"Upgrade pre-sync command did not complete: {ex.Message}");
+            }
+        }
+
         // =====================================================================
         // Sync
         //
@@ -579,6 +612,7 @@ namespace BK7231Flasher
         // =====================================================================
         bool EnsureConnectedAndIdentified()
         {
+            TryEnterDownloadModeByUpgradeCommand();
             if (!Sync())        return false;
             if (!ReadFlashId()) return false;
 
