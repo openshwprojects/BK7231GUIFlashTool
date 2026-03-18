@@ -686,30 +686,39 @@ namespace BK7231Flasher
             return EnsureConnectedAndIdentified();
         }
 
-        // Full-chip erase observed from PhoenixMC on XR806/BROM4: opcode 0x19 with payload 0x00.
+                string FormatBromResponseForLog(BROMResponse resp)
+        {
+            return $"flags=0x{resp.Flags:X2}, brom=0x{resp.BromVersion:X2}, checksum=0x{resp.Checksum:X4}, payloadLen={resp.PayloadLength}, status={(resp.IsError ? "ERROR" : "OK")}";
+        }
+
+// Full-chip erase observed from PhoenixMC on XR806/BROM4: opcode 0x19 with payload 0x00.
         // PhoenixMC then polls for a fixed 12-byte ACK/status header up to 10 times,
         // sleeping 200 ms between misses and using baud-derived read wait buckets.
+        // Keep a 500 ms minimum per poll here: the Phoenix baud buckets are a good
+        // guide, but using the high-baud values directly as the entire 12-byte ACK
+        // budget is too aggressive for this SerialPort implementation.
         bool EraseChip()
         {
             byte[] pkt = BuildChipErasePacket();
             serial.Write(pkt, 0, pkt.Length);
             serial.BaseStream.Flush();
 
-            int headerTimeoutMs = GetPhoenixReadWaitMs();
+            int headerTimeoutMs = Math.Max(500, GetPhoenixReadWaitMs());
 
             for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
             {
                 try
                 {
                     BROMResponse resp = ReadFixedHeaderResponse(headerTimeoutMs);
+                    addLogLine($"Chip erase ACK: {FormatBromResponseForLog(resp)}");
                     if (resp.PayloadLength != 0)
                     {
-                        addErrorLine($"Chip erase returned unexpected payload length {resp.PayloadLength}.");
+                        addErrorLine($"Chip erase returned unexpected payload length {resp.PayloadLength}. ACK: {FormatBromResponseForLog(resp)}");
                         return false;
                     }
                     if (resp.IsError)
                     {
-                        addErrorLine("Chip erase failed.");
+                        addErrorLine($"Chip erase failed. ACK: {FormatBromResponseForLog(resp)}");
                         return false;
                     }
                     return true;
