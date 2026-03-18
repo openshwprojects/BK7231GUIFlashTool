@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -180,6 +180,15 @@ namespace BK7231Flasher
         static int PublicSectorCountToByteLength(int sectors)
         {
             return sectors * BK7231Flasher.SECTOR_SIZE;
+        }
+
+        bool IsCustomRawWriteRequest(int startSector, int sectors, WriteMode rwMode)
+        {
+            if (rwMode != WriteMode.OnlyWrite)
+                return false;
+
+            int fullFlashFrameworkSectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
+            return startSector != 0 || sectors != fullFlashFrameworkSectors;
         }
 
         // =====================================================================
@@ -1170,12 +1179,19 @@ namespace BK7231Flasher
 
                 addLogLine($"Loading: {sourceFileName}");
                 byte[] fileData           = File.ReadAllBytes(sourceFileName);
+                bool customRawWrite       = IsCustomRawWriteRequest(startSector, sectors, rwMode);
                 int requestedWriteAddress = PublicSectorIndexToByteAddress(startSector);
                 int writeAddress          = requestedWriteAddress;
                 int effectiveLen          = fileData.Length;
                 string ext                = Path.GetExtension(sourceFileName).ToLowerInvariant();
 
-                if (ext == ".img")
+                if (customRawWrite)
+                {
+                    addLogLine($"Custom write: raw bytes only, no erase, destination 0x{writeAddress:X6}.");
+                    if (ext != ".bin")
+                        addWarningLine($"Custom write ignores extension \"{ext}\" and writes raw bytes as selected.");
+                }
+                else if (ext == ".img")
                 {
                     // Validate now (throws on bad checksum/magic) but defer layout log
                     // to just before write so it doesn't appear before the erase step.
@@ -1197,9 +1213,9 @@ namespace BK7231Flasher
                     addWarningLine($"Unrecognised extension \"{ext}\" – writing raw bytes.");
                 }
 
-                if (effectiveLen > flashSizeBytes)
+                if ((long)writeAddress + effectiveLen > flashSizeBytes)
                 {
-                    addErrorLine($"Image (0x{effectiveLen:X} bytes) exceeds flash size " +
+                    addErrorLine($"Write range 0x{writeAddress:X6} + 0x{effectiveLen:X} bytes exceeds flash size " +
                                  $"({flashSizeBytes / 0x100000} MB).  Aborting.");
                     return;
                 }
@@ -1207,26 +1223,22 @@ namespace BK7231Flasher
                 byte[] toWrite = new byte[effectiveLen];
                 Buffer.BlockCopy(fileData, 0, toWrite, 0, effectiveLen);
 
-                addLogLine("XR806 write path performs a full-chip erase before programming.");
-                addLogLine($"Post-erase write destination: 0x{writeAddress:X6}");
-                if (!InternalChipErase()) return;
-                if (isCancelled) return;
+                if (!customRawWrite)
+                {
+                    addLogLine("XR806 write path performs a full-chip erase before programming.");
+                    addLogLine($"Post-erase write destination: 0x{writeAddress:X6}");
+                    if (!InternalChipErase()) return;
+                    if (isCancelled) return;
 
-                // Show layout now, just before writing, so it appears in context
-                if (ext == ".img")
-                {
-                    addLogLine("Image layout:");
-                    ValidateAndLogImgLayout(fileData, logLayout: true);
+                    // Show layout now, just before writing, so it appears in context
+                    if (ext == ".img")
+                    {
+                        addLogLine("Image layout:");
+                        ValidateAndLogImgLayout(fileData, logLayout: true);
+                    }
                 }
-                else if (ext == ".bin" &&
-                         fileData.Length >= 4 &&
-                         BitConverter.ToUInt32(fileData, 0) == 0x48495741)
-                {
-                    addLogLine(".bin starts with AWIH – layout:");
-                    try { ValidateAndLogImgLayout(fileData, logLayout: true); }
-                    catch (Exception ex) { addWarningLine("Layout parse error: " + ex.Message); }
-                }
-                addLogLine("Writing firmware...");
+
+                addLogLine(customRawWrite ? "Writing raw custom data..." : "Writing firmware...");
                 if (!InternalWrite(writeAddress, toWrite)) return;
 
                 addSuccess("XR806 flash write complete!" + Environment.NewLine);
