@@ -418,6 +418,10 @@ namespace BK7231Flasher
             return partial;
         }
 
+        // Best-effort software jump into download mode. In PhoenixMC captures
+        // taken at 115200 before BROM sync, the observed preamble is:
+        // LF, "upgrade", LF NUL. Devices without console support may ignore
+        // it; the normal 0x55/"OK" sync still follows.
         void TryEnterDownloadModeByUpgradeCommand()
         {
             if (serial == null || !serial.IsOpen)
@@ -588,11 +592,12 @@ namespace BK7231Flasher
         // =====================================================================
         // Connection sequence
         //
-        // 1. Sync at 115200
-        // 2. GetFlashId  (reads BROM version and JEDEC flash ID)
-        // 3. If BROM version > 1: ChangeBaud to working rate, re-Sync
-        //    If BROM version ≤ 1: RAM loader upload required — not supported here;
-        //    XR806 is always BROM v3.
+        // 1. Best-effort software jump to download mode at 115200
+        // 2. Sync at 115200
+        // 3. GetFlashId  (reads the observed BROM version and JEDEC flash ID)
+        // 4. If BROM version > 1: ChangeBaud to working rate, re-Sync
+        //    If BROM version ≤ 1: older XR paths likely require a RAM loader
+        //    upload, which this transport does not implement.
         // =====================================================================
         bool EnsureConnectedAndIdentified()
         {
@@ -604,7 +609,7 @@ namespace BK7231Flasher
             {
                 addErrorLine(
                     $"BROM version 0x{bromVersion:X2} requires a RAM loader upload " +
-                    "(used by older XR chips).  This flasher supports XR806 (BROM v3) only.");
+                    "(used by older XR chips).  This XR806 transport expects the ROM-resident flash commands seen on observed XR806 BROMs (for example v4).");
                 return false;
             }
             return ChangeBaudAndResync(this.baudrate);
@@ -882,9 +887,9 @@ namespace BK7231Flasher
         // =====================================================================
         // High-level erase
         //
-        // XR806 now uses full-chip erase for both explicit erase actions and the
-        // pre-write erase step. Addressed erase is intentionally not used in this
-        // implementation.
+        // XR806 uses full-chip erase for explicit erase actions and for the main
+        // pre-write erase path. Custom raw writes intentionally skip erase.
+        // Addressed erase is intentionally not used in this implementation.
         // =====================================================================
         bool InternalChipErase()
         {
@@ -1103,8 +1108,8 @@ namespace BK7231Flasher
             return readResult?.ToArray();
         }
 
-        // XR806 does not share Beken's RF partition layout so raw doWrite() calls
-        // (RF restore, test-pattern writes) are not supported on this chip.
+        // Easy Flasher's generic raw doWrite() path relies on Beken-specific
+        // RF/partition assumptions, so it is intentionally disabled for XR806.
         public override void doWrite(int startSector, byte[] data)
         {
             addErrorLine("XR806: raw sector write via doWrite() is not supported on this chip.");
