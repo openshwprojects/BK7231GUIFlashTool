@@ -535,6 +535,26 @@ namespace BK7231Flasher
             return resp;
         }
 
+        BROMResponse ReadFixedHeaderResponse(int headerTimeoutMs)
+        {
+            byte[] header = ReadExact(12, headerTimeoutMs);
+            if (header == null || header.Length < 12)
+                throw new IOException(
+                    $"BROM header incomplete ({header?.Length ?? 0}/12 bytes).");
+            if (header[0] != 'B' || header[1] != 'R' || header[2] != 'O' || header[3] != 'M')
+                throw new IOException(
+                    $"BROM magic mismatch: {header[0]:X2} {header[1]:X2} {header[2]:X2} {header[3]:X2}");
+
+            return new BROMResponse
+            {
+                Flags         = header[4],
+                BromVersion   = header[5],
+                Checksum      = (ushort)((header[6] << 8) | header[7]),
+                PayloadLength = (header[8] << 24) | (header[9] << 16) | (header[10] << 8) | header[11],
+                Payload       = new byte[0],
+            };
+        }
+
         BROMResponse ExecuteRawPacket(
             byte[] pkt,
             int    headerTimeoutMs  = 1500,
@@ -667,17 +687,26 @@ namespace BK7231Flasher
         }
 
         // Full-chip erase observed from PhoenixMC on XR806/BROM4: opcode 0x19 with payload 0x00.
+        // PhoenixMC then polls for a fixed 12-byte ACK/status header up to 10 times,
+        // sleeping 200 ms between misses and using baud-derived read wait buckets.
         bool EraseChip()
         {
             byte[] pkt = BuildChipErasePacket();
             serial.Write(pkt, 0, pkt.Length);
             serial.BaseStream.Flush();
 
+            int headerTimeoutMs = GetPhoenixReadWaitMs();
+
             for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
             {
                 try
                 {
-                    BROMResponse resp = ReadBromResponse(headerTimeoutMs: 300, payloadTimeoutMs: 1000);
+                    BROMResponse resp = ReadFixedHeaderResponse(headerTimeoutMs);
+                    if (resp.PayloadLength != 0)
+                    {
+                        addErrorLine($"Chip erase returned unexpected payload length {resp.PayloadLength}.");
+                        return false;
+                    }
                     if (resp.IsError)
                     {
                         addErrorLine("Chip erase failed.");
