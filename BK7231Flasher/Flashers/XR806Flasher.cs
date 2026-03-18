@@ -19,8 +19,9 @@ namespace BK7231Flasher
         const int  XR_SAFE_WORK_BAUD   = 921600;    // Default XR806 working baud
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
         const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
-        const int  XR_READ_RETRY_COUNT = 3;
+        const int  XR_READ_RETRY_COUNT  = 3;
         const int  XR_WRITE_RETRY_COUNT = 2;
+        const int  XR_SYNC_RETRY_COUNT  = 10;
 
         // BROM packet byte constants
         const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte; high byte always 0x00
@@ -189,6 +190,11 @@ namespace BK7231Flasher
 
             int fullFlashFrameworkSectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
             return startSector != 0 || sectors != fullFlashFrameworkSectors;
+        }
+
+        static bool StartsWithAwihMagic(byte[] data)
+        {
+            return data != null && data.Length >= 4 && BitConverter.ToUInt32(data, 0) == 0x48495741;
         }
 
         // =====================================================================
@@ -438,11 +444,11 @@ namespace BK7231Flasher
         // =====================================================================
         // Sync
         //
-        // Sends 0x55, expects "OK" (2 bytes) back, up to 5 attempts.
+        // Sends 0x55, expects "OK" (2 bytes) back, up to XR_SYNC_RETRY_COUNT attempts.
         // =====================================================================
         bool Sync()
         {
-            for (int attempt = 1; attempt <= 5; attempt++)
+            for (int attempt = 1; attempt <= XR_SYNC_RETRY_COUNT; attempt++)
             {
                 if (isCancelled) return false;
                 DrainInput();
@@ -470,7 +476,7 @@ namespace BK7231Flasher
                     return true;
                 }
             }
-            addErrorLine("Sync failed after 5 attempts.");
+            addErrorLine($"Sync failed after {XR_SYNC_RETRY_COUNT} attempts.");
             return false;
         }
 
@@ -1184,6 +1190,7 @@ namespace BK7231Flasher
                 int writeAddress          = requestedWriteAddress;
                 int effectiveLen          = fileData.Length;
                 string ext                = Path.GetExtension(sourceFileName).ToLowerInvariant();
+                bool treatAsXRImage       = false;
 
                 if (customRawWrite)
                 {
@@ -1196,6 +1203,7 @@ namespace BK7231Flasher
                     // Validate now (throws on bad checksum/magic) but defer layout log
                     // to just before write so it doesn't appear before the erase step.
                     effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
+                    treatAsXRImage = true;
                     if (requestedWriteAddress != 0)
                     {
                         addWarningLine($".img write ignores requested offset 0x{requestedWriteAddress:X6} " +
@@ -1203,6 +1211,18 @@ namespace BK7231Flasher
                     }
                     writeAddress = 0;
                     addLogLine($"Validated .img: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
+                }
+                else if (ext == ".bin" && StartsWithAwihMagic(fileData))
+                {
+                    effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
+                    treatAsXRImage = true;
+                    if (requestedWriteAddress != 0)
+                    {
+                        addWarningLine($"AWIH-layout .bin ignores requested offset 0x{requestedWriteAddress:X6} " +
+                                       "and starts at 0x000000.");
+                    }
+                    writeAddress = 0;
+                    addLogLine($"Detected AWIH image layout in .bin: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
                 }
                 else if (ext == ".bin")
                 {
@@ -1231,7 +1251,7 @@ namespace BK7231Flasher
                     if (isCancelled) return;
 
                     // Show layout now, just before writing, so it appears in context
-                    if (ext == ".img")
+                    if (treatAsXRImage)
                     {
                         addLogLine("Image layout:");
                         ValidateAndLogImgLayout(fileData, logLayout: true);
