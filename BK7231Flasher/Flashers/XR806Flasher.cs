@@ -1212,20 +1212,12 @@ namespace BK7231Flasher
                     writeAddress = 0;
                     addLogLine($"Validated .img: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
                 }
-                else if (ext == ".bin" && StartsWithAwihMagic(fileData))
-                {
-                    effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
-                    treatAsXRImage = true;
-                    if (requestedWriteAddress != 0)
-                    {
-                        addWarningLine($"AWIH-layout .bin ignores requested offset 0x{requestedWriteAddress:X6} " +
-                                       "and starts at 0x000000.");
-                    }
-                    writeAddress = 0;
-                    addLogLine($"Detected AWIH image layout in .bin: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
-                }
                 else if (ext == ".bin")
                 {
+                    if (StartsWithAwihMagic(fileData))
+                    {
+                        addLogLine(".bin starts with AWIH magic, but main .bin writes are treated as raw full-flash data.");
+                    }
                     addWarningLine($"Writing raw .bin at byte offset 0x{writeAddress:X6}.");
                 }
                 else
