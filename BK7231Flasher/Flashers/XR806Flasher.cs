@@ -572,6 +572,29 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
+        // GetChipType  (opcode 0x17)
+        //
+        // Sends a 13-byte packet (same format as GetFlashId, opcode 0x17 instead
+        // of 0x18) and reads a single-byte chip type value from the response
+        // payload.  Confirmed working on both BROM v3 and v4 XR806 devices.
+        // Failure is silently ignored — not all BROMs respond.
+        // =====================================================================
+        void ReadChipType()
+        {
+            // Packet: BROM magic | flags 0x04 0x00 | checksum 0x60 0x52 | logicalLen 0x00 0x00 0x00 0x01 | opcode 0x17
+            var pkt = new byte[] { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x52,
+                                   0x00, 0x00, 0x00, 0x01, 0x17 };
+            try
+            {
+                BROMResponse resp = ExecuteRawPacket(pkt, headerTimeoutMs: 1500,
+                                                          payloadTimeoutMs: 1500);
+                if (!resp.IsError && resp.PayloadLength >= 1)
+                    addLogLine($"Chip type    : {resp.Payload[0]}");
+            }
+            catch { }
+        }
+
+        // =====================================================================
         // GetFlashId
         //
         // For XR806, the legacy 0x18 query is the proven working path in this
@@ -623,6 +646,7 @@ namespace BK7231Flasher
             TryEnterDownloadModeByUpgradeCommand();
             if (!Sync())        return false;
             if (!ReadFlashId()) return false;
+            ReadChipType();
 
             if (bromVersion <= 1)
             {
