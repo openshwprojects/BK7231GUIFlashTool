@@ -16,10 +16,7 @@ namespace BK7231Flasher
             box.SelectionColor = box.ForeColor;
 
             box.SelectionStart = box.TextLength;
-            if (text.Contains(Environment.NewLine))
-            {
-                box.ScrollToCaret();
-            }
+            box.ScrollToCaret();
         }
     }
 }
