@@ -16,6 +16,7 @@ Supported families:
 - W800
 - W600 (write only)
 - XR806
+- XR872/XF16
 
 Futhermore, it automatically creates an original firmware backup, and uses it to extract GPIO configuration that you can later import in OBK Web Application (Import Tab).
 
