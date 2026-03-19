@@ -207,11 +207,6 @@ namespace BK7231Flasher
                 comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
             }
 
-            if(comboBoxChipType.Items.Cast<ChipType>().Any(x => x.Type == BKType.TR6260) == false)
-            {
-                comboBoxChipType.Items.Add(new ChipType(BKType.TR6260, "TR6260"));
-            }
-
             comboBoxChipType.SelectedIndex = comboBoxChipType.Items
                 .Cast<ChipType>().ToList().FindIndex(x => x.Type == BKType.BK7231N);
             foreach(var baud in BaudRates)
