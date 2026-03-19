@@ -31,7 +31,6 @@ namespace BK7231Flasher
 
         // Opcodes
         const byte OP_CHANGE_BAUD      = 0x10;
-        const byte OP_GET_FLASH_ID_NEW = 0x1C;
         const byte OP_ERASE            = 0x19;
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
@@ -686,7 +685,7 @@ namespace BK7231Flasher
             return EnsureConnectedAndIdentified();
         }
 
-                string FormatBromResponseForLog(BROMResponse resp)
+        string FormatBromResponseForLog(BROMResponse resp)
         {
             return $"flags=0x{resp.Flags:X2}, brom=0x{resp.BromVersion:X2}, checksum=0x{resp.Checksum:X4}, payloadLen={resp.PayloadLength}, status={(resp.IsError ? "ERROR" : "OK")}";
         }
@@ -713,6 +712,9 @@ namespace BK7231Flasher
                     addLogLine($"Chip erase ACK: {FormatBromResponseForLog(resp)}");
                     if (resp.PayloadLength != 0)
                     {
+                        // Drain the unexpected payload so the buffer is clean for the next operation.
+                        if (resp.PayloadLength > 0)
+                            ReadExact(resp.PayloadLength, 1000);
                         addErrorLine($"Chip erase returned unexpected payload length {resp.PayloadLength}. ACK: {FormatBromResponseForLog(resp)}");
                         return false;
                     }
