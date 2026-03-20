@@ -29,7 +29,9 @@ namespace BK7231Flasher
         const int  XR_STUB_ENTRY_ADDR   = 0x00010101;
 
         // BROM packet byte constants
-        const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte; high byte always 0x00
+        const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte
+        const byte BROM_HOST_QUERY     = 0x00;      // PhoenixMC uses 0 for simple no-payload requests
+        const byte BROM_HOST_PAYLOAD   = 0x01;      // PhoenixMC uses 1 when the request carries parameters/data metadata
         const byte BROM_FLAG_ERROR     = 0x01;      // bit 0 of device→host flags byte = command failed
 
         // Opcodes
@@ -217,8 +219,10 @@ namespace BK7231Flasher
         //
         // payloadPre is used for checksum calculation.
         // payloadWire is emitted on the serial wire.
+        // requestType is header byte 5; PhoenixMC uses 0 for simple query packets
+        // like GetFlashId/GetChipType, and 1 for payload-bearing commands.
         // =====================================================================
-        byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire)
+        byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire, byte requestType = BROM_HOST_PAYLOAD)
         {
             if (payloadPre  == null) payloadPre  = new byte[0];
             if (payloadWire == null) payloadWire = new byte[0];
@@ -229,7 +233,7 @@ namespace BK7231Flasher
             byte[] pre = new byte[12 + logicalLen];
             pre[0] = (byte)'B'; pre[1] = (byte)'R'; pre[2] = (byte)'O'; pre[3] = (byte)'M';
             pre[4] = BROM_HOST_FLAGS;
-            // [5] = 0x00  (flags high byte – always 0)
+            pre[5] = requestType;
             // [6..7] = 0x0000  (checksum placeholder)
             pre[8]  = (byte)( logicalLen        & 0xFF);
             pre[9]  = (byte)((logicalLen >>  8) & 0xFF);
@@ -245,6 +249,7 @@ namespace BK7231Flasher
             byte[] pkt = new byte[12 + logicalLen];
             pkt[0] = (byte)'B'; pkt[1] = (byte)'R'; pkt[2] = (byte)'O'; pkt[3] = (byte)'M';
             pkt[4] = BROM_HOST_FLAGS;
+            pkt[5] = requestType;
             pkt[6]  = (byte)((cs >> 8) & 0xFF);   // checksum big-endian
             pkt[7]  = (byte)( cs       & 0xFF);
             pkt[8]  = (byte)((logicalLen >> 24) & 0xFF);
@@ -259,7 +264,7 @@ namespace BK7231Flasher
 
         byte[] BuildGetFlashIdPacket(byte opcode = OP_GET_FLASH_ID)
         {
-            return BuildPhoenixPacket(opcode, new byte[0], new byte[0]);
+            return BuildPhoenixPacket(opcode, new byte[0], new byte[0], BROM_HOST_QUERY);
         }
 
         byte[] BuildEraseBlockPacket(int address, byte eraseMode, byte opcode)
@@ -278,7 +283,7 @@ namespace BK7231Flasher
             wire[2] = (byte)((address >> 16) & 0xFF);
             wire[3] = (byte)((address >>  8) & 0xFF);
             wire[4] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(opcode, pre, wire);
+            return BuildPhoenixPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // Read packet payload: big-endian sector index and sector count.
@@ -302,7 +307,7 @@ namespace BK7231Flasher
             wire[5] = (byte)((sectorCount >> 16) & 0xFF);
             wire[6] = (byte)((sectorCount >>  8) & 0xFF);
             wire[7] = (byte)( sectorCount        & 0xFF);
-            return BuildPhoenixPacket(opcode, pre, wire);
+            return BuildPhoenixPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
@@ -330,7 +335,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( sectorCount        & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(opcode, pre, wire);
+            return BuildPhoenixPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         byte[] BuildWriteMemoryPacket(int address, int length, ushort dataChecksum)
@@ -358,7 +363,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( length         & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(OP_WRITE_MEMORY, pre, wire);
+            return BuildPhoenixPacket(OP_WRITE_MEMORY, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         byte[] BuildRead4Packet(int address)
@@ -373,7 +378,7 @@ namespace BK7231Flasher
             wire[1] = (byte)((address >> 16) & 0xFF);
             wire[2] = (byte)((address >>  8) & 0xFF);
             wire[3] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(OP_READ_4, pre, wire);
+            return BuildPhoenixPacket(OP_READ_4, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         byte[] BuildSetPcPacket(int address)
@@ -388,7 +393,7 @@ namespace BK7231Flasher
             wire[1] = (byte)((address >> 16) & 0xFF);
             wire[2] = (byte)((address >>  8) & 0xFF);
             wire[3] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(OP_SET_PC, pre, wire);
+            return BuildPhoenixPacket(OP_SET_PC, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
@@ -405,7 +410,7 @@ namespace BK7231Flasher
             wire[1] = (byte)((val >> 16) & 0xFF);
             wire[2] = (byte)((val >>  8) & 0xFF);
             wire[3] = (byte)( val        & 0xFF);
-            return BuildPhoenixPacket(OP_CHANGE_BAUD, pre, wire);
+            return BuildPhoenixPacket(OP_CHANGE_BAUD, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // =====================================================================
