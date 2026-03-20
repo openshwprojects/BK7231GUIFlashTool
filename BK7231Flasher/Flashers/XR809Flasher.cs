@@ -54,10 +54,19 @@ namespace BK7231Flasher
         // known bucket here rather than being blocked.
 
         // XR809 .img section ID to name mapping.
-        // XR809 section IDs appear close to XR872 but are still left as raw IDs
-        // here until we have a few real images to label confidently.
+        // PhoenixMC carries an internal XR section-ID table alongside a
+        // reverse-ordered section-name table. The first eight IDs in that table
+        // match the XR809 images we have and map cleanly to the names below.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
         {
+            { 0xA5FF5A00, "boot"     },
+            { 0xA5FE5A01, "app"      },
+            { 0xA5FD5A02, "app_xip"  },
+            { 0xA5FC5A03, "net"      },
+            { 0xA5FB5A04, "net_ap"   },
+            { 0xA5FA5A05, "wlan_bl"  },
+            { 0xA5F95A06, "wlan_fw"  },
+            { 0xA5F85A07, "wlan_sdd" },
         };
 
         // =====================================================================
@@ -246,21 +255,6 @@ namespace BK7231Flasher
             if (payloadWire.Length > 0)
                 Buffer.BlockCopy(payloadWire, 0, pkt, 13, payloadWire.Length);
             return pkt;
-        }
-
-        byte GetEraseOpcode()
-        {
-            return useExtendedFlashOpcodes ? OP_ERASE_EXT : OP_ERASE;
-        }
-
-        byte GetReadOpcode()
-        {
-            return useExtendedFlashOpcodes ? OP_READ_EXT : OP_READ;
-        }
-
-        byte GetWriteOpcode()
-        {
-            return useExtendedFlashOpcodes ? OP_WRITE_EXT : OP_WRITE;
         }
 
         byte[] BuildGetFlashIdPacket(byte opcode = OP_GET_FLASH_ID)
@@ -690,14 +684,24 @@ namespace BK7231Flasher
         // =====================================================================
         // GetFlashId
         //
-        // PhoenixMC still uses the legacy 0x18 query to identify the device even
-        // after the BROM1 RAM stub has been started. The returned header byte 5
-        // carries the active BROM/stub version.
+        // PhoenixMC uses the legacy 0x18 query on older ROMs, but enables the
+        // extended 0x1C form once the active BROM/stub reports version 3+ on
+        // the "new BROM" path. The returned header byte 5 carries the active
+        // BROM/stub version in either case.
         // =====================================================================
         bool ReadFlashId()
         {
-            BROMResponse resp = ExecuteRawPacket(
-                BuildGetFlashIdPacket(OP_GET_FLASH_ID), headerTimeoutMs: 1500, payloadTimeoutMs: 1500);
+            bool preferExtended = ramStubLoaded || useExtendedFlashOpcodes || bromVersion >= 3;
+
+            BROMResponse resp = preferExtended
+                ? ExecuteFlashCommandWithOpcodeFallback(
+                    opcode => ExecuteRawPacket(
+                        BuildGetFlashIdPacket(opcode), headerTimeoutMs: 1500, payloadTimeoutMs: 1500),
+                    OP_GET_FLASH_ID,
+                    OP_GET_FLASH_ID_EXT,
+                    "GetFlashId")
+                : ExecuteRawPacket(
+                    BuildGetFlashIdPacket(OP_GET_FLASH_ID), headerTimeoutMs: 1500, payloadTimeoutMs: 1500);
             bromVersion = resp.BromVersion;
 
             if (resp.IsError)  { addErrorLine("GetFlashId returned error."); return false; }
@@ -722,13 +726,13 @@ namespace BK7231Flasher
                 addWarningLine("Could not decode flash size from JEDEC ID; defaulting to 2 MB.");
             }
 
-            bool newExtendedMode = ramStubLoaded && bromVersion >= 3;
+            bool newExtendedMode = bromVersion >= 3;
             if (newExtendedMode != useExtendedFlashOpcodes)
             {
                 useExtendedFlashOpcodes = newExtendedMode;
                 addLogLine(useExtendedFlashOpcodes
-                    ? "XR809 RAM stub reports BROM v3+, enabling PhoenixMC extended flash opcodes (0x1D-0x1F)."
-                    : "Using legacy XR flash opcodes (0x19-0x1B).");
+                    ? "XR809 BROM/stub reports v3+, enabling PhoenixMC extended opcodes (0x1C-0x1F)."
+                    : "Using legacy XR opcodes (0x18-0x1B).");
             }
             return true;
         }
@@ -953,8 +957,6 @@ namespace BK7231Flasher
         // keeps XR809 on the same full-chip erase semantics as XR806/XR872.
         bool EraseBlockOnce(int address, byte eraseMode)
         {
-            byte opcode = useExtendedFlashOpcodes ? OP_ERASE_EXT : OP_ERASE;
-
             void WriteErasePacket(byte selectedOpcode)
             {
                 byte[] pkt = BuildEraseBlockPacket(address, eraseMode, selectedOpcode);
@@ -1007,8 +1009,8 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Read  (opcode 0x1A, or 0x1E once the XR809 stub reports the extended
-        // command set)
+        // Read  (opcode 0x1A, or 0x1E once the active XR809 BROM/stub reports
+        // the extended command set)
         //
         // The BROM requires a 50 ms delay after sending the command before the
         // response header is available. PhoenixMC Windows uses 0x1000-byte
@@ -1086,8 +1088,8 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Write  (opcode 0x1B, or 0x1F once the XR809 stub reports the extended
-        // command set)
+        // Write  (opcode 0x1B, or 0x1F once the active XR809 BROM/stub reports
+        // the extended command set)
         //
         // Two-stage: send 23-byte command and receive ACK, then send raw sector
         // data and receive a second ACK.  The data checksum is embedded in the
@@ -1207,9 +1209,9 @@ namespace BK7231Flasher
         // =====================================================================
         // High-level erase
         //
-        // XR809 uses the same UI-facing full-chip erase semantics as XR806/XR872, but
-        // the underlying transport matches PhoenixMC's 64 KB block erase path.
-        // pre-write erase path. Custom raw writes intentionally skip erase.
+        // XR809 uses the same UI-facing full-chip erase semantics as XR806/XR872,
+        // but the underlying transport matches PhoenixMC's 64 KB block erase
+        // path used for pre-write erase. Custom raw writes intentionally skip erase.
         // Addressed erase is intentionally not used in this implementation.
         // =====================================================================
         bool InternalChipErase()
