@@ -1262,6 +1262,7 @@ namespace BK7231Flasher
             // 
             // buttonIPScannerOpenDir
             // 
+            this.buttonIPScannerOpenDir.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonIPScannerOpenDir.Location = new System.Drawing.Point(14, 442);
             this.buttonIPScannerOpenDir.Name = "buttonIPScannerOpenDir";
             this.buttonIPScannerOpenDir.Size = new System.Drawing.Size(156, 23);
@@ -1324,6 +1325,7 @@ namespace BK7231Flasher
             // label29
             // 
             this.label29.AutoSize = true;
+            this.label29.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.label29.Location = new System.Drawing.Point(12, 396);
             this.label29.Name = "label29";
             this.label29.Size = new System.Drawing.Size(353, 13);
@@ -1333,6 +1335,7 @@ namespace BK7231Flasher
             // labelMassBackupProgress
             // 
             this.labelMassBackupProgress.AutoSize = true;
+            this.labelMassBackupProgress.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
             this.labelMassBackupProgress.Name = "labelMassBackupProgress";
             this.labelMassBackupProgress.Size = new System.Drawing.Size(76, 13);
@@ -1341,6 +1344,7 @@ namespace BK7231Flasher
             // 
             // buttonStartMassBackup
             // 
+            this.buttonStartMassBackup.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonStartMassBackup.Location = new System.Drawing.Point(14, 412);
             this.buttonStartMassBackup.Name = "buttonStartMassBackup";
             this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
@@ -1377,6 +1381,9 @@ namespace BK7231Flasher
             this.columnHeader3,
             this.columnHeader4,
             this.columnHeader5});
+            this.listView1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
             this.listView1.Location = new System.Drawing.Point(11, 117);
