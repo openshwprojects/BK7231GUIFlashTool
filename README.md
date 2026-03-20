@@ -7,12 +7,16 @@ Supported families:
 - BL602
 - ECR6600
 - LN882H
+- LN8825B
 - RDA5981
 - RTL8710B
 - RTL8710C
 - RTL8720D/RTL8720CS
+- TR6260
 - W800
 - W600 (write only)
+- XR806
+- XR872/XF16
 
 Futhermore, it automatically creates an original firmware backup, and uses it to extract GPIO configuration that you can later import in OBK Web Application (Import Tab).
 

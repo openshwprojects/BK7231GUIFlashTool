@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -29,33 +29,35 @@ namespace BK7231Flasher
 
         public Dictionary<BKType, string> Chips = new Dictionary<BKType, string>()
         {
+            { BKType.BK7231M,    "BK7231M" },
+            { BKType.BK7231N,    "BK7231N (T2, T34)" },
             { BKType.BK7231T,    "BK7231T" },
             { BKType.BK7231U,    "BK7231U" },
-            { BKType.BK7231N,    "BK7231N (T2, T34)" },
-            { BKType.BK7231M,    "BK7231M" },
             { BKType.BK7236,     "BK7236 (T3)" },
             { BKType.BK7238,     "BK7238 (T1)" },
             { BKType.BK7252,     "BK7252" },
             { BKType.BK7252N,    "BK7252N (T4)" },
             { BKType.BK7258,     "BK7258 (T5)" },
-            { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
-            { BKType.RTL87X0C,   "RTL87X0C (AmebaZ2)" },
-            { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
-            { BKType.LN882H,     "LN882H" },
-            { BKType.LN8825,     "LN8825" },
+            { BKType.BekenSPI,   "Beken SPI CH341" },
             { BKType.BL602,      "BL602" },
             { BKType.BL702,      "BL702" },
             { BKType.ECR6600,    "ECR6600" },
-            { BKType.W800,       "W800" },
-            { BKType.W600,       "W600 (write)" },
-            { BKType.RDA5981,    "RDA5981" },
-            { BKType.TR6260,     "TR6260" },
-            { BKType.BekenSPI,   "Beken SPI CH341" },
-            { BKType.GenericSPI, "Generic SPI CH341" },
             { BKType.ESP32,      "ESP32" },
-            { BKType.ESP32S3,    "ESP32-S3" },
             { BKType.ESP32C3,    "ESP32-C3" },
+            { BKType.ESP32S3,    "ESP32-S3" },
             { BKType.ESP8266,    "ESP8266" },
+            { BKType.GenericSPI, "Generic SPI CH341" },
+            { BKType.LN882H,     "LN882H" },
+            { BKType.LN8825,     "LN8825" },
+            { BKType.RDA5981,    "RDA5981" },
+            { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
+            { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
+            { BKType.RTL87X0C,   "RTL87X0C (AmebaZ2)" },
+            { BKType.TR6260,     "TR6260" },
+            { BKType.W600,       "W600 (write)" },
+            { BKType.W800,       "W800" },
+            { BKType.XR806,      "XR806" },
+            { BKType.XR872,      "XR872 (XF16)" },
         };
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
@@ -205,18 +207,14 @@ namespace BK7231Flasher
                 comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
             }
 
-            if(comboBoxChipType.Items.Cast<ChipType>().Any(x => x.Type == BKType.TR6260) == false)
-            {
-                comboBoxChipType.Items.Add(new ChipType(BKType.TR6260, "TR6260"));
-            }
-
-            comboBoxChipType.SelectedIndex = 0;
+            comboBoxChipType.SelectedIndex = comboBoxChipType.Items
+                .Cast<ChipType>().ToList().FindIndex(x => x.Type == BKType.BK7231N);
             foreach(var baud in BaudRates)
             {
                 comboBoxBaudRate.Items.Add(baud);
             }
 
-            comboBoxBaudRate.SelectedIndex = 1;
+            comboBoxBaudRate.SelectedIndex = 0;
 
             try
             {
@@ -521,6 +519,12 @@ namespace BK7231Flasher
                 case BKType.RDA5981:
                     flasher = new RDAFlasher(cts.Token);
                     break;
+                case BKType.XR806:
+                    flasher = new XR806Flasher(cts.Token);
+                    break;
+                case BKType.XR872:
+                    flasher = new XR872Flasher(cts.Token);
+                    break;                    
                 case BKType.TR6260:
                     flasher = new TR6260Flasher(cts.Token);
                     break;
@@ -615,6 +619,8 @@ namespace BK7231Flasher
             if(parms!=null)
             {
                 startSector = parms.ofs;
+                if(curType == BKType.XR806 || curType == BKType.XR872)
+                    startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 chosenSourceFile = parms.sourceFileName;
             }
@@ -794,7 +800,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B || curType == BKType.XR806 || curType == BKType.XR872)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 isFullRead = false;
@@ -1448,7 +1454,7 @@ namespace BK7231Flasher
                 "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
-                "Full chip erase: BL602/BL702, ECR6600, TR6260, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
+                "Full chip erase: BL602/BL702, ECR6600, TR6260, XR806, XR872, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
                 "Erase not implemented: LN882H, LN8825B, W800, W600, ESP32 family." + _nl + _nl +
                 "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
                 "Continue?";

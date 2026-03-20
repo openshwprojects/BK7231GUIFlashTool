@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO.Ports;
 using System.Collections.Generic;
 using System.Globalization;
@@ -414,7 +414,8 @@ namespace BK7231Flasher
                 case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.BL702:
-                case BKType.TR6260:
+                case BKType.XR806:
+                case BKType.XR872:
                     return true;
                 default:
                     return false;
@@ -613,6 +614,10 @@ namespace BK7231Flasher
                     return new WMFlasher(ct);
                 case BKType.RDA5981:
                     return new RDAFlasher(ct);
+                case BKType.XR806:
+                    return new XR806Flasher(ct);
+                case BKType.XR872:
+                    return new XR872Flasher(ct);
                 case BKType.ESP32:
                 case BKType.ESP32C3:
                 case BKType.ESP32S3:

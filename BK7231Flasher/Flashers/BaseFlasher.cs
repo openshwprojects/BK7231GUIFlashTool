@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.IO.Ports;
 using System.Text;
@@ -8,37 +8,38 @@ namespace BK7231Flasher
 {
     public enum BKType
     {
+        BK7231M,
+        BK7231N,
         BK7231T,
         BK7231U,
-        BK7231N,
-        BK7231M,
-        BK7238,
         BK7236,
+        BK7238,
         BK7252,
         BK7252N,
         BK7258,
-        RTL8710B,
-        RTL87X0C,
-        RTL8720D,
-        RTL8721DA,
-        RTL8720E,
-        LN882H,
-        LN8825,
+        BekenSPI,
         BL602,
         BL616,
         BL702,
         ECR6600,
+        ESP32,
+        ESP32C3,
+        ESP32S3,
+        ESP8266,
+        GenericSPI,
+        LN882H,
+        LN8825,
+        RDA5981,
+        RTL8710B,
+        RTL8720D,
+        RTL8720E,
+        RTL8721DA,
+        RTL87X0C,
+        TR6260,
         W600,
         W800,
-        RDA5981,
-        TR6260,
-
-        BekenSPI,
-        GenericSPI,
-        ESP32,
-        ESP32S3,
-        ESP32C3,
-        ESP8266,
+        XR806,
+        XR872,
 
         Detect,
         Invalid,
