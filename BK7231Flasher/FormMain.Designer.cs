@@ -1428,7 +1428,6 @@ namespace BK7231Flasher
             // 
             // buttonPickSubnet
             // 
-            this.buttonPickSubnet.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonPickSubnet.Location = new System.Drawing.Point(807, 40);
             this.buttonPickSubnet.Name = "buttonPickSubnet";
             this.buttonPickSubnet.Size = new System.Drawing.Size(84, 23);
