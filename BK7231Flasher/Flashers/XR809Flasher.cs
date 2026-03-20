@@ -700,6 +700,9 @@ namespace BK7231Flasher
         // =====================================================================
         void ReadChipType()
         {
+            if (!ramStubLoaded && bromVersion < 2)
+                return;
+
             // Packet: BROM magic | flags 0x04 0x00 | checksum 0x60 0x52 | logicalLen 0x00 0x00 0x00 0x01 | opcode 0x17
             var pkt = new byte[] { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x52,
                                    0x00, 0x00, 0x00, 0x01, 0x17 };
@@ -791,7 +794,6 @@ namespace BK7231Flasher
             TryEnterDownloadModeByUpgradeCommand();
             if (!Sync())        return false;
             if (!ReadFlashId()) return false;
-            ReadChipType();
 
             if (bromVersion < 2)
             {
