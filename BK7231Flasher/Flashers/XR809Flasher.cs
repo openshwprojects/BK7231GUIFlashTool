@@ -885,7 +885,7 @@ namespace BK7231Flasher
 
         bool UploadRamStub()
         {
-            byte[] stub = FLoaders.GetBinaryFromAssembly("XR809_BRom_stub");
+            byte[] stub = FLoaders.GetBinaryFromAssembly("XR809_Stub");
             if (stub == null || stub.Length == 0)
             {
                 addErrorLine("XR809 BROM stub resource is missing.");

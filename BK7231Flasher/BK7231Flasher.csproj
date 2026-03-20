@@ -219,7 +219,7 @@
     <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
     <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
     <EmbeddedResource Include="Floaders\W800_Stub.bin" />
-    <EmbeddedResource Include="Floaders\XR809_BRom_stub.bin" />
+    <EmbeddedResource Include="Floaders\XR809_Stub.bin" />
     <EmbeddedResource Include="Floaders\LN88xx_RamCode.bin" />
     <EmbeddedResource Include="Floaders\ESP32_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32S3_Stub.json" />
