@@ -829,8 +829,6 @@ namespace BK7231Flasher
         // Sends the ChangeBaud command, switches the host serial port and re-syncs.
         bool ChangeBaudAndResync(int newBaud)
         {
-            if (newBaud <= XR_ROM_BAUD) return true;
-
             if (!IsAllowedXRBaud(newBaud))
             {
                 addWarningLine($"Baud {newBaud} is not supported by this XR809 transport profile; falling back to {XR_SAFE_WORK_BAUD}.");
