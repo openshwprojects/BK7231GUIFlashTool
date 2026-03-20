@@ -518,105 +518,20 @@ namespace BK7231Flasher
             var buf = new byte[count];
             int got = 0;
             var sw  = Stopwatch.StartNew();
-            long deadlineMs     = timeoutMs;
-            long hardDeadlineMs = timeoutMs + 500;
-
-            while (got < count && !isCancelled)
+            while (got < count && sw.ElapsedMilliseconds < timeoutMs && !isCancelled)
             {
                 try
                 {
                     int r = serial.Read(buf, got, count - got);
-                    if (r > 0)
-                    {
-                        got += r;
-                        long extendedDeadline = sw.ElapsedMilliseconds + 200;
-                        if (extendedDeadline > deadlineMs)
-                            deadlineMs = extendedDeadline > hardDeadlineMs ? hardDeadlineMs : extendedDeadline;
-                        continue;
-                    }
+                    if (r > 0) { got += r; continue; }
                 }
                 catch (TimeoutException) { }
-
-                if (sw.ElapsedMilliseconds >= deadlineMs)
-                    break;
                 Thread.Sleep(5);
             }
             if (got == count) return buf;
             if (got == 0)     return null;
             var partial = new byte[got];
             Buffer.BlockCopy(buf, 0, partial, 0, got);
-            return partial;
-        }
-
-        byte[] ReadBromHeader(int timeoutMs)
-        {
-            var header = new byte[12];
-            int got = 0;
-            int matchedMagicBytes = 0;
-            var sw = Stopwatch.StartNew();
-            long deadlineMs = timeoutMs;
-            long hardDeadlineMs = timeoutMs + 500;
-
-            while (!isCancelled)
-            {
-                try
-                {
-                    int b = serial.ReadByte();
-                    if (b >= 0)
-                    {
-                        byte value = (byte)b;
-
-                        if (got == 0)
-                        {
-                            switch (matchedMagicBytes)
-                            {
-                                case 0:
-                                    matchedMagicBytes = value == (byte)'B' ? 1 : 0;
-                                    break;
-                                case 1:
-                                    matchedMagicBytes = value == (byte)'R' ? 2 : (value == (byte)'B' ? 1 : 0);
-                                    break;
-                                case 2:
-                                    matchedMagicBytes = value == (byte)'O' ? 3 : (value == (byte)'B' ? 1 : 0);
-                                    break;
-                                default:
-                                    if (value == (byte)'M')
-                                    {
-                                        header[0] = (byte)'B';
-                                        header[1] = (byte)'R';
-                                        header[2] = (byte)'O';
-                                        header[3] = (byte)'M';
-                                        got = 4;
-                                    }
-                                    matchedMagicBytes = value == (byte)'M' ? 0 : (value == (byte)'B' ? 1 : 0);
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            header[got++] = value;
-                            long extendedDeadline = sw.ElapsedMilliseconds + 200;
-                            if (extendedDeadline > deadlineMs)
-                                deadlineMs = extendedDeadline > hardDeadlineMs ? hardDeadlineMs : extendedDeadline;
-                            if (got == header.Length)
-                                return header;
-                        }
-
-                        continue;
-                    }
-                }
-                catch (TimeoutException) { }
-
-                if (sw.ElapsedMilliseconds >= deadlineMs)
-                    break;
-                Thread.Sleep(5);
-            }
-
-            if (got == 0)
-                return null;
-
-            var partial = new byte[got];
-            Buffer.BlockCopy(header, 0, partial, 0, got);
             return partial;
         }
 
@@ -702,7 +617,7 @@ namespace BK7231Flasher
         // =====================================================================
         BROMResponse ReadBromResponse(int headerTimeoutMs, int payloadTimeoutMs)
         {
-            byte[] header = ReadBromHeader(headerTimeoutMs);
+            byte[] header = ReadExact(12, headerTimeoutMs);
             if (header == null || header.Length < 12)
                 throw new IOException(
                     $"BROM header incomplete ({header?.Length ?? 0}/12 bytes): {FormatHexSnippet(header)}.");
@@ -739,7 +654,7 @@ namespace BK7231Flasher
 
         BROMResponse ReadFixedHeaderResponse(int headerTimeoutMs)
         {
-            byte[] header = ReadBromHeader(headerTimeoutMs);
+            byte[] header = ReadExact(12, headerTimeoutMs);
             if (header == null || header.Length < 12)
                 throw new IOException(
                     $"BROM header incomplete ({header?.Length ?? 0}/12 bytes): {FormatHexSnippet(header)}.");
