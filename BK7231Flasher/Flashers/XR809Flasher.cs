@@ -264,6 +264,16 @@ namespace BK7231Flasher
 
         byte[] BuildGetFlashIdPacket(byte opcode = OP_GET_FLASH_ID)
         {
+            if (opcode == OP_GET_FLASH_ID)
+            {
+                // Known-good legacy XR GetFlashId request captured from the
+                // working PhoenixMC path.
+                return new byte[]
+                {
+                    0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51,
+                    0x00, 0x00, 0x00, 0x01, 0x18
+                };
+            }
             return BuildPhoenixPacket(opcode, new byte[0], new byte[0], BROM_HOST_QUERY);
         }
 
@@ -486,19 +496,49 @@ namespace BK7231Flasher
             }
         }
 
+        static string FormatHexSnippet(byte[] data, int maxBytes = 16)
+        {
+            if (data == null || data.Length == 0)
+                return "<none>";
+
+            int shown = data.Length > maxBytes ? maxBytes : data.Length;
+            var sb = new StringBuilder(shown * 3 + 8);
+            for (int i = 0; i < shown; i++)
+            {
+                if (i > 0) sb.Append(' ');
+                sb.Append(data[i].ToString("X2"));
+            }
+            if (data.Length > shown)
+                sb.Append(" ...");
+            return sb.ToString();
+        }
+
         byte[] ReadExact(int count, int timeoutMs)
         {
             var buf = new byte[count];
             int got = 0;
             var sw  = Stopwatch.StartNew();
-            while (got < count && sw.ElapsedMilliseconds < timeoutMs && !isCancelled)
+            long deadlineMs     = timeoutMs;
+            long hardDeadlineMs = timeoutMs + 500;
+
+            while (got < count && !isCancelled)
             {
                 try
                 {
                     int r = serial.Read(buf, got, count - got);
-                    if (r > 0) { got += r; continue; }
+                    if (r > 0)
+                    {
+                        got += r;
+                        long extendedDeadline = sw.ElapsedMilliseconds + 200;
+                        if (extendedDeadline > deadlineMs)
+                            deadlineMs = extendedDeadline > hardDeadlineMs ? hardDeadlineMs : extendedDeadline;
+                        continue;
+                    }
                 }
                 catch (TimeoutException) { }
+
+                if (sw.ElapsedMilliseconds >= deadlineMs)
+                    break;
                 Thread.Sleep(5);
             }
             if (got == count) return buf;
@@ -593,7 +633,7 @@ namespace BK7231Flasher
             byte[] header = ReadExact(12, headerTimeoutMs);
             if (header == null || header.Length < 12)
                 throw new IOException(
-                    $"BROM header incomplete ({header?.Length ?? 0}/12 bytes).");
+                    $"BROM header incomplete ({header?.Length ?? 0}/12 bytes): {FormatHexSnippet(header)}.");
             if (header[0] != 'B' || header[1] != 'R' || header[2] != 'O' || header[3] != 'M')
                 throw new IOException(
                     $"BROM magic mismatch: {header[0]:X2} {header[1]:X2} {header[2]:X2} {header[3]:X2}");
@@ -630,7 +670,7 @@ namespace BK7231Flasher
             byte[] header = ReadExact(12, headerTimeoutMs);
             if (header == null || header.Length < 12)
                 throw new IOException(
-                    $"BROM header incomplete ({header?.Length ?? 0}/12 bytes).");
+                    $"BROM header incomplete ({header?.Length ?? 0}/12 bytes): {FormatHexSnippet(header)}.");
             if (header[0] != 'B' || header[1] != 'R' || header[2] != 'O' || header[3] != 'M')
                 throw new IOException(
                     $"BROM magic mismatch: {header[0]:X2} {header[1]:X2} {header[2]:X2} {header[3]:X2}");
