@@ -414,6 +414,7 @@ namespace BK7231Flasher
                 case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.BL702:
+                case BKType.XR809:
                 case BKType.XR806:
                 case BKType.XR872:
                     return true;
@@ -614,6 +615,8 @@ namespace BK7231Flasher
                     return new WMFlasher(ct);
                 case BKType.RDA5981:
                     return new RDAFlasher(ct);
+                case BKType.XR809:
+                    return new XR809Flasher(ct);
                 case BKType.XR806:
                     return new XR806Flasher(ct);
                 case BKType.XR872:
