@@ -944,9 +944,10 @@ namespace BK7231Flasher
             useExtendedFlashOpcodes = false;
             Thread.Sleep(50);
 
-            if (Read4Byte(0x40040100, out int loaderCookie))
-                addLogLine($"XR809 stub handshake register 0x40040100 = 0x{loaderCookie:X8}");
-
+            // The captured PhoenixMC transport goes straight from SetPC to the
+            // normal 0x55/"OK" sync sequence. Do not probe RAM/register state
+            // here; on XR809/BROM1 that extra read can fail before the stub
+            // transport is ready and abort an otherwise successful upload.
             addLogLine($"XR809 BROM stub started at 0x{XR_STUB_ENTRY_ADDR:X8}.");
             return true;
         }
