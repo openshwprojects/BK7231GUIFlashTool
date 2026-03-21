@@ -51,9 +51,19 @@ namespace BK7231Flasher
         const byte XR_ERASE_MODE_4K    = 0x01;
         const byte XR_ERASE_MODE_64K   = 0x03;
 
-        // PhoenixMC Windows exact timeout buckets are known for 115200, 921600,
-        // 1000000, 1500000 and 3000000. Other GUI bauds use the nearest slower
-        // known bucket here rather than being blocked.
+        // PhoenixMC reports these XR809-supported transport bauds via its
+        // "Support bauds" popup / get-bauds flow.
+        public static readonly int[] SupportedBaudRates =
+        {
+            9600,
+            115200,
+            921600,
+            1000000,
+            1500000,
+            3000000,
+        };
+
+        public static string SupportedBaudRatesText => string.Join(", ", SupportedBaudRates);
 
         // XR809 .img section ID to name mapping.
         // PhoenixMC carries an internal XR section-ID table alongside a
@@ -116,23 +126,37 @@ namespace BK7231Flasher
         {
         }
 
-        static bool IsAllowedXRBaud(int baud)
+        public static bool IsAllowedXRBaud(int baud)
         {
             switch (baud)
             {
                 case 9600:
                 case 115200:
-                case 230400:
-                case 460800:
                 case 921600:
                 case 1000000:
                 case 1500000:
-                case 2000000:
                 case 3000000:
                     return true;
                 default:
                     return false;
             }
+        }
+
+        static int GetNearestSupportedXRBaud(int baud)
+        {
+            int bestBaud = SupportedBaudRates[0];
+            int bestDiff = Math.Abs(bestBaud - baud);
+            for (int i = 1; i < SupportedBaudRates.Length; i++)
+            {
+                int candidate = SupportedBaudRates[i];
+                int diff = Math.Abs(candidate - baud);
+                if (diff < bestDiff || (diff == bestDiff && candidate < bestBaud))
+                {
+                    bestBaud = candidate;
+                    bestDiff = diff;
+                }
+            }
+            return bestBaud;
         }
 
         int GetPhoenixReadWaitMs()
@@ -143,14 +167,11 @@ namespace BK7231Flasher
                 case 9600:
                     return int.MaxValue;
                 case 115200:
-                case 230400:
-                case 460800:
                     return 500;
                 case 921600:
                 case 1000000:
                     return 100;
                 case 1500000:
-                case 2000000:
                     return 70;
                 case 3000000:
                     return 30;
@@ -166,6 +187,18 @@ namespace BK7231Flasher
                 return int.MaxValue;
             int total = waitMs * 40;
             return total < 1000 ? 1000 : total;
+        }
+
+        int NormalizeRequestedXRBaud(int requestedBaud, string context)
+        {
+            if (IsAllowedXRBaud(requestedBaud))
+                return requestedBaud;
+
+            int fallbackBaud = GetNearestSupportedXRBaud(requestedBaud);
+            addWarningLine(
+                $"{context}: XR809 does not support {requestedBaud} baud; using nearest supported baud {fallbackBaud}. " +
+                $"Supported bauds: {SupportedBaudRatesText}.");
+            return fallbackBaud;
         }
 
         // Easy Flasher passes XR809 startSector/sectors in the shared public
@@ -802,7 +835,7 @@ namespace BK7231Flasher
             {
                 ReadChipType();
 
-                int uploadBaud = this.baudrate;
+                int uploadBaud = NormalizeRequestedXRBaud(this.baudrate, "GUI baud selection");
                 if (uploadBaud > XR_SAFE_WORK_BAUD)
                     uploadBaud = XR_SAFE_WORK_BAUD;
                 if (uploadBaud <= XR_ROM_BAUD)
@@ -826,7 +859,8 @@ namespace BK7231Flasher
                 }
             }
 
-            if (!ChangeBaudAndResync(this.baudrate))
+            int workBaud = NormalizeRequestedXRBaud(this.baudrate, "GUI baud selection");
+            if (!ChangeBaudAndResync(workBaud))
                 return false;
             if (!ReadFlashId())
                 return false;
@@ -839,8 +873,11 @@ namespace BK7231Flasher
         {
             if (!IsAllowedXRBaud(newBaud))
             {
-                addWarningLine($"Baud {newBaud} is not supported by this XR809 transport profile; falling back to {XR_SAFE_WORK_BAUD}.");
-                newBaud = XR_SAFE_WORK_BAUD;
+                int fallbackBaud = GetNearestSupportedXRBaud(newBaud);
+                addWarningLine(
+                    $"XR809 does not support {newBaud} baud; switching transport to nearest supported baud {fallbackBaud}. " +
+                    $"Supported bauds: {SupportedBaudRatesText}.");
+                newBaud = fallbackBaud;
             }
 
             BROMResponse resp = ExecuteRawPacket(
