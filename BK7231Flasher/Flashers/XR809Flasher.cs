@@ -16,7 +16,6 @@ namespace BK7231Flasher
         // =====================================================================
 
         const int  XR_ROM_BAUD         = 115200;    // BROM default after reset
-        const int  XR_SAFE_WORK_BAUD   = 921600;    // PhoenixMC caps the BROM1 stub upload at 921600
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
         const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB, matches PhoenixMC's main erase path
         const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
@@ -831,25 +830,16 @@ namespace BK7231Flasher
             if (!Sync())        return false;
             if (!ReadFlashId()) return false;
 
+            int requestedBaud = NormalizeRequestedXRBaud(this.baudrate, "GUI baud selection");
+
             if (bromVersion < 2)
             {
                 ReadChipType();
 
-                int uploadBaud = NormalizeRequestedXRBaud(this.baudrate, "GUI baud selection");
-                if (uploadBaud > XR_SAFE_WORK_BAUD)
-                    uploadBaud = XR_SAFE_WORK_BAUD;
-                if (uploadBaud <= XR_ROM_BAUD)
-                    uploadBaud = XR_ROM_BAUD;
-
                 addLogLine(
                     $"XR809 BROM version 0x{bromVersion:X2} requires a RAM stub; " +
-                    $"uploading PhoenixMC loader at up to {uploadBaud} baud.");
+                    $"uploading PhoenixMC loader at {XR_ROM_BAUD} baud.");
 
-                if (uploadBaud > XR_ROM_BAUD)
-                {
-                    if (!ChangeBaudAndResync(uploadBaud))
-                        return false;
-                }
                 if (!UploadRamStub())
                     return false;
                 if (!Sync())
@@ -859,7 +849,7 @@ namespace BK7231Flasher
                 }
             }
 
-            int workBaud = NormalizeRequestedXRBaud(this.baudrate, "GUI baud selection");
+            int workBaud = requestedBaud;
             if (!ChangeBaudAndResync(workBaud))
                 return false;
             if (!ReadFlashId())
