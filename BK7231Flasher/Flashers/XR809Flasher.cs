@@ -277,6 +277,12 @@ namespace BK7231Flasher
             return BuildPhoenixPacket(opcode, new byte[0], new byte[0], BROM_HOST_QUERY);
         }
 
+        byte[] BuildEraseChipPacket(byte opcode)
+        {
+            var payload = new byte[] { 0x00 };
+            return BuildPhoenixPacket(opcode, payload, payload, BROM_HOST_PAYLOAD);
+        }
+
         byte[] BuildEraseBlockPacket(int address, byte eraseMode, byte opcode)
         {
             var pre  = new byte[5];
@@ -694,15 +700,12 @@ namespace BK7231Flasher
         //
         // Sends a 13-byte packet (same format as GetFlashId, opcode 0x17 instead
         // of 0x18) and reads a single-byte chip type value from the response
-        // payload.  On XR809/BROM1 this is mainly useful after the RAM stub has
-        // started; older ROMs may ignore it.
+        // payload. PhoenixMC probes this on bare XR809/BROM1 before the RAM
+        // stub upload and again once the active BROM/stub transport is up.
         // Failure is silently ignored — not all BROMs respond.
         // =====================================================================
         void ReadChipType()
         {
-            if (!ramStubLoaded && bromVersion < 2)
-                return;
-
             // Packet: BROM magic | flags 0x04 0x00 | checksum 0x60 0x52 | logicalLen 0x00 0x00 0x00 0x01 | opcode 0x17
             var pkt = new byte[] { 0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x52,
                                    0x00, 0x00, 0x00, 0x01, 0x17 };
@@ -797,6 +800,8 @@ namespace BK7231Flasher
 
             if (bromVersion < 2)
             {
+                ReadChipType();
+
                 int uploadBaud = this.baudrate;
                 if (uploadBaud > XR_SAFE_WORK_BAUD)
                     uploadBaud = XR_SAFE_WORK_BAUD;
@@ -807,8 +812,11 @@ namespace BK7231Flasher
                     $"XR809 BROM version 0x{bromVersion:X2} requires a RAM stub; " +
                     $"uploading PhoenixMC loader at up to {uploadBaud} baud.");
 
-                if (!ChangeBaudAndResync(uploadBaud))
-                    return false;
+                if (uploadBaud > XR_ROM_BAUD)
+                {
+                    if (!ChangeBaudAndResync(uploadBaud))
+                        return false;
+                }
                 if (!UploadRamStub())
                     return false;
                 if (!Sync())
@@ -1161,6 +1169,24 @@ namespace BK7231Flasher
             return true;
         }
 
+        bool EraseChipOnce()
+        {
+            BROMResponse ack = ExecuteFlashCommandWithOpcodeFallback(
+                selectedOpcode => ExecuteRawPacket(
+                    BuildEraseChipPacket(selectedOpcode),
+                    headerTimeoutMs: 5000,
+                    payloadTimeoutMs: 1000),
+                OP_ERASE,
+                OP_ERASE_EXT,
+                "Erase");
+            if (ack.IsError)
+            {
+                addErrorLine("XR809 full-chip erase command returned an error.");
+                return false;
+            }
+            return true;
+        }
+
         bool WriteSectors(int sectorIndex, byte[] data, int sectorCount)
         {
             Exception lastEx = null;
@@ -1243,9 +1269,10 @@ namespace BK7231Flasher
         // =====================================================================
         // High-level erase
         //
-        // XR809 uses the same UI-facing full-chip erase semantics as XR806/XR872,
-        // but the underlying transport matches PhoenixMC's 64 KB block erase
-        // path used for pre-write erase. Custom raw writes intentionally skip erase.
+        // XR809 uses the same UI-facing full-chip erase semantics as XR806/XR872.
+        // The explicit erase action mirrors PhoenixMC's single-command 0x19 00
+        // full-chip erase, while the pre-write erase path keeps PhoenixMC's
+        // 64 KB block loop. Custom raw writes intentionally skip erase.
         // Addressed erase is intentionally not used in this implementation.
         // =====================================================================
         bool InternalChipErase()
@@ -1272,6 +1299,26 @@ namespace BK7231Flasher
             addLog(Environment.NewLine);
             logger.setState("Erase complete", Color.DarkGreen);
             return !isCancelled;
+        }
+
+        bool InternalExplicitChipErase()
+        {
+            logger.setProgress(0, 1);
+            logger.setState("Erasing...", Color.Transparent);
+            addLog("Erasing: chip... ");
+
+            bool ok = EraseChipOnce();
+            if (!ok)
+            {
+                addLog(Environment.NewLine);
+                logger.setState("Erase failed", Color.Red);
+                return false;
+            }
+
+            logger.setProgress(1, 1);
+            addLog(Environment.NewLine);
+            logger.setState("Erase complete", Color.DarkGreen);
+            return true;
         }
 
         // =====================================================================
@@ -1537,7 +1584,7 @@ namespace BK7231Flasher
                     addWarningLine("XR809 erase is full-chip only; ignoring requested " +
                                    $"range 0x{requestedStartAddr:X6} + 0x{requestedLength:X6} bytes.");
                 }
-                bool ok = InternalChipErase();
+                bool ok = InternalExplicitChipErase();
                 if (ok) addSuccess("Erase complete!" + Environment.NewLine);
                 return ok;
             }
