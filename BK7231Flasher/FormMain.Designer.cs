@@ -147,6 +147,7 @@ namespace BK7231Flasher
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.buttonPickSubnet = new System.Windows.Forms.Button();
             this.buttonStartScan = new System.Windows.Forms.Button();
             this.textBoxScannerThreads = new System.Windows.Forms.TextBox();
             this.label23 = new System.Windows.Forms.Label();
@@ -1245,6 +1246,7 @@ namespace BK7231Flasher
             this.tabPage6.Controls.Add(this.labelScanState);
             this.tabPage6.Controls.Add(this.label24);
             this.tabPage6.Controls.Add(this.listView1);
+            this.tabPage6.Controls.Add(this.buttonPickSubnet);
             this.tabPage6.Controls.Add(this.buttonStartScan);
             this.tabPage6.Controls.Add(this.textBoxScannerThreads);
             this.tabPage6.Controls.Add(this.label23);
@@ -1262,6 +1264,7 @@ namespace BK7231Flasher
             // 
             // buttonIPScannerOpenDir
             // 
+            this.buttonIPScannerOpenDir.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonIPScannerOpenDir.Location = new System.Drawing.Point(14, 442);
             this.buttonIPScannerOpenDir.Name = "buttonIPScannerOpenDir";
             this.buttonIPScannerOpenDir.Size = new System.Drawing.Size(156, 23);
@@ -1324,6 +1327,7 @@ namespace BK7231Flasher
             // label29
             // 
             this.label29.AutoSize = true;
+            this.label29.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.label29.Location = new System.Drawing.Point(12, 396);
             this.label29.Name = "label29";
             this.label29.Size = new System.Drawing.Size(353, 13);
@@ -1333,6 +1337,7 @@ namespace BK7231Flasher
             // labelMassBackupProgress
             // 
             this.labelMassBackupProgress.AutoSize = true;
+            this.labelMassBackupProgress.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
             this.labelMassBackupProgress.Name = "labelMassBackupProgress";
             this.labelMassBackupProgress.Size = new System.Drawing.Size(76, 13);
@@ -1341,6 +1346,7 @@ namespace BK7231Flasher
             // 
             // buttonStartMassBackup
             // 
+            this.buttonStartMassBackup.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonStartMassBackup.Location = new System.Drawing.Point(14, 412);
             this.buttonStartMassBackup.Name = "buttonStartMassBackup";
             this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
@@ -1377,6 +1383,9 @@ namespace BK7231Flasher
             this.columnHeader3,
             this.columnHeader4,
             this.columnHeader5});
+            this.listView1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
             this.listView1.Location = new System.Drawing.Point(11, 117);
@@ -1416,6 +1425,16 @@ namespace BK7231Flasher
             // 
             this.columnHeader5.Text = "Build";
             this.columnHeader5.Width = 122;
+            // 
+            // buttonPickSubnet
+            // 
+            this.buttonPickSubnet.Location = new System.Drawing.Point(807, 40);
+            this.buttonPickSubnet.Name = "buttonPickSubnet";
+            this.buttonPickSubnet.Size = new System.Drawing.Size(84, 23);
+            this.buttonPickSubnet.TabIndex = 21;
+            this.buttonPickSubnet.Text = "Subnet";
+            this.buttonPickSubnet.UseVisualStyleBackColor = true;
+            this.buttonPickSubnet.Click += new System.EventHandler(this.buttonPickSubnet_Click);
             // 
             // buttonStartScan
             // 
@@ -2072,6 +2091,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.Label label21;
         private System.Windows.Forms.TextBox textBoxEndIP;
         private System.Windows.Forms.Label label22;
+        private System.Windows.Forms.Button buttonPickSubnet;
         private System.Windows.Forms.Button buttonStartScan;
         private System.Windows.Forms.TextBox textBoxScannerThreads;
         private System.Windows.Forms.Label label23;
