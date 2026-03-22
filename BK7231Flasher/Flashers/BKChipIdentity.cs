@@ -102,6 +102,49 @@ namespace BK7231Flasher
         }
     }
 
+    internal sealed class BKLegacyBootloaderProbeResult
+    {
+        public uint BootloaderCrc { get; }
+
+        public string FriendlyName { get; }
+
+        public BKType[] MatchingTypes { get; }
+
+        public bool IsKnown => MatchingTypes.Length > 0;
+
+        public BKLegacyBootloaderProbeResult(uint bootloaderCrc, string friendlyName, BKType[] matchingTypes)
+        {
+            BootloaderCrc = bootloaderCrc;
+            FriendlyName = friendlyName;
+            MatchingTypes = matchingTypes ?? Array.Empty<BKType>();
+        }
+
+        public bool MatchesSelected(BKType selectedType)
+        {
+            if (selectedType == BKType.BK7231M)
+            {
+                return true;
+            }
+            for (int i = 0; i < MatchingTypes.Length; i++)
+            {
+                if (MatchingTypes[i] == selectedType)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public string BuildMismatchWarning(BKType selectedType)
+        {
+            if (IsKnown == false || MatchesSelected(selectedType))
+            {
+                return null;
+            }
+            return $"WARNING! Selected chip is a {selectedType}, but according to bootloader signature this is a {FriendlyName}!";
+        }
+    }
+
     internal static class BKChipIdentity
     {
         private const int SctrlChipIdRegister = 0x800000;
@@ -119,6 +162,22 @@ namespace BK7231Flasher
                 { "7252", new BKChipIdentityDefinition("BK7252", BKType.BK7252) },
                 { "7252a", new BKChipIdentityDefinition("BK7252N", BKType.BK7252N) },
                 { "7258", new BKChipIdentityDefinition("BK7258", BKType.BK7258) },
+            };
+
+        // Known legacy bootloader signatures for the older BK chips that don't
+        // expose the same register-read based chip ID path as BK7231N/BK7238.
+        private static readonly Dictionary<uint, BKChipIdentityDefinition> KnownLegacyBootloaderCrcs =
+            new Dictionary<uint, BKChipIdentityDefinition>()
+            {
+                { 0xF0231EF6, new BKChipIdentityDefinition("BK7231Q / BK7231M family", BKType.BK7231M) },
+                { 0xFF5A3EAC, new BKChipIdentityDefinition("BK7231Q / BK7231M family", BKType.BK7231M) },
+                { 0xC1ECA871, new BKChipIdentityDefinition("BK7231T", BKType.BK7231T) },
+                { 0x4B31E44D, new BKChipIdentityDefinition("BK7231T", BKType.BK7231T) },
+                { 0xBA54C1B8, new BKChipIdentityDefinition("BK7231T", BKType.BK7231T) },
+                { 0xE5CBC953, new BKChipIdentityDefinition("BK7231T", BKType.BK7231T) },
+                { 0x2739019F, new BKChipIdentityDefinition("BK7231U", BKType.BK7231U) },
+                { 0x39F9B50C, new BKChipIdentityDefinition("BK7252", BKType.BK7252) },
+                { 0xE3A27C26, new BKChipIdentityDefinition("BK7252", BKType.BK7252) },
             };
 
         public static bool ShouldAttemptRead(BKType selectedType)
@@ -172,6 +231,19 @@ namespace BK7231Flasher
             }
 
             return bestResult;
+        }
+
+        public static BKLegacyBootloaderProbeResult ProbeLegacyBootloader(uint bootloaderCrc)
+        {
+            if (bootloaderCrc == 0)
+            {
+                return null;
+            }
+            if (KnownLegacyBootloaderCrcs.TryGetValue(bootloaderCrc, out BKChipIdentityDefinition definition))
+            {
+                return new BKLegacyBootloaderProbeResult(bootloaderCrc, definition.FriendlyName, definition.MatchingTypes);
+            }
+            return null;
         }
 
         private static IEnumerable<int> GetCandidateRegisterAddresses(BKType selectedType)

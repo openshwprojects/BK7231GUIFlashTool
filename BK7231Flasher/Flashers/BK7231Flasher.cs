@@ -84,7 +84,6 @@ namespace BK7231Flasher
             ReadReg = 0x03,
             FlashRead4K = 0x09,
             CheckCRC = 0x10,
-            ReadBootVersion = 0x11,
             SetBaudRate = 0x0f,
             FlashErase4K = 0x0b,
             FlashErase = 0x0f,
@@ -119,16 +118,6 @@ namespace BK7231Flasher
             buf[7] = (byte)((addr >> 16) & 0xff);
             buf[8] = (byte)((addr >> 24) & 0xff);
             return buf;
-        }
-        byte[] BuildCmd_ReadBootVersion()
-        {
-            byte[] ret = new byte[5];
-            ret[0] = 0x01;
-            ret[1] = 0xe0;
-            ret[2] = 0xfc;
-            ret[3] = 0x01;
-            ret[4] = (byte)CommandCode.ReadBootVersion;
-            return ret;
         }
         byte[] BuildCmd_EraseSector4K(int addr, int szcmd)
         {
@@ -490,107 +479,6 @@ namespace BK7231Flasher
                     }
                 }
                 return null;
-            }
-            return null;
-        }
-        bool TryReadSerialByte(out byte value)
-        {
-            value = 0;
-            try
-            {
-                int raw = serial.ReadByte();
-                if (raw < 0)
-                {
-                    return false;
-                }
-                value = (byte)raw;
-                return true;
-            }
-            catch (TimeoutException)
-            {
-                return false;
-            }
-        }
-        byte[] Start_Cmd_ShortVariable(byte[] txbuf, byte expectedCode, float timeout = 0.2f)
-        {
-            consumePending();
-            serial.ReadTimeout = (int)(10 * cfg_readTimeOutMultForSerialClass);
-            if (txbuf != null)
-            {
-                serial.Write(txbuf, 0, txbuf.Length);
-            }
-
-            var timer = new Stopwatch();
-            timer.Start();
-            bool got04 = false;
-            while (timer.Elapsed.TotalSeconds < timeout * cfg_readTimeOutMultForLoop)
-            {
-                try
-                {
-                    if (TryReadSerialByte(out byte current) == false)
-                    {
-                        continue;
-                    }
-                    if (got04 == false)
-                    {
-                        got04 = current == 0x04;
-                        continue;
-                    }
-                    if (current != 0x0E)
-                    {
-                        got04 = current == 0x04;
-                        continue;
-                    }
-                    if (TryReadSerialByte(out byte size) == false)
-                    {
-                        got04 = false;
-                        continue;
-                    }
-                    if (size == 0xFF)
-                    {
-                        got04 = false;
-                        continue;
-                    }
-
-                    byte[] header = new byte[4];
-                    int headerRead = serial.Read(header, 0, header.Length);
-                    if (headerRead != header.Length)
-                    {
-                        got04 = false;
-                        continue;
-                    }
-                    if (header[0] != 0x01 || header[1] != 0xE0 || header[2] != 0xFC || header[3] != expectedCode)
-                    {
-                        got04 = false;
-                        continue;
-                    }
-
-                    int payloadLength = size - 4;
-                    if (payloadLength <= 0)
-                    {
-                        return Array.Empty<byte>();
-                    }
-
-                    byte[] payload = new byte[payloadLength];
-                    int totalRead = 0;
-                    while (totalRead < payloadLength && timer.Elapsed.TotalSeconds < timeout * cfg_readTimeOutMultForLoop)
-                    {
-                        int readNow = serial.Read(payload, totalRead, payloadLength - totalRead);
-                        totalRead += readNow;
-                    }
-                    if (totalRead == payloadLength)
-                    {
-                        return payload;
-                    }
-                }
-                catch (TimeoutException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    addLog("Got exception: " + ex.ToString() + "!" + Environment.NewLine);
-                    return null;
-                }
             }
             return null;
         }
@@ -1024,17 +912,25 @@ namespace BK7231Flasher
                 if (BKChipIdentity.ShouldAttemptRead(chipType))
                 {
                     addWarning("Failed to get chip ID!" + Environment.NewLine);
-                    addLog("Trying legacy BK7231T boot-version probe..." + Environment.NewLine);
-                    string bootVersionHint = ReadBootVersionHint();
-                    if (bootVersionHint != null)
+                    addLog("Trying legacy BK bootloader signature probe..." + Environment.NewLine);
+                    uint legacyBootloaderCrc = calcCRCRaw(0, 0x100);
+                    BKLegacyBootloaderProbeResult legacyProbe = BKChipIdentity.ProbeLegacyBootloader(legacyBootloaderCrc);
+                    if (legacyProbe != null)
                     {
-                        addLog("Legacy BK7231T boot-version probe replied." + Environment.NewLine);
-                        string versionSuffix = string.IsNullOrEmpty(bootVersionHint) ? "" : $" (boot version {bootVersionHint})";
-                        addErrorLine($"WARNING! Selected chip is a {chipType}, but protocol behavior looks like a legacy BK7231T bootloader{versionSuffix}!");
+                        addLog($"Legacy BK bootloader signature matched CRC 0x{legacyProbe.BootloaderCrc:X8}." + Environment.NewLine);
+                        string legacyMismatchWarning = legacyProbe.BuildMismatchWarning(chipType);
+                        if (string.IsNullOrEmpty(legacyMismatchWarning) == false)
+                        {
+                            addErrorLine(legacyMismatchWarning);
+                        }
+                    }
+                    else if (legacyBootloaderCrc != 0)
+                    {
+                        addLog($"Legacy BK bootloader signature probe returned unknown CRC 0x{legacyBootloaderCrc:X8}." + Environment.NewLine);
                     }
                     else
                     {
-                        addLog("Legacy BK7231T boot-version probe did not reply." + Environment.NewLine);
+                        addLog("Legacy BK bootloader signature probe did not reply." + Environment.NewLine);
                     }
                 }
             }
@@ -1786,39 +1682,6 @@ namespace BK7231Flasher
             //addLog("Failed!" + Environment.NewLine);
             return null;
         }
-        string ReadBootVersionHint()
-        {
-            byte[] payload = null;
-            for (int attempt = 0; attempt < 3 && payload == null; attempt++)
-            {
-                byte[] txbuf = BuildCmd_ReadBootVersion();
-                payload = Start_Cmd_ShortVariable(txbuf, (byte)CommandCode.ReadBootVersion, 0.35f);
-                if (payload == null)
-                {
-                    Thread.Sleep(20);
-                }
-            }
-            if (payload == null)
-            {
-                return null;
-            }
-            if (payload.Length == 1 && payload[0] == 0x07)
-            {
-                return string.Empty;
-            }
-
-            string version = "";
-            foreach (byte current in payload)
-            {
-                if (current == 0x00 || current == 0x20)
-                    continue;
-                if (current < 0x20 || current > 0x7E)
-                    continue;
-                version += (char)current;
-            }
-            return version;
-        }
-
         int ReadFlashRegInt(int addr)
         {
             byte[] r = ReadFlashReg(addr);
@@ -1949,6 +1812,16 @@ namespace BK7231Flasher
             {
                 uint r = CheckRespond_CheckCRC(rxbuf, start, end);
                 return r;
+            }
+            return 0;
+        }
+        uint calcCRCRaw(int start, int end)
+        {
+            byte[] txbuf = BuildCmd_CheckCRC(start, end);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_CheckCRC(), 5.0f);
+            if (rxbuf != null)
+            {
+                return CheckRespond_CheckCRC(rxbuf, start, end);
             }
             return 0;
         }
