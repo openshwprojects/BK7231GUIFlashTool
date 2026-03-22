@@ -912,25 +912,10 @@ namespace BK7231Flasher
                 if (BKChipIdentity.ShouldAttemptRead(chipType))
                 {
                     addWarning("Failed to get chip ID!" + Environment.NewLine);
-                    addLog("Trying legacy BK bootloader signature probe..." + Environment.NewLine);
-                    uint legacyBootloaderCrc = calcCRCRaw(0, 0x100);
-                    BKLegacyBootloaderProbeResult legacyProbe = BKChipIdentity.ProbeLegacyBootloader(legacyBootloaderCrc);
-                    if (legacyProbe != null)
+                    string chipIdFailureWarning = BKChipIdentity.BuildReadRegFailureWarning(chipType);
+                    if (string.IsNullOrEmpty(chipIdFailureWarning) == false)
                     {
-                        addLog($"Legacy BK bootloader signature matched CRC 0x{legacyProbe.BootloaderCrc:X8}." + Environment.NewLine);
-                        string legacyMismatchWarning = legacyProbe.BuildMismatchWarning(chipType);
-                        if (string.IsNullOrEmpty(legacyMismatchWarning) == false)
-                        {
-                            addErrorLine(legacyMismatchWarning);
-                        }
-                    }
-                    else if (legacyBootloaderCrc != 0)
-                    {
-                        addLog($"Legacy BK bootloader signature probe returned unknown CRC 0x{legacyBootloaderCrc:X8}." + Environment.NewLine);
-                    }
-                    else
-                    {
-                        addLog("Legacy BK bootloader signature probe did not reply." + Environment.NewLine);
+                        addErrorLine(chipIdFailureWarning);
                     }
                 }
             }
@@ -1812,16 +1797,6 @@ namespace BK7231Flasher
             {
                 uint r = CheckRespond_CheckCRC(rxbuf, start, end);
                 return r;
-            }
-            return 0;
-        }
-        uint calcCRCRaw(int start, int end)
-        {
-            byte[] txbuf = BuildCmd_CheckCRC(start, end);
-            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_CheckCRC(), 5.0f);
-            if (rxbuf != null)
-            {
-                return CheckRespond_CheckCRC(rxbuf, start, end);
             }
             return 0;
         }
