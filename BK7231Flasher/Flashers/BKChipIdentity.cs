@@ -134,6 +134,11 @@ namespace BK7231Flasher
             }
         }
 
+        public static bool ShouldProbeUnexpectedReadReply(BKType selectedType)
+        {
+            return ShouldAttemptRead(selectedType) == false;
+        }
+
         public static BKChipIdentityResult Detect(BKType selectedType, Func<int, byte[]> readRegister)
         {
             if (ShouldAttemptRead(selectedType) == false)
@@ -141,8 +146,32 @@ namespace BK7231Flasher
                 return new BKChipIdentityResult(null, null, null, null, null);
             }
 
+            return DetectForAddresses(GetCandidateRegisterAddresses(selectedType), readRegister);
+        }
+
+        public static BKChipIdentityResult ProbeUnexpectedReadReply(BKType selectedType, Func<int, byte[]> readRegister)
+        {
+            if (ShouldProbeUnexpectedReadReply(selectedType) == false)
+            {
+                return new BKChipIdentityResult(null, null, null, null, null);
+            }
+
+            return DetectForAddresses(GetUnexpectedProbeAddresses(), readRegister);
+        }
+
+        public static string BuildUnexpectedReadReplyWarning(BKType selectedType, BKChipIdentityResult detectedChip)
+        {
+            if (detectedChip == null || detectedChip.HasChipId == false)
+            {
+                return null;
+            }
+            return $"WARNING! Selected chip is a {selectedType}, but chip ID read unexpectedly replied with 0x{detectedChip.NormalizedId} ({detectedChip.FriendlyName}). This chip mode normally does not support chip ID read, so the selected chip may be wrong.";
+        }
+
+        private static BKChipIdentityResult DetectForAddresses(IEnumerable<int> registerAddresses, Func<int, byte[]> readRegister)
+        {
             BKChipIdentityResult bestResult = new BKChipIdentityResult(null, null, null, null, null);
-            foreach (int registerAddress in GetCandidateRegisterAddresses(selectedType))
+            foreach (int registerAddress in registerAddresses)
             {
                 byte[] rawBytes = readRegister(registerAddress);
                 if (rawBytes == null)
@@ -198,6 +227,12 @@ namespace BK7231Flasher
                     yield return SctrlChipIdRegister;
                     break;
             }
+        }
+
+        private static IEnumerable<int> GetUnexpectedProbeAddresses()
+        {
+            yield return SctrlChipIdRegister;
+            yield return DeviceIdRegister;
         }
 
         private static BKChipIdentityResult FromRaw(int registerAddress, byte[] rawBytes)
