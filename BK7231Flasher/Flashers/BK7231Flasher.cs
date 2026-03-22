@@ -926,6 +926,10 @@ namespace BK7231Flasher
                 if (string.IsNullOrEmpty(chipMismatchWarning) == false)
                 {
                     addErrorLine(chipMismatchWarning);
+                    if (bSkipKeyCheck == false)
+                    {
+                        return false;
+                    }
                 }
             }
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
