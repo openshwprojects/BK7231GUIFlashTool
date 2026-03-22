@@ -17,7 +17,7 @@ namespace BK7231Flasher
 
         const int  XR_ROM_BAUD         = 115200;    // BROM default after reset
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
-        const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB, matches PhoenixMC's main erase path
+        const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB erase block used by XR809 block erase
         const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
         const int  XR_READ_RETRY_COUNT  = 3;
         const int  XR_WRITE_RETRY_COUNT = 2;
@@ -29,12 +29,11 @@ namespace BK7231Flasher
 
         // BROM packet byte constants
         const byte BROM_HOST_FLAGS     = 0x04;      // host→device flags byte
-        const byte BROM_HOST_QUERY     = 0x00;      // PhoenixMC uses 0 for simple no-payload requests
-        const byte BROM_HOST_PAYLOAD   = 0x01;      // PhoenixMC uses 1 when the request carries parameters/data metadata
+        const byte BROM_HOST_QUERY     = 0x00;      // header byte 5 for simple query packets
+        const byte BROM_HOST_PAYLOAD   = 0x01;      // header byte 5 for payload-bearing packets
         const byte BROM_FLAG_ERROR     = 0x01;      // bit 0 of device→host flags byte = command failed
 
         // Opcodes
-        const byte OP_READ_4           = 0x04;
         const byte OP_WRITE_MEMORY     = 0x09;
         const byte OP_CHANGE_BAUD      = 0x10;
         const byte OP_SET_PC           = 0x13;
@@ -50,8 +49,7 @@ namespace BK7231Flasher
         const byte XR_ERASE_MODE_4K    = 0x01;
         const byte XR_ERASE_MODE_64K   = 0x03;
 
-        // PhoenixMC reports these XR809-supported transport bauds via its
-        // "Support bauds" popup / get-bauds flow.
+        // XR809 transport bauds accepted by the ROM/stub path.
         public static readonly int[] SupportedBaudRates =
         {
             9600,
@@ -65,9 +63,6 @@ namespace BK7231Flasher
         public static string SupportedBaudRatesText => string.Join(", ", SupportedBaudRates);
 
         // XR809 .img section ID to name mapping.
-        // PhoenixMC carries an internal XR section-ID table alongside a
-        // reverse-ordered section-name table. The first eight IDs in that table
-        // match the XR809 images we have and map cleanly to the names below.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
         {
             { 0xA5FF5A00, "boot"     },
@@ -158,7 +153,7 @@ namespace BK7231Flasher
             return bestBaud;
         }
 
-        int GetPhoenixReadWaitMs()
+        int GetReadWaitMs()
         {
             int baud = serial?.BaudRate ?? XR_ROM_BAUD;
             switch (baud)
@@ -179,9 +174,9 @@ namespace BK7231Flasher
             }
         }
 
-        int GetPhoenixReadTimeoutMs()
+        int GetReadTimeoutMs()
         {
-            int waitMs = GetPhoenixReadWaitMs();
+            int waitMs = GetReadWaitMs();
             if (waitMs == int.MaxValue)
                 return int.MaxValue;
             int total = waitMs * 40;
@@ -251,10 +246,10 @@ namespace BK7231Flasher
         //
         // payloadPre is used for checksum calculation.
         // payloadWire is emitted on the serial wire.
-        // requestType is header byte 5; PhoenixMC uses 0 for simple query packets
-        // like GetFlashId/GetChipType, and 1 for payload-bearing commands.
+        // requestType is header byte 5: 0 for simple query packets and 1 for
+        // payload-bearing commands.
         // =====================================================================
-        byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire, byte requestType = BROM_HOST_PAYLOAD)
+        byte[] BuildBromPacket(byte opcode, byte[] payloadPre, byte[] payloadWire, byte requestType = BROM_HOST_PAYLOAD)
         {
             if (payloadPre  == null) payloadPre  = new byte[0];
             if (payloadWire == null) payloadWire = new byte[0];
@@ -298,21 +293,20 @@ namespace BK7231Flasher
         {
             if (opcode == OP_GET_FLASH_ID)
             {
-                // Known-good legacy XR GetFlashId request captured from the
-                // working PhoenixMC path.
+                // Legacy XR GetFlashId request format.
                 return new byte[]
                 {
                     0x42, 0x52, 0x4F, 0x4D, 0x04, 0x00, 0x60, 0x51,
                     0x00, 0x00, 0x00, 0x01, 0x18
                 };
             }
-            return BuildPhoenixPacket(opcode, new byte[0], new byte[0], BROM_HOST_QUERY);
+            return BuildBromPacket(opcode, new byte[0], new byte[0], BROM_HOST_QUERY);
         }
 
         byte[] BuildEraseChipPacket(byte opcode)
         {
             var payload = new byte[] { 0x00 };
-            return BuildPhoenixPacket(opcode, payload, payload, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(opcode, payload, payload, BROM_HOST_PAYLOAD);
         }
 
         byte[] BuildEraseBlockPacket(int address, byte eraseMode, byte opcode)
@@ -331,7 +325,7 @@ namespace BK7231Flasher
             wire[2] = (byte)((address >> 16) & 0xFF);
             wire[3] = (byte)((address >>  8) & 0xFF);
             wire[4] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // Read packet payload: big-endian sector index and sector count.
@@ -355,7 +349,7 @@ namespace BK7231Flasher
             wire[5] = (byte)((sectorCount >> 16) & 0xFF);
             wire[6] = (byte)((sectorCount >>  8) & 0xFF);
             wire[7] = (byte)( sectorCount        & 0xFF);
-            return BuildPhoenixPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
@@ -383,7 +377,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( sectorCount        & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         byte[] BuildWriteMemoryPacket(int address, int length, ushort dataChecksum)
@@ -411,22 +405,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( length         & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(OP_WRITE_MEMORY, pre, wire, BROM_HOST_PAYLOAD);
-        }
-
-        byte[] BuildRead4Packet(int address)
-        {
-            var pre  = new byte[4];
-            var wire = new byte[4];
-            pre[0] = (byte)( address        & 0xFF);
-            pre[1] = (byte)((address >>  8) & 0xFF);
-            pre[2] = (byte)((address >> 16) & 0xFF);
-            pre[3] = (byte)((address >> 24) & 0xFF);
-            wire[0] = (byte)((address >> 24) & 0xFF);
-            wire[1] = (byte)((address >> 16) & 0xFF);
-            wire[2] = (byte)((address >>  8) & 0xFF);
-            wire[3] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(OP_READ_4, pre, wire, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(OP_WRITE_MEMORY, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         byte[] BuildSetPcPacket(int address)
@@ -441,7 +420,7 @@ namespace BK7231Flasher
             wire[1] = (byte)((address >> 16) & 0xFF);
             wire[2] = (byte)((address >>  8) & 0xFF);
             wire[3] = (byte)( address        & 0xFF);
-            return BuildPhoenixPacket(OP_SET_PC, pre, wire, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(OP_SET_PC, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
@@ -458,7 +437,7 @@ namespace BK7231Flasher
             wire[1] = (byte)((val >> 16) & 0xFF);
             wire[2] = (byte)((val >>  8) & 0xFF);
             wire[3] = (byte)( val        & 0xFF);
-            return BuildPhoenixPacket(OP_CHANGE_BAUD, pre, wire, BROM_HOST_PAYLOAD);
+            return BuildBromPacket(OP_CHANGE_BAUD, pre, wire, BROM_HOST_PAYLOAD);
         }
 
         // =====================================================================
@@ -573,8 +552,7 @@ namespace BK7231Flasher
             return partial;
         }
 
-        // Best-effort software jump into download mode. In PhoenixMC captures
-        // taken at 115200 before BROM sync, the observed preamble is:
+        // Best-effort software jump into download mode using:
         // LF, "upgrade", LF NUL. Devices without console support may ignore
         // it; the normal 0x55/"OK" sync still follows.
         void TryEnterDownloadModeByUpgradeCommand()
@@ -732,8 +710,8 @@ namespace BK7231Flasher
         //
         // Sends a 13-byte packet (same format as GetFlashId, opcode 0x17 instead
         // of 0x18) and reads a single-byte chip type value from the response
-        // payload. PhoenixMC probes this on bare XR809/BROM1 before the RAM
-        // stub upload and again once the active BROM/stub transport is up.
+        // payload. Some XR809 ROM/stub revisions return this before the RAM
+        // stub upload and again once the active transport is up.
         // Failure is silently ignored — not all BROMs respond.
         // =====================================================================
         void ReadChipType()
@@ -754,10 +732,9 @@ namespace BK7231Flasher
         // =====================================================================
         // GetFlashId
         //
-        // PhoenixMC uses the legacy 0x18 query on older ROMs, but enables the
-        // extended 0x1C form once the active BROM/stub reports version 3+ on
-        // the "new BROM" path. The returned header byte 5 carries the active
-        // BROM/stub version in either case.
+        // Older ROM/stub revisions use the legacy 0x18 query. Version 3+
+        // transports may expose the extended 0x1C form. The returned header
+        // byte 5 carries the active BROM/stub version in either case.
         // =====================================================================
         bool ReadFlashId()
         {
@@ -801,7 +778,7 @@ namespace BK7231Flasher
             {
                 useExtendedFlashOpcodes = newExtendedMode;
                 addLogLine(useExtendedFlashOpcodes
-                    ? "XR809 BROM/stub reports v3+, enabling PhoenixMC extended opcodes (0x1C-0x1F)."
+                    ? "XR809 BROM/stub reports v3+, enabling extended XR opcodes (0x1C-0x1F)."
                     : "Using legacy XR opcodes (0x18-0x1B).");
             }
             return true;
@@ -813,7 +790,7 @@ namespace BK7231Flasher
         // 1. Best-effort software jump to download mode at 115200
         // 2. Sync at 115200
         // 3. GetFlashId  (reads ROM BROM version and JEDEC flash ID)
-        // 4. If BROM version <= 1: upload PhoenixMC's RAM stub to 0x10000 and
+        // 4. If BROM version <= 1: upload the RAM stub to 0x10000 and
         //    jump to 0x10101, then re-sync on the stub transport
         // 5. ChangeBaud to the requested working rate and re-Sync
         // 6. GetFlashId again so later read/write/erase logic sees the active
@@ -838,7 +815,7 @@ namespace BK7231Flasher
 
                 addLogLine(
                     $"XR809 BROM version 0x{bromVersion:X2} requires a RAM stub; " +
-                    $"uploading PhoenixMC loader at {XR_ROM_BAUD} baud.");
+                    $"uploading RAM stub loader at {XR_ROM_BAUD} baud.");
 
                 if (!UploadRamStub())
                     return false;
@@ -911,7 +888,7 @@ namespace BK7231Flasher
                 payloadTimeoutMs: 1000);
             if (cmdAck.IsError)
             {
-                addErrorLine($"XR809 RAM loader upload command failed at 0x{address:X8}.");
+                addErrorLine($"XR809 RAM stub upload command failed at 0x{address:X8}.");
                 return false;
             }
 
@@ -922,7 +899,7 @@ namespace BK7231Flasher
                 headerTimeoutMs: 10000, payloadTimeoutMs: 1000);
             if (finalAck.IsError)
             {
-                addErrorLine($"XR809 RAM loader upload final ACK failed at 0x{address:X8}.");
+                addErrorLine($"XR809 RAM stub upload final ACK failed at 0x{address:X8}.");
                 return false;
             }
             return true;
@@ -937,18 +914,6 @@ namespace BK7231Flasher
                 addErrorLine($"XR809 SetPC(0x{address:X8}) returned an error.");
                 return false;
             }
-            return true;
-        }
-
-        bool Read4Byte(int address, out int value)
-        {
-            value = 0;
-            BROMResponse resp = ExecuteRawPacket(
-                BuildRead4Packet(address), headerTimeoutMs: 3000, payloadTimeoutMs: 1500);
-            if (resp.IsError || resp.PayloadLength < 4)
-                return false;
-            value = (resp.Payload[0] << 24) | (resp.Payload[1] << 16) |
-                    (resp.Payload[2] << 8)  |  resp.Payload[3];
             return true;
         }
 
@@ -971,10 +936,9 @@ namespace BK7231Flasher
             useExtendedFlashOpcodes = false;
             Thread.Sleep(50);
 
-            // The captured PhoenixMC transport goes straight from SetPC to the
-            // normal 0x55/"OK" sync sequence. Do not probe RAM/register state
-            // here; on XR809/BROM1 that extra read can fail before the stub
-            // transport is ready and abort an otherwise successful upload.
+            // Go straight from SetPC to the normal 0x55/"OK" sync sequence.
+            // Do not probe RAM/register state here; on XR809/BROM1 that extra
+            // read can fail before the stub transport is ready.
             addLogLine($"XR809 BROM stub started at 0x{XR_STUB_ENTRY_ADDR:X8}.");
             return true;
         }
@@ -1022,9 +986,9 @@ namespace BK7231Flasher
             return executor(legacyOpcode);
         }
 
-        // PhoenixMC erases XR809 in 64 KB blocks with erase mode 0x03. A 4 KB
-        // variant (mode 0x01) also exists, but the Easy Flasher UI currently
-        // keeps XR809 on the same full-chip erase semantics as XR806/XR872.
+        // XR809 uses erase mode 0x03 for 64 KB blocks. A 4 KB variant
+        // (mode 0x01) also exists, but the Easy Flasher UI currently keeps
+        // XR809 on the same full-chip erase semantics as XR806/XR872.
         bool EraseBlockOnce(int address, byte eraseMode)
         {
             void WriteErasePacket(byte selectedOpcode)
@@ -1040,7 +1004,7 @@ namespace BK7231Flasher
 
                 int headerTimeoutMs = Math.Max(
                     eraseMode == XR_ERASE_MODE_4K ? 500 : 1000,
-                    GetPhoenixReadWaitMs());
+                    GetReadWaitMs());
                 int sleepMs = eraseMode == XR_ERASE_MODE_4K ? 100 : 200;
 
                 for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
@@ -1083,18 +1047,18 @@ namespace BK7231Flasher
         // the extended command set)
         //
         // The BROM requires a 50 ms delay after sending the command before the
-        // response header is available. PhoenixMC Windows uses 0x1000-byte
-        // read chunks in its full-read loop, i.e. 8 sectors per request.
+        // response header is available. This transport uses 0x1000-byte read
+        // chunks in its full-read loop, i.e. 8 sectors per request.
         // =====================================================================
         byte[] ReadSectorsOnce(int sectorIndex, int sectorCount)
         {
             int expectedBytes = sectorCount * XR_SECTOR_SIZE;
-            int payloadMs     = GetPhoenixReadTimeoutMs();
+            int payloadMs     = GetReadTimeoutMs();
 
             BROMResponse resp = ExecuteFlashCommandWithOpcodeFallback(
                 opcode => ExecuteRawPacket(
                     BuildReadPacket(sectorIndex, sectorCount, opcode),
-                    headerTimeoutMs:  GetPhoenixReadTimeoutMs(),
+                    headerTimeoutMs:  GetReadTimeoutMs(),
                     payloadTimeoutMs: payloadMs,
                     sleepBeforeRead:  true),
                 OP_READ,
@@ -1298,9 +1262,9 @@ namespace BK7231Flasher
         // High-level erase
         //
         // XR809 uses the same UI-facing full-chip erase semantics as XR806/XR872.
-        // The explicit erase action mirrors PhoenixMC's single-command 0x19 00
-        // full-chip erase, while the pre-write erase path keeps PhoenixMC's
-        // 64 KB block loop. Custom raw writes intentionally skip erase.
+        // The explicit erase action uses single-command 0x19 00 full-chip
+        // erase, while the pre-write erase path uses the 64 KB block loop.
+        // Custom raw writes intentionally skip erase.
         // Addressed erase is intentionally not used in this implementation.
         // =====================================================================
         bool InternalChipErase()
