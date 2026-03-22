@@ -72,6 +72,7 @@
     <Compile Include="Flashers\WMFlasher.cs" />
     <Compile Include="Flashers\ECR6600Flasher.cs" />
     <Compile Include="Flashers\BaseFlasher.cs" />
+    <Compile Include="Flashers\BKChipIdentity.cs" />
     <Compile Include="Helpers\BitUtils.cs" />
     <Compile Include="Flashers\BK7231Flasher.cs" />
     <Compile Include="Misc\BKFlashList.cs" />

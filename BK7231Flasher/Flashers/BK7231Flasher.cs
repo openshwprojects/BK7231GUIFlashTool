@@ -15,6 +15,7 @@ namespace BK7231Flasher
         bool bDebugUART;
         MemoryStream ms;
         string lastEncryptionKey;
+        BKChipIdentityResult chipIdentity;
         public static int SECTOR_SIZE = 0x1000;
         public static int BLOCK_SIZE = 0x10000;
         public static int SECTORS_PER_BLOCK = BLOCK_SIZE / SECTOR_SIZE;
@@ -905,31 +906,25 @@ namespace BK7231Flasher
             }
             // make sure it's clear
             lastEncryptionKey = "";
+            chipIdentity = BKChipIdentity.Detect(chipType, ReadFlashReg);
+            if (chipIdentity.HasChipId == false)
+            {
+                if (BKChipIdentity.ShouldAttemptRead(chipType))
+                {
+                    addWarning("Failed to get chip ID!" + Environment.NewLine);
+                }
+            }
+            else
+            {
+                addLog($"Chip ID: 0x{chipIdentity.NormalizedId} ({chipIdentity.FriendlyName})" + Environment.NewLine);
+                string chipMismatchWarning = chipIdentity.BuildMismatchWarning(chipType);
+                if (string.IsNullOrEmpty(chipMismatchWarning) == false)
+                {
+                    addErrorLine(chipMismatchWarning);
+                }
+            }
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
-                byte[] chipIdRaw;
-                if(chipType == BKType.BK7236 || chipType == BKType.BK7258)
-                {
-                    chipIdRaw = ReadFlashReg(0x44010000 + (0x1 << 2)) ?? new byte[] { 0, 0, 0, 0 };
-                }
-                else
-                {
-                    chipIdRaw = ReadFlashReg(0x800000) ?? new byte[] { 0, 0, 0, 0 };
-                }
-                chipIdRaw = chipIdRaw.Reverse().ToArray();
-                string chipId = "";
-                // should be 0x7238 for BK7238, 0x7231c for BK7231N, 0x7236 for both BK7236 and BK7258
-                foreach(var ch in chipIdRaw)
-                {
-                    if(ch == 0 || ch == 1)
-                        continue;
-                    chipId += $"{ch:x}";
-                }
-                // do something if selected type != chip id?
-                if(string.IsNullOrEmpty(chipId))
-                    addWarning($"Failed to get chip ID!" + Environment.NewLine);
-                else
-                    addLog($"Chip ID: 0x{chipId}" + Environment.NewLine);
                 if(doUnprotect())
                 {
                     return false;
@@ -962,7 +957,11 @@ namespace BK7231Flasher
                         // BK7238/BK7252N 4 bytes efuse, so all 4 values will be identical. Ignore if zeroes.
                         if(key != EMPTY_ENCRYPTION_KEY && coeffs.Distinct().Count() == 1)
                         {
-                            addErrorLine($"WARNING! Selected chip is a {chipType}, but according to encryption key this is a{(chipId == "7238" ? " BK7238" : chipId == "7252a" ? " BK7252N" : $"n unknown chip ({chipId})")}!");
+                            string chipMismatchWarning = chipIdentity?.BuildMismatchWarning(chipType);
+                            if (string.IsNullOrEmpty(chipMismatchWarning))
+                            {
+                                addErrorLine($"WARNING! Selected chip is a {chipType}, but according to encryption key this may be {chipIdentity?.DescribeDetectedChip() ?? "an unknown chip"}!");
+                            }
                             if(!bSkipKeyCheck) return false;
                         }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
