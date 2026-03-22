@@ -1024,11 +1024,17 @@ namespace BK7231Flasher
                 if (BKChipIdentity.ShouldAttemptRead(chipType))
                 {
                     addWarning("Failed to get chip ID!" + Environment.NewLine);
+                    addLog("Trying legacy BK7231T boot-version probe..." + Environment.NewLine);
                     string bootVersionHint = ReadBootVersionHint();
                     if (bootVersionHint != null)
                     {
+                        addLog("Legacy BK7231T boot-version probe replied." + Environment.NewLine);
                         string versionSuffix = string.IsNullOrEmpty(bootVersionHint) ? "" : $" (boot version {bootVersionHint})";
-                        addErrorLine($"WARNING! Selected chip is a {chipType}, but protocol behavior looks like BK7231T / BASIC_TUYA{versionSuffix}!");
+                        addErrorLine($"WARNING! Selected chip is a {chipType}, but protocol behavior looks like a legacy BK7231T bootloader{versionSuffix}!");
+                    }
+                    else
+                    {
+                        addLog("Legacy BK7231T boot-version probe did not reply." + Environment.NewLine);
                     }
                 }
             }
@@ -1782,8 +1788,16 @@ namespace BK7231Flasher
         }
         string ReadBootVersionHint()
         {
-            byte[] txbuf = BuildCmd_ReadBootVersion();
-            byte[] payload = Start_Cmd_ShortVariable(txbuf, (byte)CommandCode.ReadBootVersion, 0.2f);
+            byte[] payload = null;
+            for (int attempt = 0; attempt < 3 && payload == null; attempt++)
+            {
+                byte[] txbuf = BuildCmd_ReadBootVersion();
+                payload = Start_Cmd_ShortVariable(txbuf, (byte)CommandCode.ReadBootVersion, 0.35f);
+                if (payload == null)
+                {
+                    Thread.Sleep(20);
+                }
+            }
             if (payload == null)
             {
                 return null;
