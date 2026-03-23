@@ -482,64 +482,6 @@ namespace BK7231Flasher
             }
             return null;
         }
-        byte[] Start_Cmd_Quiet(byte[] txbuf, int rxLen = 0, float timeout = 0.05f)
-        {
-            consumePending();
-            int realRead = 0;
-            serial.ReadTimeout = (int)(10 * cfg_readTimeOutMultForSerialClass);
-            if (txbuf != null)
-            {
-                serial.Write(txbuf, 0, txbuf.Length);
-            }
-            if (rxLen == 0)
-                return null;
-
-            var timer = new Stopwatch();
-            timer.Start();
-            byte[] ret = new byte[rxLen];
-            while (timer.Elapsed.TotalSeconds < timeout * cfg_readTimeOutMultForLoop)
-            {
-                try
-                {
-                    if (cfg_readReplyStyle == 0)
-                    {
-                        if (serial.BytesToRead >= rxLen)
-                        {
-                            int readNow = serial.Read(ret, realRead, rxLen - realRead);
-                            realRead += readNow;
-                            if (realRead == rxLen)
-                            {
-                                return ret;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        int ava = serial.BytesToRead;
-                        if (ava > 0)
-                        {
-                            int wantsToRead = rxLen - realRead;
-                            if (wantsToRead > ava)
-                                wantsToRead = ava;
-                            int readNow = serial.Read(ret, realRead, wantsToRead);
-                            realRead += readNow;
-                            if (realRead >= rxLen)
-                            {
-                                return ret;
-                            }
-                        }
-                    }
-                }
-                catch (TimeoutException)
-                {
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-            return null;
-        }
         static bool ByteArrayCompare(byte[] a1, byte[] a2, int len)
         {
             if (a1.Length < len)
@@ -668,20 +610,6 @@ namespace BK7231Flasher
                 return ret;
             }
             addError("CheckRespond_FlashReadSR: bad value returned?" + Environment.NewLine);
-            return null;
-        }
-        byte[] CheckRespond_ReadFlashReg_Quiet(byte[] buf, int addr)
-        {
-            byte[] cBuf = new byte[] { 0x04, 0x0e, 0x05, 0x01, 0xe0, 0xfc, (byte)CommandCode.ReadReg, 0, 0, 0, 0 };
-            cBuf[2] = 3 + 1 + 4 + 4;
-            cBuf[7] = (byte)(addr & 0xff);
-            cBuf[8] = (byte)((addr >> 8) & 0xff);
-            cBuf[9] = (byte)((addr >> 16) & 0xff);
-            cBuf[10] = (byte)((addr >> 24) & 0xff);
-            if (cBuf.Length <= buf.Length && ByteArrayCompare(cBuf, buf, cBuf.Length))
-            {
-                return new byte[4] { buf[11], buf[12], buf[13], buf[14] };
-            }
             return null;
         }
         byte[] CheckRespond_FlashReadSR(byte[] buf, int addr)
@@ -988,24 +916,6 @@ namespace BK7231Flasher
                     if (string.IsNullOrEmpty(chipIdFailureWarning) == false)
                     {
                         addErrorLine(chipIdFailureWarning);
-                    }
-                }
-                else if (BKChipIdentity.ShouldProbeUnexpectedReadReply(chipType))
-                {
-                    BKChipIdentityResult unexpectedChipIdentity = BKChipIdentity.ProbeUnexpectedReadReply(chipType, ReadFlashRegQuiet);
-                    if (unexpectedChipIdentity.HasChipId)
-                    {
-                        chipIdentity = unexpectedChipIdentity;
-                        addLog($"Chip ID: 0x{chipIdentity.NormalizedId} ({chipIdentity.FriendlyName})" + Environment.NewLine);
-                        string unexpectedReadWarning = BKChipIdentity.BuildUnexpectedReadReplyWarning(chipType, chipIdentity);
-                        if (string.IsNullOrEmpty(unexpectedReadWarning) == false)
-                        {
-                            addErrorLine(unexpectedReadWarning);
-                            if (bSkipKeyCheck == false)
-                            {
-                                return false;
-                            }
-                        }
                     }
                 }
             }
@@ -1760,16 +1670,6 @@ namespace BK7231Flasher
                 return CheckRespond_ReadFlashReg(rxbuf, addr);
             }
             //addLog("Failed!" + Environment.NewLine);
-            return null;
-        }
-        byte[] ReadFlashRegQuiet(int addr)
-        {
-            byte[] txbuf = BuildCmd_ReadRegn(addr);
-            byte[] rxbuf = Start_Cmd_Quiet(txbuf, CalcRxLength_ReadFlashReg(), 0.15f);
-            if (rxbuf != null)
-            {
-                return CheckRespond_ReadFlashReg_Quiet(rxbuf, addr);
-            }
             return null;
         }
         int ReadFlashRegInt(int addr)
