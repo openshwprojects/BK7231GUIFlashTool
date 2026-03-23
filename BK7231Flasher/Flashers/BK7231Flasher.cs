@@ -4,7 +4,6 @@ using System.Drawing;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -83,7 +82,6 @@ namespace BK7231Flasher
             LinkCheck = 0,
             WriteReg = 1,
             ReadReg = 0x03,
-            BootVersion = 0x11,
             FlashRead4K = 0x09,
             CheckCRC = 0x10,
             SetBaudRate = 0x0f,
@@ -120,16 +118,6 @@ namespace BK7231Flasher
             buf[7] = (byte)((addr >> 16) & 0xff);
             buf[8] = (byte)((addr >> 24) & 0xff);
             return buf;
-        }
-        byte[] BuildCmd_BootVersion()
-        {
-            byte[] ret = new byte[5];
-            ret[0] = 0x01;
-            ret[1] = 0xe0;
-            ret[2] = 0xfc;
-            ret[3] = 0x01;
-            ret[4] = (byte)CommandCode.BootVersion;
-            return ret;
         }
         byte[] BuildCmd_EraseSector4K(int addr, int szcmd)
         {
@@ -551,59 +539,6 @@ namespace BK7231Flasher
                 }
             }
             return null;
-        }
-        byte[] Start_Cmd_HciReply_Quiet(byte[] txbuf, float timeout = 0.15f)
-        {
-            consumePending();
-            serial.ReadTimeout = (int)(10 * cfg_readTimeOutMultForSerialClass);
-            if (txbuf != null)
-            {
-                serial.Write(txbuf, 0, txbuf.Length);
-            }
-
-            int expectedLength = -1;
-            MemoryStream reply = new MemoryStream();
-            var timer = new Stopwatch();
-            timer.Start();
-            while (timer.Elapsed.TotalSeconds < timeout * cfg_readTimeOutMultForLoop)
-            {
-                try
-                {
-                    int available = serial.BytesToRead;
-                    if (available > 0)
-                    {
-                        byte[] chunk = new byte[available];
-                        int readNow = serial.Read(chunk, 0, available);
-                        if (readNow > 0)
-                        {
-                            reply.Write(chunk, 0, readNow);
-                            byte[] current = reply.ToArray();
-                            if (expectedLength < 0 && current.Length >= 3)
-                            {
-                                expectedLength = 3 + current[2];
-                            }
-                            if (expectedLength > 0 && current.Length >= expectedLength)
-                            {
-                                if (current.Length == expectedLength)
-                                {
-                                    return current;
-                                }
-                                return current.Take(expectedLength).ToArray();
-                            }
-                        }
-                    }
-                }
-                catch (TimeoutException)
-                {
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-
-            byte[] partial = reply.ToArray();
-            return partial.Length > 0 ? partial : null;
         }
         static bool ByteArrayCompare(byte[] a1, byte[] a2, int len)
         {
@@ -1073,23 +1008,6 @@ namespace BK7231Flasher
                         }
                     }
                 }
-                if (chipIdentity.HasChipId == false)
-                {
-                    string bootVersion = ReadBootVersionQuiet();
-                    if (string.IsNullOrWhiteSpace(bootVersion) == false)
-                    {
-                        addLog($"Boot Version: {BKChipIdentity.FormatBootVersionForLog(bootVersion)}" + Environment.NewLine);
-                        string bootVersionWarning = BKChipIdentity.BuildBootVersionWarning(chipType, bootVersion);
-                        if (string.IsNullOrEmpty(bootVersionWarning) == false)
-                        {
-                            addErrorLine(bootVersionWarning);
-                            if (bSkipKeyCheck == false)
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                }
             }
             else
             {
@@ -1116,6 +1034,7 @@ namespace BK7231Flasher
                     string key = readEncryptionKey(out var coeffs);
                     addLog("Encryption key read done!" + Environment.NewLine);
                     addLog("Encryption key: " + key + Environment.NewLine);
+                    bool enforceKeyCheck = chipType != BKType.BK7231M;
                     string otherMode;
                     string expectedKey;
                     if (chipType == BKType.BK7231N)
@@ -1143,7 +1062,7 @@ namespace BK7231Flasher
                             {
                                 addErrorLine($"WARNING! Selected chip is a {chipType}, but according to encryption key this may be {chipIdentity?.DescribeDetectedChip() ?? "an unknown chip"}!");
                             }
-                            if(!bSkipKeyCheck) return false;
+                            if(enforceKeyCheck && !bSkipKeyCheck) return false;
                         }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                         addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
@@ -1155,7 +1074,7 @@ namespace BK7231Flasher
                             addError($"Or just try using {otherMode} mode " + Environment.NewLine);
                         }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
-                        if(bSkipKeyCheck == false)
+                        if(enforceKeyCheck && bSkipKeyCheck == false)
                         {
                             return false;
                         }
@@ -1852,37 +1771,6 @@ namespace BK7231Flasher
                 return CheckRespond_ReadFlashReg_Quiet(rxbuf, addr);
             }
             return null;
-        }
-        string ReadBootVersionQuiet()
-        {
-            byte[] txbuf = BuildCmd_BootVersion();
-            byte[] rxbuf = Start_Cmd_HciReply_Quiet(txbuf, 0.2f);
-            if (rxbuf == null || rxbuf.Length < 8)
-            {
-                return null;
-            }
-            if (rxbuf[0] != 0x04 || rxbuf[1] != 0x0e)
-            {
-                return null;
-            }
-            if (rxbuf[3] != 0x01 || rxbuf[4] != 0xe0 || rxbuf[5] != 0xfc || rxbuf[6] != (byte)CommandCode.BootVersion)
-            {
-                return null;
-            }
-
-            int payloadStart = 7;
-            int payloadLength = rxbuf.Length - payloadStart;
-            if (payloadLength <= 0)
-            {
-                return null;
-            }
-
-            string bootVersion = Encoding.ASCII.GetString(rxbuf, payloadStart, payloadLength).TrimEnd('\0', ' ');
-            if (string.IsNullOrWhiteSpace(bootVersion))
-            {
-                return null;
-            }
-            return bootVersion;
         }
         int ReadFlashRegInt(int addr)
         {
