@@ -125,6 +125,12 @@ namespace BK7231Flasher
                 { "7259", new BKChipIdentityDefinition("BK7259") },
             };
 
+        private static readonly Dictionary<string, BKChipIdentityDefinition> KnownBootVersions =
+            new Dictionary<string, BKChipIdentityDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BK7231S_1.0.5", new BKChipIdentityDefinition("legacy BK7231T / BK7231U family", BKType.BK7231T, BKType.BK7231U) },
+            };
+
         public static bool ShouldAttemptRead(BKType selectedType)
         {
             switch (selectedType)
@@ -170,6 +176,45 @@ namespace BK7231Flasher
                 return null;
             }
             return $"WARNING! Selected chip is a {selectedType}, but chip ID read unexpectedly replied with 0x{detectedChip.NormalizedId} ({detectedChip.FriendlyName}). This chip mode normally does not support chip ID read, so the selected chip may be wrong.";
+        }
+
+        public static string FormatBootVersionForLog(string bootVersion)
+        {
+            if (string.IsNullOrWhiteSpace(bootVersion))
+            {
+                return null;
+            }
+
+            BKChipIdentityDefinition definition;
+            if (KnownBootVersions.TryGetValue(bootVersion, out definition))
+            {
+                return $"{bootVersion} ({definition.FriendlyName})";
+            }
+            return bootVersion;
+        }
+
+        public static string BuildBootVersionWarning(BKType selectedType, string bootVersion)
+        {
+            if (string.IsNullOrWhiteSpace(bootVersion))
+            {
+                return null;
+            }
+
+            BKChipIdentityDefinition definition;
+            if (KnownBootVersions.TryGetValue(bootVersion, out definition) == false)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < definition.MatchingTypes.Length; i++)
+            {
+                if (definition.MatchingTypes[i] == selectedType)
+                {
+                    return null;
+                }
+            }
+
+            return $"WARNING! Selected chip is a {selectedType}, but according to boot version this looks like a {definition.FriendlyName}!";
         }
 
         private static BKChipIdentityResult DetectForAddresses(IEnumerable<int> registerAddresses, Func<int, byte[]> readRegister)
