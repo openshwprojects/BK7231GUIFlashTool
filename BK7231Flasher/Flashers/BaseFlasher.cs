@@ -39,6 +39,7 @@ namespace BK7231Flasher
         W600,
         W800,
         XR806,
+        XR809,
         XR872,
 
         Detect,

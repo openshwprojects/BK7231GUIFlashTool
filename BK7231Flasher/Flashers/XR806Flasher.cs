@@ -35,9 +35,9 @@ namespace BK7231Flasher
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
 
-        // PhoenixMC Windows exact timeout buckets are known for 115200, 921600,
-        // 1000000, 1500000 and 3000000. Other GUI bauds use the nearest slower
-        // known bucket here rather than being blocked.
+        // Timeout buckets are tuned for 115200, 921600, 1000000, 1500000 and
+        // 3000000. Other GUI bauds use the nearest slower known bucket here
+        // rather than being blocked.
 
         // XR .img section ID to name mapping.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
@@ -112,7 +112,7 @@ namespace BK7231Flasher
             }
         }
 
-        int GetPhoenixReadWaitMs()
+        int GetReadWaitMs()
         {
             int baud = serial?.BaudRate ?? XR_ROM_BAUD;
             switch (baud)
@@ -136,9 +136,9 @@ namespace BK7231Flasher
             }
         }
 
-        int GetPhoenixReadTimeoutMs()
+        int GetReadTimeoutMs()
         {
-            int waitMs = GetPhoenixReadWaitMs();
+            int waitMs = GetReadWaitMs();
             if (waitMs == int.MaxValue)
                 return int.MaxValue;
             int total = waitMs * 40;
@@ -197,7 +197,7 @@ namespace BK7231Flasher
         // payloadPre is used for checksum calculation.
         // payloadWire is emitted on the serial wire.
         // =====================================================================
-        byte[] BuildPhoenixPacket(byte opcode, byte[] payloadPre, byte[] payloadWire)
+        byte[] BuildBromPacket(byte opcode, byte[] payloadPre, byte[] payloadWire)
         {
             if (payloadPre  == null) payloadPre  = new byte[0];
             if (payloadWire == null) payloadWire = new byte[0];
@@ -246,11 +246,11 @@ namespace BK7231Flasher
             };
         }
 
-        // Full-chip erase packet payload observed from PhoenixMC on XR806/BROM4: a single 0x00 byte.
+        // Full-chip erase packet payload: a single 0x00 byte.
         byte[] BuildChipErasePacket()
         {
             var payload = new byte[] { 0x00 };
-            return BuildPhoenixPacket(OP_ERASE, payload, payload);
+            return BuildBromPacket(OP_ERASE, payload, payload);
         }
 
         // Read packet payload: big-endian sector index and sector count.
@@ -274,7 +274,7 @@ namespace BK7231Flasher
             wire[5] = (byte)((sectorCount >> 16) & 0xFF);
             wire[6] = (byte)((sectorCount >>  8) & 0xFF);
             wire[7] = (byte)( sectorCount        & 0xFF);
-            return BuildPhoenixPacket(OP_READ, pre, wire);
+            return BuildBromPacket(OP_READ, pre, wire);
         }
 
         // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
@@ -302,7 +302,7 @@ namespace BK7231Flasher
             wire[7] = (byte)( sectorCount        & 0xFF);
             wire[8] = (byte)((dataChecksum >>  8) & 0xFF);
             wire[9] = (byte)( dataChecksum        & 0xFF);
-            return BuildPhoenixPacket(OP_WRITE, pre, wire);
+            return BuildBromPacket(OP_WRITE, pre, wire);
         }
 
         // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
@@ -319,7 +319,7 @@ namespace BK7231Flasher
             wire[1] = (byte)((val >> 16) & 0xFF);
             wire[2] = (byte)((val >>  8) & 0xFF);
             wire[3] = (byte)( val        & 0xFF);
-            return BuildPhoenixPacket(OP_CHANGE_BAUD, pre, wire);
+            return BuildBromPacket(OP_CHANGE_BAUD, pre, wire);
         }
 
         // =====================================================================
@@ -417,8 +417,7 @@ namespace BK7231Flasher
             return partial;
         }
 
-        // Best-effort software jump into download mode. In PhoenixMC captures
-        // taken at 115200 before BROM sync, the observed preamble is:
+        // Best-effort software jump into download mode using:
         // LF, "upgrade", LF NUL. Devices without console support may ignore
         // it; the normal 0x55/"OK" sync still follows.
         void TryEnterDownloadModeByUpgradeCommand()
@@ -714,10 +713,10 @@ namespace BK7231Flasher
             return $"flags=0x{resp.Flags:X2}, brom=0x{resp.BromVersion:X2}, checksum=0x{resp.Checksum:X4}, payloadLen={resp.PayloadLength}, status={(resp.IsError ? "ERROR" : "OK")}";
         }
 
-// Full-chip erase observed from PhoenixMC on XR806/BROM4: opcode 0x19 with payload 0x00.
-        // PhoenixMC then polls for a fixed 12-byte ACK/status header up to 10 times,
+        // Full-chip erase on XR806 uses opcode 0x19 with payload 0x00.
+        // The device can take multiple header polls to acknowledge erase,
         // sleeping 200 ms between misses and using baud-derived read wait buckets.
-        // Keep a 500 ms minimum per poll here: the Phoenix baud buckets are a good
+        // Keep a 500 ms minimum per poll here: the current baud buckets are a good
         // guide, but using the high-baud values directly as the entire 12-byte ACK
         // budget is too aggressive for this SerialPort implementation.
         bool EraseChip()
@@ -726,7 +725,7 @@ namespace BK7231Flasher
             serial.Write(pkt, 0, pkt.Length);
             serial.BaseStream.Flush();
 
-            int headerTimeoutMs = Math.Max(500, GetPhoenixReadWaitMs());
+            int headerTimeoutMs = Math.Max(500, GetReadWaitMs());
 
             for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
             {
@@ -761,20 +760,20 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Read  (opcode 0x1A, matching the observed PhoenixMC XR806 session)
+        // Read  (opcode 0x1A)
         //
         // The BROM requires a 50 ms delay after sending the command before the
-        // response header is available. PhoenixMC Windows uses 0x1000-byte
-        // read chunks in its full-read loop, i.e. 8 sectors per request.
+        // response header is available. This transport uses 0x1000-byte read
+        // chunks in its full-read loop, i.e. 8 sectors per request.
         // =====================================================================
         byte[] ReadSectorsOnce(int sectorIndex, int sectorCount)
         {
             int expectedBytes = sectorCount * XR_SECTOR_SIZE;
-            int payloadMs     = GetPhoenixReadTimeoutMs();
+            int payloadMs     = GetReadTimeoutMs();
 
             BROMResponse resp = ExecuteRawPacket(
                 BuildReadPacket(sectorIndex, sectorCount),
-                headerTimeoutMs:  GetPhoenixReadTimeoutMs(),
+                headerTimeoutMs:  GetReadTimeoutMs(),
                 payloadTimeoutMs: payloadMs,
                 sleepBeforeRead:  true);
 
@@ -835,7 +834,7 @@ namespace BK7231Flasher
         }
 
         // =====================================================================
-        // Write  (opcode 0x1B, matching the observed PhoenixMC XR806 session)
+        // Write  (opcode 0x1B)
         //
         // Two-stage: send 23-byte command and receive ACK, then send raw sector
         // data and receive a second ACK.  The data checksum is embedded in the
