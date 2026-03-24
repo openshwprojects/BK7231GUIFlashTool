@@ -16,7 +16,6 @@ namespace BK7231Flasher
         // =====================================================================
 
         const int  XR_ROM_BAUD         = 115200;    // BROM default after reset
-        const int  XR_SAFE_WORK_BAUD   = 921600;    // Default XR806 working baud
         const int  XR_SECTOR_SIZE      = 0x200;     // 512 bytes
         const int  XR_WRITE_CHUNK_SIZE = 0x4000;    // 16 KB, 32 sectors per write command
         const int  XR_READ_RETRY_COUNT  = 3;
@@ -35,9 +34,9 @@ namespace BK7231Flasher
         const byte OP_READ             = 0x1A;
         const byte OP_WRITE            = 0x1B;
 
-        // Timeout buckets are tuned for 115200, 921600, 1000000, 1500000 and
-        // 3000000. Other GUI bauds use the nearest slower known bucket here
-        // rather than being blocked.
+        // Timeout buckets are tuned conservatively for the GUI baud selections.
+        // Unlisted values fall back to the slower default bucket instead of being
+        // blocked by the XR transport layer.
 
         // XR .img section ID to name mapping.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
@@ -93,24 +92,6 @@ namespace BK7231Flasher
         {
         }
 
-        static bool IsAllowedXRBaud(int baud)
-        {
-            switch (baud)
-            {
-                case 9600:
-                case 115200:
-                case 230400:
-                case 460800:
-                case 921600:
-                case 1000000:
-                case 1500000:
-                case 2000000:
-                case 3000000:
-                    return true;
-                default:
-                    return false;
-            }
-        }
 
         int GetReadWaitMs()
         {
@@ -661,12 +642,6 @@ namespace BK7231Flasher
         bool ChangeBaudAndResync(int newBaud)
         {
             if (newBaud <= XR_ROM_BAUD) return true;
-
-            if (!IsAllowedXRBaud(newBaud))
-            {
-                addWarningLine($"Baud {newBaud} is not supported by this XR806 transport profile; falling back to {XR_SAFE_WORK_BAUD}.");
-                newBaud = XR_SAFE_WORK_BAUD;
-            }
 
             BROMResponse resp = ExecuteRawPacket(
                 BuildChangeBaudPacket(newBaud), headerTimeoutMs: 2000, payloadTimeoutMs: 1000);
