@@ -237,16 +237,20 @@ List<KvEntry> GetVaultEntriesDedupedCached()
         {
             entry = null!;
 
-            if(entryOffset + KVHeaderSize > pageData.Length)
+            if(pageData == null || entryOffset < 0)
+                return false;
+
+            if(entryOffset > pageData.Length - KVHeaderSize)
                 return false;
 
             uint valueLen = ReadU32LE(pageData, entryOffset + 4);
 
-            if(valueLen == 0 || valueLen > pageData.Length)
+            if(valueLen == 0 || valueLen > int.MaxValue || valueLen > pageData.Length)
                 return false;
 
-            int totalLength = KVHeaderSize + (int)valueLen;
-            if(entryOffset + totalLength > pageData.Length)
+            int valueLenInt = (int)valueLen;
+            int totalLength = KVHeaderSize + valueLenInt;
+            if(totalLength < KVHeaderSize || entryOffset > pageData.Length - totalLength)
                 return false;
 
             var storedChsum = ReadU16LE(pageData, entryOffset);
@@ -259,8 +263,12 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             if(keyPos < 0 || keyPos >= pageData.Length)
                 return false;
 
+            int keyEnd = keyPos + keyLen;
+            if(keyEnd < keyPos || keyEnd > pageData.Length)
+                return false;
+
             var keyBytes = new List<byte>();
-            for(int i = keyPos; i < keyPos + keyLen; i++)
+            for(int i = keyPos; i < keyEnd; i++)
             {
                 byte b = pageData[i];
                 if(!(b == 0 || (b >= 0x20 && b <= 0x7E)))
@@ -276,15 +284,15 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             string key = Encoding.ASCII.GetString(keyBytes.ToArray());
 
             int valPos = entryOffset + valOff;
-            if(valPos < 0 || valPos + valueLen > pageData.Length)
+            if(valPos < 0 || valPos > pageData.Length - valueLenInt)
                 return false;
 
-            ushort calcChsum = CalcChecksum(pageData, valPos, (int)valueLen);
+            ushort calcChsum = CalcChecksum(pageData, valPos, valueLenInt);
             //if(storedChsum != calcChsum)
             //	return false;
 
             byte[] value = new byte[valueLen];
-            Buffer.BlockCopy(pageData, valPos, value, 0, (int)valueLen);
+            Buffer.BlockCopy(pageData, valPos, value, 0, valueLenInt);
 
             entry = new KvEntry
             {
@@ -2046,7 +2054,31 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             r += "}" + Environment.NewLine;
             return r;
         }
-                        public string getEnhancedExtractionText()
+        public bool hasEnhancedExtractionData()
+        {
+            if (vaultDecryptedRaw == null || vaultDecryptedRaw.Length == 0)
+                return false;
+
+            try
+            {
+                if (GetVaultEntriesEnhancedCached().Count > 0)
+                    return true;
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                return !string.IsNullOrWhiteSpace(getEnhancedExtractionText());
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+        public string getEnhancedExtractionText()
         {
             // Enhanced mode output for the JSON text area must be a single valid JSON document.
             // Merge KV entries into one JSON object: { "<kv_key>": <parsed-json-or-string>, ... }
@@ -3114,13 +3146,11 @@ public bool extractKeys()
                             {
                                 // ln882h hack
                                 int jsonInOrig = MiscUtils.indexOf(original, Encoding.ASCII.GetBytes("crc:"));
-                                if(jsonInOrig != -1 && original[jsonInOrig + 6] == ',' && original[jsonInOrig + 7] == '}')
+                                if(jsonInOrig != -1 && jsonInOrig + 7 < original.Length && original[jsonInOrig + 6] == ',' && original[jsonInOrig + 7] == '}')
                                 {
-                                    keys_at = jsonInOrig;
                                     descryptedRaw = original;
-                                    while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
-                                        keys_at--;
-                                    keys_at--;
+                                    int ln882hJsonStart = FindByteBackwardSafe(descryptedRaw, (byte)'{', jsonInOrig);
+                                    keys_at = ln882hJsonStart > 0 ? (ln882hJsonStart - 1) : -1;
                                 }
                                 // extract at least something
                                 if(keys_at == -1)
@@ -3138,8 +3168,12 @@ public bool extractKeys()
                                     }
                                 }
                             }
-                            while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
-                                keys_at++;
+                            keys_at = FindByteForwardSafe(descryptedRaw, (byte)'{', keys_at);
+                            if(keys_at == -1)
+                            {
+                                FormMain.Singleton?.addLog("Failed to extract Tuya keys - no json start found after marker" + Environment.NewLine, System.Drawing.Color.Orange);
+                                return true;
+                            }
                             keys_at++;
                             first_at = keys_at;
                         }
@@ -3155,8 +3189,12 @@ public bool extractKeys()
                 }
                 else
                 {
-                    while(descryptedRaw[keys_at] != '{' && keys_at <= descryptedRaw.Length)
-                        keys_at++;
+                    keys_at = FindByteForwardSafe(descryptedRaw, (byte)'{', keys_at);
+                    if(keys_at == -1)
+                    {
+                        FormMain.Singleton?.addLog("Failed to extract Tuya keys - user_param_key marker found but json start is missing" + Environment.NewLine, System.Drawing.Color.Orange);
+                        return true;
+                    }
                     keys_at++;
                     first_at = keys_at;
                 }
@@ -3241,6 +3279,40 @@ public bool extractKeys()
                 asciiString += ch;
             }
             return asciiString;
+        }
+
+        static int FindByteForwardSafe(byte[] data, byte needle, int start)
+        {
+            if (data == null || data.Length == 0)
+                return -1;
+
+            if (start < 0)
+                start = 0;
+
+            for (int i = start; i < data.Length; i++)
+            {
+                if (data[i] == needle)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        static int FindByteBackwardSafe(byte[] data, byte needle, int start)
+        {
+            if (data == null || data.Length == 0)
+                return -1;
+
+            if (start >= data.Length)
+                start = data.Length - 1;
+
+            for (int i = start; i >= 0; i--)
+            {
+                if (data[i] == needle)
+                    return i;
+            }
+
+            return -1;
         }
     }
 }
