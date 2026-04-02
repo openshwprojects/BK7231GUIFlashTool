@@ -566,13 +566,16 @@ namespace BK7231Flasher
                     return 1;
                 }
 
-                if (tc.extractKeys() != false)
+                bool classicExtractFailed = tc.extractKeys();
+                bool hasEnhancedFallback = classicExtractFailed && tc.hasEnhancedExtractionData();
+
+                if (classicExtractFailed && !hasEnhancedFallback)
                 {
                     Console.Error.WriteLine("Error: Failed to extract Tuya keys from decrypted data.");
                     return 1;
                 }
 
-                string json = tc.getKeysAsJSON();
+                string json = hasEnhancedFallback ? tc.getEnhancedExtractionText() : tc.getKeysAsJSON();
                 File.WriteAllText(outputFile, json, Encoding.UTF8);
 
                 Console.WriteLine($"Tuya config JSON written to: {outputFile}");
