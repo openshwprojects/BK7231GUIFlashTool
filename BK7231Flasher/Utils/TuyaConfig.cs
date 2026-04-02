@@ -3106,8 +3106,13 @@ static string NormalizeEnhancedNewlines(string s)
 
 public bool extractKeys()
         {
-            var KVs = GetVaultEntriesCached();
-            var KVs_Deduped = GetVaultEntriesDedupedCached();
+            var KVs = ParseVault();
+            var KVs_Deduped = KVs
+                .GroupBy(x => x.Key)
+                .Select(g => g.OrderByDescending(x => x.IsCheckSumCorrect).First())
+                .GroupBy(x => Convert.ToBase64String(x.Value))
+                .Select(g => g.OrderByDescending(x => x.KeyId).First())
+                .ToList();
 
 
             
