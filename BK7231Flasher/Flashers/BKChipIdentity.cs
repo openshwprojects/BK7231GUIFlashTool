@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -31,10 +31,6 @@ namespace BK7231Flasher
 
         public bool MatchesSelected(BKType selectedType)
         {
-            if (selectedType == BKType.BK7231M)
-            {
-                return true;
-            }
             for (int i = 0; i < MatchingTypes.Length; i++)
             {
                 if (MatchingTypes[i] == selectedType)
@@ -47,10 +43,6 @@ namespace BK7231Flasher
 
         public bool ShouldWarnSelected(BKType selectedType)
         {
-            if (selectedType == BKType.BK7231M)
-            {
-                return false;
-            }
             if (HasChipId == false)
             {
                 return false;
@@ -110,14 +102,14 @@ namespace BK7231Flasher
         // Only keep IDs here that we have evidence can come back from the newer ReadReg path.
         // Legacy BK7231T/BK7231U/BK7252 modes are intentionally left out because this tool
         // does not do a proven chip-ID probe for their older bootloader flow.
-        // BK7231M is intentionally not mapped here; in practice it is treated as a user-facing
-        // mode for BK7231N-family chips without the expected Tuya encryption key.
+        // BK7231M is intentionally mapped to the same chip ID as BK7231N for chip identity
+        // checks only. Its separate relaxed encryption-key behavior remains in BK7231Flasher.cs.
         // Entries without matching BKType values are identification-only: they can be logged
         // and warned about, but they are not selectable chip modes in this tool.
         private static readonly Dictionary<string, BKChipIdentityDefinition> KnownChipIds =
             new Dictionary<string, BKChipIdentityDefinition>(StringComparer.OrdinalIgnoreCase)
             {
-                { "7231c", new BKChipIdentityDefinition("BK7231N", BKType.BK7231N) },
+                { "7231c", new BKChipIdentityDefinition("BK7231N-family", BKType.BK7231N, BKType.BK7231M) },
                 { "7236", new BKChipIdentityDefinition("BK7236 / BK7258 family", BKType.BK7236, BKType.BK7258) },
                 { "7238", new BKChipIdentityDefinition("BK7238", BKType.BK7238) },
                 { "7256", new BKChipIdentityDefinition("BK7256") },
@@ -185,7 +177,7 @@ namespace BK7231Flasher
 
         public static string BuildReadRegFailureWarning(BKType selectedType)
         {
-            if (ShouldAttemptRead(selectedType) == false || selectedType == BKType.BK7231M)
+            if (ShouldAttemptRead(selectedType) == false)
             {
                 return null;
             }
