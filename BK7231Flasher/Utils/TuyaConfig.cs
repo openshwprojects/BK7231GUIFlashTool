@@ -2124,7 +2124,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     .Replace("\\u002B", "+").Replace("\\u002b", "+")
                     .Replace("\\u003C", "<").Replace("\\u003c", "<")
                     .Replace("\\u003E", ">").Replace("\\u003e", ">")
-                    .Replace("\\u0026", "&")
+                    .Replace("\\u0026", "&").Replace("\\u0022", "\"")
                     .Replace("\\u003D", "=").Replace("\\u003d", "=")
                     .Replace("\\u0027", "'");
             }
