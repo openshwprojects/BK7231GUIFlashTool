@@ -15,10 +15,12 @@
             switch(s[0])
             {
                 case 'W':
-                    if(s[2] != 'R')
+                    if(s[2] != 'R' && s[2] != 'D')
                         return nameof(BKType.BK7231T);
                     else if(s[2] == 'R')
                         return nameof(BKType.RTL87X0C);
+                    else if(s[2] == 'D')
+                        return nameof(BKType.RDA5981);
                     else
                         break;
 
