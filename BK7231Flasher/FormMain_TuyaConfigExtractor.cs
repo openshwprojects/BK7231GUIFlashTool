@@ -162,9 +162,14 @@ try
                 TuyaConfig tc = new TuyaConfig();
                 if (tc.fromFile(file) == false)
                 {
-                    if (tc.extractKeys() == false)
+                    bool classicExtractFailed = tc.extractKeys();
+                    bool hasEnhancedFallback = classicExtractFailed && tc.hasEnhancedExtractionData();
+
+                    if (!classicExtractFailed || hasEnhancedFallback)
                     {
                         _lastTuyaConfig = tc;
+                        if (classicExtractFailed && hasEnhancedFallback)
+                            checkBoxTuyaCfgEnhanced.Checked = true;
                         updateTuyaConfigOutput();
                     }
                     else

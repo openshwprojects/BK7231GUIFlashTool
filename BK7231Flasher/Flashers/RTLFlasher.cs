@@ -614,13 +614,13 @@ namespace BK7231Flasher
             try
             {
                 serial = new SerialPort(serialName, 115200);
+                xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
+                xm.PacketSent += Xm_PacketSent;
                 serial.ReadTimeout = timeoutMs;
                 serial.WriteTimeout = timeoutMs;
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
-                xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
-                xm.PacketSent += Xm_PacketSent;
             }
             catch (Exception)
             {
@@ -672,7 +672,7 @@ namespace BK7231Flasher
                 (size).ToString("X2")
                 + " (" + size / BK7231Flasher.SECTOR_SIZE + " sectors)"
                 + Environment.NewLine);
-            if (doGenericSetup() == false)
+            if(mode != WriteMode.OnlyErase && doGenericSetup() == false)
             {
                 return true;
             }
@@ -690,7 +690,7 @@ namespace BK7231Flasher
                     return true;
                 }
             }
-            int address = startSector * BK7231Flasher.SECTOR_SIZE;
+            int address = startSector;
             int count = (size + 4095) / 4096;
             int eraseSize = count * 4096;
             int eraseOffset = address & 0xfff000;
@@ -846,6 +846,10 @@ namespace BK7231Flasher
 
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
+            if(doGenericSetup() == false)
+            {
+                return true;
+            }
             if(bAll)
             {
                 sectors = flashSizeMB * 256;

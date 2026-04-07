@@ -353,13 +353,11 @@ namespace BK7231Flasher
 		{
 			addLogLine($"Detecting flash size...");
 			var start = InternalRead(0x1000, 16, false);
-			flashSizeMB = 1;
-			for(int i = 0x800000; i > 0x100000; i /= 2)
+			for(int i = 0x800000; i >= 0x100000; i /= 2)
 			{
-				if(!InternalRead(i + 0x1000, 16, false).SequenceEqual(start))
+				if(InternalRead(i + 0x1000, 16, false).SequenceEqual(start))
 				{
 					flashSizeMB = i / 0x100000;
-					break;
 				}
 			}
 			addLogLine($"Detected flash size: {flashSizeMB}MB");
