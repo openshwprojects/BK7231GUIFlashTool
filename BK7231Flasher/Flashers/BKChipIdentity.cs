@@ -190,13 +190,14 @@ namespace BK7231Flasher
             {
                 case BKType.BK7236:
                 case BKType.BK7258:
-                    // Current BK7236/BK7258 code reads 0x44010004 first, while the
-                    // other BK chips in this path use the SCTRL_CHIP_ID register at 0x800000.
+                    // All newer ReadReg-capable modes try both known chip-ID register locations.
+                    // Probe order is biased toward the selected mode's expected primary register.
                     yield return DeviceIdRegister;
                     yield return SctrlChipIdRegister;
                     break;
                 default:
                     yield return SctrlChipIdRegister;
+                    yield return DeviceIdRegister;
                     break;
             }
         }
