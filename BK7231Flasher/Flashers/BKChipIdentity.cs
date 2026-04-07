@@ -109,7 +109,7 @@ namespace BK7231Flasher
         private static readonly Dictionary<string, BKChipIdentityDefinition> KnownChipIds =
             new Dictionary<string, BKChipIdentityDefinition>(StringComparer.OrdinalIgnoreCase)
             {
-                { "7231c", new BKChipIdentityDefinition("BK7231N-family", BKType.BK7231N, BKType.BK7231M) },
+                { "7231c", new BKChipIdentityDefinition("BK7231N family", BKType.BK7231N, BKType.BK7231M) },
                 { "7236", new BKChipIdentityDefinition("BK7236 / BK7258 family", BKType.BK7236, BKType.BK7258) },
                 { "7238", new BKChipIdentityDefinition("BK7238", BKType.BK7238) },
                 { "7256", new BKChipIdentityDefinition("BK7256") },
