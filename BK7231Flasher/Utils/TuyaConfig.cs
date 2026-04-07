@@ -26,6 +26,7 @@ namespace BK7231Flasher
         static readonly byte[] KEY_NULL = DeriveVaultKey(KEY_PART_2, KEY_PART_2);
         static readonly byte[] KEY_PART_1_D = Encoding.ASCII.GetBytes("8721D");
         static readonly byte[] KEY_PART_1_AM = Encoding.ASCII.GetBytes("8711AM_4M");
+        static readonly byte[] KEY_PART_1_RDA = Encoding.ASCII.GetBytes("RDA5981_2M");
         //static byte[] MAGIC_CONFIG_START = new byte[] { 0x46, 0xDC, 0xED, 0x0E, 0x67, 0x2F, 0x3B, 0x70, 0xAE, 0x12, 0x76, 0xA3, 0xF8, 0x71, 0x2E, 0x03 };
         // TODO: check more bins with this offset
         // hex 0x1EE000
@@ -847,6 +848,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 BKType.ECR6600  => USUAL_RTLC_ECR6600_MAGIC_POSITION,
                 BKType.LN8825   => USUAL_LN8825_MAGIC_POSITION,
                 BKType.TR6260   => USUAL_TR6260_MAGIC_POSITION,
+                BKType.XR809    => USUAL_RTLB_XR809_MAGIC_POSITION,
+                BKType.XR806    => USUAL_BK_NEW_XR806_MAGIC_POSITION,
+                BKType.RDA5981  => USUAL_RTLB_XR809_MAGIC_POSITION,
                 _               => USUAL_BK7231_MAGIC_POSITION,
             };
 
@@ -862,6 +866,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             BKType.ECR6600  => 0x1F7000 - USUAL_RTLC_ECR6600_MAGIC_POSITION,
             BKType.LN8825   => 0x200000 - USUAL_LN8825_MAGIC_POSITION,
             BKType.TR6260   => 0x0DE000 - USUAL_TR6260_MAGIC_POSITION,
+            BKType.XR809    => 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION,
+            BKType.XR806    => 0x200000 - USUAL_BK_NEW_XR806_MAGIC_POSITION,
+            BKType.RDA5981  => 0x200000 - USUAL_RTLB_XR809_MAGIC_POSITION,
             _               => 0x200000 - USUAL_BK7231_MAGIC_POSITION,
         };
 
@@ -960,6 +967,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 KEY_PART_1_D,
                 KEY_PART_2,
                 KEY_PART_1_AM,
+                KEY_PART_1_RDA,
             };
 
             var pageMagics = new uint[] { MAGIC_NEXT_BLOCK, MAGIC_FIRST_BLOCK_OS3, MAGIC_FIRST_BLOCK };
@@ -1809,7 +1817,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     printposdevice("RTL8720C and ECR6600");
                     break;
                 case USUAL_RTLB_XR809_MAGIC_POSITION:
-                    printposdevice("RTL8710B/XR809/BK7231Q");
+                    printposdevice("RTL8710B/XR809/BK7231Q/RDA5981");
                     break;
                 case USUAL_T3_MAGIC_POSITION:
                     printposdevice("T3/BK7236");
