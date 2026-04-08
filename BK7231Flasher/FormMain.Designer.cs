@@ -431,7 +431,7 @@ namespace BK7231Flasher
             this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
             this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(100, 17);
             this.checkBoxSkipKeyCheck.TabIndex = 35;
-            this.checkBoxSkipKeyCheck.Text = "Skip key check";
+            this.checkBoxSkipKeyCheck.Text = "Skip chip/key check";
             this.checkBoxSkipKeyCheck.UseVisualStyleBackColor = true;
             this.checkBoxSkipKeyCheck.CheckedChanged += new System.EventHandler(this.checkBoxSkipKeyCheck_CheckedChanged);
             // 

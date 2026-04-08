@@ -246,7 +246,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             uint valueLen = ReadU32LE(pageData, entryOffset + 4);
 
-            if(valueLen == 0 || valueLen > int.MaxValue || valueLen > pageData.Length)
+            if(valueLen == 0 || valueLen > pageData.Length)
                 return false;
 
             int valueLenInt = (int)valueLen;
