@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -77,7 +77,7 @@ namespace BK7231Flasher
             }
         }
 
-        enum CommandCode
+       enum CommandCode
         {
             LinkCheck = 0,
             WriteReg = 1,
@@ -1672,6 +1672,7 @@ namespace BK7231Flasher
             //addLog("Failed!" + Environment.NewLine);
             return null;
         }
+
         int ReadFlashRegInt(int addr)
         {
             byte[] r = ReadFlashReg(addr);
