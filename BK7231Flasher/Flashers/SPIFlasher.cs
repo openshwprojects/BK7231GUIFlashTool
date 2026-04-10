@@ -284,6 +284,7 @@ namespace BK7231Flasher
                 if (readBack[i] != buffer[i])
                     return false;
 
+            addSuccess($"Write verification passed for 0x{ofs:X} len 0x{len:X}." + Environment.NewLine);
             return true;
         }
 

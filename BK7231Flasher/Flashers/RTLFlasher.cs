@@ -912,14 +912,12 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                logger.setState("Interrupted by user.", Color.Yellow);
-                addWarningLine("Operation cancelled.");
+                LogCancelledOperation();
                 return true;
             }
             catch (Exception) when (isCancelled || cancellationToken.IsCancellationRequested)
             {
-                logger.setState("Interrupted by user.", Color.Yellow);
-                addWarningLine("Operation cancelled.");
+                LogCancelledOperation();
                 return true;
             }
             finally
@@ -973,13 +971,11 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                logger.setState("Interrupted by user.", Color.Yellow);
-                addWarningLine("Operation cancelled.");
+                LogCancelledOperation();
             }
             catch (Exception) when (isCancelled || cancellationToken.IsCancellationRequested)
             {
-                logger.setState("Interrupted by user.", Color.Yellow);
-                addWarningLine("Operation cancelled.");
+                LogCancelledOperation();
             }
             finally
             {
@@ -1010,14 +1006,12 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                logger.setState("Interrupted by user.", Color.Yellow);
-                addWarningLine("Operation cancelled.");
+                LogCancelledOperation();
                 return true;
             }
             catch (Exception) when (isCancelled || cancellationToken.IsCancellationRequested)
             {
-                logger.setState("Interrupted by user.", Color.Yellow);
-                addWarningLine("Operation cancelled.");
+                LogCancelledOperation();
                 return true;
             }
             finally

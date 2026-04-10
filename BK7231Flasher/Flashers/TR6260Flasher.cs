@@ -70,11 +70,6 @@ namespace BK7231Flasher
             SetState(text, Color.Red);
         }
 
-        void SetDoneState(string text)
-        {
-            SetState(text, Color.DarkGreen);
-        }
-
         void ResetSessionFlags()
         {
             sessionPortUnavailable = false;

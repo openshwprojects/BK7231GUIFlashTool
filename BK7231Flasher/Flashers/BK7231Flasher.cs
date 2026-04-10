@@ -42,11 +42,6 @@ namespace BK7231Flasher
                 throw new OperationCanceledException("Operation cancelled.", ex, cancellationToken);
             }
         }
-        void HandleCancellation()
-        {
-            logger.setState("Interrupted by user.", Color.Yellow);
-            addWarningLine("Operation cancelled.");
-        }
         bool openPort()
         {
             // Close any previously open port before re-opening
@@ -782,7 +777,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                HandleCancellation();
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -797,7 +792,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                HandleCancellation();
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -813,7 +808,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                HandleCancellation();
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -838,7 +833,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                HandleCancellation();
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -854,7 +849,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                HandleCancellation();
+                LogCancelledOperation();
             }
             catch(Exception ex)
             {
