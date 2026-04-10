@@ -1021,7 +1021,7 @@ namespace BK7231Flasher
 						closePort();
 						return false;
 					}
-					logger.setState("OBK config write success!", Color.Green);
+					addSuccess("OBK config write success!" + Environment.NewLine);
 				}
 				else
 				{
@@ -1029,7 +1029,7 @@ namespace BK7231Flasher
 				}
 				logger.setProgress(size, size);
 				addSuccess("Flash complete!" + Environment.NewLine);
-				logger.setState("Flash complete!", Color.DarkGreen);
+				SetWriteCompleteState();
 				ChangeBaud(115200);
 				return false;
 			}
@@ -1295,7 +1295,7 @@ namespace BK7231Flasher
 					addLogLine($"Read time: {totalTimer.Elapsed}");
 				}
 
-				logger.setState("Read done", Color.DarkGreen);
+				SetReadCompleteState();
 				addLogLine("Read complete!");
 				ChangeBaud(FallbackBaudRate);
 				return ret;
@@ -1363,7 +1363,7 @@ namespace BK7231Flasher
 
 				if(result)
 				{
-					logger.setState("Erase complete!", Color.DarkGreen);
+					SetEraseCompleteState();
 				}
 				else
 				{

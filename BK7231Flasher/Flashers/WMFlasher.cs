@@ -323,9 +323,15 @@ namespace BK7231Flasher
 					{
 						return;
 					}
+					SetReadCompleteState();
 				}
 				catch(Exception ex)
 				{
+					if(WasCancelled(ex))
+					{
+						LogCancelledOperation();
+						return;
+					}
 					addErrorLine(ex.Message);
 				}
 				finally
@@ -375,11 +381,7 @@ namespace BK7231Flasher
 		
 		public override void closePort()
 		{
-			if(serial != null)
-			{
-				serial.Close();
-				serial.Dispose();
-			}
+			base.closePort();
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
@@ -438,7 +440,7 @@ namespace BK7231Flasher
 							var res = xm.Send(data);
 							if(res == data.Length)
 							{
-								logger.setState("Writing done", Color.DarkGreen);
+								SetWriteCompleteState();
 								addLogLine("Done flash write " + data.Length);
 							}
 							else
@@ -475,7 +477,7 @@ namespace BK7231Flasher
 								var res = xm.Send(fls, (uint)(startSector ^ 0x08000000));
 								if(res == fls.Length)
 								{
-									logger.setState("Writing done", Color.DarkGreen);
+									SetWriteCompleteState();
 									addLogLine("Done flash write " + data.Length);
 									logger.setProgress(1, 1);
 								}
@@ -519,7 +521,8 @@ namespace BK7231Flasher
 						var res = xm.Send(fls, (uint)(offset ^ 0x08000000));
 						if(res == fls.Length)
 						{
-							logger.setState("OBK config write success!", Color.Green);
+							addSuccess("OBK config write success!" + Environment.NewLine);
+							SetWriteCompleteState();
 							logger.setProgress(1, 1);
 						}
 						else
@@ -534,6 +537,11 @@ namespace BK7231Flasher
 				}
 				catch(Exception ex)
 				{
+					if(WasCancelled(ex))
+					{
+						LogCancelledOperation();
+						return;
+					}
 					addErrorLine(ex.Message);
 				}
 				finally

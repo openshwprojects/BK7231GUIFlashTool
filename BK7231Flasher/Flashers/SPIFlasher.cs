@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO;
 using System.Threading;
@@ -101,7 +101,7 @@ namespace BK7231Flasher
 
             if (bSilent == false)
             {
-                logger.setState("Reading done", Color.DarkGreen);
+                SetReadCompleteState();
                 addLogLine($"Done!");
             }
             return result;
@@ -214,7 +214,7 @@ namespace BK7231Flasher
                     addLogLine("Error at " + addr + ", retry "+ errors);
                 }
             }
-            logger.setState("Erase done", Color.DarkGreen);
+            SetEraseCompleteState();
             return true;
         }
 
@@ -269,7 +269,7 @@ namespace BK7231Flasher
                 loops++;
 
             }
-            logger.setState("Writing done", Color.DarkGreen);
+            SetWriteCompleteState();
             return true;
         }
 

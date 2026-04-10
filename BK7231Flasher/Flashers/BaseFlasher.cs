@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO.Ports;
 using System.Text;
@@ -95,12 +95,18 @@ namespace BK7231Flasher
             ct.Register(() =>
             {
                 isCancelled = true;
-                if(xm != null)
+                try
                 {
-                    xm?.CancelFileTransfer();
-                    xm.InProgress.Wait(500);
+                    if(xm != null)
+                    {
+                        try { xm.CancelFileTransfer(); } catch { }
+                        try { xm.InProgress.Wait(500); } catch { }
+                    }
                 }
-                closePort();
+                finally
+                {
+                    try { closePort(); } catch { }
+                }
             });
         }
 
@@ -220,8 +226,9 @@ namespace BK7231Flasher
         {
             if (serial != null)
             {
-                serial.Close();
-                serial.Dispose();
+                try { serial.Close(); } catch { }
+                try { serial.Dispose(); } catch { }
+                serial = null;
             }
         }
         public virtual void doTestReadWrite(int startSector = 0x000, int sectors = 10)
@@ -246,7 +253,36 @@ namespace BK7231Flasher
             logger.setProgress(sentBytes, total);
         }
 
-        public virtual void Dispose() { }
+        protected bool WasCancelled(Exception ex = null)
+        {
+            return ex is OperationCanceledException || isCancelled || cancellationToken.IsCancellationRequested;
+        }
+
+        protected void LogCancelledOperation()
+        {
+            logger?.setState("Interrupted by user.", Color.Yellow);
+            addWarningLine("Operation cancelled.");
+        }
+
+        protected void SetReadCompleteState()
+        {
+            logger?.setState("Read complete", Color.DarkGreen);
+        }
+
+        protected void SetWriteCompleteState()
+        {
+            logger?.setState("Write complete", Color.DarkGreen);
+        }
+
+        protected void SetEraseCompleteState()
+        {
+            logger?.setState("Erase complete", Color.DarkGreen);
+        }
+
+        public virtual void Dispose()
+        {
+            try { closePort(); } catch { }
+        }
 
         public static string HashToStr(byte[] data)
         {

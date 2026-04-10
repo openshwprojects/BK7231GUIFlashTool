@@ -1325,137 +1325,40 @@ namespace BK7231Flasher
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
-            if (Connect())
+            try
             {
-                // GetChipId already called in Connect()
-                ReadMac();
-                uint? fid = ReadFlashId();
-                uint flashSize = 0;
-                if (fid.HasValue)
+                if (Connect())
                 {
-                    uint sizeCode = (fid.Value >> 16) & 0xFF;
-                    if (sizeCode > 0 && sizeCode <= 31)
+                    // GetChipId already called in Connect()
+                    ReadMac();
+                    uint? fid = ReadFlashId();
+                    uint flashSize = 0;
+                    if (fid.HasValue)
                     {
-                        flashSize = 1u << (int)sizeCode;
-                        SpiSetParams(flashSize);
-                    }
-                }
-
-                if (fullRead && flashSize > 0)
-                {
-                    sectors = (int)(flashSize / 0x1000);
-                }
-
-                logger.setState("Reading flash...", Color.LightBlue);
-                addLogLine($"Starting Flash Read: {sectors} sectors from 0x{startSector:X}...");
-                ms = new MemoryStream();
-                var swRead = Stopwatch.StartNew();
-                uint startAddr = (uint)startSector * 0x1000;
-                uint totalSize = (uint)sectors * 0x1000;
-
-                // Try stub for faster reads
-                if (!LegacyMode && UploadStub())
-                {
-                    // Re-attach SPI after stub starts
-                    addLogLine("Re-attaching SPI after stub...");
-                    SpiAttach();
-                    if (baudrate > 115200)
-                    {
-                        addLogLine($"Changing baud rate to {baudrate}...");
-                        ChangeBaudrate(baudrate);
-                        addLogLine($"Baud rate changed to {baudrate}.");
-                    }
-                    logger.setState($"Reading flash...", Color.LightBlue);
-
-                    try
-                    {
-                        byte[] flashData = ReadFlashFast(startAddr, totalSize, (received, total) =>
+                        uint sizeCode = (fid.Value >> 16) & 0xFF;
+                        if (sizeCode > 0 && sizeCode <= 31)
                         {
-                            logger.setProgress(received, total);
-                        });
-                        ms.Write(flashData, 0, flashData.Length);
-                        swRead.Stop();
-                        double secsFast = swRead.Elapsed.TotalSeconds;
-                        double kbitsFast = (totalSize * 8.0 / 1000.0) / secsFast;
-                        double kbytesFast = (totalSize / 1024.0) / secsFast;
-                        addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsFast:F1}s ({kbitsFast:F1} kbit/s, {kbytesFast:F1} KB/s)");
-                        addLogLine("Flash Read Complete (stub mode).");
-                        logger.setState("Read complete", Color.LightGreen);
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.setState("Read error", Color.Red);
-                        addErrorLine("Fast read failed: " + ex.Message);
-                        addLogLine("Falling back to slow read...");
-                    }
-                }
-
-                // Slow read fallback (ROM only, 64 bytes at a time)
-                uint blockSize = 64; // Max safe size for ROM READ_FLASH_SLOW
-
-                uint currentAddr = startAddr;
-                while (currentAddr < startAddr + totalSize)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    uint toRead = Math.Min(blockSize, startAddr + totalSize - currentAddr);
-                    byte[] block = ReadFlashBlockSlow(currentAddr, toRead);
-                    
-                    if (block == null)
-                    {
-                        addErrorLine($"Failed to read block at 0x{currentAddr:X}");
-                        return;
+                            flashSize = 1u << (int)sizeCode;
+                            SpiSetParams(flashSize);
+                        }
                     }
 
-                    if (block.Length != toRead)
+                    if (fullRead && flashSize > 0)
                     {
-                         addWarningLine($"Read mismatch at 0x{currentAddr:X}: Request {toRead}, Got {block.Length}");
-                    }
-                    // If we got 0, we can't progress. Avoid infinite loop.
-                    if (block.Length == 0)
-                    {
-                        addErrorLine("Read 0 bytes, aborting.");
-                        return;
+                        sectors = (int)(flashSize / 0x1000);
                     }
 
-                    ms.Write(block, 0, block.Length);
-                    currentAddr += (uint)block.Length;
-                    logger.setProgress((int)(currentAddr - startAddr), (int)totalSize);
-                }
-                swRead.Stop();
-                double secsSlow = swRead.Elapsed.TotalSeconds;
-                double kbitsSlow = (totalSize * 8.0 / 1000.0) / secsSlow;
-                double kbytesSlow = (totalSize / 1024.0) / secsSlow;
-                addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsSlow:F1}s ({kbitsSlow:F1} kbit/s, {kbytesSlow:F1} KB/s)");
-                addLogLine("Flash Read Complete.");
-                logger.setState("Read complete", Color.LightGreen);
-            }
-        }
+                    logger.setState("Reading flash...", Color.LightBlue);
+                    addLogLine($"Starting Flash Read: {sectors} sectors from 0x{startSector:X}...");
+                    ms = new MemoryStream();
+                    var swRead = Stopwatch.StartNew();
+                    uint startAddr = (uint)startSector * 0x1000;
+                    uint totalSize = (uint)sectors * 0x1000;
 
-        public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
-        {
-            if (rwMode == WriteMode.OnlyWrite)
-            {
-                byte[] data = File.ReadAllBytes(sourceFileName);
-                doWrite((uint)startSector * 0x1000, data);
-            }
-            else
-            {
-                addErrorLine("ReadAndWrite mode not yet implemented for ESPFlasher.");
-            }
-        }
-
-        public void doWrite(uint offset, byte[] data)
-        {
-            if (Connect())
-            {
-
-                // Try stub for faster writes
-                if (!LegacyMode)
-                {
-                    UploadStub();
-                    if (isStub)
+                    // Try stub for faster reads
+                    if (!LegacyMode && UploadStub())
                     {
+                        // Re-attach SPI after stub starts
                         addLogLine("Re-attaching SPI after stub...");
                         SpiAttach();
                         if (baudrate > 115200)
@@ -1464,16 +1367,144 @@ namespace BK7231Flasher
                             ChangeBaudrate(baudrate);
                             addLogLine($"Baud rate changed to {baudrate}.");
                         }
+                        logger.setState($"Reading flash...", Color.LightBlue);
+
+                        try
+                        {
+                            byte[] flashData = ReadFlashFast(startAddr, totalSize, (received, total) =>
+                            {
+                                logger.setProgress(received, total);
+                            });
+                            ms.Write(flashData, 0, flashData.Length);
+                            swRead.Stop();
+                            double secsFast = swRead.Elapsed.TotalSeconds;
+                            double kbitsFast = (totalSize * 8.0 / 1000.0) / secsFast;
+                            double kbytesFast = (totalSize / 1024.0) / secsFast;
+                            addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsFast:F1}s ({kbitsFast:F1} kbit/s, {kbytesFast:F1} KB/s)");
+                            addLogLine("Flash Read Complete (stub mode).");
+                            SetReadCompleteState();
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            if(WasCancelled(ex))
+                            {
+                                throw;
+                            }
+                            logger.setState("Read error", Color.Red);
+                            addErrorLine("Fast read failed: " + ex.Message);
+                            addLogLine("Falling back to slow read...");
+                        }
                     }
+
+                    // Slow read fallback (ROM only, 64 bytes at a time)
+                    uint blockSize = 64; // Max safe size for ROM READ_FLASH_SLOW
+
+                    uint currentAddr = startAddr;
+                    while (currentAddr < startAddr + totalSize)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        uint toRead = Math.Min(blockSize, startAddr + totalSize - currentAddr);
+                        byte[] block = ReadFlashBlockSlow(currentAddr, toRead);
+                        
+                        if (block == null)
+                        {
+                            addErrorLine($"Failed to read block at 0x{currentAddr:X}");
+                            return;
+                        }
+
+                        if (block.Length != toRead)
+                        {
+                             addWarningLine($"Read mismatch at 0x{currentAddr:X}: Request {toRead}, Got {block.Length}");
+                        }
+                        // If we got 0, we can't progress. Avoid infinite loop.
+                        if (block.Length == 0)
+                        {
+                            addErrorLine("Read 0 bytes, aborting.");
+                            return;
+                        }
+
+                        ms.Write(block, 0, block.Length);
+                        currentAddr += (uint)block.Length;
+                        logger.setProgress((int)(currentAddr - startAddr), (int)totalSize);
+                    }
+                    swRead.Stop();
+                    double secsSlow = swRead.Elapsed.TotalSeconds;
+                    double kbitsSlow = (totalSize * 8.0 / 1000.0) / secsSlow;
+                    double kbytesSlow = (totalSize / 1024.0) / secsSlow;
+                    addLogLine($"Read {totalSize} bytes at 0x{startAddr:X8} in {secsSlow:F1}s ({kbitsSlow:F1} kbit/s, {kbytesSlow:F1} KB/s)");
+                    addLogLine("Flash Read Complete.");
+                    SetReadCompleteState();
                 }
+            }
+            catch(Exception ex)
+            {
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
+                addErrorLine(ex.Message);
+                logger.setState("Read error", Color.Red);
+            }
+        }
 
-                uint blockSize = 0x400; // 1024 bytes
-                uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
+        public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
+        {
+            try
+            {
+                if (rwMode == WriteMode.OnlyWrite)
+                {
+                    byte[] data = File.ReadAllBytes(sourceFileName);
+                    doWrite((uint)startSector * 0x1000, data);
+                }
+                else
+                {
+                    addErrorLine("ReadAndWrite mode not yet implemented for ESPFlasher.");
+                }
+            }
+            catch(Exception ex)
+            {
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
+                addErrorLine(ex.Message);
+            }
+        }
 
-                logger.setState("Erasing flash...", Color.LightBlue);
-                addLogLine($"Starting Flash Write: {data.Length} bytes ({numBlocks} blocks) at 0x{offset:X}...");
-                addLogLine("Sending FLASH_BEGIN (may erase, this can take a while)...");
-                var swWrite = Stopwatch.StartNew();
+        public void doWrite(uint offset, byte[] data)
+        {
+            try
+            {
+                if (Connect())
+                {
+ 
+                    // Try stub for faster writes
+                    if (!LegacyMode)
+                    {
+                        UploadStub();
+                        if (isStub)
+                        {
+                            addLogLine("Re-attaching SPI after stub...");
+                            SpiAttach();
+                            if (baudrate > 115200)
+                            {
+                                addLogLine($"Changing baud rate to {baudrate}...");
+                                ChangeBaudrate(baudrate);
+                                addLogLine($"Baud rate changed to {baudrate}.");
+                            }
+                        }
+                    }
+
+                    uint blockSize = 0x400; // 1024 bytes
+                    uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
+
+                    logger.setState("Erasing flash...", Color.LightBlue);
+                    addLogLine($"Starting Flash Write: {data.Length} bytes ({numBlocks} blocks) at 0x{offset:X}...");
+                    addLogLine("Sending FLASH_BEGIN (may erase, this can take a while)...");
+                    var swWrite = Stopwatch.StartNew();
 
                 // FLASH_BEGIN: size, numBlocks, blockSize, offset
                 List<byte> beginPayload = new List<byte>();
@@ -1482,15 +1513,15 @@ namespace BK7231Flasher
                 beginPayload.AddRange(BitConverter.GetBytes(blockSize));
                 beginPayload.AddRange(BitConverter.GetBytes(offset));
 
-                sendCommand(ESPCommand.FLASH_BEGIN, beginPayload.ToArray());
-                // FLASH_BEGIN can take a long time if it triggers an erase
-                if (readPacket(30000, ESPCommand.FLASH_BEGIN) == null)
-                {
-                    addErrorLine("FLASH_BEGIN failed (erase timeout or error).");
-                    return;
-                }
-                addLogLine("FLASH_BEGIN OK, erase complete.");
-                logger.setState("Writing flash...", Color.LightBlue);
+                    sendCommand(ESPCommand.FLASH_BEGIN, beginPayload.ToArray());
+                    // FLASH_BEGIN can take a long time if it triggers an erase
+                    if (readPacket(30000, ESPCommand.FLASH_BEGIN) == null)
+                    {
+                        addErrorLine("FLASH_BEGIN failed (erase timeout or error).");
+                        return;
+                    }
+                    addLogLine("FLASH_BEGIN OK, erase complete.");
+                    logger.setState("Writing flash...", Color.LightBlue);
 
                 for (uint i = 0; i < numBlocks; i++)
                 {
@@ -1536,13 +1567,13 @@ namespace BK7231Flasher
                     logger.setProgress((int)((i + 1) * blockSize), data.Length);
                 }
 
-                swWrite.Stop();
-                double secsWrite = swWrite.Elapsed.TotalSeconds;
-                double kbitsWrite = (data.Length * 8.0 / 1000.0) / secsWrite;
-                double kbytesWrite = (data.Length / 1024.0) / secsWrite;
-                addLogLine($"Wrote {data.Length} bytes at 0x{offset:X8} in {secsWrite:F1}s ({kbitsWrite:F1} kbit/s, {kbytesWrite:F1} KB/s)");
-                addSuccess("Flash Write Complete!" + Environment.NewLine);
-                logger.setState("Write complete", Color.LightGreen);
+                    swWrite.Stop();
+                    double secsWrite = swWrite.Elapsed.TotalSeconds;
+                    double kbitsWrite = (data.Length * 8.0 / 1000.0) / secsWrite;
+                    double kbytesWrite = (data.Length / 1024.0) / secsWrite;
+                    addLogLine($"Wrote {data.Length} bytes at 0x{offset:X8} in {secsWrite:F1}s ({kbitsWrite:F1} kbit/s, {kbytesWrite:F1} KB/s)");
+                    addSuccess("Flash Write Complete!" + Environment.NewLine);
+                    SetWriteCompleteState();
 
                 // Verify with MD5 BEFORE sending FLASH_END (stub must still be running)
                 if (isStub)
@@ -1559,13 +1590,17 @@ namespace BK7231Flasher
                              string actual = FlashMd5Sum(offset, (uint)data.Length);
                              if(actual == null) addErrorLine("Failed to get Flash MD5");
                              else if(actual != expected) addErrorLine($"MD5 Mismatch! Expected {expected}, Got {actual}");
-                             else { addSuccess("Write Verified Successfully!" + Environment.NewLine); logger.setState("Write verified", Color.LightGreen); }
+                             else { addSuccess("Write Verified Successfully!" + Environment.NewLine); SetWriteCompleteState(); }
                          }
                      }
-                     catch(Exception ex)
-                     {
-                         addErrorLine("Verification exception: " + ex.Message);
-                     }
+                      catch(Exception ex)
+                      {
+                          if(WasCancelled(ex))
+                          {
+                              throw;
+                          }
+                          addErrorLine("Verification exception: " + ex.Message);
+                      }
                 }
 
                 // FLASH_END: no_entry=1 means stay in bootloader (don't reboot)
@@ -1573,10 +1608,21 @@ namespace BK7231Flasher
                 addLogLine("Sending FLASH_END...");
                 sendCommand(ESPCommand.FLASH_END, BitConverter.GetBytes((uint)1));
                 var endResp = readPacket(1000, ESPCommand.FLASH_END);
-                if (endResp == null)
-                    addWarningLine("FLASH_END: no response (non-fatal).");
-                else
-                    addLogLine("FLASH_END OK.");
+                    if (endResp == null)
+                        addWarningLine("FLASH_END: no response (non-fatal).");
+                    else
+                        addLogLine("FLASH_END OK.");
+                }
+            }
+            catch(Exception ex)
+            {
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
+                addErrorLine(ex.Message);
+                logger.setState("Write error", Color.Red);
             }
         }
     }

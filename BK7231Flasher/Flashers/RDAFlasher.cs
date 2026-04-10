@@ -231,7 +231,7 @@ namespace BK7231Flasher
 				}
 				if(withLog)
 				{
-					logger.setState("Read done", Color.DarkGreen);
+					SetReadCompleteState();
 					addLogLine("Read complete!");
 				}
 				sha1Hash.Clear();
@@ -318,7 +318,7 @@ namespace BK7231Flasher
 				{
 					addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
 				}
-				logger.setState("Writing done", Color.DarkGreen);
+				SetWriteCompleteState();
 				addLogLine("Done flash write " + result);
 				return true;
 			}
@@ -331,20 +331,32 @@ namespace BK7231Flasher
 
 		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
 		{
-			if(doGenericSetup() == false)
+			try
 			{
-				return;
-			}
-			if(Sync())
-			{
-				if(fullRead)
+				if(doGenericSetup() == false)
 				{
-					GetFlashSize();
-					sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+					return;
 				}
-				byte[] res = InternalRead(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
-				if(res != null)
-					ms = new MemoryStream(res);
+				if(Sync())
+				{
+					if(fullRead)
+					{
+						GetFlashSize();
+						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+					}
+					byte[] res = InternalRead(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+					if(res != null)
+						ms = new MemoryStream(res);
+				}
+			}
+			catch(Exception ex)
+			{
+				if(WasCancelled(ex))
+				{
+					LogCancelledOperation();
+					return;
+				}
+				addErrorLine(ex.Message);
 			}
 			return;
 		}
@@ -370,139 +382,162 @@ namespace BK7231Flasher
 
 		public override bool doErase(int startSector = 0x000, int sectors = 10, bool bAll = false)
 		{
-			if(bAll)
+			try
 			{
-				if(doGenericSetup() && Sync())
+				if(bAll)
 				{
-					GetFlashSize();
-					int len = flashSizeMB * 0x100000;
-					if(ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len:X}", len / 300).Contains("Erase Flash done!"))
+					if(doGenericSetup() && Sync())
+					{
+						GetFlashSize();
+						int len = flashSizeMB * 0x100000;
+						if(ExecuteCommand($"flash 7 {FLASH_MMAP_BASE:X} {len:X}", len / 300).Contains("Erase Flash done!"))
+						{
+							addLogLine($"Erase done!");
+							SetEraseCompleteState();
+							return true;
+						}
+						addErrorLine($"Erase failed!");
+					}
+				}
+				else
+				{
+					int len = sectors * 0x1000;
+					if(ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {len:X}", len / 300).Contains("Erase Flash done!"))
 					{
 						addLogLine($"Erase done!");
+						SetEraseCompleteState();
 						return true;
 					}
 					addErrorLine($"Erase failed!");
 				}
 			}
-			else
+			catch(Exception ex)
 			{
-				int len = sectors * 0x1000;
-				if(ExecuteCommand($"flash 7 {startSector | FLASH_MMAP_BASE:X} {len:X}", len / 300).Contains("Erase Flash done!"))
+				if(WasCancelled(ex))
 				{
-					addLogLine($"Erase done!");
-					return true;
+					LogCancelledOperation();
+					return false;
 				}
-				addErrorLine($"Erase failed!");
+				addErrorLine(ex.Message);
 			}
 			return false;
 		}
 		
 		public override void closePort()
 		{
-			if(serial != null)
-			{
-				serial.Close();
-				serial.Dispose();
-			}
+			base.closePort();
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
 		{
-			if(doGenericSetup() == false)
+			try
 			{
-				return;
-			}
-			if(Sync())
-			{
-				OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
-				if(rwMode == WriteMode.ReadAndWrite)
+				if(doGenericSetup() == false)
 				{
-					GetFlashSize();
-					sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
-					addLogLine($"Flash size detected: {sectors / 256}MB");
-					byte[] res = InternalRead(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
-					if(res != null)
-						ms = new MemoryStream(res);
-					if(ms == null)
-					{
-						return;
-					}
-					if(saveReadResult(startSector) == false)
-					{
-						return;
-					}
+					return;
 				}
-				if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
+				if(Sync())
 				{
-					if(string.IsNullOrEmpty(sourceFileName))
+					OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
+					if(rwMode == WriteMode.ReadAndWrite)
 					{
-						addLogLine("No filename given!");
-						return;
-					}
-					addLogLine("Reading " + sourceFileName + "...");
-					byte[] data = File.ReadAllBytes(sourceFileName);
-					var startAddr = 0x1000;
-					if(data[0] == 0x02 && data[4] == 'A' && data[5] == 'D' && data[6] == 'R')
-					{
-						startAddr = 0x0;
-					}
-					if(!InternalWrite(startAddr, data, -1, true))
-					{
-						logger.setState("Write error!", Color.Red);
-						return;
-					}
-				}
-				if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig)
-				{
-					if(cfg != null)
-					{
-						addLogLine("Writing config first");
-						var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
-						var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
-
-						cfg.saveConfig(chipType);
-						var cfgData = cfg.getData();
-						byte[] efdata;
-						if(cfg.efdata != null)
+						GetFlashSize();
+						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+						addLogLine($"Flash size detected: {sectors / 256}MB");
+						byte[] res = InternalRead(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+						if(res != null)
+							ms = new MemoryStream(res);
+						if(ms == null)
 						{
-							try
+							return;
+						}
+						if(saveReadResult(startSector) == false)
+						{
+							return;
+						}
+					}
+					if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
+					{
+						if(string.IsNullOrEmpty(sourceFileName))
+						{
+							addLogLine("No filename given!");
+							return;
+						}
+						addLogLine("Reading " + sourceFileName + "...");
+						byte[] data = File.ReadAllBytes(sourceFileName);
+						var startAddr = 0x1000;
+						if(data[0] == 0x02 && data[4] == 'A' && data[5] == 'D' && data[6] == 'R')
+						{
+							startAddr = 0x0;
+						}
+						if(!InternalWrite(startAddr, data, -1, true))
+						{
+							logger.setState("Write error!", Color.Red);
+							return;
+						}
+					}
+					if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig)
+					{
+						if(cfg != null)
+						{
+							addLogLine("Writing config first");
+							var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
+							var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+
+							cfg.saveConfig(chipType);
+							var cfgData = cfg.getData();
+							byte[] efdata;
+							if(cfg.efdata != null)
 							{
-								efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+								try
+								{
+									efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+								}
+								catch(Exception ex)
+								{
+									addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+									addLog(ex.Message + Environment.NewLine);
+									efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+								}
 							}
-							catch(Exception ex)
+							else
 							{
-								addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
-								addLog(ex.Message + Environment.NewLine);
 								efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
 							}
+							if(efdata == null)
+							{
+								addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+								return;
+							}
+							addLog("Now will also write OBK config..." + Environment.NewLine);
+							addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+							addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+							addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+							bool bOk = InternalWrite(offset, efdata, areaSize);
+							if(bOk == false)
+							{
+								logger.setState("Writing error!", Color.Red);
+								addError("Writing OBK config data to chip failed." + Environment.NewLine);
+								return;
+							}
+							addSuccess("OBK config write success!" + Environment.NewLine);
+							SetWriteCompleteState();
 						}
 						else
 						{
-							efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+							addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
 						}
-						if(efdata == null)
-						{
-							addLog("Something went wrong with EasyFlash" + Environment.NewLine);
-							return;
-						}
-						addLog("Now will also write OBK config..." + Environment.NewLine);
-						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
-						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
-						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-						bool bOk = InternalWrite(offset, efdata, areaSize);
-						if(bOk == false)
-						{
-							logger.setState("Writing error!", Color.Red);
-							addError("Writing OBK config data to chip failed." + Environment.NewLine);
-							return;
-						}
-						logger.setState("OBK config write success!", Color.Green);
-					}
-					else
-					{
-						addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
 					}
 				}
+			}
+			catch(Exception ex)
+			{
+				if(WasCancelled(ex))
+				{
+					LogCancelledOperation();
+					return;
+				}
+				addErrorLine(ex.Message);
 			}
 		}
 

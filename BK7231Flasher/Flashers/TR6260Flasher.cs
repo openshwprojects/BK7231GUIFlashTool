@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -823,7 +823,7 @@ namespace BK7231Flasher
 
             addLog(Environment.NewLine);
             addSuccess("Read completed.\n");
-            SetDoneState("Read done");
+            SetReadCompleteState();
             return true;
         }
 
@@ -839,7 +839,7 @@ namespace BK7231Flasher
             }
 
             addSuccess("Erase completed.\n");
-            SetDoneState("Erase complete!");
+            SetEraseCompleteState();
             return true;
         }
 
@@ -869,7 +869,7 @@ namespace BK7231Flasher
                 }
 
                 addSuccess("Write completed.\n");
-                SetDoneState("Write done");
+                SetWriteCompleteState();
             }
             finally
             {
@@ -993,7 +993,7 @@ namespace BK7231Flasher
                     }
 
                     addSuccess("Backup and write completed.\n");
-                    SetDoneState("Write done");
+                    SetWriteCompleteState();
                 }
                 finally
                 {
@@ -1080,7 +1080,8 @@ namespace BK7231Flasher
                         return;
                     }
 
-                    logger.setState("OBK config write success!", Color.Green);
+                    addSuccess("OBK config write success!" + Environment.NewLine);
+                    SetWriteCompleteState();
                 }
                 finally
                 {

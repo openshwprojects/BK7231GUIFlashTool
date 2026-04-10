@@ -326,7 +326,7 @@ namespace BK7231Flasher
                     logger.setState("SHA mismatch!", Color.Red);
                     return false;
                 }
-                logger.setState("Writing done", Color.DarkGreen);
+                SetWriteCompleteState();
                 addLogLine("Done flash write " + len);
                 return true;
             }
@@ -454,6 +454,11 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
                 addErrorLine(ex.Message);
             }
         }
@@ -519,13 +524,18 @@ namespace BK7231Flasher
                     logger.setState("SHA mismatch!", Color.Red);
                     return null;
                 }
-                logger.setState("Read done", Color.DarkGreen);
+                SetReadCompleteState();
                 addLogLine("Read complete!");
                 return ret;
             }
             catch(Exception ex)
             { 
                 addLogLine("");
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return null;
+                }
                 addErrorLine(ex.ToString());
                 return null;
             }
@@ -588,56 +598,66 @@ namespace BK7231Flasher
         }
         public override bool doErase(int startSector, int sectors, bool bAll = false)
         {
-            logger.setState("Erasing...", Color.White);
-            if(bAll)
+            try
             {
-                if (doGenericSetup() == false)
+                logger.setState("Erasing...", Color.White);
+                if(bAll)
                 {
-                    return false;
+                    if (doGenericSetup() == false)
+                    {
+                        return false;
+                    }
+                    addLogLine("Erasing...");
+                    var res = executeCommand(0x3C, null, 0, 0, true, 30);
+                    if(res != null) SetEraseCompleteState();
+                    else
+                    {
+                        logger.setState("Erase failed!", Color.Red);
+                        return false;
+                    }
                 }
-                addLogLine("Erasing...");
-                var res = executeCommand(0x3C, null, 0, 0, true, 30);
-                if(res != null) logger.setState("Erase done", Color.DarkGreen);
                 else
                 {
-                    logger.setState("Erase failed!", Color.Red);
-                    return false;
+                    if(sectors < 1)
+                        return false;
+                    var end = sectors * BK7231Flasher.SECTOR_SIZE;
+                    end += startSector - 1; //end addr
+                    addLogLine($"Erasing from 0x{startSector:X} to 0x{(end + 1):X}");
+                    byte[] cmdBuffer = new byte[8];
+                    cmdBuffer[0] = (byte)(startSector & 0xFF);
+                    cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
+                    cmdBuffer[2] = (byte)((startSector >> 16) & 0xFF);
+                    cmdBuffer[3] = (byte)((startSector >> 24) & 0xFF);
+                    cmdBuffer[4] = (byte)(end & 0xFF);
+                    cmdBuffer[5] = (byte)((end >> 8) & 0xFF);
+                    cmdBuffer[6] = (byte)((end >> 16) & 0xFF);
+                    cmdBuffer[7] = (byte)((end >> 24) & 0xFF);
+                    var res = executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 30);
+                    if(res != null) SetEraseCompleteState();
+                    else
+                    {
+                        logger.setState("Erase failed!", Color.Red);
+                        return false;
+                    }
                 }
+                serial?.DiscardInBuffer();
+                return true;
             }
-            else
+            catch(Exception ex)
             {
-                if(sectors < 1)
-                    return false;
-                var end = sectors * BK7231Flasher.SECTOR_SIZE;
-                end += startSector - 1; //end addr
-                addLogLine($"Erasing from 0x{startSector:X} to 0x{(end + 1):X}");
-                byte[] cmdBuffer = new byte[8];
-                cmdBuffer[0] = (byte)(startSector & 0xFF);
-                cmdBuffer[1] = (byte)((startSector >> 8) & 0xFF);
-                cmdBuffer[2] = (byte)((startSector >> 16) & 0xFF);
-                cmdBuffer[3] = (byte)((startSector >> 24) & 0xFF);
-                cmdBuffer[4] = (byte)(end & 0xFF);
-                cmdBuffer[5] = (byte)((end >> 8) & 0xFF);
-                cmdBuffer[6] = (byte)((end >> 16) & 0xFF);
-                cmdBuffer[7] = (byte)((end >> 24) & 0xFF);
-                var res = executeCommand(0x30, cmdBuffer, 0, cmdBuffer.Length, true, 30);
-                if(res != null) logger.setState("Erase done", Color.DarkGreen);
-                else
+                if(WasCancelled(ex))
                 {
-                    logger.setState("Erase failed!", Color.Red);
+                    LogCancelledOperation();
                     return false;
                 }
+                addErrorLine(ex.Message);
+                logger.setState("Erase failed!", Color.Red);
+                return false;
             }
-            serial.DiscardInBuffer();
-            return true;
         }
         public override void closePort()
         {
-            if (serial != null)
-            {
-                serial.Close();
-                serial.Dispose();
-            }
+            base.closePort();
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -805,7 +825,8 @@ namespace BK7231Flasher
                             addError("Writing OBK config data to chip failed." + Environment.NewLine);
                             return;
                         }
-                        logger.setState("OBK config write success!", Color.Green);
+                        addSuccess("OBK config write success!" + Environment.NewLine);
+                        SetWriteCompleteState();
                     }
                     else
                     {
@@ -815,6 +836,11 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
                 addErrorLine(ex.Message);
             }
             return;

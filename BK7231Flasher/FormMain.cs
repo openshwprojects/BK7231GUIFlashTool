@@ -416,13 +416,10 @@ namespace BK7231Flasher
                 {
                     if(worker != null)
                     {
-                        cts?.Cancel();
+                        requestWorkerCancellation();
                         //worker.Abort();
                     }
-                    worker = null;
-                    //setButtonReadLabel(label_startRead);
-                    setButtonStates(true);
-                    setState("Interrupted by user.", Color.Yellow);
+                    setState("Stopping...", Color.Yellow);
                 }
                 return false;
             }
@@ -474,13 +471,13 @@ namespace BK7231Flasher
         {
             if (flasher != null)
             {
-                // cts.Cancel() can throw AggregateException if internal Task callbacks
-                // fire when the task is already completing (RanToCompletion). Swallow it.
-                try { cts.Cancel(); } catch { }
                 flasher.Dispose();
-                //flasher.closePort();
                 flasher = null;
             }
+        }
+        void requestWorkerCancellation()
+        {
+            try { cts?.Cancel(); } catch { }
         }
         
         void createFlasher()
@@ -567,10 +564,6 @@ namespace BK7231Flasher
                 dat[i] = (byte)(useVal % 256);
             }
             flasher.doWrite(startSector, dat);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         void testReadWrite()
         {
@@ -581,10 +574,6 @@ namespace BK7231Flasher
             sectors = 2;
             startSector = BK7231Flasher.BOOTLOADER_SIZE;
             flasher.doTestReadWrite(startSector, sectors);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         void doBackupAndFlashNew()
         {
@@ -594,10 +583,6 @@ namespace BK7231Flasher
             int startSector = getBackupStartSectorForCurrentPlatform();
             int sectors = getBackupSectorCountForCurrentPlatform();
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.ReadAndWrite);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         internal void doCustomWrite(CustomParms cp)
         {
@@ -634,20 +619,12 @@ namespace BK7231Flasher
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         void doOnlyFlashOBKConfig()
         {
             clearUp();
             createFlasher();
             flasher.doReadAndWrite(0, 0, "", WriteMode.OnlyOBKConfig);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         int getBackupStartSectorForCurrentPlatform()
         {
@@ -682,18 +659,11 @@ namespace BK7231Flasher
             byte[] data = RFPartitionUtil.constructRFDataFor(curType, BK7231Flasher.SECTOR_SIZE);
             if(startOfs < 0 || data.Length == 0)
             {
-                worker = null;
-                clearUp();
-                setButtonStates(true);
                 if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
                 else addLog("Generated RF partition is empty, not supported?" + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             flasher.doWrite(startOfs, data);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         internal void restoreRFfromBackup(byte[] fileData)
         {
@@ -711,43 +681,21 @@ namespace BK7231Flasher
             byte[] data = RFPartitionUtil.getRFFromBackup((byte[])fileData, curType, out int addr);
             if(startOfs < 0 || data.Length == 0)
             {
-                worker = null;
-                clearUp();
-                setButtonStates(true);
                 if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
                 else addLog("RF partition not found in backup. You may need to use \"Restore RF part\"" + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             addLog($"RF partition found at 0x{addr:X2}" + Environment.NewLine, Color.Green);
             flasher.doWrite(startOfs, data);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
 
         void eraseAll()
         {
-            try
-            {
-                clearUp();
-                createFlasher();
-                int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
-                int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
-                flasher.doErase(startOfs, sectors, true);
-            }
-            catch(Exception ex)
-            {
-                addLog("Erase error: " + ex.Message + Environment.NewLine, Color.Red);
-            }
-            finally
-            {
-                worker = null;
-                //setButtonReadLabel(label_startRead);
-                setButtonStates(true);
-                try { clearUp(); }
-                catch(Exception cleanEx) { addLog("Erase cleanup error: " + cleanEx.Message + Environment.NewLine, Color.Red); }
-            }
+            clearUp();
+            createFlasher();
+            int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
+            int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
+            flasher.doErase(startOfs, sectors, true);
         }
         void verifyThread(object oParm)
         {
@@ -782,10 +730,6 @@ namespace BK7231Flasher
             {
                 setState("No file", Color.Red);
             }
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         void readThread(object oParm)
         {
@@ -825,11 +769,6 @@ namespace BK7231Flasher
             flasher.doRead(startSector, sectors, isFullRead);
             
             flasher.saveReadResult(startSector);
-
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         void blankThread(object oParm)
         {
@@ -856,10 +795,6 @@ namespace BK7231Flasher
             {
                 setState("Not blank", Color.Yellow);
             }
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         void doOnlyReadOBKConfig()
         {
@@ -899,9 +834,9 @@ namespace BK7231Flasher
                 }
                 catch(Exception ex)
                 {
-                    worker = null;
-                    clearUp();
-                    setButtonStates(true);
+                    addLog($"Unexpected partition error: {ex.Message}" + Environment.NewLine, Color.Red);
+                    addLog("Can't read config." + Environment.NewLine, Color.Red);
+                    throw;
                 }
             }
 
@@ -930,10 +865,6 @@ namespace BK7231Flasher
                 addLog("You can also edit it however you want." + Environment.NewLine, Color.Black);
                 addLog("You can also use 'Write OBK config' button to write it back with your changes." + Environment.NewLine, Color.Black);
             }
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
         }
         public static string getFirmwarePrefix(BKType t)
         {
@@ -1552,21 +1483,71 @@ namespace BK7231Flasher
             startWorkerThread(readThread, customRead);
         }
         
-        void startWorkerThread(Action<object> ts, object customArg)
+        void finishWorkerThread(Task completedWorker)
+        {
+            if(!object.ReferenceEquals(worker, completedWorker) && worker != null)
+            {
+                return;
+            }
+            try { finalizeWorkerState(); } catch { }
+            try { clearUp(); } catch { }
+            worker = null;
+            try { setButtonStates(true); } catch { }
+        }
+        void finalizeWorkerState()
+        {
+            if(cts == null || !cts.IsCancellationRequested)
+            {
+                return;
+            }
+            Singleton.textBoxLog.Invoke((MethodInvoker)delegate
+            {
+                if(string.Equals(Singleton.labelState.Text, "Stopping...", StringComparison.Ordinal))
+                {
+                    Singleton.labelState.Text = "Interrupted by user.";
+                    Singleton.labelState.BackColor = Color.Yellow;
+                }
+            });
+        }
+        void startWorkerThreadCore(Action action)
         {
             cts?.Dispose();
             cts = new CancellationTokenSource();
             setButtonStates(false);
-            worker = new Task(ts, customArg, cts.Token);
-            worker.Start();
+            Task newWorker = null;
+            newWorker = new Task(() =>
+            {
+                try
+                {
+                    action();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        addLog("Unhandled worker exception: " + ex + Environment.NewLine, Color.Red);
+                        setState("Unhandled worker error.", Color.Red);
+                    }
+                    catch { }
+                }
+                finally
+                {
+                    finishWorkerThread(newWorker);
+                }
+            }, cts.Token);
+            worker = newWorker;
+            newWorker.Start();
+        }
+        void startWorkerThread(Action<object> ts, object customArg)
+        {
+            startWorkerThreadCore(() => ts(customArg));
         }
         void startWorkerThread(Action ts)
         {
-            cts?.Dispose();
-            cts = new CancellationTokenSource();
-            setButtonStates(false);
-            worker = new Task(ts, cts.Token);
-            worker.Start();
+            startWorkerThreadCore(ts);
         }
         private void buttonStartScan_Click(object sender, EventArgs e)
         {
