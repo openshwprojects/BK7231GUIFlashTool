@@ -345,7 +345,7 @@ namespace BK7231Flasher
             }
             catch (Exception ex)
             {
-                addErrorLine("Port setup failed: " + ex.Message);
+                ReportSerialOpenFailure(ex);
                 return false;
             }
             addLogLine("Port ready!");

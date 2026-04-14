@@ -767,8 +767,11 @@ namespace BK7231Flasher
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
             flasher.doRead(startSector, sectors, isFullRead);
-            
-            flasher.saveReadResult(startSector);
+
+            if(flasher.getReadResult() != null)
+            {
+                flasher.saveReadResult(startSector);
+            }
         }
         void blankThread(object oParm)
         {

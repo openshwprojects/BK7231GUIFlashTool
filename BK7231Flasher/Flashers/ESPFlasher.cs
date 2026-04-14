@@ -128,7 +128,7 @@ namespace BK7231Flasher
             }
             catch (Exception ex)
             {
-                addError("Failed to open serial port: " + ex.Message);
+                ReportSerialOpenFailure(ex);
                 return false;
             }
         }

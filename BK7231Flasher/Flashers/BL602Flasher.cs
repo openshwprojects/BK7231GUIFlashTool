@@ -360,8 +360,16 @@ namespace BK7231Flasher
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
             if(serial == null)
             {
-                serial = new SerialPort(serialName, baudrate);
-                serial.Open();
+                try
+                {
+                    serial = new SerialPort(serialName, baudrate);
+                    serial.Open();
+                }
+                catch(Exception ex)
+                {
+                    ReportSerialOpenFailure(ex);
+                    return false;
+                }
             }
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();

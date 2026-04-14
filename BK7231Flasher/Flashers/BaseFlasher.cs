@@ -264,6 +264,28 @@ namespace BK7231Flasher
             addWarningLine("Operation cancelled.");
         }
 
+        protected void ReportSerialOpenFailure(Exception ex)
+        {
+            try { closePort(); } catch { }
+            logger?.setState("Open serial failed!", Color.Red);
+
+            string portDisplay = string.IsNullOrWhiteSpace(serialName) ? "selected serial port" : serialName;
+            if(ex is UnauthorizedAccessException)
+            {
+                addErrorLine($"Cannot open {portDisplay}: it is already in use by another program or access is denied.");
+                return;
+            }
+
+            string message = ex?.Message;
+            if(string.IsNullOrWhiteSpace(message))
+            {
+                addErrorLine($"Cannot open {portDisplay}.");
+                return;
+            }
+
+            addErrorLine($"Cannot open {portDisplay}: {message}");
+        }
+
         protected void SetReadCompleteState()
         {
             logger?.setState("Read complete", Color.DarkGreen);

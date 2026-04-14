@@ -892,10 +892,18 @@ namespace BK7231Flasher
 			addLog("Engine: " + InternalBuildId + Environment.NewLine);
 			if(serial == null || !serial.IsOpen)
 			{
-				serial = new SerialPort(serialName, 115200);
-				serial.ReadBufferSize = 1024 * 1024;
-				serial.WriteBufferSize = 1024 * 256;
-				serial.Open();
+				try
+				{
+					serial = new SerialPort(serialName, 115200);
+					serial.ReadBufferSize = 1024 * 1024;
+					serial.WriteBufferSize = 1024 * 256;
+					serial.Open();
+				}
+				catch(Exception ex)
+				{
+					ReportSerialOpenFailure(ex);
+					return false;
+				}
 			}
 			Flush();
 			serial.ReadTimeout = 5000;
