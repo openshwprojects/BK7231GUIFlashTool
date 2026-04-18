@@ -100,6 +100,7 @@ namespace BK7231Flasher
                 }
                 catch(Exception ex)
                 {
+                    RethrowIfCancelled(ex);
                     addErrorLine(ex.Message);
                     return;
                 }
@@ -214,6 +215,7 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
+                RethrowIfCancelled(ex);
                 addErrorLine(ex.Message);
             }
             finally
@@ -307,6 +309,7 @@ namespace BK7231Flasher
                 }
                 catch(Exception ex)
                 {
+                    RethrowIfCancelled(ex);
                     addErrorLine(ex.Message);
                     return true;
                 }

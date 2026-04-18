@@ -43,6 +43,7 @@ namespace BK7231Flasher
                 }
                 catch(Exception ex)
                 {
+                    RethrowIfCancelled(ex);
                     addLogLine("");
                     addErrorLine(ex.ToString());
                     return false;
@@ -332,6 +333,7 @@ namespace BK7231Flasher
             }
             catch(Exception exc)
             {
+                RethrowIfCancelled(exc);
                 addErrorLine(exc.Message);
                 return false;
             }

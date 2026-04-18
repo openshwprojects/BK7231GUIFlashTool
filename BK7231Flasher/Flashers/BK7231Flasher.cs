@@ -31,17 +31,6 @@ namespace BK7231Flasher
                 throw new OperationCanceledException(cancellationToken);
             }
         }
-        void RethrowIfCancelled(Exception ex)
-        {
-            if (ex is OperationCanceledException)
-            {
-                throw ex;
-            }
-            if (isCancelled || cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException("Operation cancelled.", ex, cancellationToken);
-            }
-        }
         bool openPort()
         {
             // Close any previously open port before re-opening

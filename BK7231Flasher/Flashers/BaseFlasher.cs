@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO.Ports;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 
@@ -256,6 +257,18 @@ namespace BK7231Flasher
         protected bool WasCancelled(Exception ex = null)
         {
             return ex is OperationCanceledException || isCancelled || cancellationToken.IsCancellationRequested;
+        }
+
+        protected void RethrowIfCancelled(Exception ex)
+        {
+            if(ex is OperationCanceledException)
+            {
+                ExceptionDispatchInfo.Capture(ex).Throw();
+            }
+            if(isCancelled || cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Operation cancelled.", ex, cancellationToken);
+            }
         }
 
         protected void LogCancelledOperation()

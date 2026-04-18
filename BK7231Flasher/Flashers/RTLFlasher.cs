@@ -403,9 +403,7 @@ namespace BK7231Flasher
                 var res = xm.Receive(stream);
                 if(res != XMODEM.TerminationReasonEnum.EndOfFile)
                 {
-                    if(isCancelled || cancellationToken.IsCancellationRequested ||
-                        res == XMODEM.TerminationReasonEnum.UserCancelled ||
-                        res == XMODEM.TerminationReasonEnum.CancelNotificationReceived)
+                    if(isCancelled || cancellationToken.IsCancellationRequested)
                     {
                         throw new OperationCanceledException(cancellationToken);
                     }
