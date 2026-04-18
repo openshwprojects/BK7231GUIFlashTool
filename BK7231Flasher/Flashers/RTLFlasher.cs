@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
@@ -29,14 +30,44 @@ namespace BK7231Flasher
         {
         }
 
+        void ThrowIfCancelled()
+        {
+            if(isCancelled || cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
+        int GetSerialTimeoutMs()
+        {
+            float mult = cfg_readTimeOutMultForSerialClass > 0 ? cfg_readTimeOutMultForSerialClass : 1.0f;
+            return Math.Max(50, (int)Math.Ceiling(timeoutMs * mult));
+        }
+        int GetLoopTimeoutMs(int timeoutBudgetMs, int minTimeoutMs = 1000, int maxTimeoutMs = 10000)
+        {
+            float mult = cfg_readTimeOutMultForLoop > 0 ? cfg_readTimeOutMultForLoop : 1.0f;
+            int scaled = (int)Math.Ceiling(timeoutBudgetMs * mult);
+            return Math.Max(minTimeoutMs, Math.Min(scaled, maxTimeoutMs));
+        }
+        int GetReadBytesTimeoutMs(int count)
+        {
+            return GetLoopTimeoutMs(timeoutMs * Math.Max(8, count * 4), 1000, 10000);
+        }
+        int GetWaitRespTimeoutMs(int retries)
+        {
+            return GetLoopTimeoutMs(timeoutMs * Math.Max(5, Math.Min(retries, 50)), 1000, 10000);
+        }
+
         public bool Connect()
         {
+            ThrowIfCancelled();
             serial.DtrEnable = false;
             serial.RtsEnable = true;
             Thread.Sleep(50);
+            ThrowIfCancelled();
             serial.DtrEnable = true;
             serial.RtsEnable = false;
             Thread.Sleep(50);
+            ThrowIfCancelled();
             serial.DtrEnable = false;
             return false;
         }
@@ -62,14 +93,17 @@ namespace BK7231Flasher
         public bool WriteBlockFlash(MemoryStream stream, int offset, int size)
         {
             logger.setState("Writing...", Color.Transparent);
+            ThrowIfCancelled();
             if (!WriteCmd(new byte[] { CMD_XMD }))
                 return false;
             var result = xm.Send(stream.ToArray(), (uint)offset);
+            ThrowIfCancelled();
             if(result == size)
             {
                 addLogLine("");
                 var baud = serial.BaudRate;
                 Thread.Sleep(150);
+                ThrowIfCancelled();
                 // hack
                 RestoreBaud();
                 SetBaud(baud);
@@ -78,12 +112,16 @@ namespace BK7231Flasher
                     return false;
                 }
                 addLog("Write complete!" + Environment.NewLine);
-                logger.setState("Write complete!", Color.Transparent);
+                SetWriteCompleteState();
                 logger.setProgress(size, size);
                 return true;
             }
             else
             {
+                if(isCancelled || cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
                 addErrorLine($"Write failed! Expected sent bytes: {size}, really sent: {result}");
             }
             return false;
@@ -91,9 +129,12 @@ namespace BK7231Flasher
 
         public bool WriteBlockMem(MemoryStream stream, int offset, int size)
         {
+            ThrowIfCancelled();
             if(!WriteCmd(new byte[] { CMD_XMD }))
                 return false;
-            return xm.Send(stream.ToArray(), (uint)offset) == size;
+            var sent = xm.Send(stream.ToArray(), (uint)offset);
+            ThrowIfCancelled();
+            return sent == size;
         }
 
         public override void Xm_PacketSent(int sentBytes, int total, int sequence, uint offset)
@@ -110,8 +151,17 @@ namespace BK7231Flasher
 
         public override void Dispose()
         {
-            xm.PacketSent -= Xm_PacketSent;
+            closePort();
+            xm = null;
             base.Dispose();
+        }
+        public override void closePort()
+        {
+            if(xm != null)
+            {
+                try { xm.PacketSent -= Xm_PacketSent; } catch { }
+            }
+            base.closePort();
         }
 
         public uint? FlashWrChkSum(int offset, int size)
@@ -152,11 +202,16 @@ namespace BK7231Flasher
 
             try
             {
+                ThrowIfCancelled();
                 int read = serial.ReadByte();
                 if (read >= 0)
                     return (byte)read;
                 else
                     return null;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch
             {
@@ -202,6 +257,10 @@ namespace BK7231Flasher
                     return null;
                 }
                 return flashID;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch
             {
@@ -320,6 +379,10 @@ namespace BK7231Flasher
             }
             catch
             {
+                if(isCancelled || cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
                 addError("Error Write to COM Port!");
                 return false;
             }
@@ -340,6 +403,10 @@ namespace BK7231Flasher
                 var res = xm.Receive(stream);
                 if(res != XMODEM.TerminationReasonEnum.EndOfFile)
                 {
+                    if(isCancelled || cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
                     addErrorLine($"Read failed with {res}");
                     Thread.Sleep(100);
                     return false;
@@ -347,7 +414,10 @@ namespace BK7231Flasher
             }
             finally
             {
-                xm.PacketReceived -= Xm_PacketReceived;
+                if(xm != null)
+                {
+                    xm.PacketReceived -= Xm_PacketReceived;
+                }
             }
             Thread.Sleep(150);
             addLogLine("");
@@ -427,6 +497,10 @@ namespace BK7231Flasher
                 }
                 catch
                 {
+                    if(isCancelled || cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
                     addError("Error Write to COM Port!");
                     return null;
                 }
@@ -453,29 +527,38 @@ namespace BK7231Flasher
         {
             byte[] buffer = new byte[count];
             int offset = 0;
-            int retries = 1000;
+            var idleTimer = Stopwatch.StartNew();
+            int maxIdleMs = GetReadBytesTimeoutMs(count);
 
-            while (offset < count && retries > 0)
+            while (offset < count && idleTimer.ElapsedMilliseconds < maxIdleMs)
             {
+                ThrowIfCancelled();
                 try
                 {
                     int read = serial.Read(buffer, offset, count - offset);
                     if (read > 0)
                     {
                         offset += read;
+                        idleTimer.Restart();
                     }
                     else
                     {
-                        retries--;
                         Thread.Sleep(1);
                     }
                 }
                 catch(TimeoutException)
                 {
-                    continue;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch
                 {
+                    if(isCancelled || cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
                     return null;
                 }
             }
@@ -488,8 +571,11 @@ namespace BK7231Flasher
 
         private bool WaitResp(byte code, int retries = 1000)
         {
-            while (retries-- > 0)
+            var waitTimer = Stopwatch.StartNew();
+            int maxWaitMs = GetWaitRespTimeoutMs(retries);
+            while (waitTimer.ElapsedMilliseconds < maxWaitMs)
             {
+                ThrowIfCancelled();
                 try
                 {
                     int val = serial.ReadByte();
@@ -504,8 +590,20 @@ namespace BK7231Flasher
                     if ((byte)val == code)
                         return true;
                 }
+                catch (TimeoutException)
+                {
+                    Thread.Sleep(1);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch
                 {
+                    if(isCancelled || cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
                     Thread.Sleep(1);
                     // return false;
                 }
@@ -515,13 +613,22 @@ namespace BK7231Flasher
 
         private bool WriteCmd(byte[] cmd, byte ack = 0x06)
         {
+            ThrowIfCancelled();
             try
             {
                 serial.Write(cmd, 0, cmd.Length);
                 return WaitResp(ack); // ACK
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch
             {
+                if(isCancelled || cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
                 return false;
             }
         }
@@ -584,8 +691,8 @@ namespace BK7231Flasher
                 serial.Close();
                 serial.BaudRate = baud;
                 serial.Open();
-                serial.ReadTimeout = timeoutMs;
-                serial.WriteTimeout = timeoutMs;
+                serial.ReadTimeout = GetSerialTimeoutMs();
+                serial.WriteTimeout = GetSerialTimeoutMs();
                 Thread.Sleep(50);
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
@@ -616,14 +723,15 @@ namespace BK7231Flasher
                 serial = new SerialPort(serialName, 115200);
                 xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
                 xm.PacketSent += Xm_PacketSent;
-                serial.ReadTimeout = timeoutMs;
-                serial.WriteTimeout = timeoutMs;
+                serial.ReadTimeout = GetSerialTimeoutMs();
+                serial.WriteTimeout = GetSerialTimeoutMs();
                 serial.Open();
                 serial.DiscardInBuffer();
                 serial.DiscardOutBuffer();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                ReportSerialOpenFailure(ex);
                 return true;
             }
             return false;
@@ -631,21 +739,22 @@ namespace BK7231Flasher
 
         bool doGenericSetup()
         {
+            ThrowIfCancelled();
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
             if (openPort())
             {
-                logger.setState("Open serial failed!", Color.Red);
-                addError("Failed to open serial port!" + Environment.NewLine);
                 return false;
             }
             addSuccess("Serial port open!" + Environment.NewLine);
+            ThrowIfCancelled();
             if (Connect() == true)
             {
                 addError("Failed to connect!" + Environment.NewLine);
                 return false;
             }
+            ThrowIfCancelled();
             RestoreComBaud();
             if(Floader(baudrate) == true)
             {
@@ -657,142 +766,161 @@ namespace BK7231Flasher
 
         public bool doWrite(int startSector, int numSectors, byte[] data, WriteMode mode)
         {
-            OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
+            try
+            {
+                OBKConfig cfg = mode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 
-            int size = numSectors * BK7231Flasher.SECTOR_SIZE;
-            if (data != null)
-            {
-                size = data.Length;
-            }
-            logger.setProgress(0, size);
-            addLog(Environment.NewLine + "Starting write!" + Environment.NewLine);
-            addLog("Write parms: start 0x" +
-                (startSector).ToString("X2")
-                + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
-                (size).ToString("X2")
-                + " (" + size / BK7231Flasher.SECTOR_SIZE + " sectors)"
-                + Environment.NewLine);
-            if(mode != WriteMode.OnlyErase && doGenericSetup() == false)
-            {
-                return true;
-            }
-            Console.WriteLine("Connected");
-            if(mode == WriteMode.ReadAndWrite)
-            {
-                numSectors = flashSizeMB * 256;
-                ms = readChunk(startSector, numSectors);
-                if (ms == null)
+                int size = numSectors * BK7231Flasher.SECTOR_SIZE;
+                if (data != null)
+                {
+                    size = data.Length;
+                }
+                logger.setProgress(0, size);
+                addLog(Environment.NewLine + "Starting write!" + Environment.NewLine);
+                addLog("Write parms: start 0x" +
+                    (startSector).ToString("X2")
+                    + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
+                    (size).ToString("X2")
+                    + " (" + size / BK7231Flasher.SECTOR_SIZE + " sectors)"
+                    + Environment.NewLine);
+                if(mode != WriteMode.OnlyErase && doGenericSetup() == false)
                 {
                     return true;
                 }
-                if(saveReadResult(startSector) == false)
+                ThrowIfCancelled();
+                Console.WriteLine("Connected");
+                if(mode == WriteMode.ReadAndWrite)
                 {
-                    return true;
-                }
-            }
-            int address = startSector;
-            int count = (size + 4095) / 4096;
-            int eraseSize = count * 4096;
-            int eraseOffset = address & 0xfff000;
-            addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize)+Environment.NewLine);
-
-            if(mode != WriteMode.OnlyOBKConfig)
-            {
-                if(!EraseSectorsFlash(eraseOffset, size))
-                {
-                    addError("Error: Erase Flash sectors!");
-                    RestoreBaud();
-                    return true;
-                }
-                addLog("Erase done!" + Environment.NewLine);
-            }
-            if (mode == WriteMode.OnlyErase)
-            {
-                // skip
-                addLog("Erase only finished, nothing more to do!" + Environment.NewLine);
-                logger.setState("Erased!", Color.Transparent);
-                logger.setProgress(1, 1);
-            }
-            else if(mode != WriteMode.OnlyOBKConfig)
-            {
-                int writeOffset = address & 0x00ffffff;
-                writeOffset |= 0x08000000;
-                addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
-                
-                logger.setState("Writing...", Color.Transparent);
-                var ms = new MemoryStream(data);
-                if (!WriteBlockFlash(ms, writeOffset, size))
-                {
-                    logger.setState("Write error!", Color.Red);
-                    addErrorLine("Write failed.");
-                    RestoreBaud();
-                    ms?.Dispose();
-                    return true;
-                }
-                addLog("Write done!" + Environment.NewLine);
-                ms?.Dispose();
-            }
-
-            if(cfg != null && !isCancelled)
-            {
-                var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
-                var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
-
-                if(!EraseSectorsFlash(offset, size))
-                {
-                    addError("Error: Erase Flash sectors!");
-                    RestoreBaud();
-                    return true;
-                }
-
-                cfg.saveConfig(chipType);
-                var cfgData = cfg.getData();
-                byte[] efdata;
-                if(cfg.efdata != null)
-                {
-                    try
+                    numSectors = flashSizeMB * 256;
+                    ms = readChunk(startSector, numSectors);
+                    if (ms == null)
                     {
-                        efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+                        return true;
                     }
-                    catch(Exception ex)
+                    if(saveReadResult(startSector) == false)
                     {
-                        addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
-                        addLog(ex.Message + Environment.NewLine);
+                        return true;
+                    }
+                }
+                int address = startSector;
+                int count = (size + 4095) / 4096;
+                int eraseSize = count * 4096;
+                int eraseOffset = address & 0xfff000;
+                addLog(string.Format("Erase Flash {0} sectors, data from 0x{1:X8} to 0x{2:X8}", count, eraseOffset, eraseOffset + eraseSize)+Environment.NewLine);
+
+                if(mode != WriteMode.OnlyOBKConfig)
+                {
+                    if(!EraseSectorsFlash(eraseOffset, size))
+                    {
+                        addError("Error: Erase Flash sectors!");
+                        RestoreBaud();
+                        return true;
+                    }
+                    addLog("Erase done!" + Environment.NewLine);
+                }
+                if (mode == WriteMode.OnlyErase)
+                {
+                    // skip
+                    addLog("Erase only finished, nothing more to do!" + Environment.NewLine);
+                    SetEraseCompleteState();
+                    logger.setProgress(1, 1);
+                }
+                else if(mode != WriteMode.OnlyOBKConfig)
+                {
+                    int writeOffset = address & 0x00ffffff;
+                    writeOffset |= 0x08000000;
+                    addLog(string.Format("Write Flash data 0x{0:X8} to 0x{1:X8}", writeOffset, writeOffset + size) + Environment.NewLine);
+                    
+                    logger.setState("Writing...", Color.Transparent);
+                    var ms = new MemoryStream(data);
+                    if (!WriteBlockFlash(ms, writeOffset, size))
+                    {
+                        logger.setState("Write error!", Color.Red);
+                        addErrorLine("Write failed.");
+                        RestoreBaud();
+                        ms?.Dispose();
+                        return true;
+                    }
+                    addLog("Write done!" + Environment.NewLine);
+                    ms?.Dispose();
+                }
+
+                if(cfg != null && !isCancelled)
+                {
+                    var offset = OBKFlashLayout.getConfigLocation(chipType, out var sectors);
+                    var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+
+                    if(!EraseSectorsFlash(offset, areaSize))
+                    {
+                        addError("Error: Erase Flash sectors!");
+                        RestoreBaud();
+                        return true;
+                    }
+
+                    cfg.saveConfig(chipType);
+                    var cfgData = cfg.getData();
+                    byte[] efdata;
+                    if(cfg.efdata != null)
+                    {
+                        try
+                        {
+                            efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+                        }
+                        catch(Exception ex)
+                        {
+                            addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+                            addLog(ex.Message + Environment.NewLine);
+                            efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                        }
+                    }
+                    else
+                    {
                         efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
                     }
+                    if(efdata == null)
+                    {
+                        addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+                        return false;
+                    }
+                    ms?.Dispose();
+                    ms = new MemoryStream(efdata);
+                    addLog("Now will also write OBK config..." + Environment.NewLine);
+                    addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+                    addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+                    addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+                    addLog("Writing config sector " + formatHex(offset) + "...");
+                    offset |= 0x08000000;
+                    bool bOk = WriteBlockFlash(ms, offset, areaSize);
+                    if(bOk == false)
+                    {
+                        logger.setState("Writing error!", Color.Red);
+                        addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                        return false;
+                    }
+                    addSuccess("OBK config write success!" + Environment.NewLine);
+                    SetWriteCompleteState();
                 }
                 else
                 {
-                    efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                    addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
                 }
-                if(efdata == null)
-                {
-                    addLog("Something went wrong with EasyFlash" + Environment.NewLine);
-                    return false;
-                }
-                ms?.Dispose();
-                ms = new MemoryStream(efdata);
-                addLog("Now will also write OBK config..." + Environment.NewLine);
-                addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
-                addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
-                addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-                addLog("Writing config sector " + formatHex(offset) + "...");
-                offset |= 0x08000000;
-                bool bOk = WriteBlockFlash(ms, offset, areaSize);
-                if(bOk == false)
-                {
-                    logger.setState("Writing error!", Color.Red);
-                    addError("Writing OBK config data to chip failed." + Environment.NewLine);
-                    return false;
-                }
-                logger.setState("OBK config write success!", Color.Green);
+                RestoreBaud();
+                return false;
             }
-            else
+            catch (OperationCanceledException)
             {
-                addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+                LogCancelledOperation();
+                return true;
             }
-            RestoreBaud();
-            return false;
+            catch (Exception) when (isCancelled || cancellationToken.IsCancellationRequested)
+            {
+                LogCancelledOperation();
+                return true;
+            }
+            finally
+            {
+                closePort();
+            }
         }
 
         MemoryStream readChunk(int startSector, int sectors)
@@ -809,32 +937,47 @@ namespace BK7231Flasher
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
-            logger.setProgress(0, sectors);
-            addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
-            addLog("Read parms: start 0x" +
-                (startSector * BK7231Flasher.SECTOR_SIZE).ToString("X2")
-                + " (sector " + startSector + "), len 0x" +
-                (sectors * BK7231Flasher.SECTOR_SIZE).ToString("X2")
-                + " (" + sectors + " sectors)"
-                + Environment.NewLine);
-            if (doGenericSetup() == false)
+            try
             {
-                return;
-            }
-            if(fullRead)
-                sectors = flashSizeMB * 256;
+                logger.setProgress(0, sectors);
+                addLog(Environment.NewLine + "Starting read!" + Environment.NewLine);
+                addLog("Read parms: start 0x" +
+                    (startSector * BK7231Flasher.SECTOR_SIZE).ToString("X2")
+                    + " (sector " + startSector + "), len 0x" +
+                    (sectors * BK7231Flasher.SECTOR_SIZE).ToString("X2")
+                    + " (" + sectors + " sectors)"
+                    + Environment.NewLine);
+                if (doGenericSetup() == false)
+                {
+                    return;
+                }
+                if(fullRead)
+                    sectors = flashSizeMB * 256;
 
-            logger.setProgress(0, sectors);
-            ms = readChunk(startSector, sectors);
-            if (ms == null)
-            {
-                return;
+                logger.setProgress(0, sectors);
+                ms = readChunk(startSector, sectors);
+                if (ms == null)
+                {
+                    return;
+                }
+                //File.WriteAllBytes("lastRead.bin", ms.ToArray());
+                SetReadCompleteState();
+                addSuccess("All read!" + Environment.NewLine);
+                addLog("Loaded total " + formatHex(sectors * BK7231Flasher.SECTOR_SIZE) + " bytes " + Environment.NewLine);
+                RestoreBaud();
             }
-            //File.WriteAllBytes("lastRead.bin", ms.ToArray());
-            logger.setState("Reading success!", Color.Green);
-            addSuccess("All read!" + Environment.NewLine);
-            addLog("Loaded total " + formatHex(sectors * BK7231Flasher.SECTOR_SIZE) + " bytes " + Environment.NewLine);
-            RestoreBaud();
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
+            }
+            catch (Exception) when (isCancelled || cancellationToken.IsCancellationRequested)
+            {
+                LogCancelledOperation();
+            }
+            finally
+            {
+                closePort();
+            }
         }
 
         public override byte[] getReadResult()
@@ -846,15 +989,32 @@ namespace BK7231Flasher
 
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
-            if(doGenericSetup() == false)
+            try
             {
+                if(doGenericSetup() == false)
+                {
+                    return true;
+                }
+                if(bAll)
+                {
+                    sectors = flashSizeMB * 256;
+                }
+                return doWrite(startSector, sectors, null, WriteMode.OnlyErase);
+            }
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
                 return true;
             }
-            if(bAll)
+            catch (Exception) when (isCancelled || cancellationToken.IsCancellationRequested)
             {
-                sectors = flashSizeMB * 256;
+                LogCancelledOperation();
+                return true;
             }
-            return doWrite(startSector, sectors, null, WriteMode.OnlyErase);
+            finally
+            {
+                closePort();
+            }
         }
 
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)

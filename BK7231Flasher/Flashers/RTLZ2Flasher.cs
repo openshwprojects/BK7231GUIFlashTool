@@ -892,10 +892,18 @@ namespace BK7231Flasher
 			addLog("Engine: " + InternalBuildId + Environment.NewLine);
 			if(serial == null || !serial.IsOpen)
 			{
-				serial = new SerialPort(serialName, 115200);
-				serial.ReadBufferSize = 1024 * 1024;
-				serial.WriteBufferSize = 1024 * 256;
-				serial.Open();
+				try
+				{
+					serial = new SerialPort(serialName, 115200);
+					serial.ReadBufferSize = 1024 * 1024;
+					serial.WriteBufferSize = 1024 * 256;
+					serial.Open();
+				}
+				catch(Exception ex)
+				{
+					ReportSerialOpenFailure(ex);
+					return false;
+				}
 			}
 			Flush();
 			serial.ReadTimeout = 5000;
@@ -1021,7 +1029,7 @@ namespace BK7231Flasher
 						closePort();
 						return false;
 					}
-					logger.setState("OBK config write success!", Color.Green);
+					addSuccess("OBK config write success!" + Environment.NewLine);
 				}
 				else
 				{
@@ -1029,14 +1037,13 @@ namespace BK7231Flasher
 				}
 				logger.setProgress(size, size);
 				addSuccess("Flash complete!" + Environment.NewLine);
-				logger.setState("Flash complete!", Color.DarkGreen);
+				SetWriteCompleteState();
 				ChangeBaud(115200);
 				return false;
 			}
 			catch(OperationCanceledException)
 			{
-				addLogLine("Write cancelled by user.");
-				logger.setState("Cancelled", Color.DarkGray);
+				LogCancelledOperation();
 				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { } // chip may be gone; skip Link()
 				closePort();
 				return true;
@@ -1086,8 +1093,7 @@ namespace BK7231Flasher
 				}
 				catch(OperationCanceledException)
 				{
-					addLogLine("Read cancelled by user.");
-					logger.setState("Cancelled", Color.DarkGray);
+					LogCancelledOperation();
 					closePort();
 					return;
 				}
@@ -1295,15 +1301,14 @@ namespace BK7231Flasher
 					addLogLine($"Read time: {totalTimer.Elapsed}");
 				}
 
-				logger.setState("Read done", Color.DarkGreen);
+				SetReadCompleteState();
 				addLogLine("Read complete!");
 				ChangeBaud(FallbackBaudRate);
 				return ret;
 			}
 			catch(OperationCanceledException)
 			{
-				addLogLine("Read cancelled by user.");
-				logger.setState("Cancelled", Color.DarkGray);
+				LogCancelledOperation();
 				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { } // chip may be gone; skip Link()
 				closePort();
 				return null;
@@ -1363,7 +1368,7 @@ namespace BK7231Flasher
 
 				if(result)
 				{
-					logger.setState("Erase complete!", Color.DarkGreen);
+					SetEraseCompleteState();
 				}
 				else
 				{
@@ -1374,8 +1379,7 @@ namespace BK7231Flasher
 			}
 			catch(OperationCanceledException)
 			{
-				addLogLine("Erase cancelled by user.");
-				logger.setState("Cancelled", Color.DarkGray);
+				LogCancelledOperation();
 				try { if(serial != null) serial.BaudRate = FallbackBaudRate; } catch { }
 				closePort();
 				return false;

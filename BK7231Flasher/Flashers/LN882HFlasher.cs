@@ -35,7 +35,7 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
-                addLog("Port setup failed with "+ex.Message+"!" + Environment.NewLine);
+                ReportSerialOpenFailure(ex);
                 return false;
             }
             addLog("Port ready!" + Environment.NewLine);
@@ -100,6 +100,7 @@ namespace BK7231Flasher
                 }
                 catch(Exception ex)
                 {
+                    RethrowIfCancelled(ex);
                     addErrorLine(ex.Message);
                     return;
                 }
@@ -153,7 +154,7 @@ namespace BK7231Flasher
                         return;
                     }
                     addLogLine("If you want your program to run now, disconnect boot pin and do power off and on cycle");
-                    logger.setState("Write done", Color.DarkGreen);
+                    SetWriteCompleteState();
                 }
                 if(cfg != null && !isCancelled)
                 {
@@ -197,7 +198,8 @@ namespace BK7231Flasher
                         change_baudrate(115200, false);
                         return;
                     }
-                    logger.setState("OBK config write success!", Color.Green);
+                    addSuccess("OBK config write success!" + Environment.NewLine);
+                    SetWriteCompleteState();
                 }
                 else
                 {
@@ -213,6 +215,7 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
+                RethrowIfCancelled(ex);
                 addErrorLine(ex.Message);
             }
             finally
@@ -224,15 +227,27 @@ namespace BK7231Flasher
 
         public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
         {
-            if (doGenericSetup() == false)
+            try
             {
-                return ;
+                if (doGenericSetup() == false)
+                {
+                    return ;
+                }
+                if(upload_ram_loader())
+                {
+                    return;
+                }
+                doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE, fullRead);
             }
-            if(upload_ram_loader())
+            catch(Exception ex)
             {
-                return;
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
+                addErrorLine(ex.Message);
             }
-            doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE, fullRead);
         }
         public void flush_com()
         {
@@ -294,6 +309,7 @@ namespace BK7231Flasher
                 }
                 catch(Exception ex)
                 {
+                    RethrowIfCancelled(ex);
                     addErrorLine(ex.Message);
                     return true;
                 }
@@ -453,7 +469,7 @@ namespace BK7231Flasher
             t.Stop();
             if(result)
             {
-                logger.setState("Read complete!", Color.Green);
+                SetReadCompleteState();
             }
             else
             {
@@ -482,11 +498,7 @@ namespace BK7231Flasher
         }
         public override void closePort()
         {
-            if (serial != null)
-            {
-                serial.Close();
-                serial.Dispose();
-            }
+            base.closePort();
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -494,30 +506,42 @@ namespace BK7231Flasher
 
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-            byte[] data = null;
-            if (rwMode != WriteMode.OnlyOBKConfig)
+            try
             {
-                if (string.IsNullOrEmpty(sourceFileName))
+                byte[] data = null;
+                if (rwMode != WriteMode.OnlyOBKConfig)
                 {
-                    addLogLine("No filename given!");
-                    return;
+                    if (string.IsNullOrEmpty(sourceFileName))
+                    {
+                        addLogLine("No filename given!");
+                        return;
+                    }
+                    addLog("Reading file " + sourceFileName + "..." + Environment.NewLine);
+                    data = File.ReadAllBytes(sourceFileName);
+                    if (data == null)
+                    {
+                        addError("Failed to open " + sourceFileName + "..." + Environment.NewLine);
+                        return;
+                    }
+                    addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
+
+                    doWrite(startSector, 0, data, rwMode);
+
                 }
-                addLog("Reading file " + sourceFileName + "..." + Environment.NewLine);
-                data = File.ReadAllBytes(sourceFileName);
-                if (data == null)
+                else
                 {
-                    addError("Failed to open " + sourceFileName + "..." + Environment.NewLine);
-                    return;
+                    startSector = OBKFlashLayout.getConfigLocation(chipType, out sectors);
+                    doWrite(startSector, sectors, data, rwMode);
                 }
-                addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
-
-                doWrite(startSector, 0, data, rwMode);
-
             }
-            else
+            catch(Exception ex)
             {
-                startSector = OBKFlashLayout.getConfigLocation(chipType, out sectors);
-                doWrite(startSector, sectors, data, rwMode);
+                if(WasCancelled(ex))
+                {
+                    LogCancelledOperation();
+                    return;
+                }
+                addErrorLine(ex.Message);
             }
         }
         bool saveReadResult(string fileName)

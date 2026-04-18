@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -24,6 +24,13 @@ namespace BK7231Flasher
         public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
         public static string TUYA_ENCRYPTION_KEY = "510fb093 a3cbeadc 5993a17e c7adeb03";
         public static string EMPTY_ENCRYPTION_KEY = "00000000 00000000 00000000 00000000";
+        void ThrowIfCancelled()
+        {
+            if (isCancelled || cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
         bool openPort()
         {
             // Close any previously open port before re-opening
@@ -62,7 +69,7 @@ namespace BK7231Flasher
             }
             catch(Exception ex)
             {
-                addError("Serial port open exception: " + ex.ToString() + Environment.NewLine);
+                ReportSerialOpenFailure(ex);
                 return true;
             }
             return false;
@@ -71,8 +78,8 @@ namespace BK7231Flasher
         {
             if (serial != null)
             {
-                serial.Close();
-                serial.Dispose();
+                try { serial.Close(); } catch { }
+                try { serial.Dispose(); } catch { }
                 serial = null;
             }
         }
@@ -382,13 +389,22 @@ namespace BK7231Flasher
 
         byte[] Start_Cmd(byte[] txbuf, int rxLen = 0, float timeout = 0.05f)
         {
-            consumePending();
-            int realRead = 0;
-            serial.ReadTimeout = (int)(10*cfg_readTimeOutMultForSerialClass);
-            if(txbuf != null)
+            ThrowIfCancelled();
+            try
             {
-                serial.Write(txbuf, 0, txbuf.Length);
+                consumePending();
+                serial.ReadTimeout = (int)(10*cfg_readTimeOutMultForSerialClass);
+                if(txbuf != null)
+                {
+                    serial.Write(txbuf, 0, txbuf.Length);
+                }
             }
+            catch (Exception ex)
+            {
+                RethrowIfCancelled(ex);
+                throw;
+            }
+            int realRead = 0;
             if (rxLen == 0)
                 return null;
             var timer = new Stopwatch();
@@ -398,6 +414,7 @@ namespace BK7231Flasher
                 byte[] ret = new byte[rxLen];
                 while (timer.Elapsed.TotalSeconds < timeout * cfg_readTimeOutMultForLoop)
                 {
+                    ThrowIfCancelled();
                     try
                     {
                         if (cfg_readReplyStyle == 0)
@@ -455,6 +472,7 @@ namespace BK7231Flasher
                     }
                     catch (Exception ex)
                     {
+                        RethrowIfCancelled(ex);
                         addLog("Got exception: " + ex.ToString() + "!" + Environment.NewLine);
                         return null;
                     }
@@ -746,6 +764,10 @@ namespace BK7231Flasher
             {
                 doWriteInternal(startSector, data);
             }
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
+            }
             catch (Exception ex)
             {
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
@@ -756,6 +778,10 @@ namespace BK7231Flasher
             try
             {
                 doTestReadWriteInternal(startSector, sectors);
+            }
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -768,6 +794,10 @@ namespace BK7231Flasher
             try
             {
                 doReadAndWriteInternal(startSector, sectors, sourceFileName, rwMode);
+            }
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -790,6 +820,10 @@ namespace BK7231Flasher
                     return false;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
+            }
             catch (Exception ex)
             {
                 addError("Exception caught: " + ex.ToString() + Environment.NewLine);
@@ -801,6 +835,10 @@ namespace BK7231Flasher
             try
             {
                 doReadInternal(startSector, sectors, fullRead);
+            }
+            catch (OperationCanceledException)
+            {
+                LogCancelledOperation();
             }
             catch(Exception ex)
             {
@@ -895,8 +933,6 @@ namespace BK7231Flasher
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
             if (openPort())
             {
-                logger.setState("Open serial failed!", Color.Red);
-                addError("Failed to open serial port!" + Environment.NewLine);
                 return false;
             }
             addSuccess("Serial port open!" + Environment.NewLine);
@@ -1005,6 +1041,7 @@ namespace BK7231Flasher
             }
             addLog(Environment.NewLine);
             addLog("All selected sectors erased!" + Environment.NewLine);
+            SetEraseCompleteState();
             return true;
         }
         int deviceMID;
@@ -1176,13 +1213,13 @@ namespace BK7231Flasher
                     addError("Writing OBK config data to chip failed." + Environment.NewLine);
                     return false;
                 }
-                logger.setState("OBK config write success!", Color.Green);
+                addSuccess("OBK config write success!" + Environment.NewLine);
             }
             else
             {
                 addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
             }
-            logger.setState("Write success!" + Environment.NewLine, Color.Green);
+            SetWriteCompleteState();
             return true;
         }
         bool doTestReadWriteInternal(int startSector = 0x11000, int sectors = 10)
@@ -1368,7 +1405,7 @@ namespace BK7231Flasher
             {
                 return null;
             }
-            logger.setState("Reading success!", Color.Green);
+            SetReadCompleteState();
             addSuccess("All read!" + Environment.NewLine);
             addLog("Loaded total " + formatHex(sectors* step) + " bytes " + Environment.NewLine);
             return tempResult;

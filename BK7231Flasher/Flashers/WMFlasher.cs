@@ -40,7 +40,7 @@ namespace BK7231Flasher
 			}
 			catch(Exception ex)
 			{
-				addLog("Port setup failed with " + ex.Message + "!" + Environment.NewLine);
+				ReportSerialOpenFailure(ex);
 				return false;
 			}
 			addLog("Port ready!" + Environment.NewLine);
@@ -130,7 +130,11 @@ namespace BK7231Flasher
 					}
 				}
 			}
-			catch(Exception ex) { addErrorLine(ex.Message); }
+			catch(Exception ex)
+			{
+				RethrowIfCancelled(ex);
+				addErrorLine(ex.Message);
+			}
 			return false;
 		}
 
@@ -305,33 +309,42 @@ namespace BK7231Flasher
 				addErrorLine("W600 doesn't support read. Use JLink for firmware backup.");
 				return;
 			}
-			if(doGenericSetup() == false)
+			try
 			{
-				return;
+				if(doGenericSetup() == false)
+				{
+					return;
+				}
+				if(Sync() && ReadFlashId() != null && UploadStub())
+				{
+					try
+					{
+						SetBaud(baudrate);
+						if(fullRead)
+						{
+							sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+						}
+						ms = ReadInternal(startSector | 0x08000000, sectors);
+						if(ms == null)
+						{
+							return;
+						}
+						SetReadCompleteState();
+					}
+					finally
+					{
+						if(!isCancelled) SetBaud(115200, true);
+					}
+				}
 			}
-			if(Sync() && ReadFlashId() != null && UploadStub())
+			catch(Exception ex)
 			{
-				try
+				if(WasCancelled(ex))
 				{
-					SetBaud(baudrate);
-					if(fullRead)
-					{
-						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
-					}
-					ms = ReadInternal(startSector | 0x08000000, sectors);
-					if(ms == null)
-					{
-						return;
-					}
+					LogCancelledOperation();
+					return;
 				}
-				catch(Exception ex)
-				{
-					addErrorLine(ex.Message);
-				}
-				finally
-				{
-					if(!isCancelled) SetBaud(115200, true);
-				}
+				addErrorLine(ex.Message);
 			}
 			return;
 		}
@@ -375,11 +388,7 @@ namespace BK7231Flasher
 		
 		public override void closePort()
 		{
-			if(serial != null)
-			{
-				serial.Close();
-				serial.Dispose();
-			}
+			base.closePort();
 		}
 
 		public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
@@ -397,150 +406,160 @@ namespace BK7231Flasher
 					return;
 				}
 			}
-			if(doGenericSetup() == false)
+			try
 			{
-				return;
-			}
-			if(Sync() && ReadFlashId() != null && UploadStub())
-			{
-				try
+				if(doGenericSetup() == false)
 				{
-					xm.PacketSent += Xm_PacketSent;
-					SetBaud(baudrate);
-					OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
-					if(rwMode == WriteMode.ReadAndWrite)
+					return;
+				}
+				if(Sync() && ReadFlashId() != null && UploadStub())
+				{
+					try
 					{
-						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
-						addLogLine($"Flash size detected: {sectors / 256}MB");
-						ms = ReadInternal(startSector | 0x08000000, sectors);
-						if(ms == null)
+						xm.PacketSent += Xm_PacketSent;
+						SetBaud(baudrate);
+						OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
+						if(rwMode == WriteMode.ReadAndWrite)
 						{
-							return;
-						}
-						if(saveReadResult(startSector) == false)
-						{
-							return;
-						}
-					}
-					if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite && !isCancelled)
-					{
-						if(string.IsNullOrEmpty(sourceFileName))
-						{
-							addLogLine("No filename given!");
-							return;
-						}
-						addLogLine("Reading " + sourceFileName + "...");
-						byte[] data = File.ReadAllBytes(sourceFileName);
-						addLogLine("Starting flash write " + data.Length);
-						logger.setState("Writing", Color.White);
-						if(sourceFileName.EndsWith(".fls"))
-						{
-							var res = xm.Send(data);
-							if(res == data.Length)
+							sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+							addLogLine($"Flash size detected: {sectors / 256}MB");
+							ms = ReadInternal(startSector | 0x08000000, sectors);
+							if(ms == null)
 							{
-								logger.setState("Writing done", Color.DarkGreen);
-								addLogLine("Done flash write " + data.Length);
+								return;
 							}
-							else
+							if(saveReadResult(startSector) == false)
 							{
-								logger.setState("Write error!", Color.Red);
-								addErrorLine("Write error!");
+								return;
 							}
 						}
-						else if(data.Length >= 0x100000)
+						if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite && !isCancelled)
 						{
-							try
+							if(string.IsNullOrEmpty(sourceFileName))
 							{
-								startSector = 0x2000;
-								var secBootHeader = new byte[64];
-								Array.Copy(data, 0x2000, secBootHeader, 0, secBootHeader.Length);
-								if(secBootHeader[0] != 0x9f || secBootHeader[1] != 0xff || secBootHeader[2] != 0xff || secBootHeader[3] != 0xa0)
+								addLogLine("No filename given!");
+								return;
+							}
+							addLogLine("Reading " + sourceFileName + "...");
+							byte[] data = File.ReadAllBytes(sourceFileName);
+							addLogLine("Starting flash write " + data.Length);
+							logger.setState("Writing", Color.White);
+							if(sourceFileName.EndsWith(".fls"))
+							{
+								var res = xm.Send(data);
+								if(res == data.Length)
 								{
-									addErrorLine("Unknown file type, no firmware header at 0x2000!");
-									return;
-								}
-								var cutData = new byte[data.Length - startSector - 1];
-								Array.Copy(data, startSector, cutData, 0, cutData.Length);
-								startSector |= 0x08000000;
-								var fls = GenerateW800PseudoFLSFromData(cutData, startSector);
-								if(chipType == BKType.W600)
-								{
-									if(secBootHeader[60] != 0xFF || secBootHeader[61] != 0xFF || secBootHeader[62] != 0xFF || secBootHeader[63] != 0xFF)
-									{
-										addErrorLine("Not W600 backup!");
-										return;
-									}
-									fls = GenerateW600PseudoFLSFromData(cutData, startSector);
-								}
-								var res = xm.Send(fls, (uint)(startSector ^ 0x08000000));
-								if(res == fls.Length)
-								{
-									logger.setState("Writing done", Color.DarkGreen);
+									SetWriteCompleteState();
 									addLogLine("Done flash write " + data.Length);
-									logger.setProgress(1, 1);
 								}
 								else
 								{
 									logger.setState("Write error!", Color.Red);
+									addErrorLine("Write error!");
 								}
 							}
-							catch(Exception ex)
+							else if(data.Length >= 0x100000)
 							{
-								addErrorLine(ex.Message);
+								try
+								{
+									startSector = 0x2000;
+									var secBootHeader = new byte[64];
+									Array.Copy(data, 0x2000, secBootHeader, 0, secBootHeader.Length);
+									if(secBootHeader[0] != 0x9f || secBootHeader[1] != 0xff || secBootHeader[2] != 0xff || secBootHeader[3] != 0xa0)
+									{
+										addErrorLine("Unknown file type, no firmware header at 0x2000!");
+										return;
+									}
+									var cutData = new byte[data.Length - startSector - 1];
+									Array.Copy(data, startSector, cutData, 0, cutData.Length);
+									startSector |= 0x08000000;
+									var fls = GenerateW800PseudoFLSFromData(cutData, startSector);
+									if(chipType == BKType.W600)
+									{
+										if(secBootHeader[60] != 0xFF || secBootHeader[61] != 0xFF || secBootHeader[62] != 0xFF || secBootHeader[63] != 0xFF)
+										{
+											addErrorLine("Not W600 backup!");
+											return;
+										}
+										fls = GenerateW600PseudoFLSFromData(cutData, startSector);
+									}
+									var res = xm.Send(fls, (uint)(startSector ^ 0x08000000));
+									if(res == fls.Length)
+									{
+										SetWriteCompleteState();
+										addLogLine("Done flash write " + data.Length);
+										logger.setProgress(1, 1);
+									}
+									else
+									{
+										logger.setState("Write error!", Color.Red);
+									}
+								}
+								catch(Exception ex)
+								{
+									RethrowIfCancelled(ex);
+									addErrorLine(ex.Message);
+									return;
+								}
+							}
+							else
+							{
+								addErrorLine("Unknown file type, skipping.");
 								return;
 							}
 						}
+						if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
+						{
+							var offset = (OBKFlashLayout.getConfigLocation(chipType, out _) | 0x08000000);
+							cfg.saveConfig(chipType);
+							var data = new byte[2016 + 0x303];
+							if(chipType == BKType.W800)
+							{
+								MiscUtils.padArray(data, 1);
+								Array.Copy(cfg.getData(), 0, data, 0x303, 2016);
+							}
+							else
+							{
+								data = new byte[2016];
+								Array.Copy(cfg.getData(), data, data.Length);
+							}
+							addLog("Now will also write OBK config..." + Environment.NewLine);
+							addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+							addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+							addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+							var fls = chipType != BKType.W600 ? GenerateW800PseudoFLSFromData(data, offset - 0x303) : GenerateW600PseudoFLSFromData(data, offset);
+							var res = xm.Send(fls, (uint)(offset ^ 0x08000000));
+							if(res == fls.Length)
+							{
+								addSuccess("OBK config write success!" + Environment.NewLine);
+								SetWriteCompleteState();
+								logger.setProgress(1, 1);
+							}
+							else
+							{
+								logger.setState("OBK config write error!", Color.Red);
+							}
+						}
 						else
 						{
-							addErrorLine("Unknown file type, skipping.");
-							return;
+							addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
 						}
 					}
-					if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
+					finally
 					{
-						var offset = (OBKFlashLayout.getConfigLocation(chipType, out _) | 0x08000000);
-						cfg.saveConfig(chipType);
-						var data = new byte[2016 + 0x303];
-						if(chipType == BKType.W800)
-						{
-							MiscUtils.padArray(data, 1);
-							Array.Copy(cfg.getData(), 0, data, 0x303, 2016);
-						}
-						else
-						{
-							data = new byte[2016];
-							Array.Copy(cfg.getData(), data, data.Length);
-						}
-						addLog("Now will also write OBK config..." + Environment.NewLine);
-						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
-						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
-						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-						var fls = chipType != BKType.W600 ? GenerateW800PseudoFLSFromData(data, offset - 0x303) : GenerateW600PseudoFLSFromData(data, offset);
-						var res = xm.Send(fls, (uint)(offset ^ 0x08000000));
-						if(res == fls.Length)
-						{
-							logger.setState("OBK config write success!", Color.Green);
-							logger.setProgress(1, 1);
-						}
-						else
-						{
-							logger.setState("OBK config write error!", Color.Red);
-						}
-					}
-					else
-					{
-						addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
+						xm.PacketSent -= Xm_PacketSent;
+						if(!isCancelled) SetBaud(115200, true);
 					}
 				}
-				catch(Exception ex)
+			}
+			catch(Exception ex)
+			{
+				if(WasCancelled(ex))
 				{
-					addErrorLine(ex.Message);
+					LogCancelledOperation();
+					return;
 				}
-				finally
-				{
-					xm.PacketSent -= Xm_PacketSent;
-					if(!isCancelled) SetBaud(115200, true);
-				}
+				addErrorLine(ex.Message);
 			}
 		}
 

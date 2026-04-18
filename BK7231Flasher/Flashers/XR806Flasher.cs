@@ -345,7 +345,7 @@ namespace BK7231Flasher
             }
             catch (Exception ex)
             {
-                addErrorLine("Port setup failed: " + ex.Message);
+                ReportSerialOpenFailure(ex);
                 return false;
             }
             addLogLine("Port ready!");
@@ -943,7 +943,7 @@ namespace BK7231Flasher
             }
 
             addLog(Environment.NewLine);
-            logger.setState("Read complete", Color.DarkGreen);
+            SetReadCompleteState();
             return result;
         }
 
@@ -968,7 +968,7 @@ namespace BK7231Flasher
             }
 
             logger.setProgress(1, 1);
-            logger.setState("Erase complete", Color.DarkGreen);
+            SetEraseCompleteState();
             return !isCancelled;
         }
 
@@ -1010,7 +1010,7 @@ namespace BK7231Flasher
             }
 
             addLog(Environment.NewLine);
-            logger.setState("Write complete", Color.DarkGreen);
+            SetWriteCompleteState();
             return !isCancelled;
         }
 
@@ -1205,7 +1205,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                addLogLine("Read cancelled.");
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
@@ -1241,7 +1241,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                addLogLine("Erase cancelled.");
+                LogCancelledOperation();
                 return false;
             }
             catch (Exception ex)
@@ -1365,7 +1365,7 @@ namespace BK7231Flasher
             }
             catch (OperationCanceledException)
             {
-                addLogLine("Operation cancelled.");
+                LogCancelledOperation();
             }
             catch (Exception ex)
             {
