@@ -709,6 +709,10 @@ namespace BK7231Flasher
                 flasher.doRead(startSector, sectors, false);
 
                 byte[] data = flasher.getReadResult();
+                if(data == null)
+                {
+                    return;
+                }
                 int errors = 0;
                 for (int i = 0; i < verifyWith.Length; i++)
                 {
@@ -782,6 +786,10 @@ namespace BK7231Flasher
             bool bBlank = true;
             int nonBlank = 0;
             byte[] data = flasher.getReadResult();
+            if(data == null)
+            {
+                return;
+            }
             for (int i = 0; i < data.Length; i++)
             {
                 if (data[i] != 0xff)
@@ -818,6 +826,10 @@ namespace BK7231Flasher
                 }
                 
                 var ptdata = flasher.getReadResult();
+                if(ptdata == null)
+                {
+                    return;
+                }
                 try
                 {
                     var partition = BL602Utils.PT_Parse(ptdata).First(x => x.Name == "PSM");
@@ -857,6 +869,10 @@ namespace BK7231Flasher
                 flasher.doRead(startSector, sectors);
             }
             byte[] res = flasher.getReadResult();
+            if(res == null)
+            {
+                return;
+            }
             bool bError = formObkCfg.tryToLoadOBKConfig(res, curType, false);
             if(bError)
             {
