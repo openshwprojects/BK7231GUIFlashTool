@@ -27,8 +27,9 @@ namespace BK7231Flasher
         const int BL_FLASH_WRITE_PAYLOAD_LIMIT = 2056;
         const int BL_FLASH_WRITE_DATA_CHUNK = BL_FLASH_WRITE_PAYLOAD_LIMIT - 4;
         const int BL_SYNC_PATTERN_LEN = 300;
-        const int BL_SYNC_WAIT_MS = 500;
+        const int BL_SYNC_WAIT_MS = 1000;
         const int BL_ROM_BOOT_BAUD = 500000;
+        const int BL_EFLASH_STARTUP_DELAY_MS = 300;
         const string BL602_EFLASH_LOADER_RESOURCE = "BL602Floader_40m";
         const string BL702_EFLASH_LOADER_RESOURCE = "BL702Floader_32m";
 
@@ -156,20 +157,19 @@ namespace BK7231Flasher
                 return null;
             }
 
-            if (res.Length >= 6)
-            {
-                flashSizeMB = (float)(1 << (res[4] - 0x11)) / 8;
-                if(flashSizeMB > 32)
-                {
-                    return null;
-                }
-                addLogLine("Flash ID: {0:X2}{1:X2}{2:X2}{3:X2}", res[2], res[3], res[4], res[5]);
-                addLogLine($"Flash size is {flashSizeMB}MB");
-            }
-            else
+            if (res.Length < 6)
             {
                 addLogLine("Invalid response length: " + res.Length);
+                return null;
             }
+
+            flashSizeMB = (float)(1 << (res[4] - 0x11)) / 8;
+            if(flashSizeMB > 32)
+            {
+                return null;
+            }
+            addLogLine("Flash ID: {0:X2}{1:X2}{2:X2}{3:X2}", res[2], res[3], res[4], res[5]);
+            addLogLine($"Flash size is {flashSizeMB}MB");
             return res;
         }
         bool IsAck(byte[] rep, string ack)
@@ -252,6 +252,19 @@ namespace BK7231Flasher
             Thread.Sleep(100);
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
+        }
+
+        float getSerialTransferTimeoutSeconds(int wireBytes, float minSeconds)
+        {
+            int activeBaudrate = baudrate;
+            if(serial != null && serial.BaudRate > 0)
+            {
+                activeBaudrate = serial.BaudRate;
+            }
+
+            double wireSeconds = (wireBytes * 10.0) / Math.Max(9600, activeBaudrate);
+            double timeout = Math.Max(minSeconds, (wireSeconds * 4.0) + 1.0);
+            return (float)Math.Min(60.0, timeout);
         }
 
         bool tryAttachToExistingEflashLoader(int initialBootBaudrate)
@@ -424,6 +437,7 @@ namespace BK7231Flasher
                 int ofs = 0;
                 int startAddr = adr;
                 logger.setProgress(0, len);
+                int nextLogOffset = 0;
                 doErase(adr, (len + 4095) / 4096);
                 addLogLine("Starting flash write " + len);
                 byte[] buffer = new byte[bufLen + 4];
@@ -432,7 +446,11 @@ namespace BK7231Flasher
                 while(ofs < len)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if(ofs % 0x1000 == 0) addLog("." + formatHex(ofs) + ".");
+                    while(ofs >= nextLogOffset)
+                    {
+                        addLog("." + formatHex(nextLogOffset) + ".");
+                        nextLogOffset += 0x1000;
+                    }
                     int chunk = len - ofs;
                     if(chunk > bufLen)
                         chunk = bufLen;
@@ -443,7 +461,8 @@ namespace BK7231Flasher
                     Array.Copy(data, ofs, buffer, 4, chunk);
                     int bufferLen = chunk + 4;
                     int errCnt = 0;
-                    while(executeCommand(0x31, buffer, 0, bufferLen, true, 5) == null && errCnt < 10)
+                    float writeTimeout = getSerialTransferTimeoutSeconds(bufferLen + 4, 5.0f);
+                    while(executeCommand(0x31, buffer, 0, bufferLen, true, writeTimeout) == null && errCnt < 10)
                         errCnt++;
                     if(errCnt >= 10)
                         throw new Exception("Write failed!");
@@ -479,7 +498,8 @@ namespace BK7231Flasher
                 int chunk = len - ofs;
                 if (chunk > 4092)
                     chunk = 4092;
-                this.executeCommand(type, parms, start + ofs, chunk);
+                float chunkTimeout = getSerialTransferTimeoutSeconds(chunk + 4, 1.0f);
+                this.executeCommand(type, parms, start + ofs, chunk, false, chunkTimeout);
                 ofs += chunk;
             }
         }
@@ -543,7 +563,7 @@ namespace BK7231Flasher
                 addErrorLine($"Selected chip type is {chipType}, but current chip type is {blinfo.Variant}! Will continue anyway...");
             }
             this.loadAndRunPreprocessedImage();
-            Thread.Sleep(100);
+            Thread.Sleep(BL_EFLASH_STARTUP_DELAY_MS);
 
             int eflashBaudrate = getEflashBaudrate(blinfo.Variant);
             setSerialBaudrate(eflashBaudrate, $"{blinfo.Variant} eflash-loader");
@@ -554,6 +574,11 @@ namespace BK7231Flasher
                 return false;
             }
             flashID = readFlashID();
+            if(flashID == null)
+            {
+                addErrorLine("Failed to get flash ID from eflash loader.");
+                return false;
+            }
 
             return true;
         }
@@ -638,7 +663,8 @@ namespace BK7231Flasher
                     bool chunkOk = false;
                     for(int retry = 0; retry < 3; retry++)
                     {
-                        result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, 5, 2, true);
+                        float readTimeout = getSerialTransferTimeoutSeconds(length + 8, 5.0f);
+                        result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, readTimeout, 2, true);
 
                         if(result == null)
                         {
@@ -702,7 +728,8 @@ namespace BK7231Flasher
             sha256cmd[5] = (byte)((length >> 8) & 0xFF);
             sha256cmd[6] = (byte)((length >> 16) & 0xFF);
             sha256cmd[7] = (byte)((length >> 24) & 0xFF);
-            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, 10, 2, true);
+            float shaTimeout = Math.Max(30.0f, getSerialTransferTimeoutSeconds(64, 10.0f));
+            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, shaTimeout, 2, true);
             if(sha256result == null)
             {
                 addErrorLine($"Failed to get hash");
