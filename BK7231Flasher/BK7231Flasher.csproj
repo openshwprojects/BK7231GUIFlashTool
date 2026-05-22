@@ -212,6 +212,7 @@
     <EmbeddedResource Include="Floaders\BK7231N_1_0_1.bin" />
     <EmbeddedResource Include="Floaders\BK7231N_1_0_13.bin" />
     <EmbeddedResource Include="Floaders\BL602Floader.bin" />
+    <EmbeddedResource Include="Floaders\BL602Floader_40m.bin" />
     <EmbeddedResource Include="Floaders\BL602_Boot.bin" />
     <EmbeddedResource Include="Floaders\BL602_Dts.bin" />
     <EmbeddedResource Include="Floaders\TR6260_Boot.bin" />

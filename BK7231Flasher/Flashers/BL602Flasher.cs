@@ -20,6 +20,19 @@ namespace BK7231Flasher
         byte[] flashID;
         BLInfo blinfo = null;
 
+        // Match Bouffalo DevCube eflash-loader transfer sizing more closely.
+        // DevCube v1.9.0 uses tx_size=2056 in the BL602/BL702 eflash_loader config;
+        // the flash write command payload includes a 4-byte address, leaving 2052 bytes of data.
+        const int BL_FLASH_READ_CHUNK = 4096;
+        const int BL_FLASH_WRITE_PAYLOAD_LIMIT = 2056;
+        const int BL_FLASH_WRITE_DATA_CHUNK = BL_FLASH_WRITE_PAYLOAD_LIMIT - 4;
+        const int BL_SYNC_PATTERN_LEN = 300;
+        const int BL_SYNC_WAIT_MS = 500;
+        const int BL_ROM_BOOT_BAUD = 500000;
+        const int BL_FAST_EFLASH_BAUD = 2000000;
+        const string BL602_EFLASH_LOADER_RESOURCE = "BL602Floader_40m";
+        const string BL702_EFLASH_LOADER_RESOURCE = "BL702Floader";
+
         public bool Sync()
         {
             for (int i = 0; i < 1000; i++)
@@ -55,26 +68,18 @@ namespace BK7231Flasher
         bool internalSync()
         {
             serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
 
-            // Write initialization sequence
-            byte[] syncRequest = new byte[16];
-            for (int i = 0; i < syncRequest.Length; i++) syncRequest[i] = (byte)'U';
+            // Bouffalo ROM ISP synchronisation is an auto-baud pattern of repeated 0x55 bytes.
+            // The previous 16-byte pattern was marginal on some BL702 devices; DevCube/blflash
+            // use a much longer train before waiting for the 0x4F 0x4B acknowledgement.
+            byte[] syncRequest = Enumerable.Repeat((byte)'U', BL_SYNC_PATTERN_LEN).ToArray();
             serial.Write(syncRequest, 0, syncRequest.Length);
 
-            for (int i = 0; i < 75; i++)
+            byte[] response;
+            if (TryReadExact(2, BL_SYNC_WAIT_MS, out response) && IsAck(response, "OK"))
             {
-                Thread.Sleep(1);
-
-                // Check for 2-byte response
-                if (serial.BytesToRead >= 2)
-                {
-                    byte[] response = new byte[2];
-                    serial.Read(response, 0, 2);
-                    if ((response[0] == 'O' && response[1] == 'K') || (response[0] == 'K' && response[1] == 'O'))
-                    {
-                        return true;
-                    }
-                }
+                return true;
             }
 
             return false;
@@ -127,7 +132,7 @@ namespace BK7231Flasher
 
         internal BLInfo getInfo()
         {
-            byte[] res = executeCommand(0x10, null);
+            byte[] res = executeCommand(0x10, null, 0, 0, false, 2, 2, true);
             if (res == null)
             {
                 return null;
@@ -146,7 +151,7 @@ namespace BK7231Flasher
         }
         internal byte[] readFlashID()
         {
-            byte[] res = executeCommand(0x36, null, 0, 0, true, 0.1f, 6);
+            byte[] res = executeCommand(0x36, null, 0, 0, true, 2, 2, true);
             if (res == null)
             {
                 return null;
@@ -168,18 +173,101 @@ namespace BK7231Flasher
             }
             return res;
         }
-        byte[] readFully()
+        bool IsAck(byte[] rep, string ack)
         {
-            byte[] r = new byte[serial.BytesToRead];
-            for(int i = 0; i < r.Length; i++)
-            {
-                serial.Read(r, i, 1);
-            }
-            return r;
+            return rep != null && rep.Length == 2 && rep[0] == (byte)ack[0] && rep[1] == (byte)ack[1];
         }
+
+        bool TryReadExact(int count, int timeoutMs, out byte[] data)
+        {
+            data = new byte[count];
+            int offset = 0;
+            Stopwatch sw = Stopwatch.StartNew();
+
+            while (offset < count && sw.ElapsedMilliseconds < timeoutMs)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int available = serial.BytesToRead;
+                if (available <= 0)
+                {
+                    Thread.Sleep(1);
+                    continue;
+                }
+
+                int toRead = Math.Min(available, count - offset);
+                int got = serial.Read(data, offset, toRead);
+                if (got > 0)
+                {
+                    offset += got;
+                }
+            }
+
+            if (offset == count)
+            {
+                return true;
+            }
+
+            if (offset > 0)
+            {
+                Array.Resize(ref data, offset);
+            }
+            return false;
+        }
+
+        int getInitialBootBaudrate()
+        {
+            // DevCube keeps the ROM/bootloader phase conservative even when the requested
+            // transfer speed is high. In particular, BL602 is much less reliable if the
+            // initial ROM sync and RAM-loader upload are attempted directly at 2Mbaud.
+            if((chipType == BKType.BL602 || chipType == BKType.BL702) && baudrate >= BL_FAST_EFLASH_BAUD)
+            {
+                return BL_ROM_BOOT_BAUD;
+            }
+            return baudrate;
+        }
+
+        int getEflashBaudrate(BKType variant)
+        {
+            // Preserve the BL702 v2 behaviour that fixed BL702 reads for issue #106.
+            if(variant == BKType.BL702)
+            {
+                return BL_FAST_EFLASH_BAUD;
+            }
+
+            // For BL602, use the user's selected high rate only after the eflash loader
+            // has been loaded and jumped to. This mirrors DevCube's split boot/load model
+            // better than trying to run the ROM phase at 2Mbaud.
+            if(variant == BKType.BL602 && baudrate >= BL_FAST_EFLASH_BAUD)
+            {
+                return BL_FAST_EFLASH_BAUD;
+            }
+
+            return baudrate;
+        }
+
+        void setSerialBaudrate(int targetBaudrate, string stage)
+        {
+            if(serial == null)
+            {
+                return;
+            }
+
+            if(serial.BaudRate == targetBaudrate)
+            {
+                return;
+            }
+
+            addLogLine($"Switching {stage} baud to {targetBaudrate}...");
+            serial.BaudRate = targetBaudrate;
+            Thread.Sleep(100);
+            serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
+        }
+
         byte[] executeCommand(int type, byte[] parms = null,
             int start = 0, int len = 0, bool bChecksum = false,
-            float timeout = 0.1f, int expectedReplyLen = 2)
+            float timeout = 0.1f, int expectedReplyLen = 2,
+            bool lengthPrefixedPayload = false)
         {
             if (len < 0)
             {
@@ -197,79 +285,97 @@ namespace BK7231Flasher
                 }
                 chksum = (byte)(chksum & 0xFF);
             }
+
             var raw = new byte[] { (byte)type, chksum, (byte)(len & 0xFF), (byte)(len >> 8) };
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
             serial.Write(raw, 0, raw.Length);
-            if (parms != null)
+            if (parms != null && len > 0)
             {
                 serial.Write(parms, start, len);
             }
-            byte[] ret = null;
-            int timeoutMS = (int)(timeout * 1000);
-#if false
-        Thread.Sleep(100);
-        while (timeoutMS > 0)
-        {
-            if (serial.BytesToRead >= expectedReplyLen)
+
+            if (expectedReplyLen == 0)
             {
-                break;
+                return Array.Empty<byte>();
             }
-            int step = 5;
-            Thread.Sleep(step);
-            timeoutMS -= step;
-        }
-#else
+
+            int timeoutMS = Math.Max(1, (int)(timeout * 1000));
             Stopwatch sw = Stopwatch.StartNew();
+            bool pendingLogged = false;
+
             while (sw.ElapsedMilliseconds < timeoutMS)
             {
-                if (serial.BytesToRead >= expectedReplyLen)
+                int remainingMs = Math.Max(1, timeoutMS - (int)sw.ElapsedMilliseconds);
+                byte[] rep;
+                if (!TryReadExact(2, remainingMs, out rep))
+                {
                     break;
-            }
-#endif
-            if (serial.BytesToRead >= 2)
-            {
-                byte[] rep = new byte[2];
-                for(int i = 0; i < rep.Length; i++)
-                {
-                    serial.Read(rep, i, 1);
                 }
-                if ((rep[0] == 'O' && rep[1] == 'K') || (rep[0] == 'K' && rep[1] == 'O'))
+
+                if (IsAck(rep, "OK"))
                 {
-                    // Console.Write(".ok.");
-                    ret = readFully();
-                    return ret;
+                    if (lengthPrefixedPayload)
+                    {
+                        byte[] lenBytes;
+                        if (!TryReadExact(2, timeoutMS, out lenBytes))
+                        {
+                            addLogLine($"Command 0x{type:X2} timed out while reading length prefix; got {lenBytes.Length}/2 bytes");
+                            return null;
+                        }
+
+                        int payloadLen = lenBytes[0] | (lenBytes[1] << 8);
+                        byte[] payload;
+                        if (!TryReadExact(payloadLen, timeoutMS, out payload))
+                        {
+                            addLogLine($"Command 0x{type:X2} timed out while reading payload; got {payload.Length}/{payloadLen} bytes");
+                            return null;
+                        }
+
+                        byte[] ret = new byte[2 + payload.Length];
+                        ret[0] = lenBytes[0];
+                        ret[1] = lenBytes[1];
+                        Array.Copy(payload, 0, ret, 2, payload.Length);
+                        return ret;
+                    }
+
+                    int payloadBytes = Math.Max(0, expectedReplyLen - 2);
+                    if (payloadBytes == 0)
+                    {
+                        return Array.Empty<byte>();
+                    }
+
+                    byte[] payloadFixed;
+                    if (!TryReadExact(payloadBytes, timeoutMS, out payloadFixed))
+                    {
+                        addLogLine($"Command 0x{type:X2} timed out while reading fixed payload; got {payloadFixed.Length}/{payloadBytes} bytes");
+                        return null;
+                    }
+                    return payloadFixed;
                 }
-                else if (rep[0] == 'F' && rep[1] == 'L')
+
+                if (IsAck(rep, "FL"))
                 {
-                    addLogLine("Command fail!");
-                    ret = readFully();
+                    addLogLine($"Command 0x{type:X2} failed!");
                     return null;
                 }
-                else if ((rep[0] == 'P' && rep[1] == 'D') || (rep[0] == 'D' && rep[1] == 'P'))
+
+                if (IsAck(rep, "PD"))
                 {
-                    int errcount = 500;
-                    while(errcount-- > 0)
+                    if (!pendingLogged)
                     {
-                        try
-                        {
-                            for(int i = 0; i < rep.Length; i++)
-                            {
-                                serial.Read(rep, i, 1);
-                            }
-                        }
-                        catch { }
-                        if ((rep[0] == 'O' && rep[1] == 'K') || (rep[0] == 'K' && rep[1] == 'O'))
-                            return readFully();
-                        else if ((rep[0] == 'P' && rep[1] == 'D') || (rep[0] == 'D' && rep[1] == 'P'))
-                            addLogLine("Command pending...");
-                        rep[0] = 0;
-                        Thread.Sleep(20);
+                        addLogLine($"Command 0x{type:X2} pending...");
+                        pendingLogged = true;
                     }
-                    return readFully();
+                    Thread.Sleep(20);
+                    continue;
                 }
+
+                addLogLine($"Command 0x{type:X2} unexpected acknowledgement: {rep[0]:X2}{rep[1]:X2}");
+                return null;
             }
-            if(expectedReplyLen != 0) addLogLine("Command timed out!");
+
+            if (expectedReplyLen != 0) addLogLine($"Command 0x{type:X2} timed out!");
             return null;
         }
         internal BLInfo getAndPrintInfo()
@@ -287,7 +393,7 @@ namespace BK7231Flasher
         {
             try
             {
-                var bufLen = 4096;
+                var bufLen = BL_FLASH_WRITE_DATA_CHUNK;
                 if(len < 0)
                     len = data.Length;
                 int ofs = 0;
@@ -357,12 +463,19 @@ namespace BK7231Flasher
         {
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
-            addLog("Going to open port: " + serialName + "." + Environment.NewLine);
+            int initialBootBaudrate = getInitialBootBaudrate();
+            addLog("Going to open port: " + serialName + $" at boot baud {initialBootBaudrate} (requested transfer baud {baudrate})." + Environment.NewLine);
             if(serial == null)
             {
-                serial = new SerialPort(serialName, baudrate);
+                serial = new SerialPort(serialName, initialBootBaudrate);
                 serial.Open();
             }
+            else
+            {
+                setSerialBaudrate(initialBootBaudrate, "ROM/boot");
+            }
+            serial.ReadTimeout = 5000;
+            serial.WriteTimeout = 5000;
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
             addLog("Port ready!" + Environment.NewLine);
@@ -404,6 +517,10 @@ namespace BK7231Flasher
             }
             this.loadAndRunPreprocessedImage();
             Thread.Sleep(100);
+
+            int eflashBaudrate = getEflashBaudrate(blinfo.Variant);
+            setSerialBaudrate(eflashBaudrate, $"{blinfo.Variant} eflash-loader");
+
             //resync in eflash
             if(this.Sync() == false)
             {
@@ -417,11 +534,13 @@ namespace BK7231Flasher
         {
             // bl616 doesn't require flash loader, and already rom implements full protocol
             if(blinfo.Variant == BKType.BL616) return true;
-            byte[] loaderBinary = chipType switch
+            string loaderResource = chipType switch
             {
-                BKType.BL702 => FLoaders.GetBinaryFromAssembly("BL702Floader"),
-                _ => FLoaders.GetBinaryFromAssembly("BL602Floader"),
+                BKType.BL702 => BL702_EFLASH_LOADER_RESOURCE,
+                _ => BL602_EFLASH_LOADER_RESOURCE,
             };
+            addLogLine($"Using {blinfo.Variant} eflash loader resource: {loaderResource}");
+            byte[] loaderBinary = FLoaders.GetBinaryFromAssembly(loaderResource);
             return loadAndRunPreprocessedImage(loaderBinary);
         }
         public bool loadAndRunPreprocessedImage(byte[] file)
@@ -471,7 +590,7 @@ namespace BK7231Flasher
                 int destAddr = 0;
                 while(amount > 0)
                 {
-                    int length = 4096;
+                    int length = BL_FLASH_READ_CHUNK;
                     if(amount < length)
                         length = amount;
 
@@ -486,25 +605,38 @@ namespace BK7231Flasher
                     cmdBuffer[6] = (byte)((length >> 16) & 0xFF);
                     cmdBuffer[7] = (byte)((length >> 24) & 0xFF);
 
-                    // executeCommand returns byte[]: response including at least 2 bytes header + length data
-                    int rawReplyLen = 2 + 2 + length; // OK + lenght 2 bytes + bytes
-                    byte[] result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, 5, rawReplyLen);
-
-                    if(result == null)
+                    byte[] result = null;
+                    int dataLen = -1;
+                    bool chunkOk = false;
+                    for(int retry = 0; retry < 3; retry++)
                     {
-                        logger.setState("Read error", Color.Red);
-                        addErrorLine("Read fail - no reply");
-                        return null;
+                        result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, 5, 2, true);
+
+                        if(result == null)
+                        {
+                            addWarningLine($"Read retry {retry + 1}/3 at 0x{addr:X6}: no reply");
+                            serial.DiscardInBuffer();
+                            Thread.Sleep(50);
+                            continue;
+                        }
+
+                        dataLen = result.Length - 2;
+                        if(dataLen == length)
+                        {
+                            chunkOk = true;
+                            break;
+                        }
+
+                        addWarningLine($"Read retry {retry + 1}/3 at 0x{addr:X6}: size mismatch, expected {length}, got {dataLen}");
+                        serial.DiscardInBuffer();
+                        Thread.Sleep(50);
                     }
 
-                    int dataLen = result.Length - 2;
-                    if(dataLen != length)
+                    if(!chunkOk)
                     {
-                        //logger.setState("Read error", Color.Red);
-                        addErrorLine(Environment.NewLine + "Read fail - size mismatch, will resync and continue");
-                        //return null;
-                        if(Sync() == false) return null;
-                        continue;
+                        logger.setState("Read error", Color.Red);
+                        addErrorLine($"Read fail at 0x{addr:X6} - size mismatch after retries");
+                        return null;
                     }
                     Array.Copy(result, 2, ret, destAddr, dataLen);
                     cancellationToken.ThrowIfCancellationRequested();
@@ -542,7 +674,7 @@ namespace BK7231Flasher
             sha256cmd[5] = (byte)((length >> 8) & 0xFF);
             sha256cmd[6] = (byte)((length >> 16) & 0xFF);
             sha256cmd[7] = (byte)((length >> 24) & 0xFF);
-            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, 10, 2 + 32);
+            byte[] sha256result = executeCommand(0x3D, sha256cmd, 0, sha256cmd.Length, true, 10, 2, true);
             if(sha256result == null)
             {
                 addErrorLine($"Failed to get hash");
