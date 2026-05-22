@@ -215,13 +215,14 @@ namespace BK7231Flasher
 
         int getInitialBootBaudrate()
         {
-            // DevCube v1.9.0 config uses speed_uart_boot=500000 for both BL602
-            // and BL702. Keep the ROM sync and RAM-loader upload phase at that
-            // conservative boot rate, then switch to the selected GUI/CLI baud
-            // for the eflash-loader read/write phase.
+            // BLDC/DevCube keeps the ROM sync and RAM-loader upload phase conservative
+            // for high transfer speeds, but low selected bauds must not be raised.
+            // Upstream/old Easy Flasher could complete BL602 at 115200 by running the
+            // ROM, loader upload and eflash phase at the selected low rate. Treat
+            // 500000 as a ceiling for the ROM phase, not as a forced minimum.
             if(chipType == BKType.BL602 || chipType == BKType.BL702)
             {
-                return BL_ROM_BOOT_BAUD;
+                return Math.Min(baudrate, BL_ROM_BOOT_BAUD);
             }
             return baudrate;
         }
