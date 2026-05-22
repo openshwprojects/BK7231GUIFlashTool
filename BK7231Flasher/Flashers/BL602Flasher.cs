@@ -71,7 +71,7 @@ namespace BK7231Flasher
             serial.DiscardOutBuffer();
 
             // Bouffalo ROM ISP synchronisation is an auto-baud pattern of repeated 0x55 bytes.
-            // The previous 16-byte pattern was marginal on some BL702 devices; DevCube/blflash
+            // The previous 16-byte pattern was marginal on BL60x/BL70x targets; DevCube/blflash
             // use a much longer train before waiting for the 0x4F 0x4B acknowledgement.
             byte[] syncRequest = Enumerable.Repeat((byte)'U', BL_SYNC_PATTERN_LEN).ToArray();
             serial.Write(syncRequest, 0, syncRequest.Length);
@@ -228,7 +228,8 @@ namespace BK7231Flasher
 
         int getEflashBaudrate(BKType variant)
         {
-            // Preserve the BL702 v2 behaviour that fixed BL702 reads for issue #106.
+            // Keep the v2 BL702 post-loader high-speed path that was empirically tested
+            // as working with DevCube's BL702 32M eflash loader.
             if(variant == BKType.BL702)
             {
                 return BL_FAST_EFLASH_BAUD;
@@ -262,6 +263,41 @@ namespace BK7231Flasher
             Thread.Sleep(100);
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
+        }
+
+        bool tryAttachToExistingEflashLoader(int initialBootBaudrate)
+        {
+            // If a previous operation has already jumped into the RAM eflash loader,
+            // BootROM get-info will fail. Try the current baud first, then the
+            // expected post-loader baud. This preserves the old same-session reuse
+            // behaviour after v3 split the ROM and eflash-loader baud rates.
+            flashID = readFlashID();
+            if(flashID != null)
+            {
+                addLogLine("Eflash loader is already uploaded!");
+                return true;
+            }
+
+            int expectedEflashBaudrate = getEflashBaudrate(chipType);
+            if(expectedEflashBaudrate == serial.BaudRate)
+            {
+                return false;
+            }
+
+            addLogLine($"BootROM get-info failed. Probing for existing {chipType} eflash-loader at {expectedEflashBaudrate}...");
+            setSerialBaudrate(expectedEflashBaudrate, $"{chipType} existing eflash-loader probe");
+            if(this.Sync())
+            {
+                flashID = readFlashID();
+                if(flashID != null)
+                {
+                    addLogLine("Eflash loader is already uploaded!");
+                    return true;
+                }
+            }
+
+            setSerialBaudrate(initialBootBaudrate, "ROM/boot");
+            return false;
         }
 
         byte[] executeCommand(int type, byte[] parms = null,
@@ -487,10 +523,8 @@ namespace BK7231Flasher
             }
             if (this.getAndPrintInfo() == null)
             {
-                flashID = readFlashID();
-                if(flashID != null)
+                if(tryAttachToExistingEflashLoader(initialBootBaudrate))
                 {
-                    addLogLine("Eflash loader is already uploaded!");
                     return true;
                 }
                 addErrorLine("Initial get info failed.");
@@ -534,12 +568,13 @@ namespace BK7231Flasher
         {
             // bl616 doesn't require flash loader, and already rom implements full protocol
             if(blinfo.Variant == BKType.BL616) return true;
-            string loaderResource = chipType switch
+            BKType loaderVariant = blinfo?.Variant ?? chipType;
+            string loaderResource = loaderVariant switch
             {
                 BKType.BL702 => BL702_EFLASH_LOADER_RESOURCE,
                 _ => BL602_EFLASH_LOADER_RESOURCE,
             };
-            addLogLine($"Using {blinfo.Variant} eflash loader resource: {loaderResource}");
+            addLogLine($"Using {loaderVariant} eflash loader resource: {loaderResource}");
             byte[] loaderBinary = FLoaders.GetBinaryFromAssembly(loaderResource);
             return loadAndRunPreprocessedImage(loaderBinary);
         }
