@@ -215,14 +215,13 @@ namespace BK7231Flasher
 
         int getInitialBootBaudrate()
         {
-            // BLDC/DevCube keeps the ROM sync and RAM-loader upload phase conservative
-            // for high transfer speeds, but low selected bauds must not be raised.
-            // Upstream/old Easy Flasher could complete BL602 at 115200 by running the
-            // ROM, loader upload and eflash phase at the selected low rate. Treat
-            // 500000 as a ceiling for the ROM phase, not as a forced minimum.
+            // BLDC/DevCube uses speed_uart_boot=500000 for the BL602/BL702 ROM
+            // handshake and RAM eflash-loader upload phase. The selected GUI/CLI
+            // baud is applied later by sending the eflash-loader clk_set command
+            // before changing the host serial port to that transfer rate.
             if(chipType == BKType.BL602 || chipType == BKType.BL702)
             {
-                return Math.Min(baudrate, BL_ROM_BOOT_BAUD);
+                return BL_ROM_BOOT_BAUD;
             }
             return baudrate;
         }
@@ -266,6 +265,34 @@ namespace BK7231Flasher
             double wireSeconds = (wireBytes * 10.0) / Math.Max(9600, activeBaudrate);
             double timeout = Math.Max(minSeconds, (wireSeconds * 4.0) + 1.0);
             return (float)Math.Min(60.0, timeout);
+        }
+
+        bool setEflashLoaderClockAndBaud(int targetBaudrate)
+        {
+            // BLDC/DevCube does not only change the PC-side baud rate after jumping
+            // into the RAM eflash loader. It first sends the loader's clk_set command
+            // (0x22) at the current boot-loader baud, with IRQ enabled and the target
+            // transfer baud encoded little-endian, waits for OK, then reopens/switches
+            // the host serial port at the requested load baud. Without this step the
+            // loader may still sync but later commands such as flash ID read can time out.
+            byte[] payload = new byte[8];
+            payload[0] = 0x01;
+            payload[1] = 0x00;
+            payload[2] = 0x00;
+            payload[3] = 0x00;
+            payload[4] = (byte)(targetBaudrate & 0xFF);
+            payload[5] = (byte)((targetBaudrate >> 8) & 0xFF);
+            payload[6] = (byte)((targetBaudrate >> 16) & 0xFF);
+            payload[7] = (byte)((targetBaudrate >> 24) & 0xFF);
+
+            addLogLine($"Setting eflash-loader clock/baud to {targetBaudrate}...");
+            float timeout = getSerialTransferTimeoutSeconds(payload.Length + 4, 2.0f);
+            if(executeCommand(0x22, payload, 0, payload.Length, true, timeout, 2) == null)
+            {
+                addErrorLine("Failed to set eflash-loader clock/baud.");
+                return false;
+            }
+            return true;
         }
 
         bool tryAttachToExistingEflashLoader(int initialBootBaudrate)
@@ -566,14 +593,20 @@ namespace BK7231Flasher
             this.loadAndRunPreprocessedImage();
             Thread.Sleep(BL_EFLASH_STARTUP_DELAY_MS);
 
-            int eflashBaudrate = getEflashBaudrate(blinfo.Variant);
-            setSerialBaudrate(eflashBaudrate, $"{blinfo.Variant} eflash-loader");
-
-            //resync in eflash
+            // Resync with the RAM eflash loader at the ROM/boot baud first. This is
+            // the same phase BLDC reaches before issuing clk_set/change-baud.
             if(this.Sync() == false)
             {
                 return false;
             }
+
+            int eflashBaudrate = getEflashBaudrate(blinfo.Variant);
+            if(!setEflashLoaderClockAndBaud(eflashBaudrate))
+            {
+                return false;
+            }
+            setSerialBaudrate(eflashBaudrate, $"{blinfo.Variant} eflash-loader");
+
             flashID = readFlashID();
             if(flashID == null)
             {
