@@ -29,9 +29,8 @@ namespace BK7231Flasher
         const int BL_SYNC_PATTERN_LEN = 300;
         const int BL_SYNC_WAIT_MS = 500;
         const int BL_ROM_BOOT_BAUD = 500000;
-        const int BL_FAST_EFLASH_BAUD = 2000000;
         const string BL602_EFLASH_LOADER_RESOURCE = "BL602Floader_40m";
-        const string BL702_EFLASH_LOADER_RESOURCE = "BL702Floader";
+        const string BL702_EFLASH_LOADER_RESOURCE = "BL702Floader_32m";
 
         public bool Sync()
         {
@@ -216,10 +215,11 @@ namespace BK7231Flasher
 
         int getInitialBootBaudrate()
         {
-            // DevCube keeps the ROM/bootloader phase conservative even when the requested
-            // transfer speed is high. In particular, BL602 is much less reliable if the
-            // initial ROM sync and RAM-loader upload are attempted directly at 2Mbaud.
-            if((chipType == BKType.BL602 || chipType == BKType.BL702) && baudrate >= BL_FAST_EFLASH_BAUD)
+            // DevCube v1.9.0 config uses speed_uart_boot=500000 for both BL602
+            // and BL702. Keep the ROM sync and RAM-loader upload phase at that
+            // conservative boot rate, then switch to the selected GUI/CLI baud
+            // for the eflash-loader read/write phase.
+            if(chipType == BKType.BL602 || chipType == BKType.BL702)
             {
                 return BL_ROM_BOOT_BAUD;
             }
@@ -228,21 +228,10 @@ namespace BK7231Flasher
 
         int getEflashBaudrate(BKType variant)
         {
-            // Keep the v2 BL702 post-loader high-speed path that was empirically tested
-            // as working with DevCube's BL702 32M eflash loader.
-            if(variant == BKType.BL702)
-            {
-                return BL_FAST_EFLASH_BAUD;
-            }
-
-            // For BL602, use the user's selected high rate only after the eflash loader
-            // has been loaded and jumped to. This mirrors DevCube's split boot/load model
-            // better than trying to run the ROM phase at 2Mbaud.
-            if(variant == BKType.BL602 && baudrate >= BL_FAST_EFLASH_BAUD)
-            {
-                return BL_FAST_EFLASH_BAUD;
-            }
-
+            // Honour the selected GUI/CLI baud for the eflash-loader phase after the
+            // conservative ROM sync/upload phase has completed. The initial boot phase
+            // may still be lowered for reliability, but read/write traffic runs at the
+            // requested transfer baud.
             return baudrate;
         }
 
@@ -268,9 +257,9 @@ namespace BK7231Flasher
         bool tryAttachToExistingEflashLoader(int initialBootBaudrate)
         {
             // If a previous operation has already jumped into the RAM eflash loader,
-            // BootROM get-info will fail. Try the current baud first, then the
-            // expected post-loader baud. This preserves the old same-session reuse
-            // behaviour after v3 split the ROM and eflash-loader baud rates.
+            // the ROM sync/get-info path can fail. Try the current baud first, then
+            // the expected post-loader baud so same-session reuse still works after
+            // the ROM and eflash-loader phases have been split by baud rate.
             flashID = readFlashID();
             if(flashID != null)
             {
@@ -518,7 +507,11 @@ namespace BK7231Flasher
 
             if(this.Sync() == false)
             {
-                // failed
+                if(tryAttachToExistingEflashLoader(initialBootBaudrate))
+                {
+                    return true;
+                }
+
                 return false;
             }
             if (this.getAndPrintInfo() == null)
