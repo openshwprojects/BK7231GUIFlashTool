@@ -20,14 +20,15 @@ namespace BK7231Flasher
         byte[] flashID;
         BLInfo blinfo = null;
 
-        // Match Bouffalo DevCube eflash-loader transfer sizing more closely.
-        // DevCube v1.9.0 uses tx_size=2056 in the BL602/BL702 eflash_loader config;
-        // the flash write command payload includes a 4-byte address, leaving 2052 bytes of data.
-        const int BL_FLASH_READ_CHUNK = 4096;
-        const int BL_FLASH_WRITE_PAYLOAD_LIMIT = 2056;
-        const int BL_FLASH_WRITE_DATA_CHUNK = BL_FLASH_WRITE_PAYLOAD_LIMIT - 4;
-        const int BL_SYNC_PATTERN_LEN = 300;
+        // BLDC/DevCube eflash-loader config uses tx_size=2056. In bflb_mcu_tool,
+        // flash read/write payload slicing uses tx_size - 8, i.e. 2048 bytes.
+        const int BL_FLASH_TX_SIZE = 2056;
+        const int BL_FLASH_CMD_OVERHEAD = 8;
+        const int BL_FLASH_READ_CHUNK = BL_FLASH_TX_SIZE - BL_FLASH_CMD_OVERHEAD;
+        const int BL_FLASH_WRITE_DATA_CHUNK = BL_FLASH_TX_SIZE - BL_FLASH_CMD_OVERHEAD;
         const int BL_SYNC_WAIT_MS = 1000;
+        const double BL602_SYNC_BURST_SECONDS = 0.006;
+        const double BL702_SYNC_BURST_SECONDS = 0.003;
         const int BL_ROM_BOOT_BAUD = 500000;
         const int BL_EFLASH_STARTUP_DELAY_MS = 300;
         const string BL602_EFLASH_LOADER_RESOURCE = "BL602Floader_40m";
@@ -70,19 +71,39 @@ namespace BK7231Flasher
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
 
-            // Bouffalo ROM ISP synchronisation is an auto-baud pattern of repeated 0x55 bytes.
-            // The previous 16-byte pattern was marginal on BL60x/BL70x targets; DevCube/blflash
-            // use a much longer train before waiting for the 0x4F 0x4B acknowledgement.
-            byte[] syncRequest = Enumerable.Repeat((byte)'U', BL_SYNC_PATTERN_LEN).ToArray();
+            // BLDC uses a baud-scaled sync burst: roughly 6ms worth of 0x55 for BL602
+            // and 3ms for BL702. A fixed 300-byte burst works near 500k but can be too
+            // long at low baud rates, which can destabilize the first post-sync command.
+            int syncPatternLen = getSyncPatternLength();
+            byte[] syncRequest = Enumerable.Repeat((byte)'U', syncPatternLen).ToArray();
             serial.Write(syncRequest, 0, syncRequest.Length);
 
             byte[] response;
             if (TryReadExact(2, BL_SYNC_WAIT_MS, out response) && IsAck(response, "OK"))
             {
+                Thread.Sleep(30);
                 return true;
             }
 
             return false;
+        }
+
+        int getSyncPatternLength()
+        {
+            int activeBaudrate = baudrate;
+            if(serial != null && serial.BaudRate > 0)
+            {
+                activeBaudrate = serial.BaudRate;
+            }
+
+            BKType syncVariant = blinfo?.Variant ?? chipType;
+            double burstSeconds = syncVariant == BKType.BL702 ? BL702_SYNC_BURST_SECONDS : BL602_SYNC_BURST_SECONDS;
+            int syncLen = (int)(burstSeconds * activeBaudrate / 10.0);
+            if(syncLen < 16)
+            {
+                syncLen = 16;
+            }
+            return syncLen;
         }
 
         internal class BLInfo
@@ -599,8 +620,18 @@ namespace BK7231Flasher
             flashID = readFlashID();
             if(flashID == null)
             {
-                addErrorLine("Failed to get flash ID from eflash loader.");
-                return false;
+                addWarningLine("Flash ID read failed, re-syncing eflash loader and retrying once...");
+                serial.DiscardInBuffer();
+                serial.DiscardOutBuffer();
+                if(this.Sync())
+                {
+                    flashID = readFlashID();
+                }
+                if(flashID == null)
+                {
+                    addErrorLine("Failed to get flash ID from eflash loader.");
+                    return false;
+                }
             }
 
             return true;
@@ -610,14 +641,20 @@ namespace BK7231Flasher
             // bl616 doesn't require flash loader, and already rom implements full protocol
             if(blinfo.Variant == BKType.BL616) return true;
             BKType loaderVariant = blinfo?.Variant ?? chipType;
-            string loaderResource = loaderVariant switch
-            {
-                BKType.BL702 => BL702_EFLASH_LOADER_RESOURCE,
-                _ => BL602_EFLASH_LOADER_RESOURCE,
-            };
+            string loaderResource = getLoaderResourceForVariant(loaderVariant);
             addLogLine($"Using {loaderVariant} eflash loader resource: {loaderResource}");
             byte[] loaderBinary = FLoaders.GetBinaryFromAssembly(loaderResource);
             return loadAndRunPreprocessedImage(loaderBinary);
+        }
+
+        string getLoaderResourceForVariant(BKType loaderVariant)
+        {
+            if(loaderVariant == BKType.BL702)
+            {
+                return BL702_EFLASH_LOADER_RESOURCE;
+            }
+
+            return BL602_EFLASH_LOADER_RESOURCE;
         }
         public bool loadAndRunPreprocessedImage(byte[] file)
         {
