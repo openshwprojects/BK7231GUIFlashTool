@@ -605,6 +605,8 @@ namespace BK7231Flasher
                 case BKType.BL602:
                 case BKType.BL702:
                     return new BL602Flasher(ct);
+                case BKType.BL616:
+                    return new BL616Flasher(ct);
                 case BKType.TR6260:
                     return new TR6260Flasher(ct);
                 case BKType.BekenSPI:

@@ -40,6 +40,7 @@ namespace BK7231Flasher
             { BKType.BK7258,     "BK7258 (T5)" },
             { BKType.BekenSPI,   "Beken SPI CH341" },
             { BKType.BL602,      "BL602" },
+            { BKType.BL616,      "BL616" },
             { BKType.BL702,      "BL702" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.ESP32,      "ESP32" },
@@ -504,6 +505,9 @@ namespace BK7231Flasher
                 case BKType.BL702:
                     flasher = new BL602Flasher(cts.Token);
                     break;
+                case BKType.BL616:
+                    flasher = new BL616Flasher(cts.Token);
+                    break;
                 case BKType.BekenSPI:
                     flasher = new SPIFlasher_Beken(cts.Token);
                     break;
@@ -643,6 +647,14 @@ namespace BK7231Flasher
         {
             clearUp();
             createFlasher();
+            if(curType == BKType.BL616)
+            {
+                addLog("OBK config write is not supported on BL616 yet." + Environment.NewLine, Color.DarkOrange);
+                worker = null;
+                clearUp();
+                setButtonStates(true);
+                return;
+            }
             flasher.doReadAndWrite(0, 0, "", WriteMode.OnlyOBKConfig);
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -867,6 +879,14 @@ namespace BK7231Flasher
             createFlasher();
             // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
+            if(curType == BKType.BL616)
+            {
+                addLog("OBK config read is not supported on BL616 yet." + Environment.NewLine, Color.DarkOrange);
+                worker = null;
+                clearUp();
+                setButtonStates(true);
+                return;
+            }
             if(curType == BKType.BL602 || curType == BKType.BL702)
             {
                 addLog("Reading partitions..." + Environment.NewLine, Color.Black);
