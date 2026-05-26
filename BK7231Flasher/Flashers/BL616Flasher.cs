@@ -327,33 +327,55 @@ namespace BK7231Flasher
             float timeout = 0.1f, int expectedReplyLen = 2,
             bool lengthPrefixedPayload = false)
         {
-            if (len < 0)
+            if(len < 0)
             {
                 len = parms.Length;
             }
-            byte chksum = 1;
-            if (bChecksum)
+
+            byte checksumOrDummy = 1;
+            if(bChecksum)
             {
-                chksum = 0;
-                chksum += (byte)(len & 0xFF);
-                chksum += (byte)(len >> 8);
-                for (int i = 0; i < len; i++)
+                checksumOrDummy = 0;
+                checksumOrDummy += (byte)(len & 0xFF);
+                checksumOrDummy += (byte)(len >> 8);
+                for(int i = 0; i < len; i++)
                 {
-                    chksum += parms[start + i];
+                    checksumOrDummy += parms[start + i];
                 }
-                chksum = (byte)(chksum & 0xFF);
+                checksumOrDummy = (byte)(checksumOrDummy & 0xFF);
             }
 
-            var raw = new byte[] { (byte)type, chksum, (byte)(len & 0xFF), (byte)(len >> 8) };
+            return executeCommandWithHeader(type, checksumOrDummy, parms, start, len, timeout, expectedReplyLen, lengthPrefixedPayload);
+        }
+
+        byte[] executeBootromCommand(int type, byte[] parms = null,
+            int start = 0, int len = 0,
+            float timeout = 0.1f, int expectedReplyLen = 2,
+            bool lengthPrefixedPayload = false)
+        {
+            if(len < 0)
+            {
+                len = parms.Length;
+            }
+
+            // BootROM command frame in BLDC img_loader:
+            // [cmd][dummy=0x00][len_l][len_h][payload...]
+            return executeCommandWithHeader(type, 0x00, parms, start, len, timeout, expectedReplyLen, lengthPrefixedPayload);
+        }
+
+        byte[] executeCommandWithHeader(int type, byte headerByte, byte[] parms,
+            int start, int len, float timeout, int expectedReplyLen, bool lengthPrefixedPayload)
+        {
+            var raw = new byte[] { (byte)type, headerByte, (byte)(len & 0xFF), (byte)(len >> 8) };
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
             serial.Write(raw, 0, raw.Length);
-            if (parms != null && len > 0)
+            if(parms != null && len > 0)
             {
                 serial.Write(parms, start, len);
             }
 
-            if (expectedReplyLen == 0)
+            if(expectedReplyLen == 0)
             {
                 return Array.Empty<byte>();
             }
@@ -362,24 +384,24 @@ namespace BK7231Flasher
             Stopwatch sw = Stopwatch.StartNew();
             bool pendingLogged = false;
 
-            while (sw.ElapsedMilliseconds < timeoutMS)
+            while(sw.ElapsedMilliseconds < timeoutMS)
             {
                 int remainingMs = Math.Max(1, timeoutMS - (int)sw.ElapsedMilliseconds);
                 byte[] rep;
-                if (!TryReadExact(2, remainingMs, out rep))
+                if(!TryReadExact(2, remainingMs, out rep))
                 {
                     break;
                 }
 
-                if (IsAck(rep, "OK"))
+                if(IsAck(rep, "OK"))
                 {
-                    if (lengthPrefixedPayload)
+                    if(lengthPrefixedPayload)
                     {
                         byte[] lenBytes;
                         int repeatedOkCount = 0;
-                        while (true)
+                        while(true)
                         {
-                            if (!TryReadExact(2, timeoutMS, out lenBytes))
+                            if(!TryReadExact(2, timeoutMS, out lenBytes))
                             {
                                 addLogLine($"Command 0x{type:X2} timed out while reading length prefix; got {lenBytes.Length}/2 bytes");
                                 return null;
@@ -388,13 +410,13 @@ namespace BK7231Flasher
                             // Bouffalo's if_deal_response() consumes any extra OK pair before
                             // the 2-byte little-endian response length. Keep that behaviour so
                             // response parsing stays compatible with BLDC/bflb_iot_tool.
-                            if (!IsAck(lenBytes, "OK"))
+                            if(!IsAck(lenBytes, "OK"))
                             {
                                 break;
                             }
 
                             repeatedOkCount++;
-                            if (repeatedOkCount > 4)
+                            if(repeatedOkCount > 4)
                             {
                                 addLogLine($"Command 0x{type:X2} received repeated OK while waiting for length prefix");
                                 return null;
@@ -403,7 +425,7 @@ namespace BK7231Flasher
 
                         int payloadLen = lenBytes[0] | (lenBytes[1] << 8);
                         byte[] payload;
-                        if (!TryReadExact(payloadLen, timeoutMS, out payload))
+                        if(!TryReadExact(payloadLen, timeoutMS, out payload))
                         {
                             addLogLine($"Command 0x{type:X2} timed out while reading payload; got {payload.Length}/{payloadLen} bytes");
                             return null;
@@ -417,13 +439,13 @@ namespace BK7231Flasher
                     }
 
                     int payloadBytes = Math.Max(0, expectedReplyLen - 2);
-                    if (payloadBytes == 0)
+                    if(payloadBytes == 0)
                     {
                         return Array.Empty<byte>();
                     }
 
                     byte[] payloadFixed;
-                    if (!TryReadExact(payloadBytes, timeoutMS, out payloadFixed))
+                    if(!TryReadExact(payloadBytes, timeoutMS, out payloadFixed))
                     {
                         addLogLine($"Command 0x{type:X2} timed out while reading fixed payload; got {payloadFixed.Length}/{payloadBytes} bytes");
                         return null;
@@ -431,15 +453,15 @@ namespace BK7231Flasher
                     return payloadFixed;
                 }
 
-                if (IsAck(rep, "FL"))
+                if(IsAck(rep, "FL"))
                 {
                     addLogLine($"Command 0x{type:X2} failed!");
                     return null;
                 }
 
-                if (IsAck(rep, "PD"))
+                if(IsAck(rep, "PD"))
                 {
-                    if (!pendingLogged)
+                    if(!pendingLogged)
                     {
                         addLogLine($"Command 0x{type:X2} pending...");
                         pendingLogged = true;
@@ -452,7 +474,10 @@ namespace BK7231Flasher
                 return null;
             }
 
-            if (expectedReplyLen != 0) addLogLine($"Command 0x{type:X2} timed out!");
+            if(expectedReplyLen != 0)
+            {
+                addLogLine($"Command 0x{type:X2} timed out!");
+            }
             return null;
         }
         internal BLInfo getAndPrintInfo()
@@ -657,7 +682,7 @@ namespace BK7231Flasher
 
             for(int attempt = 1; attempt <= BL616_COMMAND_RETRY_COUNT; attempt++)
             {
-                if(executeCommand(command, payload, 0, payload.Length, true, 2.0f) != null)
+                if(executeBootromCommand(command, payload, 0, payload.Length, 2.0f) != null)
                 {
                     return true;
                 }
