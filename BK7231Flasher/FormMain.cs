@@ -648,7 +648,7 @@ namespace BK7231Flasher
             if(curType == BKType.BL702)
             {
                 addLog(
-                    $"OBK config write is not supported on {curType} yet. " +
+                    $"OBK config write is not supported on {curType}. " +
                     "Regular firmware write is still supported." + Environment.NewLine,
                     Color.DarkOrange);
                 worker = null;
@@ -889,7 +889,7 @@ namespace BK7231Flasher
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
             if(curType == BKType.BL702)
             {
-                addLog("OBK config read is not supported on BL702 yet." + Environment.NewLine, Color.DarkOrange);
+                addLog("OBK config read is not supported on BL702." + Environment.NewLine, Color.DarkOrange);
                 worker = null;
                 clearUp();
                 setButtonStates(true);
