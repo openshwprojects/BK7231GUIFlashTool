@@ -19,6 +19,7 @@ namespace BK7231Flasher
         float flashSizeMB = 2;
         byte[] flashID;
         BLInfo blinfo = null;
+        int bl616ActiveFlashPin = BL616_FLASH_PIN_FROM_BOOTINFO;
 
         // BLDC/DevCube eflash-loader config uses tx_size=2056. In bflb_mcu_tool,
         // flash read/write payload slicing uses tx_size - 8, i.e. 2048 bytes.
@@ -660,24 +661,23 @@ namespace BK7231Flasher
 
         int getBL616FlashPinFromBootInfo()
         {
-            // Factory tool extracts flash pin config from bootinfo sw_usage_data
-            // (bootinfo bytes 8..11, little-endian), then takes bits [19:14].
-            if(blinfo?.remaining == null || blinfo.remaining.Length < 12)
+            // Factory tool extracts flash pin config from bootinfo sw_usage_data0
+            // (bootinfo bytes 4..7, little-endian), then takes bits [19:14].
+            if(blinfo?.remaining == null || blinfo.remaining.Length < 8)
             {
                 return BL616_FLASH_PIN_FROM_BOOTINFO;
             }
 
-            uint swUsageData = (uint)(blinfo.remaining[8]
-                | (blinfo.remaining[9] << 8)
-                | (blinfo.remaining[10] << 16)
-                | (blinfo.remaining[11] << 24));
+            uint swUsageData = (uint)(blinfo.remaining[4]
+                | (blinfo.remaining[5] << 8)
+                | (blinfo.remaining[6] << 16)
+                | (blinfo.remaining[7] << 24));
             int flashPin = (int)((swUsageData >> 14) & 0x3F);
             return flashPin;
         }
 
-        byte[] buildBL616FlashSetParaPayload()
+        byte[] buildBL616FlashSetParaPayload(int flashPin)
         {
-            int flashPin = getBL616FlashPinFromBootInfo();
             uint flashSet = (uint)(flashPin
                 | (BL616_FLASH_CLOCK_CFG << 8)
                 | (BL616_FLASH_IO_MODE << 16)
@@ -730,13 +730,14 @@ namespace BK7231Flasher
             return false;
         }
 
-        bool setBL616FlashParameters()
+        bool setBL616FlashParameters(int flashPin)
         {
-            byte[] flashSetPayload = buildBL616FlashSetParaPayload();
+            byte[] flashSetPayload = buildBL616FlashSetParaPayload(flashPin);
             for(int attempt = 1; attempt <= BL616_COMMAND_RETRY_COUNT; attempt++)
             {
                 if(executeCommand(0x3B, flashSetPayload, 0, flashSetPayload.Length, true, 2.0f) != null)
                 {
+                    bl616ActiveFlashPin = flashPin;
                     return true;
                 }
 
@@ -816,7 +817,7 @@ namespace BK7231Flasher
                 return false;
             }
 
-            if(!setBL616FlashParameters())
+            if(!setBL616FlashParameters(bl616ActiveFlashPin))
             {
                 addWarningLine($"{operation} recovery flash_set_para failed.");
                 return false;
@@ -883,7 +884,10 @@ namespace BK7231Flasher
                 {
                     return false;
                 }
-                if(!setBL616FlashParameters())
+
+                int bootInfoFlashPin = getBL616FlashPinFromBootInfo();
+                bl616ActiveFlashPin = bootInfoFlashPin;
+                if(!setBL616FlashParameters(bootInfoFlashPin))
                 {
                     return false;
                 }
@@ -891,12 +895,31 @@ namespace BK7231Flasher
                 flashID = readFlashID();
                 if(flashID == null)
                 {
-                    addWarningLine("Flash ID read failed, retrying BL616 flash parameter setup once...");
+                    addWarningLine("Flash ID read failed after bootinfo-derived flash_set_para.");
                     serial.DiscardInBuffer();
                     serial.DiscardOutBuffer();
-                    if(setBL616FlashParameters())
+
+                    // Some BL616/BL618 variants appear to expose bootinfo bits that do not
+                    // map to a working flash pin value for flash_set_para. Preserve the
+                    // legacy-safe 0x80 path as fallback when JEDEC read fails.
+                    if(bootInfoFlashPin != BL616_FLASH_PIN_FROM_BOOTINFO)
                     {
-                        flashID = readFlashID();
+                        addWarningLine($"Retrying BL616 flash parameter setup with fallback pin 0x{BL616_FLASH_PIN_FROM_BOOTINFO:X2}...");
+                        if(setBL616FlashParameters(BL616_FLASH_PIN_FROM_BOOTINFO))
+                        {
+                            flashID = readFlashID();
+                        }
+                    }
+
+                    if(flashID == null)
+                    {
+                        addWarningLine("Flash ID still unavailable, retrying with current flash_set_para once...");
+                        serial.DiscardInBuffer();
+                        serial.DiscardOutBuffer();
+                        if(setBL616FlashParameters(bl616ActiveFlashPin))
+                        {
+                            flashID = readFlashID();
+                        }
                     }
                 }
 
