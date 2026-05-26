@@ -79,7 +79,6 @@
     <Compile Include="Misc\BKFlashList.cs" />
     <Compile Include="Flashers\RTLZ2Flasher.cs" />
     <Compile Include="Flashers\BL602Flasher.cs" />
-    <Compile Include="Flashers\BL616Flasher.cs" />
     <Compile Include="Flashers\TR6260Flasher.cs" />
     <Compile Include="Utils\CH341DEV.cs" />
     <Compile Include="Helpers\Colors.cs" />

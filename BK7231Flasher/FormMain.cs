@@ -503,10 +503,8 @@ namespace BK7231Flasher
                     break;
                 case BKType.BL602:
                 case BKType.BL702:
-                    flasher = new BL602Flasher(cts.Token);
-                    break;
                 case BKType.BL616:
-                    flasher = new BL616Flasher(cts.Token);
+                    flasher = new BL602Flasher(cts.Token);
                     break;
                 case BKType.BekenSPI:
                     flasher = new SPIFlasher_Beken(cts.Token);
@@ -647,9 +645,12 @@ namespace BK7231Flasher
         {
             clearUp();
             createFlasher();
-            if(curType == BKType.BL616)
+            if(curType == BKType.BL616 || curType == BKType.BL702)
             {
-                addLog("OBK config write is not supported on BL616 yet." + Environment.NewLine, Color.DarkOrange);
+                addLog(
+                    $"OBK config write is not supported on {curType} yet. " +
+                    "Regular firmware write is still supported." + Environment.NewLine,
+                    Color.DarkOrange);
                 worker = null;
                 clearUp();
                 setButtonStates(true);
@@ -676,7 +677,7 @@ namespace BK7231Flasher
         }
         int getBackupSectorCountForCurrentPlatform()
         {
-            // BL616/BL618 flash size is detected at runtime by BL616Flasher.
+            // BL616/BL618 flash size is detected at runtime by BL602Flasher's BL616 path.
             // Returning 0 here lets BL616 paths auto-size read/write ranges from
             // the detected JEDEC capacity instead of the legacy 2MB global default.
             if(curType == BKType.BL616)
@@ -888,7 +889,7 @@ namespace BK7231Flasher
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
             if(curType == BKType.BL616)
             {
-                addLog("OBK config read is not supported on BL616 yet." + Environment.NewLine, Color.DarkOrange);
+                addLog("OBK config read is not supported on BL616/BL618 yet." + Environment.NewLine, Color.DarkOrange);
                 worker = null;
                 clearUp();
                 setButtonStates(true);
@@ -936,7 +937,7 @@ namespace BK7231Flasher
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
-            else if(curType == BKType.BL602 || curType == BKType.BL702)
+            else if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 // do it like that so that there would be no need for re-sync
                 ((BL602Flasher)flasher).doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
@@ -1485,7 +1486,7 @@ namespace BK7231Flasher
                 "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
-                "Full chip erase: BL602/BL702, ECR6600, TR6260, XR806, XR809, XR872, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
+                "Full chip erase: BL602/BL702/BL616(BL618), ECR6600, TR6260, XR806, XR809, XR872, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
                 "Erase not implemented: LN882H, LN8825B, W800, W600, ESP32 family." + _nl + _nl +
                 "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
                 "Continue?";

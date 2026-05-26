@@ -31,6 +31,18 @@ namespace BK7231Flasher
         const double BL702_SYNC_BURST_SECONDS = 0.003;
         const int BL_ROM_BOOT_BAUD = 500000;
         const int BL_EFLASH_STARTUP_DELAY_MS = 300;
+        const int BL616_CLK_SET_TIMEOUT_MS = 2000;
+        const int BL616_COMMAND_RETRY_COUNT = 3;
+        const int BL616_READ_RETRY_COUNT = 3;
+        const int BL616_WRITE_RETRY_COUNT = 10;
+        const int BL616_BOOTROM_UART_TIMEOUT_MS = 10000;
+        const uint BL616_BOOTROM_TIMEOUT_REGISTER = 0x6102DF04;
+        const uint BL616_BOOTROM_TIMEOUT_VALUE_A0 = 0x27101200;
+        const byte BL616_BOOT_INFO_A0_MARKER = 0x01;
+        const int BL616_FLASH_CLOCK_CFG = 0x41;
+        const int BL616_FLASH_IO_MODE = 0x01;
+        const int BL616_FLASH_CLOCK_DELAY = 0x00;
+        const byte BL616_FLASH_PIN_FROM_BOOTINFO = 0x80;
         const string BL602_EFLASH_LOADER_RESOURCE = "BL602Floader_40m";
         const string BL702_EFLASH_LOADER_RESOURCE = "BL702Floader_32m";
 
@@ -195,7 +207,34 @@ namespace BK7231Flasher
         }
         bool IsAck(byte[] rep, string ack)
         {
-            return rep != null && rep.Length == 2 && rep[0] == (byte)ack[0] && rep[1] == (byte)ack[1];
+            if(rep == null || rep.Length != 2 || string.IsNullOrEmpty(ack))
+            {
+                return false;
+            }
+
+            bool lenientAckAllowed = (blinfo?.Variant == BKType.BL616) || chipType == BKType.BL616;
+
+            // Bouffalo UART handler accepts partial OK/PD pairs when one byte survives.
+            // Keep this behaviour for BL616/BL618 high-baud robustness without changing
+            // BL602/BL702 strict ACK matching.
+            if(ack == "OK")
+            {
+                if(lenientAckAllowed)
+                {
+                    return rep[0] == 0x4F || rep[1] == 0x4F || rep[0] == 0x4B || rep[1] == 0x4B;
+                }
+                return rep[0] == (byte)'O' && rep[1] == (byte)'K';
+            }
+            if(ack == "PD")
+            {
+                if(lenientAckAllowed)
+                {
+                    return rep[0] == 0x50 || rep[1] == 0x50 || rep[0] == 0x44 || rep[1] == 0x44;
+                }
+                return rep[0] == (byte)'P' && rep[1] == (byte)'D';
+            }
+
+            return rep[0] == (byte)ack[0] && rep[1] == (byte)ack[1];
         }
 
         bool TryReadExact(int count, int timeoutMs, out byte[] data)
@@ -236,12 +275,9 @@ namespace BK7231Flasher
 
         int getInitialBootBaudrate()
         {
-            // BLDC/DevCube v1.9.0 uses speed_uart_boot=500000 for the BL602/BL702
-            // BootROM handshake and RAM eflash-loader upload phase when load_function=1.
-            // It does not send clk_set for this path; after the loader is jumped, the
-            // host reopens/switches to speed_uart_load and performs a fresh auto-baud
-            // handshake with the eflash loader.
-            if(chipType == BKType.BL602 || chipType == BKType.BL702)
+            // BLDC/DevCube v1.9.0 uses speed_uart_boot=500000 for BL602/BL702 loader
+            // flow (load_function=1) and BL616/BL618 bootrom flow (load_function=2).
+            if(chipType == BKType.BL602 || chipType == BKType.BL702 || chipType == BKType.BL616)
             {
                 return BL_ROM_BOOT_BAUD;
             }
@@ -276,6 +312,31 @@ namespace BK7231Flasher
             serial.DiscardOutBuffer();
         }
 
+        void configureSerialPortHostBuffers(SerialPort port)
+        {
+            if(port == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // Match BLDC's larger UART queue behaviour to reduce short-read
+                // events at higher transfer baud rates.
+                int queueSize = Math.Max(8192, BL_FLASH_TX_SIZE * 16);
+                port.ReadBufferSize = queueSize;
+                port.WriteBufferSize = queueSize;
+            }
+            catch(InvalidOperationException)
+            {
+                // Buffer sizing is best-effort and must happen before opening.
+            }
+            catch(Exception ex)
+            {
+                addWarningLine($"Unable to configure serial buffers: {ex.Message}");
+            }
+        }
+
         float getSerialTransferTimeoutSeconds(int wireBytes, float minSeconds)
         {
             int activeBaudrate = baudrate;
@@ -291,6 +352,12 @@ namespace BK7231Flasher
 
         bool tryAttachToExistingEflashLoader(int initialBootBaudrate)
         {
+            if(chipType == BKType.BL616)
+            {
+                // BL616/BL618 uses bootrom load_function=2 flow, not the RAM eflash-loader probe path.
+                return false;
+            }
+
             // If a previous operation has already jumped into the RAM eflash loader,
             // the ROM sync/get-info path can fail. Try the current baud first, then
             // the expected post-loader baud so same-session reuse still works after
@@ -329,33 +396,55 @@ namespace BK7231Flasher
             float timeout = 0.1f, int expectedReplyLen = 2,
             bool lengthPrefixedPayload = false)
         {
-            if (len < 0)
+            if(len < 0)
             {
                 len = parms.Length;
             }
-            byte chksum = 1;
-            if (bChecksum)
+
+            byte checksumOrDummy = 1;
+            if(bChecksum)
             {
-                chksum = 0;
-                chksum += (byte)(len & 0xFF);
-                chksum += (byte)(len >> 8);
-                for (int i = 0; i < len; i++)
+                checksumOrDummy = 0;
+                checksumOrDummy += (byte)(len & 0xFF);
+                checksumOrDummy += (byte)(len >> 8);
+                for(int i = 0; i < len; i++)
                 {
-                    chksum += parms[start + i];
+                    checksumOrDummy += parms[start + i];
                 }
-                chksum = (byte)(chksum & 0xFF);
+                checksumOrDummy = (byte)(checksumOrDummy & 0xFF);
             }
 
-            var raw = new byte[] { (byte)type, chksum, (byte)(len & 0xFF), (byte)(len >> 8) };
+            return executeCommandWithHeader(type, checksumOrDummy, parms, start, len, timeout, expectedReplyLen, lengthPrefixedPayload);
+        }
+
+        byte[] executeBootromCommand(int type, byte[] parms = null,
+            int start = 0, int len = 0,
+            float timeout = 0.1f, int expectedReplyLen = 2,
+            bool lengthPrefixedPayload = false)
+        {
+            if(len < 0)
+            {
+                len = parms.Length;
+            }
+
+            // BootROM command frame in BLDC img_loader:
+            // [cmd][dummy=0x00][len_l][len_h][payload...]
+            return executeCommandWithHeader(type, 0x00, parms, start, len, timeout, expectedReplyLen, lengthPrefixedPayload);
+        }
+
+        byte[] executeCommandWithHeader(int type, byte headerByte, byte[] parms,
+            int start, int len, float timeout, int expectedReplyLen, bool lengthPrefixedPayload)
+        {
+            var raw = new byte[] { (byte)type, headerByte, (byte)(len & 0xFF), (byte)(len >> 8) };
             serial.DiscardInBuffer();
             serial.DiscardOutBuffer();
             serial.Write(raw, 0, raw.Length);
-            if (parms != null && len > 0)
+            if(parms != null && len > 0)
             {
                 serial.Write(parms, start, len);
             }
 
-            if (expectedReplyLen == 0)
+            if(expectedReplyLen == 0)
             {
                 return Array.Empty<byte>();
             }
@@ -364,24 +453,24 @@ namespace BK7231Flasher
             Stopwatch sw = Stopwatch.StartNew();
             bool pendingLogged = false;
 
-            while (sw.ElapsedMilliseconds < timeoutMS)
+            while(sw.ElapsedMilliseconds < timeoutMS)
             {
                 int remainingMs = Math.Max(1, timeoutMS - (int)sw.ElapsedMilliseconds);
                 byte[] rep;
-                if (!TryReadExact(2, remainingMs, out rep))
+                if(!TryReadExact(2, remainingMs, out rep))
                 {
                     break;
                 }
 
-                if (IsAck(rep, "OK"))
+                if(IsAck(rep, "OK"))
                 {
-                    if (lengthPrefixedPayload)
+                    if(lengthPrefixedPayload)
                     {
                         byte[] lenBytes;
                         int repeatedOkCount = 0;
-                        while (true)
+                        while(true)
                         {
-                            if (!TryReadExact(2, timeoutMS, out lenBytes))
+                            if(!TryReadExact(2, timeoutMS, out lenBytes))
                             {
                                 addLogLine($"Command 0x{type:X2} timed out while reading length prefix; got {lenBytes.Length}/2 bytes");
                                 return null;
@@ -390,13 +479,13 @@ namespace BK7231Flasher
                             // Bouffalo's if_deal_response() consumes any extra OK pair before
                             // the 2-byte little-endian response length. Keep that behaviour so
                             // response parsing stays compatible with BLDC/bflb_iot_tool.
-                            if (!IsAck(lenBytes, "OK"))
+                            if(!IsAck(lenBytes, "OK"))
                             {
                                 break;
                             }
 
                             repeatedOkCount++;
-                            if (repeatedOkCount > 4)
+                            if(repeatedOkCount > 4)
                             {
                                 addLogLine($"Command 0x{type:X2} received repeated OK while waiting for length prefix");
                                 return null;
@@ -405,7 +494,7 @@ namespace BK7231Flasher
 
                         int payloadLen = lenBytes[0] | (lenBytes[1] << 8);
                         byte[] payload;
-                        if (!TryReadExact(payloadLen, timeoutMS, out payload))
+                        if(!TryReadExact(payloadLen, timeoutMS, out payload))
                         {
                             addLogLine($"Command 0x{type:X2} timed out while reading payload; got {payload.Length}/{payloadLen} bytes");
                             return null;
@@ -419,13 +508,13 @@ namespace BK7231Flasher
                     }
 
                     int payloadBytes = Math.Max(0, expectedReplyLen - 2);
-                    if (payloadBytes == 0)
+                    if(payloadBytes == 0)
                     {
                         return Array.Empty<byte>();
                     }
 
                     byte[] payloadFixed;
-                    if (!TryReadExact(payloadBytes, timeoutMS, out payloadFixed))
+                    if(!TryReadExact(payloadBytes, timeoutMS, out payloadFixed))
                     {
                         addLogLine($"Command 0x{type:X2} timed out while reading fixed payload; got {payloadFixed.Length}/{payloadBytes} bytes");
                         return null;
@@ -433,15 +522,15 @@ namespace BK7231Flasher
                     return payloadFixed;
                 }
 
-                if (IsAck(rep, "FL"))
+                if(IsAck(rep, "FL"))
                 {
                     addLogLine($"Command 0x{type:X2} failed!");
                     return null;
                 }
 
-                if (IsAck(rep, "PD"))
+                if(IsAck(rep, "PD"))
                 {
-                    if (!pendingLogged)
+                    if(!pendingLogged)
                     {
                         addLogLine($"Command 0x{type:X2} pending...");
                         pendingLogged = true;
@@ -454,7 +543,10 @@ namespace BK7231Flasher
                 return null;
             }
 
-            if (expectedReplyLen != 0) addLogLine($"Command 0x{type:X2} timed out!");
+            if(expectedReplyLen != 0)
+            {
+                addLogLine($"Command 0x{type:X2} timed out!");
+            }
             return null;
         }
         internal BLInfo getAndPrintInfo()
@@ -501,12 +593,33 @@ namespace BK7231Flasher
                     buffer[3] = (byte)((adr >> 24) & 0xFF);
                     Array.Copy(data, ofs, buffer, 4, chunk);
                     int bufferLen = chunk + 4;
-                    int errCnt = 0;
                     float writeTimeout = getSerialTransferTimeoutSeconds(bufferLen + 4, 5.0f);
-                    while(executeCommand(0x31, buffer, 0, bufferLen, true, writeTimeout) == null && errCnt < 10)
-                        errCnt++;
-                    if(errCnt >= 10)
+
+                    bool isBL616Flow = blinfo?.Variant == BKType.BL616;
+                    int maxRetries = isBL616Flow ? BL616_WRITE_RETRY_COUNT : 10;
+                    bool chunkWritten = false;
+                    for(int retry = 0; retry < maxRetries; retry++)
+                    {
+                        if(executeCommand(0x31, buffer, 0, bufferLen, true, writeTimeout) != null)
+                        {
+                            chunkWritten = true;
+                            break;
+                        }
+
+                        addWarningLine($"Write retry {retry + 1}/{maxRetries} at 0x{adr:X6}: no reply");
+                        serial.DiscardInBuffer();
+                        Thread.Sleep(50);
+
+                        if(isBL616Flow && retry + 1 < maxRetries && !tryRecoverTransferAfterTimeout("Write", adr))
+                        {
+                            break;
+                        }
+                    }
+
+                    if(!chunkWritten)
+                    {
                         throw new Exception("Write failed!");
+                    }
                     ofs += chunk;
                     adr += chunk;
                     logger.setProgress(ofs, len);
@@ -545,6 +658,173 @@ namespace BK7231Flasher
             }
         }
 
+        int getBL616FlashPinFromBootInfo()
+        {
+            // Factory tool extracts flash pin config from bootinfo sw_usage_data
+            // (bootinfo bytes 8..11, little-endian), then takes bits [19:14].
+            if(blinfo?.remaining == null || blinfo.remaining.Length < 12)
+            {
+                return BL616_FLASH_PIN_FROM_BOOTINFO;
+            }
+
+            uint swUsageData = (uint)(blinfo.remaining[8]
+                | (blinfo.remaining[9] << 8)
+                | (blinfo.remaining[10] << 16)
+                | (blinfo.remaining[11] << 24));
+            int flashPin = (int)((swUsageData >> 14) & 0x3F);
+            return flashPin;
+        }
+
+        byte[] buildBL616FlashSetParaPayload()
+        {
+            int flashPin = getBL616FlashPinFromBootInfo();
+            uint flashSet = (uint)(flashPin
+                | (BL616_FLASH_CLOCK_CFG << 8)
+                | (BL616_FLASH_IO_MODE << 16)
+                | (BL616_FLASH_CLOCK_DELAY << 24));
+
+            byte[] payload = BitConverter.GetBytes(flashSet);
+            addLogLine($"BL616 flash_set_para: pin=0x{flashPin:X2}, set=0x{flashSet:X8}");
+            return payload;
+        }
+
+        bool setBL616ClockAndBaud(int targetBaudrate)
+        {
+            // BLDC load_function=2 sends clk_set (0x22) in bootrom context, then
+            // reopens host UART at speed_uart_load without another sync.
+            if(targetBaudrate <= 0)
+            {
+                addErrorLine("BL616 target baudrate is invalid.");
+                return false;
+            }
+
+            byte[] clkSetPayload = new byte[8];
+            clkSetPayload[0] = 0x01; // irq_enable = true
+            clkSetPayload[4] = (byte)(targetBaudrate & 0xFF);
+            clkSetPayload[5] = (byte)((targetBaudrate >> 8) & 0xFF);
+            clkSetPayload[6] = (byte)((targetBaudrate >> 16) & 0xFF);
+            clkSetPayload[7] = (byte)((targetBaudrate >> 24) & 0xFF);
+
+            float clkSetTimeout = Math.Max(1.0f, BL616_CLK_SET_TIMEOUT_MS / 1000.0f);
+            for(int attempt = 1; attempt <= BL616_COMMAND_RETRY_COUNT; attempt++)
+            {
+                if(executeCommand(0x22, clkSetPayload, 0, clkSetPayload.Length, true, clkSetTimeout) != null)
+                {
+                    setSerialBaudrate(targetBaudrate, "BL616 operation");
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                    Thread.Sleep(30);
+                    return true;
+                }
+
+                if(attempt < BL616_COMMAND_RETRY_COUNT)
+                {
+                    addWarningLine($"BL616 clk_set retry {attempt}/{BL616_COMMAND_RETRY_COUNT - 1} for baud {targetBaudrate}...");
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                    Thread.Sleep(30);
+                }
+            }
+
+            addErrorLine($"BL616 clk_set (0x22) failed for baud {targetBaudrate}.");
+            return false;
+        }
+
+        bool setBL616FlashParameters()
+        {
+            byte[] flashSetPayload = buildBL616FlashSetParaPayload();
+            for(int attempt = 1; attempt <= BL616_COMMAND_RETRY_COUNT; attempt++)
+            {
+                if(executeCommand(0x3B, flashSetPayload, 0, flashSetPayload.Length, true, 2.0f) != null)
+                {
+                    return true;
+                }
+
+                if(attempt < BL616_COMMAND_RETRY_COUNT)
+                {
+                    addWarningLine($"BL616 flash_set_para retry {attempt}/{BL616_COMMAND_RETRY_COUNT - 1}...");
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                    Thread.Sleep(30);
+                }
+            }
+
+            addErrorLine("BL616 flash_set_para (0x3B) failed.");
+            return false;
+        }
+
+        bool setBL616BootromUartTimeout()
+        {
+            bool isA0StyleBootInfo = blinfo?.remaining != null
+                && blinfo.remaining.Length > 0
+                && blinfo.remaining[0] == BL616_BOOT_INFO_A0_MARKER;
+
+            byte[] payload;
+            int command;
+            string commandLabel;
+            if(isA0StyleBootInfo)
+            {
+                payload = new byte[8];
+                payload[0] = (byte)(BL616_BOOTROM_TIMEOUT_REGISTER & 0xFF);
+                payload[1] = (byte)((BL616_BOOTROM_TIMEOUT_REGISTER >> 8) & 0xFF);
+                payload[2] = (byte)((BL616_BOOTROM_TIMEOUT_REGISTER >> 16) & 0xFF);
+                payload[3] = (byte)((BL616_BOOTROM_TIMEOUT_REGISTER >> 24) & 0xFF);
+                payload[4] = (byte)(BL616_BOOTROM_TIMEOUT_VALUE_A0 & 0xFF);
+                payload[5] = (byte)((BL616_BOOTROM_TIMEOUT_VALUE_A0 >> 8) & 0xFF);
+                payload[6] = (byte)((BL616_BOOTROM_TIMEOUT_VALUE_A0 >> 16) & 0xFF);
+                payload[7] = (byte)((BL616_BOOTROM_TIMEOUT_VALUE_A0 >> 24) & 0xFF);
+                command = 0x50; // memory_write
+                commandLabel = "memory_write";
+            }
+            else
+            {
+                payload = BitConverter.GetBytes(BL616_BOOTROM_UART_TIMEOUT_MS);
+                command = 0x23; // set_timeout
+                commandLabel = "set_timeout";
+            }
+
+            for(int attempt = 1; attempt <= BL616_COMMAND_RETRY_COUNT; attempt++)
+            {
+                if(executeBootromCommand(command, payload, 0, payload.Length, 2.0f) != null)
+                {
+                    return true;
+                }
+
+                if(attempt < BL616_COMMAND_RETRY_COUNT)
+                {
+                    addWarningLine($"BL616 {commandLabel} retry {attempt}/{BL616_COMMAND_RETRY_COUNT - 1}...");
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                    Thread.Sleep(30);
+                }
+            }
+
+            addWarningLine($"BL616 {commandLabel} timeout setup failed; continuing with ROM default timeout.");
+            return false;
+        }
+
+        bool tryRecoverTransferAfterTimeout(string operation, int addr)
+        {
+            addWarningLine($"{operation} recovery at 0x{addr:X6}: re-syncing serial stream...");
+            serial.DiscardInBuffer();
+            serial.DiscardOutBuffer();
+            Thread.Sleep(30);
+
+            if(!internalSync())
+            {
+                addWarningLine($"{operation} recovery sync failed.");
+                return false;
+            }
+
+            if(!setBL616FlashParameters())
+            {
+                addWarningLine($"{operation} recovery flash_set_para failed.");
+                return false;
+            }
+
+            return true;
+        }
+
         bool doGenericSetup()
         {
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
@@ -554,6 +834,7 @@ namespace BK7231Flasher
             if(serial == null)
             {
                 serial = new SerialPort(serialName, initialBootBaudrate);
+                configureSerialPortHostBuffers(serial);
                 serial.Open();
             }
             else
@@ -586,17 +867,45 @@ namespace BK7231Flasher
                 addErrorLine("So, make sure that BOOT is connected, do reset (or power off/on) and try again");
                 return false;
             }
+            if(chipType == BKType.BL616 && blinfo?.Variant != BKType.BL616)
+            {
+                addErrorLine($"Selected chip type is {chipType}, but current chip type is {blinfo?.Variant}. BL616 flasher path will stop.");
+                return false;
+            }
             if(blinfo.Variant == BKType.BL616)
             {
-                executeCommand(0x3B, new byte[] { 0x80, 0x41, 0x01, 0x00 }, 0, 4, true, 2, 0);
-                // do it twice for bl616
-                flashID = readFlashID();
+                // BLDC load_function=2 path for BL616/BL618:
+                // set timeout -> clk_set -> flash_set_para -> read jedec id.
+                setBL616BootromUartTimeout();
+
+                int operationBaudrate = getEflashBaudrate(blinfo.Variant);
+                if(!setBL616ClockAndBaud(operationBaudrate))
+                {
+                    return false;
+                }
+                if(!setBL616FlashParameters())
+                {
+                    return false;
+                }
+
                 flashID = readFlashID();
                 if(flashID == null)
                 {
-                    addErrorLine("Failed to get BL616 flash id!");
+                    addWarningLine("Flash ID read failed, retrying BL616 flash parameter setup once...");
+                    serial.DiscardInBuffer();
+                    serial.DiscardOutBuffer();
+                    if(setBL616FlashParameters())
+                    {
+                        flashID = readFlashID();
+                    }
+                }
+
+                if(flashID == null)
+                {
+                    addErrorLine("Failed to get BL616 flash ID.");
                     return false;
                 }
+
                 return true;
             }
             else if(blinfo.Variant != chipType)
@@ -721,16 +1030,23 @@ namespace BK7231Flasher
                     byte[] result = null;
                     int dataLen = -1;
                     bool chunkOk = false;
-                    for(int retry = 0; retry < 3; retry++)
+                    bool isBL616Flow = blinfo?.Variant == BKType.BL616;
+                    int maxRetries = isBL616Flow ? BL616_READ_RETRY_COUNT : 3;
+                    for(int retry = 0; retry < maxRetries; retry++)
                     {
                         float readTimeout = getSerialTransferTimeoutSeconds(length + 8, 5.0f);
                         result = this.executeCommand(0x32, cmdBuffer, 0, cmdBuffer.Length, true, readTimeout, 2, true);
 
                         if(result == null)
                         {
-                            addWarningLine($"Read retry {retry + 1}/3 at 0x{addr:X6}: no reply");
+                            addWarningLine($"Read retry {retry + 1}/{maxRetries} at 0x{addr:X6}: no reply");
                             serial.DiscardInBuffer();
                             Thread.Sleep(50);
+
+                            if(isBL616Flow && retry + 1 < maxRetries && !tryRecoverTransferAfterTimeout("Read", addr))
+                            {
+                                break;
+                            }
                             continue;
                         }
 
@@ -741,9 +1057,13 @@ namespace BK7231Flasher
                             break;
                         }
 
-                        addWarningLine($"Read retry {retry + 1}/3 at 0x{addr:X6}: size mismatch, expected {length}, got {dataLen}");
+                        addWarningLine($"Read retry {retry + 1}/{maxRetries} at 0x{addr:X6}: size mismatch, expected {length}, got {dataLen}");
                         serial.DiscardInBuffer();
                         Thread.Sleep(50);
+                        if(isBL616Flow && retry + 1 < maxRetries && !tryRecoverTransferAfterTimeout("Read", addr))
+                        {
+                            break;
+                        }
                     }
 
                     if(!chunkOk)
@@ -890,6 +1210,100 @@ namespace BK7231Flasher
         {
         }
 
+        void doReadAndWriteBL616(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
+        {
+            if(rwMode == WriteMode.OnlyOBKConfig)
+            {
+                addErrorLine("OBK config write is not supported on BL616 yet.");
+                return;
+            }
+
+            if(rwMode == WriteMode.ReadAndWrite)
+            {
+                if(sectors <= 0)
+                {
+                    sectors = (int)(flashSizeMB * 256);
+                }
+                doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
+                if(ms == null)
+                {
+                    return;
+                }
+                if(saveReadResult(startSector) == false)
+                {
+                    return;
+                }
+            }
+
+            if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
+            {
+                if(string.IsNullOrEmpty(sourceFileName))
+                {
+                    addLogLine("No filename given!");
+                    return;
+                }
+                addLogLine("Reading " + sourceFileName + "...");
+                byte[] data = File.ReadAllBytes(sourceFileName);
+                if(data == null || data.Length == 0)
+                {
+                    addErrorLine("Selected file is empty.");
+                    return;
+                }
+
+                int writeOffset = Math.Max(0, startSector);
+                int detectedFlashBytes = (int)(flashSizeMB * 1024 * 1024);
+                if(detectedFlashBytes <= 0)
+                {
+                    detectedFlashBytes = BK7231Flasher.FLASH_SIZE;
+                }
+
+                long maxWritableFromOffset = (long)detectedFlashBytes - writeOffset;
+                if(maxWritableFromOffset <= 0)
+                {
+                    addErrorLine($"Write offset 0x{writeOffset:X} is outside detected flash size ({detectedFlashBytes} bytes).");
+                    return;
+                }
+                if(data.LongLength > maxWritableFromOffset)
+                {
+                    addErrorLine(
+                        $"Selected file size ({data.Length} bytes) does not fit at 0x{writeOffset:X}. " +
+                        $"Available from offset: {maxWritableFromOffset} bytes (detected flash size {detectedFlashBytes} bytes).");
+                    return;
+                }
+
+                if(sectors > 0)
+                {
+                    long requestedRange = (long)sectors * BK7231Flasher.SECTOR_SIZE;
+                    bool looksLikeLegacyFullFlashRange =
+                        writeOffset == 0 &&
+                        requestedRange == BK7231Flasher.FLASH_SIZE &&
+                        detectedFlashBytes > BK7231Flasher.FLASH_SIZE &&
+                        data.LongLength <= detectedFlashBytes;
+
+                    if(data.LongLength > requestedRange)
+                    {
+                        if(looksLikeLegacyFullFlashRange)
+                        {
+                            addWarningLine(
+                                $"Requested write range ({requestedRange} bytes) matches legacy default size. " +
+                                $"Using detected BL616 flash size ({detectedFlashBytes} bytes).");
+                        }
+                        else
+                        {
+                            addErrorLine($"Selected file size ({data.Length} bytes) exceeds write range ({requestedRange} bytes).");
+                            return;
+                        }
+                    }
+                }
+
+                addLogLine($"Writing {data.Length} bytes at 0x{writeOffset:X}...");
+                if(!writeFlash(data, writeOffset, data.Length))
+                {
+                    return;
+                }
+            }
+        }
+
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             try
@@ -899,6 +1313,11 @@ namespace BK7231Flasher
                     return;
                 }
                 OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
+                if(blinfo?.Variant == BKType.BL616)
+                {
+                    doReadAndWriteBL616(startSector, sectors, sourceFileName, rwMode);
+                    return;
+                }
                 if(rwMode == WriteMode.ReadAndWrite)
                 {
                     sectors = (int)(flashSizeMB * 256);
@@ -1012,7 +1431,7 @@ namespace BK7231Flasher
                 {
                     if(chipType != BKType.BL602)
                     {
-                        addErrorLine($"Config write is not supported on {chipType}");
+                        addErrorLine($"OBK config write is not supported on {chipType}. Regular firmware write is still supported.");
                         return;
                     }
                     if(cfg != null)
