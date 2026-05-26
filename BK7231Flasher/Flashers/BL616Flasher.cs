@@ -1071,13 +1071,48 @@ namespace BK7231Flasher
                     }
 
                     int writeOffset = Math.Max(0, startSector);
+                    int detectedFlashBytes = (int)(flashSizeMB * 1024 * 1024);
+                    if(detectedFlashBytes <= 0)
+                    {
+                        detectedFlashBytes = BK7231Flasher.FLASH_SIZE;
+                    }
+
+                    long maxWritableFromOffset = (long)detectedFlashBytes - writeOffset;
+                    if(maxWritableFromOffset <= 0)
+                    {
+                        addErrorLine($"Write offset 0x{writeOffset:X} is outside detected flash size ({detectedFlashBytes} bytes).");
+                        return;
+                    }
+                    if(data.LongLength > maxWritableFromOffset)
+                    {
+                        addErrorLine(
+                            $"Selected file size ({data.Length} bytes) does not fit at 0x{writeOffset:X}. " +
+                            $"Available from offset: {maxWritableFromOffset} bytes (detected flash size {detectedFlashBytes} bytes).");
+                        return;
+                    }
+
                     if(sectors > 0)
                     {
-                        int requestedRange = sectors * BK7231Flasher.SECTOR_SIZE;
-                        if(data.Length > requestedRange)
+                        long requestedRange = (long)sectors * BK7231Flasher.SECTOR_SIZE;
+                        bool looksLikeLegacyFullFlashRange =
+                            writeOffset == 0 &&
+                            requestedRange == BK7231Flasher.FLASH_SIZE &&
+                            detectedFlashBytes > BK7231Flasher.FLASH_SIZE &&
+                            data.LongLength <= detectedFlashBytes;
+
+                        if(data.LongLength > requestedRange)
                         {
-                            addErrorLine($"Selected file size ({data.Length} bytes) exceeds write range ({requestedRange} bytes).");
-                            return;
+                            if(looksLikeLegacyFullFlashRange)
+                            {
+                                addWarningLine(
+                                    $"Requested write range ({requestedRange} bytes) matches legacy default size. " +
+                                    $"Using detected BL616 flash size ({detectedFlashBytes} bytes).");
+                            }
+                            else
+                            {
+                                addErrorLine($"Selected file size ({data.Length} bytes) exceeds write range ({requestedRange} bytes).");
+                                return;
+                            }
                         }
                     }
 

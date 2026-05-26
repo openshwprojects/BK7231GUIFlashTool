@@ -676,6 +676,13 @@ namespace BK7231Flasher
         }
         int getBackupSectorCountForCurrentPlatform()
         {
+            // BL616/BL618 flash size is detected at runtime by BL616Flasher.
+            // Returning 0 here lets BL616 paths auto-size read/write ranges from
+            // the detected JEDEC capacity instead of the legacy 2MB global default.
+            if(curType == BKType.BL616)
+            {
+                return 0;
+            }
 #if false
             int sectors;
             sectors = (BK7231Flasher.FLASH_SIZE - getBackupStartSectorForCurrentPlatform()) / BK7231Flasher.SECTOR_SIZE;
