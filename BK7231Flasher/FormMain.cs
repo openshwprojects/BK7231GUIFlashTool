@@ -645,7 +645,7 @@ namespace BK7231Flasher
         {
             clearUp();
             createFlasher();
-            if(curType == BKType.BL616 || curType == BKType.BL702)
+            if(curType == BKType.BL702)
             {
                 addLog(
                     $"OBK config write is not supported on {curType} yet. " +
@@ -887,25 +887,18 @@ namespace BK7231Flasher
             createFlasher();
             // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
-            if(curType == BKType.BL616)
+            if(curType == BKType.BL702)
             {
-                addLog("OBK config read is not supported on BL616/BL618 yet." + Environment.NewLine, Color.DarkOrange);
+                addLog("OBK config read is not supported on BL702 yet." + Environment.NewLine, Color.DarkOrange);
                 worker = null;
                 clearUp();
                 setButtonStates(true);
                 return;
             }
-            if(curType == BKType.BL602 || curType == BKType.BL702)
+            if(curType == BKType.BL602 || curType == BKType.BL616)
             {
                 addLog("Reading partitions..." + Environment.NewLine, Color.Black);
-                if(curType == BKType.BL702)
-                {
-                    flasher.doRead(0x1000, 1);
-                }
-                else
-                {
-                    flasher.doRead(0xE000, 1);
-                }
+                flasher.doRead(0xE000, 1);
                 
                 var ptdata = flasher.getReadResult();
                 try
@@ -937,7 +930,7 @@ namespace BK7231Flasher
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
-            else if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
+            else if(curType == BKType.BL602 || curType == BKType.BL616)
             {
                 // do it like that so that there would be no need for re-sync
                 ((BL602Flasher)flasher).doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);

@@ -1235,12 +1235,6 @@ namespace BK7231Flasher
 
         void doReadAndWriteBL616(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-            if(rwMode == WriteMode.OnlyOBKConfig)
-            {
-                addErrorLine("OBK config write is not supported on BL616 yet.");
-                return;
-            }
-
             if(rwMode == WriteMode.ReadAndWrite)
             {
                 if(sectors <= 0)
@@ -1336,7 +1330,7 @@ namespace BK7231Flasher
                     return;
                 }
                 OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
-                if(blinfo?.Variant == BKType.BL616)
+                if(blinfo?.Variant == BKType.BL616 && rwMode != WriteMode.OnlyOBKConfig)
                 {
                     doReadAndWriteBL616(startSector, sectors, sourceFileName, rwMode);
                     return;
@@ -1452,7 +1446,7 @@ namespace BK7231Flasher
                 }
                 if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null)
                 {
-                    if(chipType != BKType.BL602)
+                    if(chipType != BKType.BL602 && chipType != BKType.BL616)
                     {
                         addErrorLine($"OBK config write is not supported on {chipType}. Regular firmware write is still supported.");
                         return;
