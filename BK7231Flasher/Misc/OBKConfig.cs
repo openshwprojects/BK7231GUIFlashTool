@@ -96,17 +96,8 @@ namespace BK7231Flasher
             }
             if(bApplyOffset)
             {
-                if(type == BKType.BL616)
-                {
-                    // BL616/BL618 config location can vary with partition table layout.
-                    // Use whole dump and let EasyFlash locate the key.
-                    subArray = dat;
-                }
-                else
-                {
-                    int offset = OBKFlashLayout.getConfigLocation(type, out var sectors);
-                    subArray = MiscUtils.subArray(dat, offset, sectors * BK7231Flasher.SECTOR_SIZE);
-                }
+                int offset = OBKFlashLayout.getConfigLocation(type, out var sectors);
+                subArray = MiscUtils.subArray(dat, offset, sectors * BK7231Flasher.SECTOR_SIZE);
             }
             else
             {

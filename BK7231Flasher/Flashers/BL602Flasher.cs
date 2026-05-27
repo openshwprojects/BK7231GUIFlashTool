@@ -868,9 +868,9 @@ namespace BK7231Flasher
                 addErrorLine("So, make sure that BOOT is connected, do reset (or power off/on) and try again");
                 return false;
             }
-            if(chipType == BKType.BL616 && blinfo?.Variant != BKType.BL616)
+            if(blinfo?.Variant != chipType)
             {
-                addErrorLine($"Selected chip type is {chipType}, but current chip type is {blinfo?.Variant}. BL616 flasher path will stop.");
+                addErrorLine($"Selected chip type is {chipType}, but current chip type is {blinfo?.Variant}. Aborted.");
                 return false;
             }
             if(blinfo.Variant == BKType.BL616)
@@ -930,10 +930,6 @@ namespace BK7231Flasher
                 }
 
                 return true;
-            }
-            else if(blinfo.Variant != chipType)
-            {
-                addErrorLine($"Selected chip type is {chipType}, but current chip type is {blinfo.Variant}! Will continue anyway...");
             }
             this.loadAndRunPreprocessedImage();
             Thread.Sleep(BL_EFLASH_STARTUP_DELAY_MS);
@@ -1233,71 +1229,6 @@ namespace BK7231Flasher
         {
         }
 
-        bool writeBL616ImageWithRangeValidation(int startSector, int sectors, string sourceFileName)
-        {
-            if(string.IsNullOrEmpty(sourceFileName))
-            {
-                addLogLine("No filename given!");
-                return false;
-            }
-            addLogLine("Reading " + sourceFileName + "...");
-            byte[] data = File.ReadAllBytes(sourceFileName);
-            if(data == null || data.Length == 0)
-            {
-                addErrorLine("Selected file is empty.");
-                return false;
-            }
-
-            int writeOffset = Math.Max(0, startSector);
-            int detectedFlashBytes = (int)(flashSizeMB * 1024 * 1024);
-            if(detectedFlashBytes <= 0)
-            {
-                detectedFlashBytes = BK7231Flasher.FLASH_SIZE;
-            }
-
-            long maxWritableFromOffset = (long)detectedFlashBytes - writeOffset;
-            if(maxWritableFromOffset <= 0)
-            {
-                addErrorLine($"Write offset 0x{writeOffset:X} is outside detected flash size ({detectedFlashBytes} bytes).");
-                return false;
-            }
-            if(data.LongLength > maxWritableFromOffset)
-            {
-                addErrorLine(
-                    $"Selected file size ({data.Length} bytes) does not fit at 0x{writeOffset:X}. " +
-                    $"Available from offset: {maxWritableFromOffset} bytes (detected flash size {detectedFlashBytes} bytes).");
-                return false;
-            }
-
-            if(sectors > 0)
-            {
-                long requestedRange = (long)sectors * BK7231Flasher.SECTOR_SIZE;
-                bool looksLikeLegacyFullFlashRange =
-                    writeOffset == 0 &&
-                    requestedRange == BK7231Flasher.FLASH_SIZE &&
-                    detectedFlashBytes > BK7231Flasher.FLASH_SIZE &&
-                    data.LongLength <= detectedFlashBytes;
-
-                if(data.LongLength > requestedRange)
-                {
-                    if(looksLikeLegacyFullFlashRange)
-                    {
-                        addWarningLine(
-                            $"Requested write range ({requestedRange} bytes) matches legacy default size. " +
-                            $"Using detected BL616 flash size ({detectedFlashBytes} bytes).");
-                    }
-                    else
-                    {
-                        addErrorLine($"Selected file size ({data.Length} bytes) exceeds write range ({requestedRange} bytes).");
-                        return false;
-                    }
-                }
-            }
-
-            addLogLine($"Writing {data.Length} bytes at 0x{writeOffset:X}...");
-            return writeFlash(data, writeOffset, data.Length);
-        }
-
         public override void doReadAndWrite(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             try
@@ -1310,17 +1241,7 @@ namespace BK7231Flasher
                 OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
                 if(rwMode == WriteMode.ReadAndWrite)
                 {
-                    if(isBL616Flow)
-                    {
-                        if(sectors <= 0)
-                        {
-                            sectors = (int)(flashSizeMB * 256);
-                        }
-                    }
-                    else
-                    {
-                        sectors = (int)(flashSizeMB * 256);
-                    }
+                    sectors = (int)(flashSizeMB * 256);
                     doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
                     if(ms == null)
                     {
@@ -1333,105 +1254,117 @@ namespace BK7231Flasher
                 }
                 if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
                 {
-                    if(isBL616Flow)
+                    if(string.IsNullOrEmpty(sourceFileName))
                     {
-                        if(!writeBL616ImageWithRangeValidation(startSector, sectors, sourceFileName))
-                            return;
+                        addLogLine("No filename given!");
+                        return;
+                    }
+                    addLogLine("Reading " + sourceFileName + "...");
+                    byte[] data = File.ReadAllBytes(sourceFileName);
+                    List<PartitionEntry> partitions;
+                    switch(flashSizeMB)
+                    {
+                        case 0.5f:
+                            if(chipType == BKType.BL602)
+                                throw new Exception("Flash is too small!");
+                            partitions = Partitions_512K_BL702;
+                            break;
+                        case 1f:
+                            if(chipType == BKType.BL702)
+                                partitions = Partitions_1MB_BL702;
+                            else
+                                partitions = Partitions_1MB;
+                            break;
+                        case 2f:
+                            if(chipType == BKType.BL702)
+                                partitions = Partitions_2MB_BL702;
+                            else
+                                partitions = Partitions_2MB;
+                            break;
+                        default:
+                            partitions = Partitions_4MB;
+                            if(chipType == BKType.BL702)
+                                partitions.First(x => x.Name == "FW").Address0 = 0x3000;
+                            else if(chipType == BKType.BL616)
+                                partitions = Partitions_4MB_BL616;
+                                break;
+                    }
+                    if((data[0] == 0x42 && data[1] == 0x46 && data[2] == 0x4e && data[3] == 0x50)
+                        && (chipType != BKType.BL616 || data.Length % 0x100000 == 0))
+                    {
+                        writeFlash(data, 0);
+                    }
+                    else if(data.Length > partitions.First(x => x.Name == "FW").Length0)
+                    {
+                        throw new Exception("The size of the selected file exceeds the length of the partition!");
                     }
                     else
                     {
-                        if(string.IsNullOrEmpty(sourceFileName))
+                        uint flash = (uint)(flashID[2] << 16 | flashID[3] << 8 | flashID[4]);
+                        BL602FlashList.FlashConfig flashConfig;
+                        try
                         {
-                            addLogLine("No filename given!");
-                            return;
+                            flashConfig = BL602FlashList.FlashDict.First(x => x.Key == flash).Value;
                         }
-                        addLogLine("Reading " + sourceFileName + "...");
-                        byte[] data = File.ReadAllBytes(sourceFileName);
-                        List<PartitionEntry> partitions;
-                        switch(flashSizeMB)
+                        catch
                         {
-                            case 0.5f:
-                                if(chipType == BKType.BL602)
-                                    throw new Exception("Flash is too small!");
-                                partitions = Partitions_512K_BL702;
-                                break;
-                            case 1f:
-                                if(chipType == BKType.BL702)
-                                    partitions = Partitions_1MB_BL702;
-                                else
-                                    partitions = Partitions_1MB;
-                                break;
-                            case 2f:
-                                if(chipType == BKType.BL702)
-                                    partitions = Partitions_2MB_BL702;
-                                else
-                                    partitions = Partitions_2MB;
-                                break;
-                            default:
-                                partitions = Partitions_4MB;
-                                if(chipType == BKType.BL702)
-                                    partitions.First(x => x.Name == "FW").Address0 = 0x3000;
-                                break;
+                            addErrorLine($"There is no flash config for flash with id: 0x{flash:X}. Will use for 0xEF4015. This might result in unknown behvaiour.");
+                            flashConfig = BL602FlashList.FlashDict.First(x => x.Key == 0xEF4015).Value;
                         }
-                        if(data[0] == 0x42 && data[1] == 0x46 && data[2] == 0x4e && data[3] == 0x50)
+                        //if(chipType != BKType.BL602 && chipType != BKType.BL702)
+                        //{
+                        //    addErrorLine($"Firmware write is not supported on {chipType}.");
+                        //    return;
+                        //}
+                        byte[] wd = null;
+                        if(chipType != BKType.BL616)
                         {
-                            writeFlash(data, 0);
+                            var apphdr = CreateBootHeader(flashConfig, data, chipType);
+                            if(chipType == BKType.BL602)
+                                data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
+                            wd = MiscUtils.padArray(apphdr, BK7231Flasher.SECTOR_SIZE);
+                            data = wd.Concat(data).ToArray();
                         }
-                        else if(data.Length > partitions.First(x => x.Name == "FW").Length0)
+                        addLogLine("Writing...");
+                        if(chipType == BKType.BL702)
                         {
-                            throw new Exception("The size of the selected file exceeds the length of the partition!");
+                            var bpartitions = PT_Build(partitions);
+                            var fdata = wd.Concat(bpartitions).Concat(data).ToArray();
+                            if(!writeFlash(fdata, 0x0))
+                                return;
+                        }
+                        else if(chipType == BKType.BL616)
+                        {
+                            var boot = FLoaders.GetBinaryFromAssembly("BL616_Boot");
+                            var bpartitions = PT_Build(partitions);
+                            boot = MiscUtils.padArray(boot, 0xE000);
+                            boot = boot.Concat(bpartitions).ToArray();
+                            var fdata = boot.Concat(data).ToArray();
+                            if(!writeFlash(fdata, 0x0))
+                                return;
                         }
                         else
                         {
-                            uint flash = (uint)(flashID[2] << 16 | flashID[3] << 8 | flashID[4]);
-                            BL602FlashList.FlashConfig flashConfig;
-                            try
-                            {
-                                flashConfig = BL602FlashList.FlashDict.First(x => x.Key == flash).Value;
-                            }
-                            catch
-                            {
-                                addErrorLine($"There is no flash config for flash with id: 0x{flash:X}. Will use for 0xEF4015. This might result in unknown behvaiour.");
-                                flashConfig = BL602FlashList.FlashDict.First(x => x.Key == 0xEF4015).Value;
-                            }
-                            if(chipType != BKType.BL602 && chipType != BKType.BL702)
-                            {
-                                addErrorLine($"Firmware write is not supported on {chipType}.");
+                            var boot = FLoaders.GetBinaryFromAssembly("BL602_Boot");
+                            var boothdr = CreateBootHeader(flashConfig, boot, chipType);
+                            boothdr = MiscUtils.padArray(boothdr, BK7231Flasher.SECTOR_SIZE);
+                            boot = boothdr.Concat(boot).ToArray();
+                            var bpartitions = PT_Build(partitions);
+                            boot = MiscUtils.padArray(boot, 0xE000);
+                            boot = boot.Concat(bpartitions).ToArray();
+                            var fdata = boot.Concat(data).ToArray();
+                            if(!writeFlash(fdata, 0x0))
                                 return;
-                            }
-                            var apphdr = CreateBootHeader(flashConfig, data, chipType);
-                            if(chipType == BKType.BL602) data = data.Concat(new byte[] { 0, 0, 0, 0 }).ToArray();
-                            byte[] wd = MiscUtils.padArray(apphdr, BK7231Flasher.SECTOR_SIZE);
-                            data = wd.Concat(data).ToArray();
-                            addLogLine("Writing...");
-                            if(chipType == BKType.BL702)
-                            {
-                                var bpartitions = PT_Build(partitions);
-                                var fdata = wd.Concat(bpartitions).Concat(data).ToArray();
-                                if(!writeFlash(fdata, 0x0))
-                                    return;
-                            }
-                            else
-                            {
-                                var boot = FLoaders.GetBinaryFromAssembly("BL602_Boot");
-                                var boothdr = CreateBootHeader(flashConfig, boot, chipType);
-                                boothdr = MiscUtils.padArray(boothdr, BK7231Flasher.SECTOR_SIZE);
-                                boot = boothdr.Concat(boot).ToArray();
-                                var bpartitions = PT_Build(partitions);
-                                boot = MiscUtils.padArray(boot, 0xE000);
-                                boot = boot.Concat(bpartitions).ToArray();
-                                var fdata = boot.Concat(data).ToArray();
-                                if(!writeFlash(fdata, 0x0))
-                                    return;
-                            }
+                        }
 
-                            if(chipType == BKType.BL602/*bOverwriteBootloader*/)
-                            {
-                                addLogLine("Writing dts...");
-                                byte[] dts = FLoaders.GetBinaryFromAssembly("BL602_Dts");
-                                if(!writeFlash(dts, (int)partitions.First(x => x.Name == "factory").Address0))
-                                    return;
-                            }
+                        if(chipType == BKType.BL602 || chipType == BKType.BL616/*bOverwriteBootloader*/)
+                        {
+                            addLogLine("Writing dts...");
+                            byte[] dts = chipType == BKType.BL616
+                                ? FLoaders.GetBinaryFromAssembly("BL616_Dts")
+                                : FLoaders.GetBinaryFromAssembly("BL602_Dts");
+                            if(!writeFlash(dts, (int)partitions.First(x => x.Name == "factory").Address0))
+                                return;
                         }
                     }
                 }
