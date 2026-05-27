@@ -340,14 +340,7 @@ namespace BK7231Flasher
             int startSector;
             int sectors;
 
-            if (chipType == BKType.BL616)
-            {
-                // BL616/BL618 capacity is detected at runtime by BL602Flasher's BL616 path.
-                // Passing sectors=0 enables full-range auto sizing from detected JEDEC flash size.
-                startSector = 0x0;
-                sectors = 0;
-            }
-            else if (chipType == BKType.BK7252)
+            if (chipType == BKType.BK7252)
             {
                 startSector = 0x11000;
                 sectors = (BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE) - (startSector / BK7231Flasher.SECTOR_SIZE);
@@ -397,16 +390,7 @@ namespace BK7231Flasher
                     startSector = 0;
                     break;
             }
-            if (chipType == BKType.BL616)
-            {
-                // BL616/BL618 capacity is detected at runtime by BL602Flasher's BL616 path.
-                // Passing sectors=0 enables full-range auto sizing from detected JEDEC flash size.
-                sectors = 0;
-            }
-            else
-            {
-                sectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
-            }
+            sectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
 
             flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
 
