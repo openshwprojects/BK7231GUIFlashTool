@@ -135,29 +135,13 @@ namespace BK7231Flasher
 			return false;
 		}
 
-
 		private bool InitialSync()
 		{
 			w800SoftwareBootloaderEntryUsed = false;
-
 			if(chipType != BKType.W800)
 				return Sync();
 
 			return SyncW800DownloadMode();
-		}
-
-		private bool PrepareSession()
-		{
-			if(!InitialSync())
-				return false;
-
-			if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)
-			{
-				addLogLine("W800 entered via software bootloader sequence; uploading RAM stub before ROM information probes.");
-				return UploadStub();
-			}
-
-			return ReadFlashId() != null && UploadStub();
 		}
 
 		private bool SyncW800DownloadMode()
@@ -175,8 +159,8 @@ namespace BK7231Flasher
 					return true;
 
 				addLogLine("W800 sync timeout, sending AT+Z/ESC bootloader entry sequence...");
-				w800SoftwareBootloaderEntryUsed = true;
 
+				w800SoftwareBootloaderEntryUsed = true;
 				serial.RtsEnable = true;
 				Thread.Sleep(50);
 				byte[] atz = new byte[] { (byte)'A', (byte)'T', (byte)'+', (byte)'Z', 0x0D, 0x0A };
@@ -191,7 +175,11 @@ namespace BK7231Flasher
 				{
 					serial.Write(escBurst, 0, escBurst.Length);
 					if(ReadW800SyncPromptByte(ref count, true))
+					{
+						serial.DiscardOutBuffer();
+						serial.DiscardInBuffer();
 						return true;
+					}
 					Thread.Sleep(10);
 				}
 
@@ -249,14 +237,29 @@ namespace BK7231Flasher
 			return false;
 		}
 
-		private bool UploadStub()
+		private bool UploadStub(bool waitForPostUploadSync = true, bool use128ByteXmodem = false)
 		{
 			if(chipType == BKType.W600) return true;
 			var stub = FLoaders.GetBinaryFromAssembly("W800_Stub");
+			var modem = xm;
+			if(use128ByteXmodem)
+			{
+				modem = new XMODEM(serial, XMODEM.Variants.XModemCRC, 0xFF)
+				{
+					SendInactivityTimeoutMillisec = 5000,
+					MaxSenderRetries = 5
+				};
+			}
 			addLogLine($"Sending stub...");
-			if(xm.Send(stub) == stub.Length)
+			if(modem.Send(stub) == stub.Length)
 			{
 				addLogLine($"Stub uploaded!");
+				if(!waitForPostUploadSync)
+				{
+					serial.DiscardOutBuffer();
+					serial.DiscardInBuffer();
+					return true;
+				}
 				return Sync();
 			}
 			return false;
@@ -424,21 +427,36 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(PrepareSession())
+			if(InitialSync())
 			{
 				try
 				{
-					SetBaud(baudrate);
-					if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed && fullRead)
-						addLogLine($"Flash size was not probed before RAM stub upload; using {flashSizeMB}MB for full read.");
-					if(fullRead)
+					if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)
 					{
-						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+						addLogLine("W800 entered via software bootloader sequence; using direct RAM-stub read flow at 115200.");
+						if(!UploadStub(false, true))
+							return;
+						if(fullRead)
+						{
+							addLogLine($"Flash size was not probed before RAM stub upload; using {flashSizeMB}MB for full read.");
+							sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+						}
+						ms = ReadInternal(startSector | 0x08000000, sectors);
+						if(ms == null)
+							return;
 					}
-					ms = ReadInternal(startSector | 0x08000000, sectors);
-					if(ms == null)
+					else if(ReadFlashId() != null && UploadStub())
 					{
-						return;
+						SetBaud(baudrate);
+						if(fullRead)
+						{
+							sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
+						}
+						ms = ReadInternal(startSector | 0x08000000, sectors);
+						if(ms == null)
+						{
+							return;
+						}
 					}
 				}
 				catch(Exception ex)
@@ -447,7 +465,7 @@ namespace BK7231Flasher
 				}
 				finally
 				{
-					if(!isCancelled) SetBaud(115200, true);
+					if(!isCancelled && !(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)) SetBaud(115200, true);
 				}
 			}
 			return;
@@ -518,7 +536,7 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(PrepareSession())
+			if(InitialSync() && ReadFlashId() != null && UploadStub())
 			{
 				try
 				{
@@ -527,8 +545,6 @@ namespace BK7231Flasher
 					OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 					if(rwMode == WriteMode.ReadAndWrite)
 					{
-						if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)
-							addLogLine($"Flash size was not probed before RAM stub upload; using {flashSizeMB}MB for read-before-write.");
 						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
 						addLogLine($"Flash size detected: {sectors / 256}MB");
 						ms = ReadInternal(startSector | 0x08000000, sectors);
