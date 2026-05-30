@@ -15,7 +15,6 @@ namespace BK7231Flasher
 		MemoryStream ms;
 		int flashSizeMB = 2;
 		byte[] flashID;
-		bool w800SoftwareBootloaderEntryUsed;
 
 		public WMFlasher(CancellationToken ct) : base(ct)
 		{
@@ -29,6 +28,10 @@ namespace BK7231Flasher
 			try
 			{
 				serial = new SerialPort(serialName, 115200);
+				if(chipType == BKType.W800)
+				{
+					serial.ReadBufferSize = 65536;
+				}
 				serial.Open();
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
@@ -137,7 +140,6 @@ namespace BK7231Flasher
 
 		private bool InitialSync()
 		{
-			w800SoftwareBootloaderEntryUsed = false;
 			if(chipType != BKType.W800)
 				return Sync();
 
@@ -160,7 +162,6 @@ namespace BK7231Flasher
 
 				addLogLine("W800 sync timeout, sending AT+Z/ESC bootloader entry sequence...");
 
-				w800SoftwareBootloaderEntryUsed = true;
 				serial.RtsEnable = true;
 				Thread.Sleep(50);
 				byte[] atz = new byte[] { (byte)'A', (byte)'T', (byte)'+', (byte)'Z', 0x0D, 0x0A };
@@ -237,29 +238,14 @@ namespace BK7231Flasher
 			return false;
 		}
 
-		private bool UploadStub(bool waitForPostUploadSync = true, bool use128ByteXmodem = false)
+		private bool UploadStub()
 		{
 			if(chipType == BKType.W600) return true;
 			var stub = FLoaders.GetBinaryFromAssembly("W800_Stub");
-			var modem = xm;
-			if(use128ByteXmodem)
-			{
-				modem = new XMODEM(serial, XMODEM.Variants.XModemCRC, 0xFF)
-				{
-					SendInactivityTimeoutMillisec = 5000,
-					MaxSenderRetries = 5
-				};
-			}
 			addLogLine($"Sending stub...");
-			if(modem.Send(stub) == stub.Length)
+			if(xm.Send(stub) == stub.Length)
 			{
 				addLogLine($"Stub uploaded!");
-				if(!waitForPostUploadSync)
-				{
-					serial.DiscardOutBuffer();
-					serial.DiscardInBuffer();
-					return true;
-				}
 				return Sync();
 			}
 			return false;
@@ -301,6 +287,9 @@ namespace BK7231Flasher
 				serial.BaudRate = br;
 			}
 			int timeoutMS = (int)(timeout * 1000);
+			if(expectedReplyLen > 1024)
+				return ReadLargeCommandResponse(type, expectedReplyLen, timeoutMS, isErrorExpected);
+
 			Stopwatch sw = Stopwatch.StartNew();
 			while(sw.ElapsedMilliseconds < timeoutMS)
 			{
@@ -323,6 +312,51 @@ namespace BK7231Flasher
 			}
 			var ret = new byte[expectedReplyLen];
 			Array.Copy(bytes, 0, ret, 0, expectedReplyLen);
+			return ret;
+		}
+
+		private byte[] ReadLargeCommandResponse(int type, int expectedReplyLen, int timeoutMS, bool isErrorExpected)
+		{
+			var ret = new byte[expectedReplyLen];
+			int offset = 0;
+			Stopwatch sw = Stopwatch.StartNew();
+			while(sw.ElapsedMilliseconds < timeoutMS && offset < expectedReplyLen && !isCancelled)
+			{
+				int available = serial.BytesToRead;
+				if(available > 0)
+				{
+					int wanted = Math.Min(available, expectedReplyLen - offset);
+					offset += serial.Read(ret, offset, wanted);
+					continue;
+				}
+				Thread.Sleep(1);
+			}
+
+			if(offset == 0)
+			{
+				if(!isErrorExpected)
+					addErrorLine("Command response is empty!");
+				else if(type == 0x4a)
+					addWarningLine($"Command 0x4A response is empty at {serial.BaudRate} baud.");
+				return null;
+			}
+
+			if(offset < expectedReplyLen)
+			{
+				if(!isErrorExpected)
+					addErrorLine($"Command reply length {offset} < expected {expectedReplyLen}");
+				else if(type == 0x4a)
+				{
+					int previewLen = Math.Min(offset, 32);
+					var preview = new byte[previewLen];
+					Array.Copy(ret, preview, previewLen);
+					addWarningLine($"Command 0x4A short streamed reply {offset}/{expectedReplyLen} at {serial.BaudRate} baud: {BitConverter.ToString(preview)}{(offset > previewLen ? " ..." : string.Empty)}");
+				}
+				return null;
+			}
+
+			if(serial.BytesToRead > 0)
+				serial.DiscardInBuffer();
 			return ret;
 		}
 
@@ -427,36 +461,19 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(InitialSync())
+			if(InitialSync() && ReadFlashId() != null && UploadStub())
 			{
 				try
 				{
-					if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)
+					SetBaud(baudrate);
+					if(fullRead)
 					{
-						addLogLine("W800 entered via software bootloader sequence; using direct RAM-stub read flow at 115200.");
-						if(!UploadStub(false, true))
-							return;
-						if(fullRead)
-						{
-							addLogLine($"Flash size was not probed before RAM stub upload; using {flashSizeMB}MB for full read.");
-							sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
-						}
-						ms = ReadInternal(startSector | 0x08000000, sectors);
-						if(ms == null)
-							return;
+						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
 					}
-					else if(ReadFlashId() != null && UploadStub())
+					ms = ReadInternal(startSector | 0x08000000, sectors);
+					if(ms == null)
 					{
-						SetBaud(baudrate);
-						if(fullRead)
-						{
-							sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
-						}
-						ms = ReadInternal(startSector | 0x08000000, sectors);
-						if(ms == null)
-						{
-							return;
-						}
+						return;
 					}
 				}
 				catch(Exception ex)
@@ -465,7 +482,7 @@ namespace BK7231Flasher
 				}
 				finally
 				{
-					if(!isCancelled && !(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)) SetBaud(115200, true);
+					if(!isCancelled) SetBaud(115200, true);
 				}
 			}
 			return;
