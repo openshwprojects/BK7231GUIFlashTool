@@ -28,6 +28,11 @@ namespace BK7231Flasher
 			try
 			{
 				serial = new SerialPort(serialName, 115200);
+				if(chipType == BKType.W800)
+				{
+					serial.RtsEnable = false;
+					serial.DtrEnable = false;
+				}
 				serial.Open();
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
@@ -90,6 +95,11 @@ namespace BK7231Flasher
 
 		public bool Sync()
 		{
+			if(chipType == BKType.W800)
+			{
+				return SyncW800DownloadMode();
+			}
+
 			serial.DiscardInBuffer();
 			var count = 0;
 			try
@@ -132,6 +142,105 @@ namespace BK7231Flasher
 			}
 			catch(Exception ex) { addErrorLine(ex.Message); }
 			return false;
+		}
+
+		private bool SyncW800DownloadMode()
+		{
+			int oldReadTimeout = serial.ReadTimeout;
+			ManualResetEvent stopEscThread = null;
+			Thread escThread = null;
+			var count = 0;
+			try
+			{
+				serial.ReadTimeout = 100;
+				Stopwatch passiveWait = Stopwatch.StartNew();
+				while(passiveWait.ElapsedMilliseconds < 500)
+				{
+					if(ReadSyncC(ref count))
+						return true;
+				}
+
+				addLogLine("W800 sync timeout, sending AT+Z/ESC bootloader entry sequence...");
+				stopEscThread = new ManualResetEvent(false);
+				escThread = new Thread(() => SendW800BootloaderEntrySequenceLoop(stopEscThread));
+				escThread.IsBackground = true;
+				escThread.Start();
+
+				serial.ReadTimeout = 100;
+				Stopwatch restartWait = Stopwatch.StartNew();
+				while(restartWait.ElapsedMilliseconds < 60000)
+				{
+					if(ReadSyncC(ref count))
+						return true;
+				}
+
+				addErrorLine("W800 sync failed: no CCCC download prompt after AT+Z/ESC nudge.");
+			}
+			catch(Exception ex)
+			{
+				addErrorLine(ex.Message);
+			}
+			finally
+			{
+				if(stopEscThread != null)
+				{
+					stopEscThread.Set();
+					if(escThread != null)
+						escThread.Join(250);
+					stopEscThread.Dispose();
+				}
+				serial.ReadTimeout = oldReadTimeout;
+			}
+			return false;
+		}
+
+		private bool ReadSyncC(ref int count)
+		{
+			try
+			{
+				byte sync = (byte)serial.ReadByte();
+				if(sync == 'C')
+				{
+					count++;
+					if(count > 3)
+					{
+						addLogLine("Sync success!");
+						return true;
+					}
+				}
+				else
+				{
+					count = 0;
+				}
+			}
+			catch(TimeoutException)
+			{
+			}
+			return false;
+		}
+
+		private void SendW800BootloaderEntrySequenceLoop(ManualResetEvent stopEscThread)
+		{
+			try
+			{
+				Thread.Sleep(10);
+				serial.RtsEnable = true;
+				Thread.Sleep(50);
+				byte[] atz = new byte[] { (byte)'A', (byte)'T', (byte)'+', (byte)'Z', 0x0D, 0x0A };
+				serial.Write(atz, 0, atz.Length);
+				serial.RtsEnable = false;
+
+				byte[] escBurst = new byte[] { 0x1B, 0x1B, 0x1B };
+				while(!stopEscThread.WaitOne(0))
+				{
+					serial.Write(escBurst, 0, escBurst.Length);
+					stopEscThread.WaitOne(10);
+				}
+			}
+			catch(Exception ex)
+			{
+				addWarningLine("W800 bootloader entry thread stopped: " + ex.Message);
+			}
 		}
 
 		private bool UploadStub()
