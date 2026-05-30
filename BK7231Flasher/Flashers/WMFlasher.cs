@@ -95,7 +95,12 @@ namespace BK7231Flasher
 
 		public bool Sync()
 		{
-			if(chipType == BKType.W800)
+			return Sync(true);
+		}
+
+		private bool Sync(bool allowW800BootloaderEntrySequence)
+		{
+			if(chipType == BKType.W800 && allowW800BootloaderEntrySequence)
 			{
 				return SyncW800DownloadMode();
 			}
@@ -251,7 +256,7 @@ namespace BK7231Flasher
 			if(xm.Send(stub) == stub.Length)
 			{
 				addLogLine($"Stub uploaded!");
-				return Sync();
+				return Sync(false);
 			}
 			return false;
 		}
@@ -326,7 +331,7 @@ namespace BK7231Flasher
 			msg[2] = (byte)((baud >> 16) & 0xFF);
 			msg[3] = (byte)((baud >> 24) & 0xFF);
 			ExecuteCommand(0x31, msg, 1, 1, baud, noResync);
-			return noResync || Sync();
+			return noResync || Sync(false);
 		}
 
 		public bool ReadFlash(MemoryStream stream, int offset, int size)
