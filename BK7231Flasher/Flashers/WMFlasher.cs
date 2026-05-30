@@ -15,6 +15,7 @@ namespace BK7231Flasher
 		MemoryStream ms;
 		int flashSizeMB = 2;
 		byte[] flashID;
+		bool w800EnteredViaBootloaderSequence;
 
 		public WMFlasher(CancellationToken ct) : base(ct)
 		{
@@ -27,6 +28,7 @@ namespace BK7231Flasher
 			addLog("Going to open port: " + serialName + "." + Environment.NewLine);
 			try
 			{
+				w800EnteredViaBootloaderSequence = false;
 				serial = new SerialPort(serialName, 115200);
 				if(chipType == BKType.W800)
 				{
@@ -166,6 +168,7 @@ namespace BK7231Flasher
 				}
 
 				addLogLine("W800 sync timeout, sending AT+Z/ESC bootloader entry sequence...");
+				w800EnteredViaBootloaderSequence = true;
 				stopEscThread = new ManualResetEvent(false);
 				escThread = new Thread(() => SendW800BootloaderEntrySequenceLoop(stopEscThread));
 				escThread.IsBackground = true;
@@ -266,6 +269,18 @@ namespace BK7231Flasher
 			return;
 		}
 
+		private string HexPreview(byte[] data, int maxBytes)
+		{
+			if(data == null || data.Length == 0)
+				return "<empty>";
+
+			int length = Math.Min(data.Length, maxBytes);
+			var preview = new byte[length];
+			Array.Copy(data, preview, length);
+			string suffix = data.Length > maxBytes ? " ..." : string.Empty;
+			return BitConverter.ToString(preview) + suffix;
+		}
+
 		byte[] ExecuteCommand(int type, byte[] parms = null,
 			float timeout = 0.1f, int expectedReplyLen = 0, int br = 115200, bool isErrorExpected = false)
 		{
@@ -307,6 +322,8 @@ namespace BK7231Flasher
 			{
 				if(!isErrorExpected)
 					addErrorLine("Command response is empty!");
+				else if(type == 0x4a)
+					addWarningLine($"Command 0x{type:X2} response is empty at {serial.BaudRate} baud.");
 				return null;
 			}
 			var bytes = new byte[serial.BytesToRead];
@@ -315,6 +332,8 @@ namespace BK7231Flasher
 			{
 				if(!isErrorExpected)
 					addErrorLine($"Command reply length {bytes.Length} < expected {expectedReplyLen}");
+				else if(type == 0x4a)
+					addWarningLine($"Command 0x{type:X2} short reply {bytes.Length}/{expectedReplyLen} at {serial.BaudRate} baud: {HexPreview(bytes, 32)}");
 				return null;
 			}
 			var ret = new byte[expectedReplyLen];
@@ -332,6 +351,17 @@ namespace BK7231Flasher
 			msg[3] = (byte)((baud >> 24) & 0xFF);
 			ExecuteCommand(0x31, msg, 1, 1, baud, noResync);
 			return noResync || Sync(false);
+		}
+
+		private bool SetW800RamStubBaudForCommandPhase()
+		{
+			if(chipType == BKType.W800 && w800EnteredViaBootloaderSequence)
+			{
+				addLogLine("W800 was entered via software bootloader sequence; keeping RAM-stub command phase at 115200.");
+				return true;
+			}
+
+			return SetBaud(baudrate);
 		}
 
 		public bool ReadFlash(MemoryStream stream, int offset, int size)
@@ -427,7 +457,7 @@ namespace BK7231Flasher
 			{
 				try
 				{
-					SetBaud(baudrate);
+					SetW800RamStubBaudForCommandPhase();
 					if(fullRead)
 					{
 						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
@@ -520,7 +550,7 @@ namespace BK7231Flasher
 				try
 				{
 					xm.PacketSent += Xm_PacketSent;
-					SetBaud(baudrate);
+					SetW800RamStubBaudForCommandPhase();
 					OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 					if(rwMode == WriteMode.ReadAndWrite)
 					{
