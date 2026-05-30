@@ -15,6 +15,7 @@ namespace BK7231Flasher
 		MemoryStream ms;
 		int flashSizeMB = 2;
 		byte[] flashID;
+		bool w800SoftwareBootloaderEntryUsed;
 
 		public WMFlasher(CancellationToken ct) : base(ct)
 		{
@@ -134,12 +135,29 @@ namespace BK7231Flasher
 			return false;
 		}
 
+
 		private bool InitialSync()
 		{
+			w800SoftwareBootloaderEntryUsed = false;
+
 			if(chipType != BKType.W800)
 				return Sync();
 
 			return SyncW800DownloadMode();
+		}
+
+		private bool PrepareSession()
+		{
+			if(!InitialSync())
+				return false;
+
+			if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)
+			{
+				addLogLine("W800 entered via software bootloader sequence; uploading RAM stub before ROM information probes.");
+				return UploadStub();
+			}
+
+			return ReadFlashId() != null && UploadStub();
 		}
 
 		private bool SyncW800DownloadMode()
@@ -157,6 +175,7 @@ namespace BK7231Flasher
 					return true;
 
 				addLogLine("W800 sync timeout, sending AT+Z/ESC bootloader entry sequence...");
+				w800SoftwareBootloaderEntryUsed = true;
 
 				serial.RtsEnable = true;
 				Thread.Sleep(50);
@@ -405,11 +424,13 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(InitialSync() && ReadFlashId() != null && UploadStub())
+			if(PrepareSession())
 			{
 				try
 				{
 					SetBaud(baudrate);
+					if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed && fullRead)
+						addLogLine($"Flash size was not probed before RAM stub upload; using {flashSizeMB}MB for full read.");
 					if(fullRead)
 					{
 						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
@@ -497,7 +518,7 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(InitialSync() && ReadFlashId() != null && UploadStub())
+			if(PrepareSession())
 			{
 				try
 				{
@@ -506,6 +527,8 @@ namespace BK7231Flasher
 					OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 					if(rwMode == WriteMode.ReadAndWrite)
 					{
+						if(chipType == BKType.W800 && w800SoftwareBootloaderEntryUsed)
+							addLogLine($"Flash size was not probed before RAM stub upload; using {flashSizeMB}MB for read-before-write.");
 						sectors = flashSizeMB * 0x100000 / BK7231Flasher.SECTOR_SIZE;
 						addLogLine($"Flash size detected: {sectors / 256}MB");
 						ms = ReadInternal(startSector | 0x08000000, sectors);
