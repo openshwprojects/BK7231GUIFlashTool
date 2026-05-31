@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 
@@ -109,11 +109,17 @@ namespace BK7231Flasher
                 case BKType.RTL87X0C:
                 case BKType.RTL8720D:
                 case BKType.BL602:
+                case BKType.BL616:
                 case BKType.ECR6600:
                 case BKType.TR6260:
                 case BKType.RDA5981:
                     _ = OBKFlashLayout.getConfigLocation(type, out var sectors);
-                    var sname = type == BKType.BL602 ? "mY0bcFg" : "ObkCfg";
+                    var sname = "ObkCfg";
+                    if(type == BKType.BL602 || type == BKType.BL616)
+                    {
+                        sname = "mY0bcFg";
+                        sectors = subArray.Length / BK7231Flasher.SECTOR_SIZE;
+                    }
                     dat = EasyFlash.LoadValueFromData(subArray, sname, sectors * BK7231Flasher.SECTOR_SIZE, type, out efdata);
                     subArray = dat;
                     break;
@@ -580,6 +586,7 @@ namespace BK7231Flasher
                 case BKType.LN882H:
                 case BKType.LN8825:
                 case BKType.BL602:
+                case BKType.BL616:
                 case BKType.RDA5981:
                 case BKType.W600:
                 case BKType.W800:
@@ -618,6 +625,7 @@ namespace BK7231Flasher
                 case BKType.LN882H:
                 case BKType.LN8825:
                 case BKType.BL602:
+                case BKType.BL616:
                 case BKType.RDA5981:
                 case BKType.W600:
                 case BKType.W800:

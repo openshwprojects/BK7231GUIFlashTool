@@ -74,6 +74,8 @@
             "bk7238"              => nameof(BKType.BK7238),
             "bk7258"              => nameof(BKType.BK7258),
             "bl602"               => nameof(BKType.BL602),
+            "bl616"               => nameof(BKType.BL616),
+            "bl618"               => nameof(BKType.BL616),
             "esp32"               => "ESP32",
             "rtl8711am"           => "RTL8711AM",
             "rtl8710bn"           => nameof(BKType.RTL8710B),

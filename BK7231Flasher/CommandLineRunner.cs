@@ -251,6 +251,11 @@ namespace BK7231Flasher
             }
 
             // Resolve chip type
+            if (chipName.Equals("BL618", StringComparison.OrdinalIgnoreCase))
+            {
+                // BL618 uses the BL616 bootrom-compatible flow in this tool.
+                chipName = nameof(BKType.BL616);
+            }
             BKType chipType;
             if (!Enum.TryParse(chipName, true, out chipType) || chipType == BKType.Invalid || chipType == BKType.Detect)
             {
@@ -412,8 +417,6 @@ namespace BK7231Flasher
                 case BKType.ESP8266:
                 case BKType.LN882H:
                 case BKType.LN8825:
-                case BKType.BL602:
-                case BKType.BL702:
                 case BKType.XR809:
                 case BKType.XR806:
                 case BKType.XR872:
@@ -604,6 +607,7 @@ namespace BK7231Flasher
                     return new LN882HFlasher(ct);
                 case BKType.BL602:
                 case BKType.BL702:
+                case BKType.BL616:
                     return new BL602Flasher(ct);
                 case BKType.TR6260:
                     return new TR6260Flasher(ct);
@@ -660,7 +664,7 @@ namespace BK7231Flasher
             Console.WriteLine();
             Console.WriteLine("Required Options:");
             Console.WriteLine("  --port, -p <COM3>      Serial port (not needed for SPI chips)");
-            Console.WriteLine("  --chip <BK7231N>       Chip type");
+            Console.WriteLine("  --chip <BK7231N>       Chip type (BL618 alias: use BL616 or BL618)");
             Console.WriteLine();
             Console.WriteLine("Optional:");
             Console.WriteLine("  --baud, -b <921600>    Baud rate (default: 921600)");
