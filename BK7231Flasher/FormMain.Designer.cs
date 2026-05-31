@@ -442,7 +442,7 @@ namespace BK7231Flasher
             this.checkBoxOverwriteBootloader.Name = "checkBoxOverwriteBootloader";
             this.checkBoxOverwriteBootloader.Size = new System.Drawing.Size(227, 17);
             this.checkBoxOverwriteBootloader.TabIndex = 34;
-            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (for N/M, don\'t use it)";
+            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (Beken only, caution)";
             this.checkBoxOverwriteBootloader.UseVisualStyleBackColor = true;
             this.checkBoxOverwriteBootloader.CheckedChanged += new System.EventHandler(this.checkBoxOverwriteBootloader_CheckedChanged);
             // 
