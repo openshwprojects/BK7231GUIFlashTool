@@ -30,6 +30,8 @@ namespace BK7231Flasher
 				serial = new SerialPort(serialName, 115200);
 				if(chipType == BKType.W800)
 				{
+					// W800 RAM-stub reads return 4096 bytes + CRC at high baud.
+					// Use a larger receive buffer so the host does not lose data while draining.
 					serial.ReadBufferSize = 65536;
 				}
 				serial.Open();
@@ -287,7 +289,7 @@ namespace BK7231Flasher
 				serial.BaudRate = br;
 			}
 			int timeoutMS = (int)(timeout * 1000);
-			if(expectedReplyLen > 1024)
+			if(type == 0x4A && expectedReplyLen > 1024)
 				return ReadLargeCommandResponse(type, expectedReplyLen, timeoutMS, isErrorExpected);
 
 			Stopwatch sw = Stopwatch.StartNew();
