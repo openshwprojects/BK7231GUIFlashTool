@@ -40,6 +40,7 @@ namespace BK7231Flasher
             { BKType.BK7258,     "BK7258 (T5)" },
             { BKType.BekenSPI,   "Beken SPI CH341" },
             { BKType.BL602,      "BL602" },
+            { BKType.BL616,      "BL616" },
             { BKType.BL702,      "BL702" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.ESP32,      "ESP32" },
@@ -502,6 +503,7 @@ namespace BK7231Flasher
                     break;
                 case BKType.BL602:
                 case BKType.BL702:
+                case BKType.BL616:
                     flasher = new BL602Flasher(cts.Token);
                     break;
                 case BKType.BekenSPI:
@@ -867,7 +869,7 @@ namespace BK7231Flasher
             createFlasher();
             // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
-            if(curType == BKType.BL602 || curType == BKType.BL702)
+            if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 addLog("Reading partitions..." + Environment.NewLine, Color.Black);
                 if(curType == BKType.BL702)
@@ -880,6 +882,13 @@ namespace BK7231Flasher
                 }
                 
                 var ptdata = flasher.getReadResult();
+                if(ptdata == null)
+                {
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
+                    return;
+                }
                 try
                 {
                     var partition = BL602Utils.PT_Parse(ptdata).First(x => x.Name == "PSM");
@@ -889,12 +898,18 @@ namespace BK7231Flasher
                 catch(InvalidOperationException)
                 {
                     addLog("No PSM partition! Can't read config." + Environment.NewLine, Color.Red);
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
                     throw;
                 }
                 catch(InvalidDataException ex)
                 {
                     addLog($"Partition error: {ex.Message}" + Environment.NewLine, Color.Red);
                     addLog($"Can't read config." + Environment.NewLine, Color.Red);
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
                     throw;
                 }
                 catch(Exception ex)
@@ -909,7 +924,7 @@ namespace BK7231Flasher
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
-            else if(curType == BKType.BL602 || curType == BKType.BL702)
+            else if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 // do it like that so that there would be no need for re-sync
                 ((BL602Flasher)flasher).doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
@@ -1458,7 +1473,7 @@ namespace BK7231Flasher
                 "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
-                "Full chip erase: BL602/BL702, ECR6600, TR6260, XR806, XR809, XR872, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
+                "Full chip erase: BL602/BL702/BL616(BL618), ECR6600, TR6260, XR806, XR809, XR872, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
                 "Erase not implemented: LN882H, LN8825B, W800, W600, ESP32 family." + _nl + _nl +
                 "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
                 "Continue?";

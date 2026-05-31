@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -274,6 +274,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							EFLinux_GRAN8.set_env_size((uint)size);
 							break;
 						case BKType.TR6260:
@@ -299,6 +300,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							EF64_GRAN8.set_env_size((uint)size);
 							break;
 						case BKType.TR6260:
@@ -317,6 +319,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							EF32_GRAN8.set_env_size((uint)size);
 							break;
 						case BKType.TR6260:
@@ -336,6 +339,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							env = EFLinux_GRAN8.get_env_area();
 							break;
 						case BKType.TR6260:
@@ -354,6 +358,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							env = EF64_GRAN8.get_env_area();
 							break;
 						case BKType.TR6260:
@@ -372,6 +377,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							env = EF32_GRAN8.get_env_area();
 							break;
 						case BKType.TR6260:
@@ -394,6 +400,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							EFLinux_GRAN8.easyflash_init();
 							break;
 						case BKType.TR6260:
@@ -419,6 +426,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							EF64_GRAN8.easyflash_init();
 							break;
 						case BKType.TR6260:
@@ -437,6 +445,7 @@ namespace BK7231Flasher
 					switch(type)
 					{
 						case BKType.BL602:
+						case BKType.BL616:
 							EF32_GRAN8.easyflash_init();
 							break;
 						case BKType.TR6260:
@@ -466,6 +475,7 @@ namespace BK7231Flasher
 				switch(type)
 				{
 					case BKType.BL602:
+					case BKType.BL616:
 						return EFLinux_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					case BKType.TR6260:
 						return HasLinuxGran32() ? EFLinux_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len) : EFLinux.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
@@ -480,6 +490,7 @@ namespace BK7231Flasher
 				switch(type)
 				{
 					case BKType.BL602:
+					case BKType.BL616:
 						return EF64_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					case BKType.TR6260:
 						return EF64_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
@@ -494,6 +505,7 @@ namespace BK7231Flasher
 				switch(type)
 				{
 					case BKType.BL602:
+					case BKType.BL616:
 						return EF32_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
 					case BKType.TR6260:
 						return EF32_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
@@ -512,6 +524,7 @@ namespace BK7231Flasher
 				switch(type)
 				{
 					case BKType.BL602:
+					case BKType.BL616:
 						return EFLinux_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
 					case BKType.TR6260:
 						return HasLinuxGran32() ? EFLinux_GRAN32.ef_set_env_blob(key, value_buf, buf_len) : EFLinux.ef_set_env_blob(key, value_buf, buf_len);
@@ -526,6 +539,7 @@ namespace BK7231Flasher
 				switch(type)
 				{
 					case BKType.BL602:
+					case BKType.BL616:
 						return EF64_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
 					case BKType.TR6260:
 						return EF64_GRAN32.ef_set_env_blob(key, value_buf, buf_len);
@@ -540,6 +554,7 @@ namespace BK7231Flasher
 				switch(type)
 				{
 					case BKType.BL602:
+					case BKType.BL616:
 						return EF32_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
 					case BKType.TR6260:
 						return EF32_GRAN32.ef_set_env_blob(key, value_buf, buf_len);
