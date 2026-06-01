@@ -208,7 +208,7 @@ namespace BK7231Flasher
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
 
-            foreach(var chip in Chips)
+            foreach(var chip in Chips.OrderBy(k => k.Value, StringComparer.OrdinalIgnoreCase))
             {
                 comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
             }
