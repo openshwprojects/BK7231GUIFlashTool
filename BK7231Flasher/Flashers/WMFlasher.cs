@@ -28,6 +28,12 @@ namespace BK7231Flasher
 			try
 			{
 				serial = new SerialPort(serialName, 115200);
+				if(chipType == BKType.W800)
+				{
+					// W800 RAM-stub reads return 4096 bytes + CRC at high baud.
+					// Use a larger receive buffer so the host does not lose data while draining.
+					serial.ReadBufferSize = 65536;
+				}
 				serial.Open();
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
@@ -134,6 +140,106 @@ namespace BK7231Flasher
 			return false;
 		}
 
+		private bool InitialSync()
+		{
+			if(chipType != BKType.W800)
+				return Sync();
+
+			return SyncW800DownloadMode();
+		}
+
+		private bool SyncW800DownloadMode()
+		{
+			int oldReadTimeout = serial.ReadTimeout;
+			try
+			{
+				serial.RtsEnable = false;
+				serial.DtrEnable = false;
+				serial.DiscardInBuffer();
+				serial.DiscardOutBuffer();
+
+				serial.ReadTimeout = 100;
+				if(WaitForW800SyncPrompt(500))
+					return true;
+
+				addLogLine("W800 sync timeout, sending AT+Z/ESC bootloader entry sequence...");
+
+				serial.RtsEnable = true;
+				Thread.Sleep(50);
+				byte[] atz = new byte[] { (byte)'A', (byte)'T', (byte)'+', (byte)'Z', 0x0D, 0x0A };
+				serial.Write(atz, 0, atz.Length);
+				serial.RtsEnable = false;
+
+				byte[] escBurst = new byte[] { 0x1B, 0x1B, 0x1B };
+				var count = 0;
+				serial.ReadTimeout = 10;
+				Stopwatch sw = Stopwatch.StartNew();
+				while(sw.ElapsedMilliseconds < 60000 && !isCancelled)
+				{
+					serial.Write(escBurst, 0, escBurst.Length);
+					if(ReadW800SyncPromptByte(ref count, true))
+					{
+						serial.DiscardOutBuffer();
+						serial.DiscardInBuffer();
+						return true;
+					}
+					Thread.Sleep(10);
+				}
+
+				addErrorLine("W800 sync failed: no CCCC download prompt after AT+Z/ESC bootloader entry sequence.");
+			}
+			catch(Exception ex)
+			{
+				addErrorLine(ex.Message);
+			}
+			finally
+			{
+				try { serial.DiscardOutBuffer(); } catch { }
+				try { serial.DiscardInBuffer(); } catch { }
+				serial.ReadTimeout = oldReadTimeout;
+			}
+			return false;
+		}
+
+		private bool WaitForW800SyncPrompt(int timeoutMs)
+		{
+			var count = 0;
+			Stopwatch sw = Stopwatch.StartNew();
+			while(sw.ElapsedMilliseconds < timeoutMs)
+			{
+				if(ReadW800SyncPromptByte(ref count, false))
+					return true;
+			}
+			return false;
+		}
+
+		private bool ReadW800SyncPromptByte(ref int count, bool preserveTimeoutCount)
+		{
+			try
+			{
+				byte sync = (byte)serial.ReadByte();
+				if(sync == 'C')
+				{
+					count++;
+					if(count > 3)
+					{
+						addLogLine("Sync success!");
+						return true;
+					}
+				}
+				else
+				{
+					count = 0;
+				}
+			}
+			catch(TimeoutException)
+			{
+				if(!preserveTimeoutCount)
+					count = 0;
+			}
+			return false;
+		}
+
 		private bool UploadStub()
 		{
 			if(chipType == BKType.W600) return true;
@@ -183,6 +289,9 @@ namespace BK7231Flasher
 				serial.BaudRate = br;
 			}
 			int timeoutMS = (int)(timeout * 1000);
+			if(type == 0x4A && expectedReplyLen > 1024)
+				return ReadLargeCommandResponse(type, expectedReplyLen, timeoutMS, isErrorExpected);
+
 			Stopwatch sw = Stopwatch.StartNew();
 			while(sw.ElapsedMilliseconds < timeoutMS)
 			{
@@ -205,6 +314,51 @@ namespace BK7231Flasher
 			}
 			var ret = new byte[expectedReplyLen];
 			Array.Copy(bytes, 0, ret, 0, expectedReplyLen);
+			return ret;
+		}
+
+		private byte[] ReadLargeCommandResponse(int type, int expectedReplyLen, int timeoutMS, bool isErrorExpected)
+		{
+			var ret = new byte[expectedReplyLen];
+			int offset = 0;
+			Stopwatch sw = Stopwatch.StartNew();
+			while(sw.ElapsedMilliseconds < timeoutMS && offset < expectedReplyLen && !isCancelled)
+			{
+				int available = serial.BytesToRead;
+				if(available > 0)
+				{
+					int wanted = Math.Min(available, expectedReplyLen - offset);
+					offset += serial.Read(ret, offset, wanted);
+					continue;
+				}
+				Thread.Sleep(1);
+			}
+
+			if(offset == 0)
+			{
+				if(!isErrorExpected)
+					addErrorLine("Command response is empty!");
+				else if(type == 0x4a)
+					addWarningLine($"Command 0x4A response is empty at {serial.BaudRate} baud.");
+				return null;
+			}
+
+			if(offset < expectedReplyLen)
+			{
+				if(!isErrorExpected)
+					addErrorLine($"Command reply length {offset} < expected {expectedReplyLen}");
+				else if(type == 0x4a)
+				{
+					int previewLen = Math.Min(offset, 32);
+					var preview = new byte[previewLen];
+					Array.Copy(ret, preview, previewLen);
+					addWarningLine($"Command 0x4A short streamed reply {offset}/{expectedReplyLen} at {serial.BaudRate} baud: {BitConverter.ToString(preview)}{(offset > previewLen ? " ..." : string.Empty)}");
+				}
+				return null;
+			}
+
+			if(serial.BytesToRead > 0)
+				serial.DiscardInBuffer();
 			return ret;
 		}
 
@@ -309,7 +463,7 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(Sync() && ReadFlashId() != null && UploadStub())
+			if(InitialSync() && ReadFlashId() != null && UploadStub())
 			{
 				try
 				{
@@ -401,7 +555,7 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(Sync() && ReadFlashId() != null && UploadStub())
+			if(InitialSync() && ReadFlashId() != null && UploadStub())
 			{
 				try
 				{
