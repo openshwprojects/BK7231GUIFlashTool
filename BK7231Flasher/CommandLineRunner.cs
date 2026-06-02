@@ -467,6 +467,7 @@ namespace BK7231Flasher
             int startSector = ToStartSector(chipType, ofs);
             int sectors = len / BK7231Flasher.SECTOR_SIZE;
 
+            flasher.setCustomWriteMode(true);
             flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
 
             Console.WriteLine("\nCustom write completed successfully.");

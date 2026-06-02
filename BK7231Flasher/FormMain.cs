@@ -635,6 +635,7 @@ namespace BK7231Flasher
                 startSector = getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
+            flasher.setCustomWriteMode(parms != null);
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
             worker = null;
             //setButtonReadLabel(label_startRead);
