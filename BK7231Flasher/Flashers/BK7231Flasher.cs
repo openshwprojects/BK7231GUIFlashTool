@@ -1430,7 +1430,7 @@ namespace BK7231Flasher
         {
             string fileName = Path.GetFileName(sourceFileName);
             return !string.IsNullOrEmpty(fileName) &&
-                fileName.IndexOf("_QIO_", StringComparison.OrdinalIgnoreCase) >= 0;
+                fileName.IndexOf("_QIO_", StringComparison.Ordinal) >= 0;
         }
 
         bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
