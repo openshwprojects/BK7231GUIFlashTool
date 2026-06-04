@@ -18,6 +18,17 @@ namespace BK7231Flasher
 			return GZToBytes(gzdata.ToArray());
 		}
 
+		internal static byte[] GetRawBinaryFromAssembly(string data)
+		{
+			var assembly = Assembly.GetExecutingAssembly();
+			string resourceName = assembly.GetManifestResourceNames()
+				.Single(str => str.Contains($"{data}.bin"));
+			using var stream = assembly.GetManifestResourceStream(resourceName);
+			using var bdata = new MemoryStream();
+			stream.CopyTo(bdata);
+			return bdata.ToArray();
+		}
+
 		internal static string GetStringFromAssembly(string data, string ext = ".json")
 		{
 			var assembly = Assembly.GetExecutingAssembly();

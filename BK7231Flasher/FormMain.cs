@@ -47,6 +47,7 @@ namespace BK7231Flasher
             { BKType.ESP32C3,    "ESP32-C3" },
             { BKType.ESP32S3,    "ESP32-S3" },
             { BKType.ESP8266,    "ESP8266" },
+            { BKType.GD32VW553,  "GD32VW553" },
             { BKType.GenericSPI, "Generic SPI CH341" },
             { BKType.LN882H,     "LN882H" },
             { BKType.LN8825,     "LN8825" },
@@ -539,6 +540,9 @@ namespace BK7231Flasher
                 case BKType.ESP32C3:
                 case BKType.ESP8266:
                     flasher = new ESPFlasher(cts.Token);
+                    break;
+                case BKType.GD32VW553:
+                    flasher = new GD32VW553Flasher(cts.Token);
                     break;
                 default:
                     flasher = new BK7231Flasher(cts.Token);
