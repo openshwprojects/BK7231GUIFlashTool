@@ -26,6 +26,7 @@ namespace BK7231Flasher
         ESP32C3,
         ESP32S3,
         ESP8266,
+        GD32VW553,
         GenericSPI,
         LN882H,
         LN8825,
