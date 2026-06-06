@@ -47,6 +47,7 @@ namespace BK7231Flasher
         bool isESP32C2 = false;
         bool isESP32S3 = false;
         bool isESP32C3 = false;
+        bool isESP32C5 = false;
         bool isESP32C6 = false;
         bool isESP32C61 = false;
         string detectedChip = "ESP";
@@ -61,8 +62,8 @@ namespace BK7231Flasher
 
         bool isESP32C6RegFamily()
         {
-            // C6/C61 share a different SPI base address but same layout.
-            return isESP32C6 || isESP32C61;
+            // C5/C6/C61 share a different SPI base address but same layout.
+            return isESP32C5 || isESP32C6 || isESP32C61;
         }
 
         string GetStubNameForSelectedChip()
@@ -77,6 +78,8 @@ namespace BK7231Flasher
                     return "ESP32C2_Stub";
                 case BKType.ESP32C3:
                     return "ESP32C3_Stub";
+                case BKType.ESP32C5:
+                    return "ESP32C5_Stub";
                 case BKType.ESP32C6:
                     return "ESP32C6_Stub";
                 case BKType.ESP32C61:
@@ -138,6 +141,7 @@ namespace BK7231Flasher
             { 5, "ESP32-C3" },
             { 9, "ESP32-S3" },
             { 12, "ESP32-C2" },
+            { 23, "ESP32-C5" },
             { 13, "ESP32-C6" },
             { 20, "ESP32-C61" },
             { 16, "ESP32-H2" },
@@ -1049,6 +1053,12 @@ namespace BK7231Flasher
                        if (!TryReadMacFromEfuse(0x3F41A044, out mac))
                            throw new Exception("Failed to read S2 eFuse MAC registers.");
                    }
+                   else if (isESP32C5)
+                   {
+                       // ESP32-C5: EFUSE_BASE=0x600B4800, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x600B4844, out mac))
+                           throw new Exception("Failed to read C5 eFuse MAC registers.");
+                   }
                    else if (isESP32C6)
                    {
                        // ESP32-C6: EFUSE_BASE=0x600B0800, MAC_EFUSE_REG=EFUSE_BASE+0x044
@@ -1112,6 +1122,7 @@ namespace BK7231Flasher
                 isESP32S2 = false;
                 isESP32C2 = false;
                 isESP32C3 = false;
+                isESP32C5 = false;
                 isESP32C6 = false;
                 isESP32C61 = false;
                 isESP32S3 = false;
@@ -1128,6 +1139,10 @@ namespace BK7231Flasher
                     case BKType.ESP32C3:
                         detectedChip = "ESP32-C3";
                         isESP32C3 = true;
+                        break;
+                    case BKType.ESP32C5:
+                        detectedChip = "ESP32-C5";
+                        isESP32C5 = true;
                         break;
                     case BKType.ESP32C6:
                         detectedChip = "ESP32-C6";

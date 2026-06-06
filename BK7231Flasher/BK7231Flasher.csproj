@@ -227,6 +227,7 @@
     <EmbeddedResource Include="Floaders\ESP32C2_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32S3_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32C3_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32C5_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32C6_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32C61_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP8266_Stub.json" />

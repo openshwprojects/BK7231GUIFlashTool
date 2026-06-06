@@ -83,6 +83,8 @@
             "esp32-c2"            => nameof(BKType.ESP32C2),
             "esp32c3"             => nameof(BKType.ESP32C3),
             "esp32-c3"            => nameof(BKType.ESP32C3),
+            "esp32c5"             => nameof(BKType.ESP32C5),
+            "esp32-c5"            => nameof(BKType.ESP32C5),
             "esp32c6"             => nameof(BKType.ESP32C6),
             "esp32-c6"            => nameof(BKType.ESP32C6),
             "esp32c61"            => nameof(BKType.ESP32C61),

@@ -47,6 +47,7 @@ namespace BK7231Flasher
             { BKType.ESP32S2,    "ESP32-S2" },
             { BKType.ESP32C2,    "ESP32-C2" },
             { BKType.ESP32C3,    "ESP32-C3" },
+            { BKType.ESP32C5,    "ESP32-C5" },
             { BKType.ESP32C6,    "ESP32-C6" },
             { BKType.ESP32C61,   "ESP32-C61" },
             { BKType.ESP32S3,    "ESP32-S3" },
@@ -541,6 +542,7 @@ namespace BK7231Flasher
                 case BKType.ESP32:
                 case BKType.ESP32S2:
                 case BKType.ESP32C2:
+                case BKType.ESP32C5:
                 case BKType.ESP32C6:
                 case BKType.ESP32C61:
                 case BKType.ESP32S3:
@@ -635,7 +637,7 @@ namespace BK7231Flasher
                 startSector = parms.ofs;
                 if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
                     || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
-                    || curType == BKType.ESP32C3 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
+                    || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
                     || curType == BKType.ESP32S3 || curType == BKType.ESP8266)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
@@ -820,7 +822,7 @@ namespace BK7231Flasher
                 if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B
                     || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
                     || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
-                    || curType == BKType.ESP32C3 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
+                    || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
                     || curType == BKType.ESP32S3 || curType == BKType.ESP8266)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;

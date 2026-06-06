@@ -415,6 +415,7 @@ namespace BK7231Flasher
                 case BKType.ESP32S2:
                 case BKType.ESP32C2:
                 case BKType.ESP32C3:
+                case BKType.ESP32C5:
                 case BKType.ESP32C6:
                 case BKType.ESP32C61:
                 case BKType.ESP32S3:
@@ -636,6 +637,7 @@ namespace BK7231Flasher
                 case BKType.ESP32S2:
                 case BKType.ESP32C2:
                 case BKType.ESP32C3:
+                case BKType.ESP32C5:
                 case BKType.ESP32C6:
                 case BKType.ESP32C61:
                 case BKType.ESP32S3:
