@@ -20,7 +20,7 @@ Supported GUI-selectable chip/platform modes:
   - BL702
 - Espressif:
   - ESP32
-  - ESP32-C2/C3/C6/C61/S2/S3
+  - ESP32-C2/C3/C5/C6/C61/S2/S3
   - ESP8266
 - ESWIN/Transa Semi:
   - ECR6600
