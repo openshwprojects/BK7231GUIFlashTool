@@ -25,7 +25,12 @@ namespace BK7231Flasher
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
 				serial.ReadTimeout = 2000;
-				xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF);
+				xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF)
+				{
+					MaxSenderRetries = 50,
+					ReceiverMaxConsecutiveRetries = 50
+				};
+
 			}
 			catch(Exception ex)
 			{
@@ -53,8 +58,19 @@ namespace BK7231Flasher
 			else
 			{
 				addLogLine("Sending RAM code...");
-				var stub = FLoaders.GetBinaryFromAssembly("RTL8721DA_Stub");
-				var offset = 0x3000A000;
+				var stub = chipType switch
+				{
+					BKType.RTL8721DA => FLoaders.GetBinaryFromAssembly("RTL8721DA_Stub"),
+					BKType.RTL8720E => FLoaders.GetBinaryFromAssembly("RTL8720E_Stub"),
+					_ => throw new Exception()
+				};
+				
+				var offset = chipType switch
+				{
+					BKType.RTL8721DA => 0x3000A000,
+					BKType.RTL8720E => 0x3000A000,
+					_ => throw new Exception()
+				};
 				addLogLine($"Write Floader to SRAM at 0x{offset:X8} to 0x{offset + stub.Length:X8}");
 				try
 				{

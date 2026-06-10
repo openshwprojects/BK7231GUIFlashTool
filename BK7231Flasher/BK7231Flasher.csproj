@@ -233,6 +233,7 @@
     <EmbeddedResource Include="Floaders\BL616_Dts.bin" />
     <EmbeddedResource Include="Floaders\GD32VW553_Stub.bin" />
     <EmbeddedResource Include="Floaders\RTL8721DA_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RTL8720E_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

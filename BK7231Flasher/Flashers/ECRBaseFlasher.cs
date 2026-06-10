@@ -229,12 +229,21 @@ namespace BK7231Flasher
 				xm.PacketReceived += Xm_PacketReceived;
 				try
 				{
-					var recv = xm.Receive(stream);
-					if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+					var tries = 3;
+					while(tries-- >= 0)
 					{
-						addErrorLine($"Read failed with {recv}");
-						stream.Dispose();
-						return null;
+						var recv = xm.Receive(stream);
+						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+						{
+							addErrorLine($"Read failed with {recv}");
+							stream.Dispose();
+							return null;
+						}
+						if(stream.Length >= startAmount)
+							break;
+
+						if(isCancelled)
+							return null;
 					}
 				}
 				finally
