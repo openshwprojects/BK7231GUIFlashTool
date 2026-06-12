@@ -1426,6 +1426,13 @@ namespace BK7231Flasher
             return true;
         }
 
+        static bool FileNameHasQioMarker(string sourceFileName)
+        {
+            string fileName = Path.GetFileName(sourceFileName);
+            return !string.IsNullOrEmpty(fileName) &&
+                fileName.IndexOf("_QIO_", StringComparison.Ordinal) >= 0;
+        }
+
         bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             logger.setProgress(0, sectors);
@@ -1484,7 +1491,7 @@ namespace BK7231Flasher
                 }
                 addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
                 bool bSkipBootloader = false;
-                if (sourceFileName.Contains("_QIO_"))
+                if (!bCustomWriteMode && FileNameHasQioMarker(sourceFileName))
                 {
                     if(bOverwriteBootloader == false && (chipType == BKType.BK7231N || chipType == BKType.BK7231M))
                     {
@@ -1507,6 +1514,14 @@ namespace BK7231Flasher
                 if (bSkipBootloader && startSector == BK7231Flasher.BOOTLOADER_SIZE)
                 {
                     // very hacky, but skip bootloader
+                    if (data.Length <= startSector)
+                    {
+                        addError("Cannot skip QIO bootloader area because the file is only "
+                            + data.Length + " bytes, but the bootloader skip size is "
+                            + startSector + " bytes." + Environment.NewLine);
+                        return false;
+                    }
+
                     int length = data.Length - startSector;
                     byte[] newData = new byte[length];
                     Array.Copy(data, startSector, newData, 0, length);

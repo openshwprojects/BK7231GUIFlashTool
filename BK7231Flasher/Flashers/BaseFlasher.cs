@@ -82,6 +82,7 @@ namespace BK7231Flasher
         protected bool bOverwriteBootloader = false;
         protected bool bSkipKeyCheck;
         protected bool bIgnoreCRCErr = false;
+        protected bool bCustomWriteMode = false;
         protected SerialPort serial;
         protected string serialName;
         protected BKType chipType = BKType.BK7231N;
@@ -186,6 +187,10 @@ namespace BK7231Flasher
         public void setOverwriteBootloader(bool b)
         {
             bOverwriteBootloader = b;
+        }
+        public void setCustomWriteMode(bool b)
+        {
+            bCustomWriteMode = b;
         }
         public void setReadTimeOutMultForSerialClass(float f)
         {
