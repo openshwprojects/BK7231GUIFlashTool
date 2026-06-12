@@ -54,6 +54,8 @@ namespace BK7231Flasher
             { BKType.RDA5981,    "RDA5981" },
             { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
+            { BKType.RTL8721DA,  "RTL8721DA (AmebaDplus)" },
+            { BKType.RTL8720E,   "RTL8720E (AmebaLite)" },
             { BKType.RTL87X0C,   "RTL87X0C (AmebaZ2)" },
             { BKType.TR6260,     "TR6260" },
             { BKType.W600,       "W600 (write)" },
@@ -491,8 +493,6 @@ namespace BK7231Flasher
             {
                 case BKType.RTL8710B:
                 case BKType.RTL8720D:
-                case BKType.RTL8721DA:
-                case BKType.RTL8720E:
                     flasher = new RTLFlasher(cts.Token);
                     break;
                 case BKType.RTL87X0C:
@@ -543,6 +543,10 @@ namespace BK7231Flasher
                     break;
                 case BKType.GD32VW553:
                     flasher = new GD32VW553Flasher(cts.Token);
+                    break;
+                case BKType.RTL8721DA:
+                case BKType.RTL8720E:
+                    flasher = new RTLNFlasher(cts.Token);
                     break;
                 default:
                     flasher = new BK7231Flasher(cts.Token);

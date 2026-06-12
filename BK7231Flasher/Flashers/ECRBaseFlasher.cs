@@ -10,13 +10,14 @@ namespace BK7231Flasher
 {
 	public abstract class ECRBaseFlasher : BaseFlasher
 	{
-		protected static readonly byte CMD_BAUD = 0x07;
-		protected static readonly byte CMD_CUSTOM_XMODEM_READ = 0x92;
-		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE = 0x91;
-		protected static readonly byte CMD_FLASH_CHIPERASE = 0x05;
-		protected static readonly byte CMD_FLASH_ERASE = 0x04;
-		protected static readonly byte CMD_SHA256 = 0x09;
 		protected static readonly byte CMD_SYN = 0x00;
+		protected static readonly byte CMD_FLASH_ERASE = 0x04;
+		protected static readonly byte CMD_FLASH_CHIPERASE = 0x05;
+		protected static readonly byte CMD_BAUD = 0x07;
+		protected static readonly byte CMD_SHA256 = 0x09;
+		protected static readonly byte CMD_CUSTOM_FLASH_ID = 0x90;
+		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE = 0x91;
+		protected static readonly byte CMD_CUSTOM_XMODEM_READ = 0x92;
 
 		protected int flashSizeMB = 4;
 
@@ -63,6 +64,11 @@ namespace BK7231Flasher
 
 		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
 		{
+			if(sectors == 0 && !fullRead)
+			{
+				addErrorLine($"Read length cannot be zero!");
+				return;
+			}
 			if(doGenericSetup() == false)
 			{
 				return;
@@ -183,6 +189,11 @@ namespace BK7231Flasher
 
 		protected byte[] InternalRead(int addr, int sectors)
 		{
+			if(sectors == 0)
+			{
+				addErrorLine($"Read length cannot be zero!");
+				return null;
+			}
 			var sha256Hash = SHA256.Create();
 			var expectedPackets = sectors * 4;
 			var offset = addr;
@@ -218,12 +229,21 @@ namespace BK7231Flasher
 				xm.PacketReceived += Xm_PacketReceived;
 				try
 				{
-					var recv = xm.Receive(stream);
-					if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+					var tries = 3;
+					while(tries-- >= 0)
 					{
-						addErrorLine($"Read failed with {recv}");
-						stream.Dispose();
-						return null;
+						var recv = xm.Receive(stream);
+						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+						{
+							addErrorLine($"Read failed with {recv}");
+							stream.Dispose();
+							return null;
+						}
+						if(stream.Length >= startAmount)
+							break;
+
+						if(isCancelled)
+							return null;
 					}
 				}
 				finally
@@ -234,18 +254,27 @@ namespace BK7231Flasher
 				stream.Dispose();
 				if(isCancelled) return null;
 				addLogLine(Environment.NewLine + "Getting hash...");
-				res = ExecuteCommand(CMD_SHA256, msg, 10, 32);
-				var readHash = HashToStr(sha256Hash.ComputeHash(ret));
-				var expectedHash = HashToStr(res);
-				if(readHash != expectedHash)
+				res = ExecuteCommand(CMD_SHA256, msg, 30, 32);
+				if(res == null)
 				{
-					addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
-					logger.setState("SHA mismatch!", Color.Red);
+					addErrorLine($"Failed to get hash!");
+					logger.setState("SHA failed!", Color.Red);
 					if(!bIgnoreCRCErr) return null;
 				}
 				else
 				{
-					addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
+					var readHash = HashToStr(sha256Hash.ComputeHash(ret));
+					var expectedHash = HashToStr(res);
+					if(readHash != expectedHash)
+					{
+						addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
+						logger.setState("SHA mismatch!", Color.Red);
+						if(!bIgnoreCRCErr) return null;
+					}
+					else
+					{
+						addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
+					}
 				}
 				logger.setProgress(sectors, sectors);
 				logger.setState("Read done", Color.DarkGreen);
@@ -292,19 +321,19 @@ namespace BK7231Flasher
 				var ret = xm.Send(data);
 				if(ret != len)
 				{
-					addErrorLine($"Write failed! Expected sent bytes: {len}, really sent: {ret}");
+					addErrorLine($"Write failed ({xm.TerminationReason})! Expected sent bytes: {len}, really sent: {ret}");
 					Thread.Sleep(100);
-					serial.Write($"{xm.EOT}");
+					serial.Write(new[] { xm.EOT }, 0, 1);
 					Thread.Sleep(100);
 					return false;
 				}
 				addLogLine(Environment.NewLine + "Getting hash...");
-				res = ExecuteCommand(CMD_SHA256, cmd, 10, 32);
+				res = ExecuteCommand(CMD_SHA256, cmd, 30f, 32);
 				var readHash = HashToStr(sha256Hash.ComputeHash(data));
 				var expectedHash = HashToStr(res);
 				if(readHash != expectedHash)
 				{
-					addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
+					addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
 					logger.setState("SHA mismatch!", Color.Red);
 					return false;
 				}
@@ -362,6 +391,17 @@ namespace BK7231Flasher
 				crc += buf[i];
 			}
 			return (byte)(crc % 256);
+		}
+
+		protected byte[] ReadFlashId(bool isErrorExpected = false)
+		{
+			var flashID = ExecuteCommand(CMD_CUSTOM_FLASH_ID, null, 0.2f, 4, isErrorExpected: isErrorExpected);
+			if(flashID == null)
+				return null;
+			addLogLine($"Flash ID: 0x{flashID[0]:X2}{flashID[1]:X2}{flashID[2]:X2}");
+			flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
+			addLogLine($"Flash size is {flashSizeMB}MB");
+			return flashID;
 		}
 	}
 }
