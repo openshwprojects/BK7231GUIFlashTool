@@ -43,11 +43,54 @@ namespace BK7231Flasher
 
         bool isStub = false;
         bool isESP8266 = false;
+        bool isESP32S2 = false;
+        bool isESP32C2 = false;
         bool isESP32S3 = false;
         bool isESP32C3 = false;
+        bool isESP32C5 = false;
+        bool isESP32C6 = false;
+        bool isESP32C61 = false;
         string detectedChip = "ESP";
         byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
+
+        bool isESP32S3RegFamily()
+        {
+            // C2/C3/S3 share the same SPI register block layout.
+            return isESP32C2 || isESP32C3 || isESP32S3;
+        }
+
+        bool isESP32C6RegFamily()
+        {
+            // C5/C6/C61 share a different SPI base address but same layout.
+            return isESP32C5 || isESP32C6 || isESP32C61;
+        }
+
+        string GetStubNameForSelectedChip()
+        {
+            switch (chipType)
+            {
+                case BKType.ESP8266:
+                    return "ESP8266_Stub";
+                case BKType.ESP32S2:
+                    return "ESP32S2_Stub";
+                case BKType.ESP32C2:
+                    return "ESP32C2_Stub";
+                case BKType.ESP32C3:
+                    return "ESP32C3_Stub";
+                case BKType.ESP32C5:
+                    return "ESP32C5_Stub";
+                case BKType.ESP32C6:
+                    return "ESP32C6_Stub";
+                case BKType.ESP32C61:
+                    return "ESP32C61_Stub";
+                case BKType.ESP32S3:
+                    return "ESP32S3_Stub";
+                case BKType.ESP32:
+                default:
+                    return "ESP32_Stub";
+            }
+        }
 
         public ESPFlasher(CancellationToken ct) : base(ct)
         {
@@ -98,7 +141,9 @@ namespace BK7231Flasher
             { 5, "ESP32-C3" },
             { 9, "ESP32-S3" },
             { 12, "ESP32-C2" },
+            { 23, "ESP32-C5" },
             { 13, "ESP32-C6" },
+            { 20, "ESP32-C61" },
             { 16, "ESP32-H2" },
             { 18, "ESP32-P4" },
         };
@@ -266,13 +311,41 @@ namespace BK7231Flasher
         const uint SPI_MOSI_DLEN_OFFS = 0x28;
         const uint SPI_MISO_DLEN_OFFS = 0x2C;
 
-        // ESP32-S3 SPI register addresses (from esptool esp32s3.py)
+        // ESP32-S2 shares SPI layout with ESP32-C3/S3 but has a different base.
+        const uint ESP32S2_SPI_REG_BASE = 0x3F402000;
+        // ESP32-C3/S3 SPI register addresses (from esptool target definitions).
         const uint ESP32S3_SPI_REG_BASE = 0x60002000;
+        // ESP32-C6/C61 SPI register base (layout is the same as C3/S3).
+        const uint ESP32C6_SPI_REG_BASE = 0x60003000;
         const uint ESP32S3_SPI_USR_OFFS = 0x18;
         const uint ESP32S3_SPI_USR2_OFFS = 0x20;
         const uint ESP32S3_SPI_MOSI_DLEN_OFFS = 0x24;
         const uint ESP32S3_SPI_MISO_DLEN_OFFS = 0x28;
         const uint ESP32S3_SPI_W0_OFFS = 0x58;
+
+        bool TryReadMacFromEfuse(uint macEfuseReg, out byte[] mac)
+        {
+            mac = new byte[6];
+            try
+            {
+                uint mac0 = ReadReg(macEfuseReg);
+                uint mac1 = ReadReg(macEfuseReg + 4);
+
+                // esptool: struct.pack(">II", mac1, mac0)[2:] -> 6 bytes big-endian
+                mac[0] = (byte)((mac1 >> 8) & 0xFF);
+                mac[1] = (byte)((mac1 >> 0) & 0xFF);
+                mac[2] = (byte)((mac0 >> 24) & 0xFF);
+                mac[3] = (byte)((mac0 >> 16) & 0xFF);
+                mac[4] = (byte)((mac0 >> 8) & 0xFF);
+                mac[5] = (byte)((mac0 >> 0) & 0xFF);
+                return true;
+            }
+            catch
+            {
+                mac = null;
+                return false;
+            }
+        }
 
         uint RunSpiFlashCmd(byte cmd, int readBits = 0)
         {
@@ -292,7 +365,25 @@ namespace BK7231Flasher
                 mosiDlenOffs = 0; // not used for ESP8266
                 misoDlenOffs = 0; // not used for ESP8266
             }
-            else if (isESP32S3 || isESP32C3)
+            else if (isESP32S2)
+            {
+                baseAddr = ESP32S2_SPI_REG_BASE;
+                w0Offs = ESP32S3_SPI_W0_OFFS;
+                usrOffs = ESP32S3_SPI_USR_OFFS;
+                usr2Offs = ESP32S3_SPI_USR2_OFFS;
+                mosiDlenOffs = ESP32S3_SPI_MOSI_DLEN_OFFS;
+                misoDlenOffs = ESP32S3_SPI_MISO_DLEN_OFFS;
+            }
+            else if (isESP32C6RegFamily())
+            {
+                baseAddr = ESP32C6_SPI_REG_BASE;
+                w0Offs = ESP32S3_SPI_W0_OFFS;
+                usrOffs = ESP32S3_SPI_USR_OFFS;
+                usr2Offs = ESP32S3_SPI_USR2_OFFS;
+                mosiDlenOffs = ESP32S3_SPI_MOSI_DLEN_OFFS;
+                misoDlenOffs = ESP32S3_SPI_MISO_DLEN_OFFS;
+            }
+            else if (isESP32S3RegFamily())
             {
                 baseAddr = ESP32S3_SPI_REG_BASE;
                 w0Offs = ESP32S3_SPI_W0_OFFS;
@@ -481,7 +572,7 @@ namespace BK7231Flasher
             try
             {
                 // Load chip-specific stub from embedded resource
-                string stubName = isESP8266 ? "ESP8266_Stub" : isESP32S3 ? "ESP32S3_Stub" : isESP32C3 ? "ESP32C3_Stub" : "ESP32_Stub";
+                string stubName = GetStubNameForSelectedChip();
                 string jsonContent = FLoaders.GetStringFromAssembly(stubName);
                 addLogLine($"Loaded stub: {stubName}");
                 
@@ -880,6 +971,35 @@ namespace BK7231Flasher
             return false;
         }
 
+        public override bool doErase(int startSector = 0x000, int sectors = 10, bool bAll = false)
+        {
+            if (!Connect())
+            {
+                return false;
+            }
+
+            if (!LegacyMode)
+            {
+                UploadStub();
+                if (isStub)
+                {
+                    addLogLine("Re-attaching SPI after stub...");
+                    SpiAttach();
+                    if (baudrate > 115200)
+                    {
+                        addLogLine($"Changing baud rate to {baudrate}...");
+                        ChangeBaudrate(baudrate);
+                        addLogLine($"Baud rate changed to {baudrate}.");
+                    }
+                }
+            }
+
+            logger.setState("Erasing flash...", Color.LightBlue);
+            bool ok = EraseFlash();
+            logger.setState(ok ? "Erase complete" : "Erase failed", ok ? Color.LightGreen : Color.Red);
+            return ok;
+        }
+
         public string ReadMac()
         {
              try
@@ -915,38 +1035,44 @@ namespace BK7231Flasher
                      mac = new byte[] { oui0, oui1, oui2,
                          (byte)((mac1 >> 8) & 0xFF), (byte)(mac1 & 0xFF), (byte)((mac0 >> 24) & 0xFF) };
                  }
-                   else if (isESP32C3)
+                   else if (isESP32C3 || isESP32C2)
                    {
-                       // ESP32-C3: EFUSE_BASE=0x60008800, MAC_EFUSE_REG=EFUSE_BASE+0x044
-                       uint mac0 = ReadReg(0x60008844);
-                       uint mac1 = ReadReg(0x60008848);
-
-                       // esptool: struct.pack(">II", mac1, mac0)[2:] → 6 bytes big-endian
-                       mac = new byte[6];
-                       mac[0] = (byte)((mac1 >> 8) & 0xFF);
-                       mac[1] = (byte)((mac1 >> 0) & 0xFF);
-                       mac[2] = (byte)((mac0 >> 24) & 0xFF);
-                       mac[3] = (byte)((mac0 >> 16) & 0xFF);
-                       mac[4] = (byte)((mac0 >> 8) & 0xFF);
-                       mac[5] = (byte)((mac0 >> 0) & 0xFF);
+                       // ESP32-C2/C3: EFUSE_BASE=0x60008800, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x60008844, out mac))
+                           throw new Exception("Failed to read C2/C3 eFuse MAC registers.");
                    }
                    else if (isESP32S3)
-                  {
-                      // ESP32-S3: EFUSE_BASE=0x60007000, MAC_EFUSE_REG=EFUSE_BASE+0x044
-                      uint mac0 = ReadReg(0x60007044);
-                      uint mac1 = ReadReg(0x60007048);
-
-                      // esptool: struct.pack(">II", mac1, mac0)[2:] → 6 bytes big-endian
-                      mac = new byte[6];
-                      mac[0] = (byte)((mac1 >> 8) & 0xFF);
-                      mac[1] = (byte)((mac1 >> 0) & 0xFF);
-                      mac[2] = (byte)((mac0 >> 24) & 0xFF);
-                      mac[3] = (byte)((mac0 >> 16) & 0xFF);
-                      mac[4] = (byte)((mac0 >> 8) & 0xFF);
-                      mac[5] = (byte)((mac0 >> 0) & 0xFF);
-                  }
-                  else
-                  {
+                   {
+                       // ESP32-S3: EFUSE_BASE=0x60007000, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x60007044, out mac))
+                           throw new Exception("Failed to read S3 eFuse MAC registers.");
+                   }
+                   else if (isESP32S2)
+                   {
+                       // ESP32-S2: EFUSE_BASE=0x3F41A000, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x3F41A044, out mac))
+                           throw new Exception("Failed to read S2 eFuse MAC registers.");
+                   }
+                   else if (isESP32C5)
+                   {
+                       // ESP32-C5: EFUSE_BASE=0x600B4800, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x600B4844, out mac))
+                           throw new Exception("Failed to read C5 eFuse MAC registers.");
+                   }
+                   else if (isESP32C6)
+                   {
+                       // ESP32-C6: EFUSE_BASE=0x600B0800, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x600B0844, out mac))
+                           throw new Exception("Failed to read C6 eFuse MAC registers.");
+                   }
+                   else if (isESP32C61)
+                   {
+                       // ESP32-C61: EFUSE_BASE=0x600B4800, MAC_EFUSE_REG=EFUSE_BASE+0x044
+                       if (!TryReadMacFromEfuse(0x600B4844, out mac))
+                           throw new Exception("Failed to read C61 eFuse MAC registers.");
+                   }
+                   else
+                   {
                       // ESP32: Read from eFuse registers
                       uint baseAddr = 0x3FF5A000;
                       uint w1 = ReadReg(baseAddr + 0x04);
@@ -992,11 +1118,39 @@ namespace BK7231Flasher
             if (Sync())
             {
                 // Always use user-selected chipType for flags
+                isESP8266 = false;
+                isESP32S2 = false;
+                isESP32C2 = false;
+                isESP32C3 = false;
+                isESP32C5 = false;
+                isESP32C6 = false;
+                isESP32C61 = false;
+                isESP32S3 = false;
                 switch (chipType)
                 {
+                    case BKType.ESP32S2:
+                        detectedChip = "ESP32-S2";
+                        isESP32S2 = true;
+                        break;
+                    case BKType.ESP32C2:
+                        detectedChip = "ESP32-C2";
+                        isESP32C2 = true;
+                        break;
                     case BKType.ESP32C3:
                         detectedChip = "ESP32-C3";
                         isESP32C3 = true;
+                        break;
+                    case BKType.ESP32C5:
+                        detectedChip = "ESP32-C5";
+                        isESP32C5 = true;
+                        break;
+                    case BKType.ESP32C6:
+                        detectedChip = "ESP32-C6";
+                        isESP32C6 = true;
+                        break;
+                    case BKType.ESP32C61:
+                        detectedChip = "ESP32-C61";
+                        isESP32C61 = true;
                         break;
                     case BKType.ESP32S3:
                         detectedChip = "ESP32-S3";
