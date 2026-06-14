@@ -226,8 +226,13 @@
     <EmbeddedResource Include="Floaders\XR809_Stub.bin" />
     <EmbeddedResource Include="Floaders\LN88xx_RamCode.bin" />
     <EmbeddedResource Include="Floaders\ESP32_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32S2_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32C2_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32S3_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32C3_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32C5_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32C6_Stub.json" />
+    <EmbeddedResource Include="Floaders\ESP32C61_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP8266_Stub.json" />
     <EmbeddedResource Include="Floaders\BL616_Boot.bin" />
     <EmbeddedResource Include="Floaders\BL616_Dts.bin" />
