@@ -42,14 +42,14 @@ namespace BK7231Flasher
         const int ESP_RAM_BLOCK = 0x1800; // Must match esptool default
 
         bool isStub = false;
-        bool isESP8266 = false;
-        bool isESP32S2 = false;
-        bool isESP32C2 = false;
-        bool isESP32S3 = false;
-        bool isESP32C3 = false;
-        bool isESP32C5 = false;
-        bool isESP32C6 = false;
-        bool isESP32C61 = false;
+        bool isESP8266 => chipType == BKType.ESP8266;
+        bool isESP32S2 => chipType == BKType.ESP32S2;
+        bool isESP32C2 => chipType == BKType.ESP32C2;
+        bool isESP32S3 => chipType == BKType.ESP32S3;
+        bool isESP32C3 => chipType == BKType.ESP32C3;
+        bool isESP32C5 => chipType == BKType.ESP32C5;
+        bool isESP32C6 => chipType == BKType.ESP32C6;
+        bool isESP32C61 => chipType == BKType.ESP32C61;
         string detectedChip = "ESP";
         byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
@@ -1117,48 +1117,31 @@ namespace BK7231Flasher
 
             if (Sync())
             {
-                // Always use user-selected chipType for flags
-                isESP8266 = false;
-                isESP32S2 = false;
-                isESP32C2 = false;
-                isESP32C3 = false;
-                isESP32C5 = false;
-                isESP32C6 = false;
-                isESP32C61 = false;
-                isESP32S3 = false;
                 switch (chipType)
                 {
                     case BKType.ESP32S2:
                         detectedChip = "ESP32-S2";
-                        isESP32S2 = true;
                         break;
                     case BKType.ESP32C2:
                         detectedChip = "ESP32-C2";
-                        isESP32C2 = true;
                         break;
                     case BKType.ESP32C3:
                         detectedChip = "ESP32-C3";
-                        isESP32C3 = true;
                         break;
                     case BKType.ESP32C5:
                         detectedChip = "ESP32-C5";
-                        isESP32C5 = true;
                         break;
                     case BKType.ESP32C6:
                         detectedChip = "ESP32-C6";
-                        isESP32C6 = true;
                         break;
                     case BKType.ESP32C61:
                         detectedChip = "ESP32-C61";
-                        isESP32C61 = true;
                         break;
                     case BKType.ESP32S3:
                         detectedChip = "ESP32-S3";
-                        isESP32S3 = true;
                         break;
                     case BKType.ESP8266:
                         detectedChip = "ESP8266";
-                        isESP8266 = true;
                         break;
                     case BKType.ESP32:
                         detectedChip = "ESP32";
