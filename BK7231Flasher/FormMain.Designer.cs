@@ -103,9 +103,6 @@ namespace BK7231Flasher
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.label13 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.lblKeyInfo = new System.Windows.Forms.Label();
-            this.txtKey = new System.Windows.Forms.TextBox();
-            this.chkChangeKey = new System.Windows.Forms.CheckBox();
             this.buttonImportConfigFileDialog = new System.Windows.Forms.Button();
             this.linkLabel5 = new System.Windows.Forms.LinkLabel();
             this.label32 = new System.Windows.Forms.Label();
@@ -116,6 +113,7 @@ namespace BK7231Flasher
             this.label17 = new System.Windows.Forms.Label();
             this.linkLabel4 = new System.Windows.Forms.LinkLabel();
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
+            this.checkBoxTuyaCfgEnhanced = new System.Windows.Forms.CheckBox();
             this.label16 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
             this.buttonIPSaveResultToFile = new System.Windows.Forms.Button();
@@ -149,6 +147,7 @@ namespace BK7231Flasher
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.buttonPickSubnet = new System.Windows.Forms.Button();
             this.buttonStartScan = new System.Windows.Forms.Button();
             this.textBoxScannerThreads = new System.Windows.Forms.TextBox();
             this.label23 = new System.Windows.Forms.Label();
@@ -432,7 +431,7 @@ namespace BK7231Flasher
             this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
             this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(100, 17);
             this.checkBoxSkipKeyCheck.TabIndex = 35;
-            this.checkBoxSkipKeyCheck.Text = "Skip key check";
+            this.checkBoxSkipKeyCheck.Text = "Skip chip/key check";
             this.checkBoxSkipKeyCheck.UseVisualStyleBackColor = true;
             this.checkBoxSkipKeyCheck.CheckedChanged += new System.EventHandler(this.checkBoxSkipKeyCheck_CheckedChanged);
             // 
@@ -443,7 +442,7 @@ namespace BK7231Flasher
             this.checkBoxOverwriteBootloader.Name = "checkBoxOverwriteBootloader";
             this.checkBoxOverwriteBootloader.Size = new System.Drawing.Size(227, 17);
             this.checkBoxOverwriteBootloader.TabIndex = 34;
-            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (for N/M, don\'t use it)";
+            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (Beken only, caution)";
             this.checkBoxOverwriteBootloader.UseVisualStyleBackColor = true;
             this.checkBoxOverwriteBootloader.CheckedChanged += new System.EventHandler(this.checkBoxOverwriteBootloader_CheckedChanged);
             // 
@@ -972,14 +971,12 @@ namespace BK7231Flasher
             // tabPage2
             // 
             this.tabPage2.AllowDrop = true;
-            this.tabPage2.Controls.Add(this.lblKeyInfo);
-            this.tabPage2.Controls.Add(this.txtKey);
-            this.tabPage2.Controls.Add(this.chkChangeKey);
             this.tabPage2.Controls.Add(this.buttonImportConfigFileDialog);
             this.tabPage2.Controls.Add(this.linkLabel5);
             this.tabPage2.Controls.Add(this.label32);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyTextToClipBoard);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyJSONToClipBoard);
+            this.tabPage2.Controls.Add(this.checkBoxTuyaCfgEnhanced);
             this.tabPage2.Controls.Add(this.label18);
             this.tabPage2.Controls.Add(this.textBoxTuyaCFGText);
             this.tabPage2.Controls.Add(this.label17);
@@ -994,37 +991,6 @@ namespace BK7231Flasher
             this.tabPage2.UseVisualStyleBackColor = true;
             this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
             this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
-            // 
-            // lblKeyInfo
-            // 
-            this.lblKeyInfo.AutoSize = true;
-            this.lblKeyInfo.Location = new System.Drawing.Point(419, 42);
-            this.lblKeyInfo.Name = "lblKeyInfo";
-            this.lblKeyInfo.Size = new System.Drawing.Size(328, 13);
-            this.lblKeyInfo.TabIndex = 20;
-            this.lblKeyInfo.Text = "Overrides Tuya KEY_PART_1 seed (first 4 chars used).\r\nDefault: 8710_2M | RTL8720D: 8721D | 8711AM: 8711AM_4M";
-            this.lblKeyInfo.Visible = false;
-            // 
-            // txtKey
-            // 
-            this.txtKey.Location = new System.Drawing.Point(323, 45);
-            this.txtKey.Name = "txtKey";
-            this.txtKey.Size = new System.Drawing.Size(90, 20);
-            this.txtKey.TabIndex = 19;
-            this.txtKey.Text = "8710_2M";
-            this.txtKey.Visible = false;
-            this.txtKey.TextChanged += new System.EventHandler(this.txtKey_TextChanged);
-            // 
-            // chkChangeKey
-            // 
-            this.chkChangeKey.AutoSize = true;
-            this.chkChangeKey.Location = new System.Drawing.Point(234, 47);
-            this.chkChangeKey.Name = "chkChangeKey";
-            this.chkChangeKey.Size = new System.Drawing.Size(83, 17);
-            this.chkChangeKey.TabIndex = 18;
-            this.chkChangeKey.Text = "Change key";
-            this.chkChangeKey.UseVisualStyleBackColor = true;
-            this.chkChangeKey.CheckedChanged += new System.EventHandler(this.chkChangeKey_CheckedChanged);
             // 
             // buttonImportConfigFileDialog
             // 
@@ -1077,6 +1043,17 @@ namespace BK7231Flasher
             this.buttonTuyaConfig_CopyJSONToClipBoard.UseVisualStyleBackColor = true;
             this.buttonTuyaConfig_CopyJSONToClipBoard.Click += new System.EventHandler(this.buttonTuyaConfig_CopyJSONToClipBoard_Click);
             // 
+            // checkBoxTuyaCfgEnhanced
+            // 
+            this.checkBoxTuyaCfgEnhanced.AutoSize = true;
+            this.checkBoxTuyaCfgEnhanced.Location = new System.Drawing.Point(90, 93);
+            this.checkBoxTuyaCfgEnhanced.Name = "checkBoxTuyaCfgEnhanced";
+            this.checkBoxTuyaCfgEnhanced.Size = new System.Drawing.Size(123, 17);
+            this.checkBoxTuyaCfgEnhanced.TabIndex = 16;
+            this.checkBoxTuyaCfgEnhanced.Text = "Enhanced extraction";
+            this.checkBoxTuyaCfgEnhanced.UseVisualStyleBackColor = true;
+            this.checkBoxTuyaCfgEnhanced.CheckedChanged += new System.EventHandler(this.checkBoxTuyaCfgEnhanced_CheckedChanged);
+            
             // label18
             // 
             this.label18.AutoSize = true;
@@ -1269,6 +1246,7 @@ namespace BK7231Flasher
             this.tabPage6.Controls.Add(this.labelScanState);
             this.tabPage6.Controls.Add(this.label24);
             this.tabPage6.Controls.Add(this.listView1);
+            this.tabPage6.Controls.Add(this.buttonPickSubnet);
             this.tabPage6.Controls.Add(this.buttonStartScan);
             this.tabPage6.Controls.Add(this.textBoxScannerThreads);
             this.tabPage6.Controls.Add(this.label23);
@@ -1286,6 +1264,7 @@ namespace BK7231Flasher
             // 
             // buttonIPScannerOpenDir
             // 
+            this.buttonIPScannerOpenDir.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonIPScannerOpenDir.Location = new System.Drawing.Point(14, 442);
             this.buttonIPScannerOpenDir.Name = "buttonIPScannerOpenDir";
             this.buttonIPScannerOpenDir.Size = new System.Drawing.Size(156, 23);
@@ -1348,6 +1327,7 @@ namespace BK7231Flasher
             // label29
             // 
             this.label29.AutoSize = true;
+            this.label29.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.label29.Location = new System.Drawing.Point(12, 396);
             this.label29.Name = "label29";
             this.label29.Size = new System.Drawing.Size(353, 13);
@@ -1357,6 +1337,7 @@ namespace BK7231Flasher
             // labelMassBackupProgress
             // 
             this.labelMassBackupProgress.AutoSize = true;
+            this.labelMassBackupProgress.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
             this.labelMassBackupProgress.Name = "labelMassBackupProgress";
             this.labelMassBackupProgress.Size = new System.Drawing.Size(76, 13);
@@ -1365,6 +1346,7 @@ namespace BK7231Flasher
             // 
             // buttonStartMassBackup
             // 
+            this.buttonStartMassBackup.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonStartMassBackup.Location = new System.Drawing.Point(14, 412);
             this.buttonStartMassBackup.Name = "buttonStartMassBackup";
             this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
@@ -1401,6 +1383,9 @@ namespace BK7231Flasher
             this.columnHeader3,
             this.columnHeader4,
             this.columnHeader5});
+            this.listView1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
             this.listView1.Location = new System.Drawing.Point(11, 117);
@@ -1440,6 +1425,16 @@ namespace BK7231Flasher
             // 
             this.columnHeader5.Text = "Build";
             this.columnHeader5.Width = 122;
+            // 
+            // buttonPickSubnet
+            // 
+            this.buttonPickSubnet.Location = new System.Drawing.Point(807, 40);
+            this.buttonPickSubnet.Name = "buttonPickSubnet";
+            this.buttonPickSubnet.Size = new System.Drawing.Size(84, 23);
+            this.buttonPickSubnet.TabIndex = 21;
+            this.buttonPickSubnet.Text = "Subnet";
+            this.buttonPickSubnet.UseVisualStyleBackColor = true;
+            this.buttonPickSubnet.Click += new System.EventHandler(this.buttonPickSubnet_Click);
             // 
             // buttonStartScan
             // 
@@ -2074,6 +2069,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.TextBox textBoxTuyaCFGJSON;
         private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.CheckBox checkBoxTuyaCfgEnhanced;
         private System.Windows.Forms.LinkLabel linkLabel4;
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.TextBox textBoxTuyaCFGText;
@@ -2095,6 +2091,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.Label label21;
         private System.Windows.Forms.TextBox textBoxEndIP;
         private System.Windows.Forms.Label label22;
+        private System.Windows.Forms.Button buttonPickSubnet;
         private System.Windows.Forms.Button buttonStartScan;
         private System.Windows.Forms.TextBox textBoxScannerThreads;
         private System.Windows.Forms.Label label23;
@@ -2149,9 +2146,6 @@ namespace BK7231Flasher
         private System.Windows.Forms.Label label34;
         private System.Windows.Forms.ComboBox comboBox1;
         private System.Windows.Forms.CheckBox chkIgnoreCRCErr;
-        private System.Windows.Forms.CheckBox chkChangeKey;
-        private System.Windows.Forms.TextBox txtKey;
-        private System.Windows.Forms.Label lblKeyInfo;
         private System.Windows.Forms.Button buttonBlankCheck;
         private System.Windows.Forms.Button buttonVerify;
         private System.Windows.Forms.Button buttonDetect;

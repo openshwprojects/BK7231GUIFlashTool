@@ -1,13 +1,24 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Windows.Forms;
 
 namespace BK7231Flasher
 {
     public partial class FormMain : Form, ILogListener
     {
+        sealed class ScannerSubnetChoice
+        {
+            public string DisplayText { get; set; }
+            public string StartIp { get; set; }
+            public string EndIp { get; set; }
+        }
+
         OBKScanner scan;
         List<OBKDeviceAPI> founds = new List<OBKDeviceAPI>();
+        ContextMenuStrip scannerSubnetMenu;
 
         private void killScanner()
         {
@@ -166,6 +177,106 @@ namespace BK7231Flasher
             it.SubItems[index].Text = s;
         }
 
+        private void buttonPickSubnet_Click(object sender, EventArgs e)
+        {
+            List<ScannerSubnetChoice> subnets = getLocalScannerSubnets();
 
+            if (subnets.Count == 0)
+            {
+                MessageBox.Show("No local IPv4 subnets were detected on active network interfaces.");
+                return;
+            }
+
+            if (scannerSubnetMenu != null)
+            {
+                scannerSubnetMenu.Dispose();
+            }
+
+            scannerSubnetMenu = new ContextMenuStrip();
+            scannerSubnetMenu.ItemClicked += scannerSubnetMenu_ItemClicked;
+
+            foreach (ScannerSubnetChoice subnet in subnets)
+            {
+                ToolStripItem item = scannerSubnetMenu.Items.Add(subnet.DisplayText);
+                item.Tag = subnet;
+            }
+
+            scannerSubnetMenu.Show(buttonPickSubnet, 0, buttonPickSubnet.Height);
+        }
+
+        private void scannerSubnetMenu_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        {
+            ScannerSubnetChoice subnet = e.ClickedItem?.Tag as ScannerSubnetChoice;
+            if (subnet == null)
+            {
+                return;
+            }
+
+            textBoxStartIP.Text = subnet.StartIp;
+            textBoxEndIP.Text = subnet.EndIp;
+        }
+
+        private List<ScannerSubnetChoice> getLocalScannerSubnets()
+        {
+            Dictionary<string, ScannerSubnetChoice> result = new Dictionary<string, ScannerSubnetChoice>();
+
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                {
+                    continue;
+                }
+                if (nic.OperationalStatus != OperationalStatus.Up)
+                {
+                    continue;
+                }
+
+                IPInterfaceProperties props;
+                try
+                {
+                    props = nic.GetIPProperties();
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (UnicastIPAddressInformation uni in props.UnicastAddresses)
+                {
+                    IPAddress address = uni.Address;
+                    if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        continue;
+                    }
+
+                    byte[] bytes = address.GetAddressBytes();
+                    if (bytes[0] == 127)
+                    {
+                        continue;
+                    }
+                    if (bytes[0] == 169 && bytes[1] == 254)
+                    {
+                        continue;
+                    }
+
+                    string subnetBase = bytes[0] + "." + bytes[1] + "." + bytes[2];
+                    if (result.ContainsKey(subnetBase))
+                    {
+                        continue;
+                    }
+
+                    result[subnetBase] = new ScannerSubnetChoice
+                    {
+                        StartIp = subnetBase + ".0",
+                        EndIp = subnetBase + ".255",
+                        DisplayText = subnetBase + ".0/24 (" + nic.Name + ", local " + address + ")",
+                    };
+                }
+            }
+
+            return result.Values
+                .OrderBy(s => s.StartIp, StringComparer.Ordinal)
+                .ToList();
+        }
     }
 }

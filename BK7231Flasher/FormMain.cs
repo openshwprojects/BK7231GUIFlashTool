@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -29,28 +29,40 @@ namespace BK7231Flasher
 
         public Dictionary<BKType, string> Chips = new Dictionary<BKType, string>()
         {
+            { BKType.BK7231M,    "BK7231M" },
+            { BKType.BK7231N,    "BK7231N (T2, T34)" },
             { BKType.BK7231T,    "BK7231T" },
             { BKType.BK7231U,    "BK7231U" },
-            { BKType.BK7231N,    "BK7231N (T2, T34)" },
-            { BKType.BK7231M,    "BK7231M" },
             { BKType.BK7236,     "BK7236 (T3)" },
             { BKType.BK7238,     "BK7238 (T1)" },
             { BKType.BK7252,     "BK7252" },
             { BKType.BK7252N,    "BK7252N (T4)" },
             { BKType.BK7258,     "BK7258 (T5)" },
-            { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
-            { BKType.RTL87X0C,   "RTL87X0C (AmebaZ2)" },
-            { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
-            { BKType.LN882H,     "LN882H" },
-            { BKType.LN8825,     "LN8825" },
+            { BKType.BekenSPI,   "Beken SPI CH341" },
             { BKType.BL602,      "BL602" },
+            { BKType.BL616,      "BL616" },
             { BKType.BL702,      "BL702" },
             { BKType.ECR6600,    "ECR6600" },
-            { BKType.W800,       "W800" },
-            { BKType.W600,       "W600 (write)" },
-            { BKType.RDA5981,    "RDA5981" },
-            { BKType.BekenSPI,   "Beken SPI CH341" },
+            { BKType.ESP32,      "ESP32" },
+            { BKType.ESP32C3,    "ESP32-C3" },
+            { BKType.ESP32S3,    "ESP32-S3" },
+            { BKType.ESP8266,    "ESP8266" },
+            { BKType.GD32VW553,  "GD32VW553" },
             { BKType.GenericSPI, "Generic SPI CH341" },
+            { BKType.LN882H,     "LN882H" },
+            { BKType.LN8825,     "LN8825" },
+            { BKType.RDA5981,    "RDA5981" },
+            { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
+            { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
+            { BKType.RTL8721DA,  "RTL8721DA (AmebaDplus)" },
+            { BKType.RTL8720E,   "RTL8720E (AmebaLite)" },
+            { BKType.RTL87X0C,   "RTL87X0C (AmebaZ2)" },
+            { BKType.TR6260,     "TR6260" },
+            { BKType.W600,       "W600 (write)" },
+            { BKType.W800,       "W800" },
+            { BKType.XR806,      "XR806" },
+            { BKType.XR809,      "XR809" },
+            { BKType.XR872,      "XR872 (XF16)" },
         };
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
@@ -200,13 +212,14 @@ namespace BK7231Flasher
                 comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
             }
 
-            comboBoxChipType.SelectedIndex = 0;
+            comboBoxChipType.SelectedIndex = comboBoxChipType.Items
+                .Cast<ChipType>().ToList().FindIndex(x => x.Type == BKType.BK7231N);
             foreach(var baud in BaudRates)
             {
                 comboBoxBaudRate.Items.Add(baud);
             }
 
-            comboBoxBaudRate.SelectedIndex = 1;
+            comboBoxBaudRate.SelectedIndex = 0;
 
             try
             {
@@ -465,7 +478,9 @@ namespace BK7231Flasher
         {
             if (flasher != null)
             {
-                cts.Cancel();
+                // cts.Cancel() can throw AggregateException if internal Task callbacks
+                // fire when the task is already completing (RanToCompletion). Swallow it.
+                try { cts.Cancel(); } catch { }
                 flasher.Dispose();
                 //flasher.closePort();
                 flasher = null;
@@ -478,8 +493,6 @@ namespace BK7231Flasher
             {
                 case BKType.RTL8710B:
                 case BKType.RTL8720D:
-                case BKType.RTL8721DA:
-                case BKType.RTL8720E:
                     flasher = new RTLFlasher(cts.Token);
                     break;
                 case BKType.RTL87X0C:
@@ -491,6 +504,7 @@ namespace BK7231Flasher
                     break;
                 case BKType.BL602:
                 case BKType.BL702:
+                case BKType.BL616:
                     flasher = new BL602Flasher(cts.Token);
                     break;
                 case BKType.BekenSPI:
@@ -508,6 +522,31 @@ namespace BK7231Flasher
                     break;
                 case BKType.RDA5981:
                     flasher = new RDAFlasher(cts.Token);
+                    break;
+                case BKType.XR806:
+                    flasher = new XR806Flasher(cts.Token);
+                    break;
+                case BKType.XR809:
+                    flasher = new XR809Flasher(cts.Token);
+                    break;
+                case BKType.XR872:
+                    flasher = new XR872Flasher(cts.Token);
+                    break;                    
+                case BKType.TR6260:
+                    flasher = new TR6260Flasher(cts.Token);
+                    break;
+                case BKType.ESP32:
+                case BKType.ESP32S3:
+                case BKType.ESP32C3:
+                case BKType.ESP8266:
+                    flasher = new ESPFlasher(cts.Token);
+                    break;
+                case BKType.GD32VW553:
+                    flasher = new GD32VW553Flasher(cts.Token);
+                    break;
+                case BKType.RTL8721DA:
+                case BKType.RTL8720E:
+                    flasher = new RTLNFlasher(cts.Token);
                     break;
                 default:
                     flasher = new BK7231Flasher(cts.Token);
@@ -594,6 +633,8 @@ namespace BK7231Flasher
             if(parms!=null)
             {
                 startSector = parms.ofs;
+                if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
+                    startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 chosenSourceFile = parms.sourceFileName;
             }
@@ -602,6 +643,7 @@ namespace BK7231Flasher
                 startSector = getBackupStartSectorForCurrentPlatform();
                 sectors = getBackupSectorCountForCurrentPlatform();
             }
+            flasher.setCustomWriteMode(parms != null);
             flasher.doReadAndWrite(startSector, sectors, chosenSourceFile, WriteMode.OnlyWrite);
             worker = null;
             //setButtonReadLabel(label_startRead);
@@ -684,7 +726,7 @@ namespace BK7231Flasher
                 clearUp();
                 setButtonStates(true);
                 if(startOfs < 0) addLog($"RF restore is not supported on {curType}" + Environment.NewLine, Color.Red);
-                else addLog("RF partition not found in backup" + Environment.NewLine, Color.DarkOrange);
+                else addLog("RF partition not found in backup. You may need to use \"Restore RF part\"" + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             addLog($"RF partition found at 0x{addr:X2}" + Environment.NewLine, Color.Green);
@@ -697,15 +739,26 @@ namespace BK7231Flasher
 
         void eraseAll()
         {
-            clearUp();
-            createFlasher();
-            int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
-            int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
-            flasher.doErase(startOfs, sectors, true);
-            worker = null;
-            //setButtonReadLabel(label_startRead);
-            clearUp();
-            setButtonStates(true);
+            try
+            {
+                clearUp();
+                createFlasher();
+                int startOfs = BK7231Flasher.BOOTLOADER_SIZE;
+                int sectors = (BK7231Flasher.FLASH_SIZE - startOfs) / BK7231Flasher.SECTOR_SIZE;
+                flasher.doErase(startOfs, sectors, true);
+            }
+            catch(Exception ex)
+            {
+                addLog("Erase error: " + ex.Message + Environment.NewLine, Color.Red);
+            }
+            finally
+            {
+                worker = null;
+                //setButtonReadLabel(label_startRead);
+                setButtonStates(true);
+                try { clearUp(); }
+                catch(Exception cleanEx) { addLog("Erase cleanup error: " + cleanEx.Message + Environment.NewLine, Color.Red); }
+            }
         }
         void verifyThread(object oParm)
         {
@@ -762,7 +815,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 isFullRead = false;
@@ -825,7 +878,7 @@ namespace BK7231Flasher
             createFlasher();
             // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
-            if(curType == BKType.BL602 || curType == BKType.BL702)
+            if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 addLog("Reading partitions..." + Environment.NewLine, Color.Black);
                 if(curType == BKType.BL702)
@@ -838,6 +891,13 @@ namespace BK7231Flasher
                 }
                 
                 var ptdata = flasher.getReadResult();
+                if(ptdata == null)
+                {
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
+                    return;
+                }
                 try
                 {
                     var partition = BL602Utils.PT_Parse(ptdata).First(x => x.Name == "PSM");
@@ -847,12 +907,18 @@ namespace BK7231Flasher
                 catch(InvalidOperationException)
                 {
                     addLog("No PSM partition! Can't read config." + Environment.NewLine, Color.Red);
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
                     throw;
                 }
                 catch(InvalidDataException ex)
                 {
                     addLog($"Partition error: {ex.Message}" + Environment.NewLine, Color.Red);
                     addLog($"Can't read config." + Environment.NewLine, Color.Red);
+                    worker = null;
+                    clearUp();
+                    setButtonStates(true);
                     throw;
                 }
                 catch(Exception ex)
@@ -867,7 +933,7 @@ namespace BK7231Flasher
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
-            else if(curType == BKType.BL602 || curType == BKType.BL702)
+            else if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 // do it like that so that there would be no need for re-sync
                 ((BL602Flasher)flasher).doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
@@ -1002,7 +1068,15 @@ namespace BK7231Flasher
                     {
                         if (tc.extractKeys() == false)
                         {
-                            byte[] mac = RFPartitionUtil.getMACFromQio(dat, curType);
+                            byte[] mac = RFPartitionUtil.getMACFromQio(dat, curType, out var isT1FixRequired);
+                            if(isT1FixRequired)
+                            {
+                                addLog("Your device requires moving or recreating RF partition." + Environment.NewLine, Color.DarkOrange);
+                                addLog("To do it, first enable \"Show advanced options\"." + Environment.NewLine, Color.DarkOrange);
+                                addLog("Moving (the best way) - press \"Custom\", \"Restore RF from backup\" and select your backup." + Environment.NewLine, Color.DarkOrange);
+                                addLog("Recreating - press \"Restore RF part\"." + Environment.NewLine, Color.DarkOrange);
+                                addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
+                            }
                             Singleton.buttonRead.Invoke((MethodInvoker)delegate {
                                 // Running on the UI thread
                                 FormExtractedConfig fo = new FormExtractedConfig();
@@ -1401,9 +1475,18 @@ namespace BK7231Flasher
 
         private void buttonEraseAll_Click(object sender, EventArgs e)
         {
-            var res = MessageBox.Show("This will remove everything from 0x11000, including configuration of OBK and MAC address and RF partition. "+
-                "You will need to do 'Restore RF partition' in OBK Web Application/Flash tab to get correct MAC. "+
-                "Do it if you have RF issues. Flash OBK after doing erase. This option might require a lower baud rate. ", "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
+            string _nl = Environment.NewLine;
+            string _msg =
+                "BK7231T / BK7231U / BK7252:" + _nl +
+                "- Erases from 0x11000. Bootloader (0x000000-0x010FFF) must be preserved on these chips." + _nl + _nl +
+                "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
+                "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
+                "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
+                "Full chip erase: BL602/BL702/BL616(BL618), ECR6600, TR6260, XR806, XR809, XR872, RTL8710B/RTL8720DN/RTL87X0C, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
+                "Erase not implemented: LN882H, LN8825B, W800, W600, ESP32 family." + _nl + _nl +
+                "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
+                "Continue?";
+            var res = MessageBox.Show(_msg, "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
             if (res == DialogResult.Yes)
             {
                 if (doGenericOperationPreparations() == false)

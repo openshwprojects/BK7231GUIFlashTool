@@ -15,6 +15,7 @@ namespace BK7231Flasher
         bool bDebugUART;
         MemoryStream ms;
         string lastEncryptionKey;
+        BKChipIdentityResult chipIdentity;
         public static int SECTOR_SIZE = 0x1000;
         public static int BLOCK_SIZE = 0x10000;
         public static int SECTORS_PER_BLOCK = BLOCK_SIZE / SECTOR_SIZE;
@@ -25,6 +26,18 @@ namespace BK7231Flasher
         public static string EMPTY_ENCRYPTION_KEY = "00000000 00000000 00000000 00000000";
         bool openPort()
         {
+            // Close any previously open port before re-opening
+            if (serial != null)
+            {
+                try
+                {
+                    if (serial.IsOpen)
+                        serial.Close();
+                    serial.Dispose();
+                }
+                catch { }
+                serial = null;
+            }
             try
             {
                 serial = new SerialPort(serialName, 115200, Parity.None, 8, StopBits.One);
@@ -60,8 +73,10 @@ namespace BK7231Flasher
             {
                 serial.Close();
                 serial.Dispose();
+                serial = null;
             }
         }
+
        enum CommandCode
         {
             LinkCheck = 0,
@@ -691,17 +706,21 @@ namespace BK7231Flasher
         bool getBus()
         {
             int maxTries = 100;
-            int loops = 1000;
+            int loops = 100;
             bool bOk = false;
             addLog("Getting bus... (now, please do reboot by CEN or by power off/on)" + Environment.NewLine);
+            // Chip bootloader always starts at 115200, ensure port matches
+            serial.BaudRate = 115200;
             for (int tr = 0; tr < maxTries && !bOk; tr++)
             {
-                if(tr % 10 == 0)
+                serial.DtrEnable = true;
+                serial.RtsEnable = true;
+                Thread.Sleep(50);
+                serial.DtrEnable = false;
+                serial.RtsEnable = false;
+                if(tr % 5 == 0)
                 {
-                    //serial.RtsEnable = true;
-                   // Thread.Sleep(10);
-                   // serial.RtsEnable = false;
-                    // OBK commandline reboot
+                    // Also try OBK commandline reboot as fallback
                     serial.WriteLine("reboot");
                 }
                 for (int l = 0; l < loops && !bOk; l++)
@@ -887,31 +906,34 @@ namespace BK7231Flasher
             }
             // make sure it's clear
             lastEncryptionKey = "";
+            chipIdentity = BKChipIdentity.Detect(chipType, ReadFlashReg);
+            if (chipIdentity.HasChipId == false)
+            {
+                if (BKChipIdentity.ShouldAttemptRead(chipType))
+                {
+                    addWarning("Failed to get chip ID!" + Environment.NewLine);
+                    string chipIdFailureWarning = BKChipIdentity.BuildReadRegFailureWarning(chipType);
+                    if (string.IsNullOrEmpty(chipIdFailureWarning) == false)
+                    {
+                        addErrorLine(chipIdFailureWarning);
+                    }
+                }
+            }
+            else
+            {
+                addLog($"Chip ID: 0x{chipIdentity.NormalizedId} ({chipIdentity.FriendlyName})" + Environment.NewLine);
+                string chipMismatchWarning = chipIdentity.BuildMismatchWarning(chipType);
+                if (string.IsNullOrEmpty(chipMismatchWarning) == false)
+                {
+                    addErrorLine(chipMismatchWarning);
+                    if (bSkipKeyCheck == false)
+                    {
+                        return false;
+                    }
+                }
+            }
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
-                byte[] chipIdRaw;
-                if(chipType == BKType.BK7236 || chipType == BKType.BK7258)
-                {
-                    chipIdRaw = ReadFlashReg(0x44010000 + (0x1 << 2)) ?? new byte[] { 0, 0, 0, 0 };
-                }
-                else
-                {
-                    chipIdRaw = ReadFlashReg(0x800000) ?? new byte[] { 0, 0, 0, 0 };
-                }
-                chipIdRaw = chipIdRaw.Reverse().ToArray();
-                string chipId = "";
-                // should be 0x7238 for BK7238, 0x7231c for BK7231N, 0x7236 for both BK7236 and BK7258
-                foreach(var ch in chipIdRaw)
-                {
-                    if(ch == 0 || ch == 1)
-                        continue;
-                    chipId += $"{ch:x}";
-                }
-                // do something if selected type != chip id?
-                if(string.IsNullOrEmpty(chipId))
-                    addWarning($"Failed to get chip ID!" + Environment.NewLine);
-                else
-                    addLog($"Chip ID: 0x{chipId}" + Environment.NewLine);
                 if(doUnprotect())
                 {
                     return false;
@@ -919,9 +941,10 @@ namespace BK7231Flasher
                 if (chipType != BKType.BK7238 && chipType != BKType.BK7252N)
                 {
                     addLog("Going to read encryption key..." + Environment.NewLine);
-                    string key = readEncryptionKey();
+                    string key = readEncryptionKey(out var coeffs);
                     addLog("Encryption key read done!" + Environment.NewLine);
                     addLog("Encryption key: " + key + Environment.NewLine);
+                    bool enforceKeyCheck = chipType != BKType.BK7231M;
                     string otherMode;
                     string expectedKey;
                     if (chipType == BKType.BK7231N)
@@ -941,6 +964,16 @@ namespace BK7231Flasher
                     }
                     if(key != expectedKey)
                     {
+                        // BK7238/BK7252N 4 bytes efuse, so all 4 values will be identical. Ignore if zeroes.
+                        if(key != EMPTY_ENCRYPTION_KEY && coeffs.Distinct().Count() == 1)
+                        {
+                            string chipMismatchWarning = chipIdentity?.BuildMismatchWarning(chipType);
+                            if (string.IsNullOrEmpty(chipMismatchWarning))
+                            {
+                                addErrorLine($"WARNING! Selected chip is a {chipType}, but according to encryption key this may be {chipIdentity?.DescribeDetectedChip() ?? "an unknown chip"}!");
+                            }
+                            if(enforceKeyCheck && !bSkipKeyCheck) return false;
+                        }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
                         addError("WARNING! Non-standard encryption key!" + Environment.NewLine);
                         addError("If it's all zero, it may also mean that read is disabled." + Environment.NewLine);
@@ -951,7 +984,7 @@ namespace BK7231Flasher
                             addError($"Or just try using {otherMode} mode " + Environment.NewLine);
                         }
                         addError("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^" + Environment.NewLine);
-                        if(bSkipKeyCheck == false)
+                        if(enforceKeyCheck && bSkipKeyCheck == false)
                         {
                             return false;
                         }
@@ -1110,7 +1143,7 @@ namespace BK7231Flasher
                     // 4K write
                     bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                     //bool bOk = writeSector(secAddr, data, sectorSize * sec, SECTOR_SIZE);
-                    addLog("Writing sector " + formatHex(secAddr) + "...");
+                    addLog(formatHex(secAddr) + "...");
                     if (bOk == false)
                     {
                         logger.setState("Writing error!", Color.Red);
@@ -1118,7 +1151,6 @@ namespace BK7231Flasher
                         return false;
                     }
                     logger.setProgress(sec + 1, sectors);
-                    addLog(" ok! ");
                 }
                 if (false == checkCRC(startSector, sectors, data))
                 {
@@ -1170,7 +1202,7 @@ namespace BK7231Flasher
                 addError("Read failed?" + Environment.NewLine);
                 return false;
             }
-            if (isFullOf(toCheck.ToArray(), 0xff)==false)
+            if (MiscUtils.isFullOf(toCheck.ToArray(), 0xff)==false)
             {
                 addError("Erase verify error? Flash was not full of 0xFF!" + Environment.NewLine);
                 return false;
@@ -1231,14 +1263,13 @@ namespace BK7231Flasher
                 // 4K write
                 bool bOk = writeSector4K(secAddr, data, SECTOR_SIZE * sec);
                 //bool bOk = writeSector(secAddr, data, SECTOR_SIZE * sec, SECTOR_SIZE);
-                addLog("Writing sector " + formatHex(secAddr) + "...");
+                addLog(formatHex(secAddr) + "...");
                 if (bOk == false)
                 {
                     logger.setState("Write sector failed!", Color.Red);
                     addError(" Writing sector " + formatHex(secAddr) + " failed!" + Environment.NewLine);
                     return false;
                 }
-                addLog(" ok! ");
             }
             if (false == checkCRC(startSector, sectors, data))
             {
@@ -1247,16 +1278,7 @@ namespace BK7231Flasher
             addSuccess("Write success!");
             return true;
         }
-        bool isFullOf(byte [] dat, byte c)
-        {
-            for(int i = 0; i < dat.Length; i++)
-            {
-                if (dat[i] != c)
-                    return false;
-            }
-            return true;
-        }
-        string readEncryptionKey()
+        string readEncryptionKey(out uint[] coeffs)
         {
             int SCTRL_EFUSE_CTRL = 0x00800074;
             int SCTRL_EFUSE_OPTR = 0x00800078;
@@ -1282,7 +1304,7 @@ namespace BK7231Flasher
                     Console.WriteLine("Efuse error at " + addr);
                 }
             }
-            uint[] coeffs = new uint[4];
+            coeffs = new uint[4];
             for (int i = 0; i < 4; i++)
             {
                 coeffs[i] = ((uint)efuse[i * 4]) |
@@ -1309,7 +1331,7 @@ namespace BK7231Flasher
             for (int i = 0; i < sectors; i++)
             {
                 int addr = startSector + step * i;
-                addLog("Reading " + formatHex(addr) + "... ");
+                addLog(formatHex(addr) + "... ");
                 // BK7231T does not allow bootloader read, but we can use a wrap-around hack
                 if(chipType == BKType.BK7231T || chipType == BKType.BK7231U)
                 {
@@ -1335,7 +1357,6 @@ namespace BK7231Flasher
                 //    return null;
                 //}
                 logger.setProgress(i + 1, sectors);
-                addLog("Ok! ");
             }
             addLog(Environment.NewLine + "Basic read operation finished, but now it's time to verify..." + Environment.NewLine);
 
@@ -1405,6 +1426,13 @@ namespace BK7231Flasher
             return true;
         }
 
+        static bool FileNameHasQioMarker(string sourceFileName)
+        {
+            string fileName = Path.GetFileName(sourceFileName);
+            return !string.IsNullOrEmpty(fileName) &&
+                fileName.IndexOf("_QIO_", StringComparison.Ordinal) >= 0;
+        }
+
         bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
             logger.setProgress(0, sectors);
@@ -1463,7 +1491,7 @@ namespace BK7231Flasher
                 }
                 addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
                 bool bSkipBootloader = false;
-                if (sourceFileName.Contains("_QIO_"))
+                if (!bCustomWriteMode && FileNameHasQioMarker(sourceFileName))
                 {
                     if(bOverwriteBootloader == false && (chipType == BKType.BK7231N || chipType == BKType.BK7231M))
                     {
@@ -1486,6 +1514,14 @@ namespace BK7231Flasher
                 if (bSkipBootloader && startSector == BK7231Flasher.BOOTLOADER_SIZE)
                 {
                     // very hacky, but skip bootloader
+                    if (data.Length <= startSector)
+                    {
+                        addError("Cannot skip QIO bootloader area because the file is only "
+                            + data.Length + " bytes, but the bootloader skip size is "
+                            + startSector + " bytes." + Environment.NewLine);
+                        return false;
+                    }
+
                     int length = data.Length - startSector;
                     byte[] newData = new byte[length];
                     Array.Copy(data, startSector, newData, 0, length);
@@ -1512,6 +1548,29 @@ namespace BK7231Flasher
                 addError("Writing file data to chip failed." + Environment.NewLine);
                 return false;
             }
+            if(chipType == BKType.BK7238 && ms != null)
+            {
+                var rData = ms.ToArray();
+                RFPartitionUtil.getMACFromQio(rData, chipType, out var isNeedFix);
+                if(isNeedFix)
+                {
+                    var rfAddr = RFPartitionUtil.getRFOffset(chipType);
+                    var rfData = RFPartitionUtil.getRFFromBackup(rData, chipType, out var origAddr);
+                    if(rfData.Length != 0)
+                    {
+                        addLog($"Moving RF partition from {formatHex(origAddr)} to {formatHex(rfAddr)}..." + Environment.NewLine);
+                        if(writeChunk(rfAddr, rfData, rwMode) == false)
+                        {
+                            addErrorLine("RF move failed!.");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        addWarningLine("No RF partition found! You must manually restore it.");
+                    }
+                }
+            }
             addSuccess("Writing file data to chip successs." + Environment.NewLine);
             //File.WriteAllBytes("lastRead.bin", ms.ToArray());
             return true;
@@ -1524,7 +1583,7 @@ namespace BK7231Flasher
                 (startSector ).ToString("X2")
                 + " (sector " + startSector / BK7231Flasher.SECTOR_SIZE + "), len 0x" +
                 (sectors * BK7231Flasher.SECTOR_SIZE).ToString("X2")
-                + " (" + startSector + " sectors)"
+                + " (" + sectors + " sectors)"
                 + Environment.NewLine);
             if (doGenericSetup() == false)
             {

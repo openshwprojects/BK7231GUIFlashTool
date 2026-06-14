@@ -62,7 +62,7 @@ namespace BK7231Flasher
                     return true;
                 }
             }
-            flash_program(data,0,data?.Length ?? 0, "", true, mode);
+            flash_program(data,startSector,data?.Length ?? 0, "", true, mode);
             return false;
         }
         public void change_baudrate(int baudrate, bool wait = true)
@@ -511,7 +511,6 @@ namespace BK7231Flasher
                 }
                 addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
 
-                startSector = 0;
                 doWrite(startSector, 0, data, rwMode);
 
             }
