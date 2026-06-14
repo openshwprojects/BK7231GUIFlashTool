@@ -15,7 +15,6 @@ namespace BK7231Flasher
 		//static readonly byte CMD_FLASH_UPLOAD = 0x03;
 		//static readonly byte CMD_RUN = 0x06;
 		//static readonly byte CMD_EFUSE = 0x08;
-		static readonly byte CMD_CUSTOM_FLASH_ID = 0x90;
 
 		public ECR6600Flasher(CancellationToken ct) : base(ct)
 		{
@@ -56,17 +55,6 @@ namespace BK7231Flasher
 			Thread.Sleep(50);
 			serial.DtrEnable = false;
 			return false;
-		}
-
-		private byte[] ReadFlashId(bool isErrorExpected = false)
-		{
-			var flashID = ExecuteCommand(CMD_CUSTOM_FLASH_ID, null, 0.2f, 4, isErrorExpected: isErrorExpected);
-			if(flashID == null)
-				return null;
-			addLogLine($"Flash ID: 0x{flashID[0]:X2}{flashID[1]:X2}{flashID[2]:X2}");
-			flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
-			addLogLine($"Flash size is {flashSizeMB}MB");
-			return flashID;
 		}
 
 		protected override bool Sync()
