@@ -5,10 +5,8 @@ BK7231 GUI Flash Tool a simple Windows application that allows you to flash the 
 Supported families:
 - Beken
 - BL602
-- BL702
 - ECR6600
 - LN882H
-- LN8825
 - RDA5981
 - RTL8710B
 - RTL8710C
