@@ -37,6 +37,8 @@ Supported GUI-selectable chip/platform modes:
   - RTL8710B (AmebaZ)
   - RTL8720DN (AmebaD)
   - RTL87X0C (AmebaZ2)
+  - RTL8721DA (AmebaDp)
+  - RTL8720E (AmebaLite)
 - WinnerMicro:
   - W600 (write only)
   - W800/W803
