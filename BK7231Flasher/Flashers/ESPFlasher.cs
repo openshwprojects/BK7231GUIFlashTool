@@ -42,14 +42,14 @@ namespace BK7231Flasher
         const int ESP_RAM_BLOCK = 0x1800; // Must match esptool default
 
         bool isStub = false;
-        bool isESP8266 => chipType == BKType.ESP8266;
-        bool isESP32S2 => chipType == BKType.ESP32S2;
-        bool isESP32C2 => chipType == BKType.ESP32C2;
-        bool isESP32S3 => chipType == BKType.ESP32S3;
-        bool isESP32C3 => chipType == BKType.ESP32C3;
-        bool isESP32C5 => chipType == BKType.ESP32C5;
-        bool isESP32C6 => chipType == BKType.ESP32C6;
-        bool isESP32C61 => chipType == BKType.ESP32C61;
+        bool bIsESP8266 => chipType == BKType.ESP8266;
+        bool bIsESP32S2 => chipType == BKType.ESP32S2;
+        bool bIsESP32C2 => chipType == BKType.ESP32C2;
+        bool bIsESP32S3 => chipType == BKType.ESP32S3;
+        bool bIsESP32C3 => chipType == BKType.ESP32C3;
+        bool bIsESP32C5 => chipType == BKType.ESP32C5;
+        bool bIsESP32C6 => chipType == BKType.ESP32C6;
+        bool bIsESP32C61 => chipType == BKType.ESP32C61;
         string detectedChip = "ESP";
         byte[] _slipBuf = new byte[4096];
         public bool LegacyMode { get; set; } = false;
@@ -57,13 +57,13 @@ namespace BK7231Flasher
         bool isESP32S3RegFamily()
         {
             // C2/C3/S3 share the same SPI register block layout.
-            return isESP32C2 || isESP32C3 || isESP32S3;
+            return bIsESP32C2 || bIsESP32C3 || bIsESP32S3;
         }
 
         bool isESP32C6RegFamily()
         {
             // C5/C6/C61 share a different SPI base address but same layout.
-            return isESP32C5 || isESP32C6 || isESP32C61;
+            return bIsESP32C5 || bIsESP32C6 || bIsESP32C61;
         }
 
         string GetStubNameForSelectedChip()
@@ -356,7 +356,7 @@ namespace BK7231Flasher
             uint mosiDlenOffs;
             uint misoDlenOffs;
 
-            if (isESP8266)
+            if (bIsESP8266)
             {
                 baseAddr = ESP8266_SPI_REG_BASE;
                 w0Offs = ESP8266_SPI_W0_OFFS;
@@ -365,7 +365,7 @@ namespace BK7231Flasher
                 mosiDlenOffs = 0; // not used for ESP8266
                 misoDlenOffs = 0; // not used for ESP8266
             }
-            else if (isESP32S2)
+            else if (bIsESP32S2)
             {
                 baseAddr = ESP32S2_SPI_REG_BASE;
                 w0Offs = ESP32S3_SPI_W0_OFFS;
@@ -403,7 +403,7 @@ namespace BK7231Flasher
             }
             
             // Set lengths (0 MOSI, readBits MISO)
-            if (isESP8266)
+            if (bIsESP8266)
             {
                 // ESP8266 has no MOSI/MISO_DLEN registers.
                 // Bit lengths are set via SPI_USR1: bits[31:26]=MISO, bits[25:17]=MOSI
@@ -1005,7 +1005,7 @@ namespace BK7231Flasher
              try
              {
                  byte[] mac;
-                 if (isESP8266)
+                 if (bIsESP8266)
                  {
                      // ESP8266: Read MAC from OTP ROM registers
                      uint mac0 = ReadReg(0x3FF00050);
@@ -1035,37 +1035,37 @@ namespace BK7231Flasher
                      mac = new byte[] { oui0, oui1, oui2,
                          (byte)((mac1 >> 8) & 0xFF), (byte)(mac1 & 0xFF), (byte)((mac0 >> 24) & 0xFF) };
                  }
-                   else if (isESP32C3 || isESP32C2)
+                   else if (bIsESP32C3 || bIsESP32C2)
                    {
                        // ESP32-C2/C3: EFUSE_BASE=0x60008800, MAC_EFUSE_REG=EFUSE_BASE+0x044
                        if (!TryReadMacFromEfuse(0x60008844, out mac))
                            throw new Exception("Failed to read C2/C3 eFuse MAC registers.");
                    }
-                   else if (isESP32S3)
+                   else if (bIsESP32S3)
                    {
                        // ESP32-S3: EFUSE_BASE=0x60007000, MAC_EFUSE_REG=EFUSE_BASE+0x044
                        if (!TryReadMacFromEfuse(0x60007044, out mac))
                            throw new Exception("Failed to read S3 eFuse MAC registers.");
                    }
-                   else if (isESP32S2)
+                   else if (bIsESP32S2)
                    {
                        // ESP32-S2: EFUSE_BASE=0x3F41A000, MAC_EFUSE_REG=EFUSE_BASE+0x044
                        if (!TryReadMacFromEfuse(0x3F41A044, out mac))
                            throw new Exception("Failed to read S2 eFuse MAC registers.");
                    }
-                   else if (isESP32C5)
+                   else if (bIsESP32C5)
                    {
                        // ESP32-C5: EFUSE_BASE=0x600B4800, MAC_EFUSE_REG=EFUSE_BASE+0x044
                        if (!TryReadMacFromEfuse(0x600B4844, out mac))
                            throw new Exception("Failed to read C5 eFuse MAC registers.");
                    }
-                   else if (isESP32C6)
+                   else if (bIsESP32C6)
                    {
                        // ESP32-C6: EFUSE_BASE=0x600B0800, MAC_EFUSE_REG=EFUSE_BASE+0x044
                        if (!TryReadMacFromEfuse(0x600B0844, out mac))
                            throw new Exception("Failed to read C6 eFuse MAC registers.");
                    }
-                   else if (isESP32C61)
+                   else if (bIsESP32C61)
                    {
                        // ESP32-C61: EFUSE_BASE=0x600B4800, MAC_EFUSE_REG=EFUSE_BASE+0x044
                        if (!TryReadMacFromEfuse(0x600B4844, out mac))
@@ -1191,7 +1191,7 @@ namespace BK7231Flasher
              {
                  addLogLine("Configuring SPI flash pins (SpiAttach)...");
 
-                 if (isESP8266 && !isStub)
+                 if (bIsESP8266 && !isStub)
                  {
                      // ESP8266 ROM has no SPI_ATTACH command.
                      // Use FLASH_BEGIN(size=0, offset=0) which initializes SPI as a side effect.
