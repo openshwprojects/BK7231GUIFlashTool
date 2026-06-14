@@ -1169,7 +1169,7 @@ namespace BK7231Flasher
         /// <summary>
         /// Internal method used to cancel the file transfer.
         /// </summary>
-        private void Abort()
+        internal void Abort()
         {
             CurrentState = States.Inactive;
             TerminateSend = true;

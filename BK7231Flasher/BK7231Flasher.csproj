@@ -58,6 +58,9 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Flashers\ECRBaseFlasher.cs" />
+    <Compile Include="Flashers\RTLNFlasher.cs" />
+    <Compile Include="Flashers\GD32VW553Flasher.cs" />
     <Compile Include="Misc\BL602FlashList.cs" />
     <Compile Include="Misc\BL602Utils.cs" />
     <Compile Include="Utils\Beken_Crypto.cs" />
@@ -233,6 +236,9 @@
     <EmbeddedResource Include="Floaders\ESP8266_Stub.json" />
     <EmbeddedResource Include="Floaders\BL616_Boot.bin" />
     <EmbeddedResource Include="Floaders\BL616_Dts.bin" />
+    <EmbeddedResource Include="Floaders\GD32VW553_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RTL8721DA_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RTL8720E_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
