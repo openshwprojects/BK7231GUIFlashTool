@@ -16,8 +16,8 @@
 | ESP32 | Espressif | ✅ | ✅ | ✅ | ❓ | ➖ | ➖ | ❌ |
 | ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ✅ | ❓ | ➖ | ➖ | ❓ |
 | ESP8266<br>ESP8285 | Espressif | ✅ | ✅ | ✅ | ❓ | ➖ | ➖ | ❓ |
-| ECR6600 | ESWIN / Transa Semi | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
-| TR6260 | ESWIN / Transa Semi | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❓ |
+| ECR6600 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| TR6260 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❓ |
 | GD32VW553 | GigaDevice | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | Generic SPI CH341 | CH341 SPI | ✅ | ✅³ | ✅ | ➖ | ➖ | ➖ | ➖ |
 | LN882H | Lightning Semi | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ✅ |
