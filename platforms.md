@@ -4,11 +4,11 @@
 | BK7231N (T2, T34) | Beken | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | BK7231T | Beken | ✅ | ✅¹ | ✅¹ | ✅ | ✅ | ✅ | ✅ |
 | BK7231U | Beken | ✅ | ✅¹ | ✅¹ | ✅ | ✅ | ✅ | ✅ |
-| BK7236 (T3) | Beken | ✅ | ✅ | ✅² | ➖ | ✅ | ✅ | ✅ |
+| BK7236 (T3) | Beken | ✅ | ✅ | ✅² | ➖² | ✅ | ✅ | ✅ |
 | BK7238 (T1) | Beken | ✅ | ✅³ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | BK7252 | Beken | ⚠️¹'¹⁰ | ✅¹ | ✅¹ | ✅ | ✅ | ✅ | ❓ |
 | BK7252N (T4) | Beken | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| BK7258 (T5) | Beken | ✅ | ✅ | ✅² | ➖² | ✅ | ✅ | ✅ |
+| BK7258 (T5) | Beken | ✅ | ✅ | ✅ | ➖² | ✅ | ✅ | ✅ |
 | Beken SPI CH341 | Beken | ✅ | ✅³ | ✅³ | ❌ | ❌ | ❌ | ❌ |
 | BL602 | Bouffalo Lab | ✅ | ✅ | ✅ | ✅ | ➖ | ❌ | ⚠️⁴ |
 | BL616/BL618 | Bouffalo Lab | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ⚠️⁴ |
@@ -46,7 +46,7 @@
 ³ Always writes from `0x0`<br>
 ⁴ `BL602`/`BL616`/`BL618`/`BL702` custom reads work, but custom writes still follow the image/partition flow instead of arbitrary raw offsets.<br>
 ⁵ `RTL87X0C` erase-all is implemented as a chip erase; sector erase is not implemented in the current backend.<br>
-⁶ `W600` is write-only; standalone OBK config writes are disabled and config injection only happens during a full firmware write.<br>
-⁷ `W80x` writes expect `.fls` or a full-backup-style `.bin` with a firmware header at `0x2000`; config writes use the same wrapped path.<br>
-⁸ `XR806`/`XR809`/`XR872` explicit erase is full-chip only, and custom writes are raw bytes only.<br>
+⁶ Write-only; standalone OBK config writes are disabled and config injection only happens during a full firmware write.<br>
+⁷ Writes expect `.fls` or a full-backup-style `.bin` with a firmware header at `0x2000`; config writes use the same wrapped path.<br>
+⁸ `XR806`/`XR809`/`XR872` explicit erase is full-chip only, and custom writes are raw bytes only. Full-chip erase performed before write.<br>
 ¹⁰ 4MB `BK7252U` wrap-around broken<br>
