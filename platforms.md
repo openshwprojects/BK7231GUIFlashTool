@@ -10,18 +10,18 @@
 | BK7252N (T4) | Beken | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | BK7258 (T5) | Beken | ✅ | ✅ | ✅ | ➖² | ✅ | ✅ | ✅ |
 | Beken SPI CH341 | Beken | ✅ | ✅³ | ✅³ | ❌ | ❌ | ❌ | ❌ |
-| BL602 | Bouffalo Lab | ✅ | ✅ | ✅ | ✅ | ➖ | ❌ | ⚠️⁴ |
-| BL616/BL618 | Bouffalo Lab | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ⚠️⁴ |
-| BL702 | Bouffalo Lab | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ⚠️⁴ |
-| ESP32 | Espressif | ✅ | ✅ | ✅ | ❓ | ➖ | ➖ | ❌ |
+| BL602 | Bouffalo Lab | ✅ | ✅ | ✅ | ✅ | ➖ | ❌ | ℹ️⁴ |
+| BL616/BL618 | Bouffalo Lab | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ℹ️⁴ |
+| BL702 | Bouffalo Lab | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ℹ️⁴ |
+| ESP32 | Espressif | ✅ | ✅ | ✅ | ℹ️ | ➖ | ➖ | ❌ |
 | ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ✅ | ❓ | ➖ | ➖ | ❓ |
 | ESP8266<br>ESP8285 | Espressif | ✅ | ✅ | ✅ | ❓ | ➖ | ➖ | ❓ |
 | ECR6600 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
 | TR6260 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❓ |
 | GD32VW553 | GigaDevice | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | Generic SPI CH341 | CH341 SPI | ✅ | ✅³ | ✅ | ➖ | ➖ | ➖ | ➖ |
-| LN882H | Lightning Semi | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ✅ |
-| LN8825 | Lightning Semi | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ✅ |
+| LN882H | Lightning Semi | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ℹ️ |
+| LN8825 | Lightning Semi | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ℹ️ |
 | RDA5981 | RDA Micro | ✅ | ✅ | ✅ | ✅ | ➖ | ❌ | ⚠️ |
 | RTL8710B (AmebaZ) | Realtek | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ❓ |
 | RTL8720DN (AmebaD) | Realtek | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ❓ |
@@ -39,6 +39,7 @@
 ❌ - Not implemented<br>
 ❗️ - Broken<br>
 ⚠️ - Warning<br>
+ℹ️ - Needs checking<br>
 ➖ - Not applicable<br>
 
 ¹ Default write and erase start at `0x11000`<br>
