@@ -50,24 +50,12 @@ private void updateTuyaConfigOutput()
             if (tc == null)
                 return;
 
-            // Text description box: pin/module translation derived from Tuya keys.
-            // In enhanced mode we prefer translation based on the enhanced KV view (even if checksums are bad),
-            // but fall back to the classic extraction when the enhanced view cannot recover any meaningful pins.
-            textBoxTuyaCFGText.Text = checkBoxTuyaCfgEnhanced.Checked
-                ? tc.getKeysHumanReadableEnhanced()
-                : tc.getKeysHumanReadable();
+            // Text description box: pin/module translation derived from the enhanced KV view.
+            textBoxTuyaCFGText.Text = tc.getKeysHumanReadableEnhanced();
 
-            if (!checkBoxTuyaCfgEnhanced.Checked)
-            {
-                // Cancel any in-flight enhanced render.
-                _tuyaEnhancedRenderSeq++;
-                textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
-                return;
-            }
-
-            // Show the base JSON quickly, then compute enhanced output off the UI thread.
+            // Compute enhanced output off the UI thread.
             int seq = ++_tuyaEnhancedRenderSeq;
-            textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
+            textBoxTuyaCFGJSON.Text = "";
 
             Task.Run(() => tc.getEnhancedExtractionText())
                 .ContinueWith(t =>
@@ -102,13 +90,6 @@ try
                     }
                 });
         }
-
-
-        private void checkBoxTuyaCfgEnhanced_CheckedChanged(object sender, EventArgs e)
-        {
-            updateTuyaConfigOutput();
-        }
-
         private void tabPage2_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -168,8 +149,6 @@ try
                     if (!classicExtractFailed || hasEnhancedFallback)
                     {
                         _lastTuyaConfig = tc;
-                        if (classicExtractFailed && hasEnhancedFallback)
-                            checkBoxTuyaCfgEnhanced.Checked = true;
                         updateTuyaConfigOutput();
                     }
                     else

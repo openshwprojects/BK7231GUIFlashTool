@@ -584,7 +584,9 @@ namespace BK7231Flasher
                     return 1;
                 }
 
-                string json = hasEnhancedFallback ? tc.getEnhancedExtractionText() : tc.getKeysAsJSON();
+                string json = tc.getEnhancedExtractionText();
+                if (string.IsNullOrWhiteSpace(json))
+                    json = tc.getKeysAsJSON();
                 File.WriteAllText(outputFile, json, Encoding.UTF8);
 
                 Console.WriteLine($"Tuya config JSON written to: {outputFile}");
