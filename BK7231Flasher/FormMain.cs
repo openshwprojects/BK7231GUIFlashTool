@@ -44,7 +44,12 @@ namespace BK7231Flasher
             { BKType.BL702,      "BL702" },
             { BKType.ECR6600,    "ECR6600" },
             { BKType.ESP32,      "ESP32" },
+            { BKType.ESP32S2,    "ESP32-S2" },
+            { BKType.ESP32C2,    "ESP32-C2" },
             { BKType.ESP32C3,    "ESP32-C3" },
+            { BKType.ESP32C5,    "ESP32-C5" },
+            { BKType.ESP32C6,    "ESP32-C6" },
+            { BKType.ESP32C61,   "ESP32-C61" },
             { BKType.ESP32S3,    "ESP32-S3" },
             { BKType.ESP8266,    "ESP8266" },
             { BKType.GD32VW553,  "GD32VW553" },
@@ -207,7 +212,7 @@ namespace BK7231Flasher
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
 
-            foreach(var chip in Chips)
+            foreach(var chip in Chips.OrderBy(k => k.Value, StringComparer.OrdinalIgnoreCase))
             {
                 comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
             }
@@ -536,6 +541,11 @@ namespace BK7231Flasher
                     flasher = new TR6260Flasher(cts.Token);
                     break;
                 case BKType.ESP32:
+                case BKType.ESP32S2:
+                case BKType.ESP32C2:
+                case BKType.ESP32C5:
+                case BKType.ESP32C6:
+                case BKType.ESP32C61:
                 case BKType.ESP32S3:
                 case BKType.ESP32C3:
                 case BKType.ESP8266:
@@ -633,7 +643,10 @@ namespace BK7231Flasher
             if(parms!=null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
+                if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
+                    || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
+                    || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
+                    || curType == BKType.ESP32S3 || curType == BKType.ESP8266)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 chosenSourceFile = parms.sourceFileName;
@@ -815,7 +828,11 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B
+                    || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
+                    || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
+                    || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
+                    || curType == BKType.ESP32S3 || curType == BKType.ESP8266)
                     startSector /= BK7231Flasher.SECTOR_SIZE;
                 sectors = parms.len / BK7231Flasher.SECTOR_SIZE;
                 isFullRead = false;
@@ -1482,9 +1499,8 @@ namespace BK7231Flasher
                 "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
-                "Full chip erase: BL602/BL702/BL616(BL618), ECR6600, GD32VW553, TR6260, XR806, XR809, XR872, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI/Generic SPI." + _nl + _nl +
-                "RTL8710B / RTL8720DN: current GUI erase-all starts at 0x11000 and requests a full-flash sector count from there." + _nl + _nl +
-                "Erase not implemented: LN882H, LN8825B, W800, W600, ESP32 family." + _nl + _nl +
+                "Full chip erase: BL602, BL702, BL616 / BL618, ECR6600, TR6260, XR806, XR809, XR872, RTL8710B, RTL8720DN, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI / Generic SPI, ESP8266, ESP32 family." + _nl + _nl +
+                "Erase not implemented: LN882H, LN8825B, W800, W600." + _nl + _nl +
                 "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
                 "Continue?";
             var res = MessageBox.Show(_msg, "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
