@@ -1,6 +1,8 @@
 using System;
+using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Text;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -8,6 +10,9 @@ namespace BK7231Flasher
 	public class RTLNFlasher : ECRBaseFlasher
 	{
 		byte[] flashID;
+		static readonly byte CMD_KV_GET = 0x93;
+		static readonly byte CMD_KV_SET = 0x94;
+		static readonly byte CMD_MAC_GET = 0x95;
 
 		public RTLNFlasher(CancellationToken ct) : base(ct)
 		{
@@ -41,6 +46,70 @@ namespace BK7231Flasher
 			return true;
 		}
 
+		internal byte[] ReadMAC()
+		{
+			return ExecuteCommand(CMD_MAC_GET, expectedReplyLen: 6);
+		}
+
+		private bool SetBaud(int baud, bool noCheck = false)
+		{
+			if(serial.BaudRate != baud)
+			{
+				int givenBaud = baud;
+				int x = 0x0D;
+				int[] br = { 115200, 128000, 153600, 230400, 380400, 460800, 500000, 921600, 1000000, 1382400, 1444400, 1500000, 1843200, 2000000, 2100000, 2764800, 3000000, 3250000, 3692300, 3750000, 4000000, 6000000 };
+				foreach(int el in br)
+				{
+					if(el >= baud)
+					{
+						baud = el;
+						break;
+					}
+					x++;
+				}
+				addLog("Setting baud rate " + baud + " (given as " + givenBaud + ")...");
+				byte[] pkt = new byte[2];
+				pkt[0] = 0x05;
+				pkt[1] = (byte)x;
+				if(noCheck)
+				{
+					serial.Write(pkt, 0, pkt.Length);
+				}
+				else
+				{
+					if(!WriteCmd(pkt))
+					{
+						addLog("... ERROR!" + Environment.NewLine);
+						return false;
+					}
+				}
+				addLog("... OK!" + Environment.NewLine);
+
+				return SetComBaud(baud);
+			}
+			return true;
+		}
+
+		private bool SetComBaud(int baud)
+		{
+			try
+			{
+				serial.Close();
+				serial.BaudRate = baud;
+				serial.Open();
+				serial.ReadTimeout = 2000;
+				serial.WriteTimeout = 2000;
+				Thread.Sleep(50);
+				serial.DiscardInBuffer();
+				serial.DiscardOutBuffer();
+			}
+			catch
+			{
+				addErrorLine("Error: ReOpen COM port at " + baud);
+				return false;
+			}
+			return true;
+		}
 		protected override bool Sync()
 		{
 			//Thread.Sleep(200);
@@ -49,6 +118,7 @@ namespace BK7231Flasher
 			//	serial.Write(new[] { xm.EOT }, 0, 1);
 			//	Thread.Sleep(200);
 			//}
+			if(isCancelled) return false;
 			flashID = ReadFlashId(true);
 			if(flashID != null)
 			{
@@ -57,6 +127,7 @@ namespace BK7231Flasher
 			}
 			else
 			{
+				SetBaud(460800);
 				addLogLine("Sending RAM code...");
 				var stub = chipType switch
 				{
@@ -67,8 +138,8 @@ namespace BK7231Flasher
 				
 				var offset = chipType switch
 				{
-					BKType.RTL8721DA => 0x3000A000,
-					BKType.RTL8720E => 0x3000A000,
+					BKType.RTL8721DA => 0x3000A020,
+					BKType.RTL8720E => 0x3000A020,
 					_ => throw new Exception()
 				};
 				addLogLine($"Write Floader to SRAM at 0x{offset:X8} to 0x{offset + stub.Length:X8}");
@@ -89,8 +160,10 @@ namespace BK7231Flasher
 					xm.PacketSent -= Xm_RtlPacketSent;
 				}
 				addLogLine("");
-				Thread.Sleep(100);
-				serial.DiscardInBuffer();
+				//Thread.Sleep(100);
+				//serial.DiscardInBuffer();
+				//serial.BaudRate = 115200;
+				SetComBaud(115200);
 				flashID = ReadFlashId(false);
 				if(flashID != null)
 				{
@@ -145,7 +218,38 @@ namespace BK7231Flasher
 				{
 					if(cfg != null)
 					{
-						addErrorLine($"OBK config write is not supported on {chipType}.");
+						cfg.saveConfig(chipType);
+						var cfgdata = cfg.getData();
+						var cfgname = Encoding.ASCII.GetBytes("ObkCfg");
+
+						addLog("Now will also write OBK config..." + Environment.NewLine);
+						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+
+						var data = new byte[cfgname.Length + 1 + 2];
+						data[0] = (byte)cfgname.Length;
+						data[1] = (byte)(cfgdata.Length & 0xFF);
+						data[2] = (byte)((cfgdata.Length >> 8) & 0xFF);
+						Array.Copy(cfgname, 0, data, 3, cfgname.Length);
+						var res = ExecuteCommand(CMD_KV_SET, data, 0.5f, 0);
+						if(res == null)
+						{
+							serial.Write(new[] { xm.EOT }, 0, 1);
+							logger.setState("OBK config write failed!", Color.Red);
+							return;
+						}
+						var ret = xm.Send(cfgdata);
+						if(ret != cfgdata.Length)
+						{
+							addErrorLine($"Write failed ({xm.TerminationReason})! Expected sent bytes: {cfgdata.Length}, really sent: {ret}");
+							addError("Writing OBK config data to chip failed." + Environment.NewLine);
+							logger.setState("OBK config write failed!", Color.Red);
+							Thread.Sleep(100);
+							serial.Write(new[] { xm.EOT }, 0, 1);
+							return;
+						}
+						logger.setState("OBK config write success!", Color.Green);
 					}
 					else
 					{
@@ -153,6 +257,31 @@ namespace BK7231Flasher
 					}
 				}
 			}
+		}
+
+		public override void doRead(int startSector = 0x000, int sectors = 10, bool fullRead = false)
+		{
+			if(startSector == int.MinValue && sectors == int.MinValue)
+			{
+				if(doGenericSetup() == false)
+				{
+					return;
+				}
+				if(Sync())
+				{
+					var res = ExecuteCommand(CMD_KV_GET, Encoding.ASCII.GetBytes("ObkCfg"), 0.5f, 3584);
+					ms?.Dispose();
+					ms = null;
+					if(res != null)
+					{
+						ms = new MemoryStream(res);
+						logger.setState("Read success!", Color.Green);
+						return;
+					}
+					logger.setState("Read failed!", Color.Red);
+				}
+			}
+			else base.doRead(startSector, sectors, fullRead);
 		}
 
 		private void Xm_RtlPacketSent(int sentBytes, int total, int sequence, uint offset)

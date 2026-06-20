@@ -233,14 +233,6 @@ namespace BK7231Flasher
                     offset = 0x00082000;
                     regSkip = new byte[4] { 33, 32, 8, 0 };
                     break;
-                //case BKType.RTL8721DA:
-                //    FLoaders.B64GZ_ToBytes(FLoaders.AmebaDplusFLoader);
-                //    offset = 0x00082000;
-                //    break;
-                //case BKType.RTL8720E:
-                //    FLoaders.B64GZ_ToBytes(FLoaders.AmebaLiteFloader);
-                //    offset = 0x00082000;
-                //    break;
             }
             byte[] regs = ReadRegs(offset, 4);
             if(regs != null && regs.Length == 4 && regs.SequenceEqual(regSkip))

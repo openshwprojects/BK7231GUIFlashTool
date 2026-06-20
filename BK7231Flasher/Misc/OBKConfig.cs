@@ -110,6 +110,7 @@ namespace BK7231Flasher
                 case BKType.RTL8720D:
                 case BKType.BL602:
                 case BKType.BL616:
+                case BKType.BL702:
                 case BKType.ECR6600:
                 case BKType.TR6260:
                 case BKType.RDA5981:
@@ -131,11 +132,6 @@ namespace BK7231Flasher
                 return false;
             }
             return true;
-        }
-        internal bool loadFrom(string fname, BKType type)
-        {
-            byte[] fileBytes = File.ReadAllBytes(fname);
-            return loadFrom(fileBytes, type, true);
         }
         public byte buttonHoldRepeat
         {
@@ -583,10 +579,13 @@ namespace BK7231Flasher
             switch(type)
             {
                 case BKType.RTL8720D:
+                case BKType.RTL8721DA:
+                case BKType.RTL8720E:
                 case BKType.LN882H:
                 case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.BL616:
+                case BKType.BL702:
                 case BKType.RDA5981:
                 case BKType.W600:
                 case BKType.W800:
@@ -622,10 +621,13 @@ namespace BK7231Flasher
             switch(type)
             {
                 case BKType.RTL8720D:
+                case BKType.RTL8721DA:
+                case BKType.RTL8720E:
                 case BKType.LN882H:
                 case BKType.LN8825:
                 case BKType.BL602:
                 case BKType.BL616:
+                case BKType.BL702:
                 case BKType.RDA5981:
                 case BKType.W600:
                 case BKType.W800:

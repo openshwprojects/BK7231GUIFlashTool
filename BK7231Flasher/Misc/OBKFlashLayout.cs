@@ -64,6 +64,10 @@ namespace BK7231Flasher
                 case BKType.GD32VW553:
                     sectors = 1;
                     return 0x3F1000;
+                case BKType.RTL8721DA:
+                case BKType.RTL8720E:
+                    sectors = int.MinValue;
+                    return int.MinValue;
                 default:
                     sectors = 0;
                     return 0;
