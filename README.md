@@ -2,7 +2,7 @@
 
 BK7231 GUI Flash Tool is a simple Windows application that allows you to back up and flash OpenBK/OpenBeken and related Open\* firmware projects to supported IoT chips without extensive programming knowledge. The tool originally focused on Beken BK7231T/BK7231N devices, but the current version supports a wider set of chip and platform modes.
 
-Supported GUI-selectable chip/platform modes:
+Supported GUI-selectable chip/platform modes: 
 - Beken UART:
   - BK7231M
   - BK7231N (T2, T34, BL2028N)
