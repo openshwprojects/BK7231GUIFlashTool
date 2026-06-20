@@ -314,7 +314,7 @@ namespace BK7231Flasher
 				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
 				if(res == null)
 				{
-					serial.Write($"{xm.EOT}");
+					serial.Write(new[] { xm.EOT }, 0, 1);
 					Thread.Sleep(100);
 					return false;
 				}
@@ -384,11 +384,14 @@ namespace BK7231Flasher
 
 		protected byte StubCRC8(byte[] buf, int length)
 		{
-			uint crc = 0;
+			byte crc = 0;
 
-			for(int i = 0; i < length; i++)
+			unchecked
 			{
-				crc += buf[i];
+				for(int i = 0; i < length; i++)
+				{
+					crc += buf[i];
+				}
 			}
 			return (byte)(crc % 256);
 		}

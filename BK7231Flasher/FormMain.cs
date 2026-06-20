@@ -72,6 +72,28 @@ namespace BK7231Flasher
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
 
+        private bool IsBeken
+        {
+            get
+            { 
+                switch(curType)
+                {
+                    case BKType.BK7231M:
+                    case BKType.BK7231N:
+                    case BKType.BK7231T:
+                    case BKType.BK7231U:
+                    case BKType.BK7236:
+                    case BKType.BK7238:
+                    case BKType.BK7252:
+                    case BKType.BK7252N:
+                    case BKType.BK7258:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
+
         public FormMain()
         {
             Singleton = this;
@@ -868,6 +890,14 @@ namespace BK7231Flasher
             bool bBlank = true;
             int nonBlank = 0;
             byte[] data = flasher.getReadResult();
+            if(data == null)
+            {
+                worker = null;
+                //setButtonReadLabel(label_startRead);
+                clearUp();
+                setButtonStates(true);
+                return;
+            }
             for (int i = 0; i < data.Length; i++)
             {
                 if (data[i] != 0xff)
@@ -1057,7 +1087,11 @@ namespace BK7231Flasher
             if (checkBoxReadOBKConfig.Checked)
             {
                 addLog("Backup created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
-                if(formObkCfg.tryToLoadOBKConfig(dat, curType))
+                if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E)
+                {
+                    addLog("Can't extract OBK config from backup for this chip." + Environment.NewLine, Color.DarkRed);
+                }
+                else if(formObkCfg.tryToLoadOBKConfig(dat, curType))
                 {
                     addLog("OBK config not found." + Environment.NewLine, Color.DarkRed);
                 }
@@ -1077,6 +1111,7 @@ namespace BK7231Flasher
             }
             else
             {
+                byte[] mac = MACOperations(dat);
                 addLog("Backup created, will now attempt to extract Tuya config." + Environment.NewLine, Color.Gray);
                 try
                 {
@@ -1085,38 +1120,18 @@ namespace BK7231Flasher
                     {
                         if (tc.extractKeys() == false)
                         {
-                            byte[] mac = RFPartitionUtil.getMACFromQio(dat, curType, out var isT1FixRequired);
-                            if(isT1FixRequired)
-                            {
-                                addLog("Your device requires moving or recreating RF partition." + Environment.NewLine, Color.DarkOrange);
-                                addLog("To do it, first enable \"Show advanced options\"." + Environment.NewLine, Color.DarkOrange);
-                                addLog("Moving (the best way) - press \"Custom\", \"Restore RF from backup\" and select your backup." + Environment.NewLine, Color.DarkOrange);
-                                addLog("Recreating - press \"Restore RF part\"." + Environment.NewLine, Color.DarkOrange);
-                                addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
-                            }
                             Singleton.buttonRead.Invoke((MethodInvoker)delegate {
                                 // Running on the UI thread
                                 FormExtractedConfig fo = new FormExtractedConfig();
                                 fo.showConfig(tc);
-                                fo.showMAC(mac);
+                                if(mac != null) fo.showMAC(mac);
                                 fo.showEncryption(lastEncryptionKey);
                                 fo.Show();
                             });
                             // also pass to new config window
                             formObkCfg.loadFromTuyaConfig(tc);
-                            formObkCfg.onMACLoaded(mac,curType);
 
                             addLog("Tuya config extracted and shown." + Environment.NewLine, Color.Green);
-                            string macStr = "";
-                            for(int k = 0; k < 6; k++)
-                            {
-                                if(k!= 0)
-                                {
-                                    macStr += ":";
-                                }
-                                macStr += mac[k].ToString("X2");
-                            }
-                            addLog("MAC seems to be " + macStr + Environment.NewLine, Color.Green);
                         }
                         else
                         {
@@ -1133,6 +1148,39 @@ namespace BK7231Flasher
                     addLog("Sorry, failed to find Tuya Config in backup binary due to an unknown exception " + ex.ToString() + "" + Environment.NewLine, Color.DarkRed);
                 }
             }
+        }
+        private byte[] MACOperations(byte[] data)
+        {
+            byte[] mac = null;
+            if(IsBeken)
+            {
+                mac = RFPartitionUtil.getMACFromQio(data, curType, out var isRFFixRequired);
+                if(isRFFixRequired)
+                {
+                    addLog("Your device requires moving or recreating RF partition." + Environment.NewLine, Color.DarkOrange);
+                    addLog("To do it, first enable \"Show advanced options\"." + Environment.NewLine, Color.DarkOrange);
+                    addLog("Moving (the best way) - press \"Custom\", \"Restore RF from backup\" and select your backup." + Environment.NewLine, Color.DarkOrange);
+                    addLog("Recreating - press \"Restore RF part\"." + Environment.NewLine, Color.DarkOrange);
+                    addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
+                }
+            }
+            else if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E)
+            {
+                try
+                {
+                    mac = ((RTLNFlasher)flasher).ReadMAC() ?? null;
+                }
+                catch
+                {
+                    mac = null;
+                }
+            }
+            if(mac != null)
+            {
+                addLog($"MAC seems to be {mac[0]:X}:{mac[1]:X}:{mac[2]:X}:{mac[3]:X}:{mac[4]:X}:{mac[5]:X}" + Environment.NewLine, Color.Green);
+                formObkCfg.onMACLoaded(mac, curType);
+            }
+            return mac;
         }
         public int addToFirmaresList(string dir)
         {
