@@ -12,8 +12,9 @@ namespace BK7231Flasher
 
         internal void showConfig(TuyaConfig tc)
         {
-              textBoxTuyaCFGJSON.Text = tc.getKeysAsJSON();
-              textBoxTuyaCFGText.Text = tc.getKeysHumanReadable();
+              string json = tc.getEnhancedExtractionText();
+              textBoxTuyaCFGJSON.Text = string.IsNullOrWhiteSpace(json) ? tc.getKeysAsJSON() : json;
+              textBoxTuyaCFGText.Text = tc.getKeysHumanReadableEnhanced();
         }
         private void FormExtractedConfig_Load(object sender, EventArgs e)
         {
