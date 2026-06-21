@@ -97,6 +97,7 @@ jobs:
           body: |
             Automated release for BK7231GUIFlashTool.
             Includes the latest .exe, .dll files, and loaders directory.
+          generate_release_notes: true
           draft: false
           prerelease: false
           files: release/BK7231GUIFlashTool-build-${{ github.run_number }}.zip
