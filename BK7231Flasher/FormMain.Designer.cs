@@ -113,7 +113,6 @@ namespace BK7231Flasher
             this.label17 = new System.Windows.Forms.Label();
             this.linkLabel4 = new System.Windows.Forms.LinkLabel();
             this.textBoxTuyaCFGJSON = new System.Windows.Forms.TextBox();
-            this.checkBoxTuyaCfgEnhanced = new System.Windows.Forms.CheckBox();
             this.label16 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
             this.buttonIPSaveResultToFile = new System.Windows.Forms.Button();
@@ -431,7 +430,7 @@ namespace BK7231Flasher
             this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
             this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(100, 17);
             this.checkBoxSkipKeyCheck.TabIndex = 35;
-            this.checkBoxSkipKeyCheck.Text = "Skip key check";
+            this.checkBoxSkipKeyCheck.Text = "Skip chip/key check";
             this.checkBoxSkipKeyCheck.UseVisualStyleBackColor = true;
             this.checkBoxSkipKeyCheck.CheckedChanged += new System.EventHandler(this.checkBoxSkipKeyCheck_CheckedChanged);
             // 
@@ -442,7 +441,7 @@ namespace BK7231Flasher
             this.checkBoxOverwriteBootloader.Name = "checkBoxOverwriteBootloader";
             this.checkBoxOverwriteBootloader.Size = new System.Drawing.Size(227, 17);
             this.checkBoxOverwriteBootloader.TabIndex = 34;
-            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (for N/M, don\'t use it)";
+            this.checkBoxOverwriteBootloader.Text = "Overwrite bootloader (Beken only, caution)";
             this.checkBoxOverwriteBootloader.UseVisualStyleBackColor = true;
             this.checkBoxOverwriteBootloader.CheckedChanged += new System.EventHandler(this.checkBoxOverwriteBootloader_CheckedChanged);
             // 
@@ -976,7 +975,6 @@ namespace BK7231Flasher
             this.tabPage2.Controls.Add(this.label32);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyTextToClipBoard);
             this.tabPage2.Controls.Add(this.buttonTuyaConfig_CopyJSONToClipBoard);
-            this.tabPage2.Controls.Add(this.checkBoxTuyaCfgEnhanced);
             this.tabPage2.Controls.Add(this.label18);
             this.tabPage2.Controls.Add(this.textBoxTuyaCFGText);
             this.tabPage2.Controls.Add(this.label17);
@@ -1043,17 +1041,6 @@ namespace BK7231Flasher
             this.buttonTuyaConfig_CopyJSONToClipBoard.UseVisualStyleBackColor = true;
             this.buttonTuyaConfig_CopyJSONToClipBoard.Click += new System.EventHandler(this.buttonTuyaConfig_CopyJSONToClipBoard_Click);
             // 
-            // checkBoxTuyaCfgEnhanced
-            // 
-            this.checkBoxTuyaCfgEnhanced.AutoSize = true;
-            this.checkBoxTuyaCfgEnhanced.Location = new System.Drawing.Point(90, 93);
-            this.checkBoxTuyaCfgEnhanced.Name = "checkBoxTuyaCfgEnhanced";
-            this.checkBoxTuyaCfgEnhanced.Size = new System.Drawing.Size(123, 17);
-            this.checkBoxTuyaCfgEnhanced.TabIndex = 16;
-            this.checkBoxTuyaCfgEnhanced.Text = "Enhanced extraction";
-            this.checkBoxTuyaCfgEnhanced.UseVisualStyleBackColor = true;
-            this.checkBoxTuyaCfgEnhanced.CheckedChanged += new System.EventHandler(this.checkBoxTuyaCfgEnhanced_CheckedChanged);
-            
             // label18
             // 
             this.label18.AutoSize = true;
@@ -2069,7 +2056,6 @@ namespace BK7231Flasher
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.TextBox textBoxTuyaCFGJSON;
         private System.Windows.Forms.Label label17;
-        private System.Windows.Forms.CheckBox checkBoxTuyaCfgEnhanced;
         private System.Windows.Forms.LinkLabel linkLabel4;
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.TextBox textBoxTuyaCFGText;

@@ -247,6 +247,50 @@ namespace BK7231Flasher
 			},
 		};
 
+		public static List<PartitionEntry> Partitions_4MB_BL616 = new List<PartitionEntry>()
+		{
+			new PartitionEntry()
+			{
+				PartitionType = 0,
+				TypeFlag = 0,
+				Name = "FW",
+				Address0 = 0x10000,
+				Length0  = 0x1BB000,
+				Address1 = 0x1CB000,
+				Length1  = 0x11E000,
+			},
+			new PartitionEntry()
+			{
+				PartitionType = 3,
+				TypeFlag = 0,
+				Name = "media",
+				Address0 = 0x300000,
+				Length0 = 0x100000,
+				Address1 = 0,
+				Length1 = 0,
+			},
+			new PartitionEntry()
+			{
+				PartitionType = 4,
+				TypeFlag = 0,
+				Name = "PSM",
+				Address0 = 0x2E9000,
+				Length0 = 0x13000,
+				Address1 = 0,
+				Length1 = 0,
+			},
+			new PartitionEntry()
+			{
+				PartitionType = 7,
+				TypeFlag = 0,
+				Name = "factory",
+				Address0 = 0x2FC000,
+				Length0 = 0x4000,
+				Address1 = 0,
+				Length1 = 0,
+			},
+		};
+
 		#endregion
 
 		public const uint PartitionMagicCode = 0x54504642; // "BFPT" little-endian
@@ -336,6 +380,8 @@ namespace BK7231Flasher
 
 		public static List<PartitionEntry> PT_Parse(byte[] data)
 		{
+			if(data == null)
+				return null;
 			var header = Utils.FromBytes<PartitionTableHeader>(data);
 
 			if(header.Magic != PartitionMagicCode)

@@ -1,0 +1,10 @@
+# Keep imported Espressif stub JSONs byte-identical to upstream checkouts.
+BK7231Flasher/Floaders/ESP32_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32S2_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32C3_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32C2_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32S3_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32C5_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32C6_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP32C61_Stub.json text eol=lf
+BK7231Flasher/Floaders/ESP8266_Stub.json text eol=lf

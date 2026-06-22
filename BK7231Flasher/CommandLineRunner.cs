@@ -251,6 +251,11 @@ namespace BK7231Flasher
             }
 
             // Resolve chip type
+            if (chipName.Equals("BL618", StringComparison.OrdinalIgnoreCase))
+            {
+                // BL618 uses the BL616 bootrom-compatible flow in this tool.
+                chipName = nameof(BKType.BL616);
+            }
             BKType chipType;
             if (!Enum.TryParse(chipName, true, out chipType) || chipType == BKType.Invalid || chipType == BKType.Detect)
             {
@@ -407,13 +412,16 @@ namespace BK7231Flasher
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
                 case BKType.ESP32:
+                case BKType.ESP32S2:
+                case BKType.ESP32C2:
                 case BKType.ESP32C3:
+                case BKType.ESP32C5:
+                case BKType.ESP32C6:
+                case BKType.ESP32C61:
                 case BKType.ESP32S3:
                 case BKType.ESP8266:
                 case BKType.LN882H:
                 case BKType.LN8825:
-                case BKType.BL602:
-                case BKType.BL702:
                 case BKType.XR809:
                 case BKType.XR806:
                 case BKType.XR872:
@@ -464,6 +472,7 @@ namespace BK7231Flasher
             int startSector = ToStartSector(chipType, ofs);
             int sectors = len / BK7231Flasher.SECTOR_SIZE;
 
+            flasher.setCustomWriteMode(true);
             flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
 
             Console.WriteLine("\nCustom write completed successfully.");
@@ -575,7 +584,9 @@ namespace BK7231Flasher
                     return 1;
                 }
 
-                string json = hasEnhancedFallback ? tc.getEnhancedExtractionText() : tc.getKeysAsJSON();
+                string json = tc.getEnhancedExtractionText();
+                if (string.IsNullOrWhiteSpace(json))
+                    json = tc.getKeysAsJSON();
                 File.WriteAllText(outputFile, json, Encoding.UTF8);
 
                 Console.WriteLine($"Tuya config JSON written to: {outputFile}");
@@ -604,6 +615,7 @@ namespace BK7231Flasher
                     return new LN882HFlasher(ct);
                 case BKType.BL602:
                 case BKType.BL702:
+                case BKType.BL616:
                     return new BL602Flasher(ct);
                 case BKType.TR6260:
                     return new TR6260Flasher(ct);
@@ -625,7 +637,12 @@ namespace BK7231Flasher
                 case BKType.XR872:
                     return new XR872Flasher(ct);
                 case BKType.ESP32:
+                case BKType.ESP32S2:
+                case BKType.ESP32C2:
                 case BKType.ESP32C3:
+                case BKType.ESP32C5:
+                case BKType.ESP32C6:
+                case BKType.ESP32C61:
                 case BKType.ESP32S3:
                 case BKType.ESP8266:
                     return new ESPFlasher(ct);
@@ -660,14 +677,14 @@ namespace BK7231Flasher
             Console.WriteLine();
             Console.WriteLine("Required Options:");
             Console.WriteLine("  --port, -p <COM3>      Serial port (not needed for SPI chips)");
-            Console.WriteLine("  --chip <BK7231N>       Chip type");
+            Console.WriteLine("  --chip <BK7231N>       Chip type (BL618 alias: use BL616 or BL618)");
             Console.WriteLine();
             Console.WriteLine("Optional:");
             Console.WriteLine("  --baud, -b <921600>    Baud rate (default: 921600)");
             Console.WriteLine("  --addr <0x11000>       Start address (hex or decimal, for read_flash/write_flash)");
             Console.WriteLine("  --size <0x1000>        Length in bytes (hex or decimal, for read_flash/write_flash)");
             Console.WriteLine("  --out <name>           Output name for backup (default: cliBackup)");
-            Console.WriteLine("  --no-stub              Use legacy (ROM-only) mode for ESP32/ESP8266 (disable stub flasher)");
+            Console.WriteLine("  --no-stub              Use legacy (ROM-only) mode for ESP8266/ESP32 family chips (disable stub flasher)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  BK7231Flasher.exe --port COM3 --chip BK7231N fread --out mybackup");
