@@ -980,6 +980,10 @@ namespace BK7231Flasher
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
+            else if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
+            {
+                flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
+            }
             else if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 // do it like that so that there would be no need for re-sync
