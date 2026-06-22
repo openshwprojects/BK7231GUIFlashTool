@@ -13,6 +13,7 @@ namespace BK7231Flasher
     {
         protected const int XR_ROM_BAUD         = 115200;
         protected const int XR_SECTOR_SIZE      = 0x200;
+        protected const int XR_ERASE_SECTOR_SIZE = 0x1000;
         protected const int XR_WRITE_CHUNK_SIZE = 0x4000;
         protected const int XR_READ_RETRY_COUNT  = 3;
         protected const int XR_WRITE_RETRY_COUNT = 2;
@@ -73,7 +74,7 @@ namespace BK7231Flasher
         protected abstract bool EnsureConnectedAndIdentified();
         protected abstract byte[] ReadSectors(int sectorIndex, int sectorCount);
         protected abstract bool WriteSectors(int sectorIndex, byte[] data, int sectorCount);
-        protected abstract bool PerformPreWriteErase();
+        protected abstract bool PerformRangeErase(int startAddress, int length);
         protected abstract bool PerformExplicitErase();
         protected abstract byte[] BuildChangeBaudPacket(int newBaud);
 
@@ -748,18 +749,19 @@ namespace BK7231Flasher
                 if (!DoGenericSetup())               return false;
                 if (!EnsureConnectedAndIdentified()) return false;
 
+                bool ok;
                 if (bAll)
                 {
                     addLogLine($"Full erase requested: {flashSizeBytes / 0x100000} MB");
+                    ok = PerformExplicitErase();
                 }
                 else
                 {
                     int requestedStartAddr = PublicSectorIndexToByteAddress(startSector);
                     int requestedLength    = PublicSectorCountToByteLength(sectors);
-                    addWarningLine($"{XRChipName} erase is full-chip only; ignoring requested " +
-                                   $"range 0x{requestedStartAddr:X6} + 0x{requestedLength:X6} bytes.");
+                    addLogLine($"Range erase requested: 0x{requestedStartAddr:X6} + 0x{requestedLength:X6} bytes.");
+                    ok = PerformRangeErase(requestedStartAddr, requestedLength);
                 }
-                bool ok = PerformExplicitErase();
                 if (ok) addSuccess("Erase complete!" + Environment.NewLine);
                 return ok;
             }
@@ -824,7 +826,7 @@ namespace BK7231Flasher
 
                 if (customRawWrite)
                 {
-                    addLogLine($"Custom write: raw bytes only, no erase, destination 0x{writeAddress:X6}.");
+                    addLogLine($"Custom write: raw bytes at selected destination 0x{writeAddress:X6}.");
                     if (ext != ".bin")
                         addWarningLine($"Custom write ignores extension \"{ext}\" and writes raw bytes as selected.");
                 }
@@ -863,11 +865,18 @@ namespace BK7231Flasher
                 byte[] toWrite = new byte[effectiveLen];
                 Buffer.BlockCopy(fileData, 0, toWrite, 0, effectiveLen);
 
-                if (!customRawWrite)
+                if (customRawWrite)
                 {
-                    addLogLine($"{XRChipName} write path performs a full-chip erase before programming.");
+                    addLogLine($"{XRChipName} custom write erases only the 4 KB sectors covered by the raw data.");
+                    addLogLine($"Post-erase custom write destination: 0x{writeAddress:X6}");
+                    if (!PerformRangeErase(writeAddress, effectiveLen)) return;
+                    if (isCancelled) return;
+                }
+                else
+                {
+                    addLogLine($"{XRChipName} write path erases only the 4 KB sectors covered by the write.");
                     addLogLine($"Post-erase write destination: 0x{writeAddress:X6}");
-                    if (!PerformPreWriteErase()) return;
+                    if (!PerformRangeErase(writeAddress, effectiveLen)) return;
                     if (isCancelled) return;
 
                     if (treatAsXRImage)

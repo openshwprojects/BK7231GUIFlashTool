@@ -8,7 +8,6 @@ namespace BK7231Flasher
 {
     public class XR809Flasher : XRBaseFlasher
     {
-        const int  XR_ERASE_BLOCK_SIZE = 0x10000;   // 64 KB erase block used by XR809 block erase
         const int  XR_STUB_LOAD_ADDR    = 0x00010000;
         const int  XR_STUB_ENTRY_ADDR   = 0x00010101;
 
@@ -26,8 +25,6 @@ namespace BK7231Flasher
         const byte OP_WRITE_EXT        = 0x1F;
 
         const byte XR_ERASE_MODE_4K    = 0x01;
-        const byte XR_ERASE_MODE_64K   = 0x03;
-
         // XR809 transport bauds accepted by the ROM/stub path.
         public static readonly int[] SupportedBaudRates =
         {
@@ -571,9 +568,8 @@ namespace BK7231Flasher
             return executor(legacyOpcode);
         }
 
-        // XR809 uses erase mode 0x03 for 64 KB blocks. A 4 KB variant
-        // (mode 0x01) also exists, but the Easy Flasher UI currently keeps
-        // XR809 on the same full-chip erase semantics as XR806/XR872.
+        // XR809 supports 4 KB and 64 KB addressed erase modes. Pre-write erase
+        // uses 4 KB blocks so smaller writes do not wipe unrelated flash data.
         bool EraseBlockOnce(int address, byte eraseMode)
         {
             void WriteErasePacket(byte selectedOpcode)
@@ -809,25 +805,32 @@ namespace BK7231Flasher
         // =====================================================================
         // High-level erase
         //
-        // XR809 uses the same UI-facing full-chip erase semantics as XR806/XR872.
         // The explicit erase action uses single-command 0x19 00 full-chip
-        // erase, while the pre-write erase path uses the 64 KB block loop.
+        // erase, while the pre-write erase path erases only the target range.
         // Custom raw writes intentionally skip erase.
-        // Addressed erase is intentionally not used in this implementation.
         // =====================================================================
-        bool InternalChipErase()
+        bool InternalRangeErase(int startAddress, int length)
         {
-            int totalBlocks = Math.Max(1, flashSizeBytes / XR_ERASE_BLOCK_SIZE);
+            if (length <= 0)
+            {
+                addWarningLine("Erase range is empty; skipping erase.");
+                return true;
+            }
+
+            int eraseStart = startAddress & ~(XR_ERASE_SECTOR_SIZE - 1);
+            long requestedEnd = (long)startAddress + length;
+            int eraseEnd = (int)((requestedEnd + XR_ERASE_SECTOR_SIZE - 1) & ~(long)(XR_ERASE_SECTOR_SIZE - 1));
+            int totalBlocks = (eraseEnd - eraseStart) / XR_ERASE_SECTOR_SIZE;
 
             logger.setProgress(0, totalBlocks);
             logger.setState("Erasing...", Color.Transparent);
-            addLog("Erasing: ");
+            addLogLine($"Range erase: 0x{eraseStart:X6} + 0x{eraseEnd - eraseStart:X6} ({totalBlocks} x 4 KB)");
 
             for (int block = 0; block < totalBlocks && !isCancelled; block++)
             {
-                int address = block * XR_ERASE_BLOCK_SIZE;
+                int address = eraseStart + block * XR_ERASE_SECTOR_SIZE;
                 addLog($"0x{address:X6}... ");
-                if (!EraseBlockOnce(address, XR_ERASE_MODE_64K))
+                if (!EraseBlockOnce(address, XR_ERASE_MODE_4K))
                 {
                     addLog(Environment.NewLine);
                     logger.setState("Erase failed", Color.Red);
@@ -861,9 +864,9 @@ namespace BK7231Flasher
             return true;
         }
 
-        protected override bool PerformPreWriteErase()
+        protected override bool PerformRangeErase(int startAddress, int length)
         {
-            return InternalChipErase();
+            return InternalRangeErase(startAddress, length);
         }
 
         protected override bool PerformExplicitErase()

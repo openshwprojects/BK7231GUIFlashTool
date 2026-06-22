@@ -12,6 +12,9 @@ namespace BK7231Flasher
         const byte OP_READ        = 0x1A;
         const byte OP_WRITE       = 0x1B;
 
+        const byte XR_ERASE_MODE_CHIP = 0x00;
+        const byte XR_ERASE_MODE_4K   = 0x01;
+
         protected XRRomFlasherBase(CancellationToken ct) : base(ct)
         {
         }
@@ -25,8 +28,27 @@ namespace BK7231Flasher
 
         byte[] BuildChipErasePacket()
         {
-            var payload = new byte[] { 0x00 };
+            var payload = new byte[] { XR_ERASE_MODE_CHIP };
             return BuildBromPacket(OP_ERASE, payload, payload);
+        }
+
+        byte[] BuildEraseBlockPacket(int address, byte eraseMode)
+        {
+            var pre  = new byte[5];
+            var wire = new byte[5];
+            pre[0]  = eraseMode;
+            wire[0] = eraseMode;
+
+            pre[1] = (byte)( address        & 0xFF);
+            pre[2] = (byte)((address >>  8) & 0xFF);
+            pre[3] = (byte)((address >> 16) & 0xFF);
+            pre[4] = (byte)((address >> 24) & 0xFF);
+
+            wire[1] = (byte)((address >> 24) & 0xFF);
+            wire[2] = (byte)((address >> 16) & 0xFF);
+            wire[3] = (byte)((address >>  8) & 0xFF);
+            wire[4] = (byte)( address        & 0xFF);
+            return BuildBromPacket(OP_ERASE, pre, wire);
         }
 
         byte[] BuildReadPacket(int sectorIndex, int sectorCount)
@@ -206,6 +228,44 @@ namespace BK7231Flasher
             throw new IOException("Timed out waiting for full-chip erase ACK.");
         }
 
+        bool EraseBlockOnce(int address, byte eraseMode)
+        {
+            byte[] pkt = BuildEraseBlockPacket(address, eraseMode);
+            serial.Write(pkt, 0, pkt.Length);
+            serial.BaseStream.Flush();
+
+            int headerTimeoutMs = Math.Max(500, GetReadWaitMs());
+
+            for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
+            {
+                try
+                {
+                    BROMResponse resp = ReadFixedHeaderResponse(headerTimeoutMs);
+                    if (resp.PayloadLength != 0)
+                    {
+                        if (resp.PayloadLength > 0)
+                            ReadExact(resp.PayloadLength, 1000);
+                        throw new IOException(
+                            $"Erase ACK for 0x{address:X8} returned unexpected payload length {resp.PayloadLength}.");
+                    }
+
+                    if (resp.IsError)
+                    {
+                        addErrorLine($"Erase failed at 0x{address:X8}. ACK: {FormatBromResponseForLog(resp)}");
+                        return false;
+                    }
+                    return true;
+                }
+                catch
+                {
+                    if (attempt >= 10) throw;
+                    Thread.Sleep(100);
+                }
+            }
+
+            throw new IOException($"Timed out waiting for erase ACK at 0x{address:X8}.");
+        }
+
         byte[] ReadSectorsOnce(int sectorIndex, int sectorCount)
         {
             int expectedBytes = sectorCount * XR_SECTOR_SIZE;
@@ -343,6 +403,41 @@ namespace BK7231Flasher
             return false;
         }
 
+        bool InternalRangeErase(int startAddress, int length)
+        {
+            if (length <= 0)
+            {
+                addWarningLine("Erase range is empty; skipping erase.");
+                return true;
+            }
+
+            int eraseStart = startAddress & ~(XR_ERASE_SECTOR_SIZE - 1);
+            long requestedEnd = (long)startAddress + length;
+            int eraseEnd = (int)((requestedEnd + XR_ERASE_SECTOR_SIZE - 1) & ~(long)(XR_ERASE_SECTOR_SIZE - 1));
+            int totalBlocks = (eraseEnd - eraseStart) / XR_ERASE_SECTOR_SIZE;
+
+            logger.setProgress(0, totalBlocks);
+            logger.setState("Erasing...", Color.Transparent);
+            addLogLine($"Range erase: 0x{eraseStart:X6} + 0x{eraseEnd - eraseStart:X6} ({totalBlocks} x 4 KB)");
+
+            for (int block = 0; block < totalBlocks && !isCancelled; block++)
+            {
+                int address = eraseStart + block * XR_ERASE_SECTOR_SIZE;
+                addLog($"0x{address:X6}... ");
+                if (!EraseBlockOnce(address, XR_ERASE_MODE_4K))
+                {
+                    addLog(Environment.NewLine);
+                    logger.setState("Erase failed", Color.Red);
+                    return false;
+                }
+                logger.setProgress(block + 1, totalBlocks);
+            }
+
+            addLog(Environment.NewLine);
+            logger.setState("Erase complete", Color.DarkGreen);
+            return !isCancelled;
+        }
+
         bool InternalChipErase()
         {
             logger.setProgress(0, 1);
@@ -361,9 +456,9 @@ namespace BK7231Flasher
             return !isCancelled;
         }
 
-        protected override bool PerformPreWriteErase()
+        protected override bool PerformRangeErase(int startAddress, int length)
         {
-            return InternalChipErase();
+            return InternalRangeErase(startAddress, length);
         }
 
         protected override bool PerformExplicitErase()
