@@ -14,6 +14,7 @@ namespace BK7231Flasher
 
         const byte XR_ERASE_MODE_CHIP = 0x00;
         const byte XR_ERASE_MODE_4K   = 0x01;
+        const byte XR_ERASE_MODE_64K  = 0x03;
 
         protected XRRomFlasherBase(CancellationToken ct) : base(ct)
         {
@@ -234,7 +235,10 @@ namespace BK7231Flasher
             serial.Write(pkt, 0, pkt.Length);
             serial.BaseStream.Flush();
 
-            int headerTimeoutMs = Math.Max(500, GetReadWaitMs());
+            int headerTimeoutMs = Math.Max(
+                eraseMode == XR_ERASE_MODE_4K ? 500 : 1000,
+                GetReadWaitMs());
+            int sleepMs = eraseMode == XR_ERASE_MODE_4K ? 100 : 200;
 
             for (int attempt = 1; attempt <= 10 && !isCancelled; attempt++)
             {
@@ -259,7 +263,7 @@ namespace BK7231Flasher
                 catch
                 {
                     if (attempt >= 10) throw;
-                    Thread.Sleep(100);
+                    Thread.Sleep(sleepMs);
                 }
             }
 
@@ -414,23 +418,57 @@ namespace BK7231Flasher
             int eraseStart = startAddress & ~(XR_ERASE_SECTOR_SIZE - 1);
             long requestedEnd = (long)startAddress + length;
             int eraseEnd = (int)((requestedEnd + XR_ERASE_SECTOR_SIZE - 1) & ~(long)(XR_ERASE_SECTOR_SIZE - 1));
-            int totalBlocks = (eraseEnd - eraseStart) / XR_ERASE_SECTOR_SIZE;
+            int headEnd = Math.Min(eraseEnd, (eraseStart + XR_ERASE_BLOCK_SIZE - 1) & ~(XR_ERASE_BLOCK_SIZE - 1));
+            if (headEnd + XR_ERASE_BLOCK_SIZE > eraseEnd)
+                headEnd = eraseStart;
 
-            logger.setProgress(0, totalBlocks);
+            int bulkStart = headEnd;
+            int bulkEnd = bulkStart + ((eraseEnd - bulkStart) / XR_ERASE_BLOCK_SIZE) * XR_ERASE_BLOCK_SIZE;
+            int headCommands = (headEnd - eraseStart) / XR_ERASE_SECTOR_SIZE;
+            int bulkCommands = (bulkEnd - bulkStart) / XR_ERASE_BLOCK_SIZE;
+            int tailCommands = (eraseEnd - bulkEnd) / XR_ERASE_SECTOR_SIZE;
+            int totalCommands = headCommands + bulkCommands + tailCommands;
+
+            logger.setProgress(0, totalCommands);
             logger.setState("Erasing...", Color.Transparent);
-            addLogLine($"Range erase: 0x{eraseStart:X6} + 0x{eraseEnd - eraseStart:X6} ({totalBlocks} x 4 KB)");
+            addLogLine($"Range erase: 0x{eraseStart:X6} + 0x{eraseEnd - eraseStart:X6} " +
+                       $"({bulkCommands} x 64 KB, {headCommands + tailCommands} x 4 KB)");
 
-            for (int block = 0; block < totalBlocks && !isCancelled; block++)
+            int progress = 0;
+            for (int address = eraseStart; address < headEnd && !isCancelled; address += XR_ERASE_SECTOR_SIZE)
             {
-                int address = eraseStart + block * XR_ERASE_SECTOR_SIZE;
-                addLog($"0x{address:X6}... ");
+                addLog($"4K@0x{address:X6}... ");
                 if (!EraseBlockOnce(address, XR_ERASE_MODE_4K))
                 {
                     addLog(Environment.NewLine);
                     logger.setState("Erase failed", Color.Red);
                     return false;
                 }
-                logger.setProgress(block + 1, totalBlocks);
+                logger.setProgress(++progress, totalCommands);
+            }
+
+            for (int address = bulkStart; address < bulkEnd && !isCancelled; address += XR_ERASE_BLOCK_SIZE)
+            {
+                addLog($"64K@0x{address:X6}... ");
+                if (!EraseBlockOnce(address, XR_ERASE_MODE_64K))
+                {
+                    addLog(Environment.NewLine);
+                    logger.setState("Erase failed", Color.Red);
+                    return false;
+                }
+                logger.setProgress(++progress, totalCommands);
+            }
+
+            for (int address = bulkEnd; address < eraseEnd && !isCancelled; address += XR_ERASE_SECTOR_SIZE)
+            {
+                addLog($"4K@0x{address:X6}... ");
+                if (!EraseBlockOnce(address, XR_ERASE_MODE_4K))
+                {
+                    addLog(Environment.NewLine);
+                    logger.setState("Erase failed", Color.Red);
+                    return false;
+                }
+                logger.setProgress(++progress, totalCommands);
             }
 
             addLog(Environment.NewLine);

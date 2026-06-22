@@ -14,6 +14,7 @@ namespace BK7231Flasher
         protected const int XR_ROM_BAUD         = 115200;
         protected const int XR_SECTOR_SIZE      = 0x200;
         protected const int XR_ERASE_SECTOR_SIZE = 0x1000;
+        protected const int XR_ERASE_BLOCK_SIZE  = 0x10000;
         protected const int XR_WRITE_CHUNK_SIZE = 0x4000;
         protected const int XR_READ_RETRY_COUNT  = 3;
         protected const int XR_WRITE_RETRY_COUNT = 2;
