@@ -28,6 +28,18 @@ namespace BK7231Flasher
         const byte XR_ERASE_MODE_4K    = 0x01;
         const byte XR_ERASE_MODE_64K   = 0x03;
 
+        // XR809 transport bauds accepted by the ROM/stub path.
+        public static readonly int[] SupportedBaudRates =
+        {
+            9600,
+            115200,
+            921600,
+            1000000,
+            1500000,
+            3000000,
+        };
+
+        public static string SupportedBaudRatesText => string.Join(", ", SupportedBaudRates);
 
         // XR809 .img section ID to name mapping.
         static readonly Dictionary<uint, string> SECTION_NAMES = new Dictionary<uint, string>
@@ -56,6 +68,51 @@ namespace BK7231Flasher
         protected override string FormatHeaderIncompleteMessage(byte[] header)
         {
             return $"BROM header incomplete ({header?.Length ?? 0}/12 bytes): {FormatHexSnippet(header)}.";
+        }
+
+        public static bool IsAllowedXRBaud(int baud)
+        {
+            switch (baud)
+            {
+                case 9600:
+                case 115200:
+                case 921600:
+                case 1000000:
+                case 1500000:
+                case 3000000:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        static int GetNearestSupportedXRBaud(int baud)
+        {
+            int bestBaud = SupportedBaudRates[0];
+            int bestDiff = Math.Abs(bestBaud - baud);
+            for (int i = 1; i < SupportedBaudRates.Length; i++)
+            {
+                int candidate = SupportedBaudRates[i];
+                int diff = Math.Abs(candidate - baud);
+                if (diff < bestDiff || (diff == bestDiff && candidate < bestBaud))
+                {
+                    bestBaud = candidate;
+                    bestDiff = diff;
+                }
+            }
+            return bestBaud;
+        }
+
+        int NormalizeRequestedXRBaud(int requestedBaud, string context)
+        {
+            if (IsAllowedXRBaud(requestedBaud))
+                return requestedBaud;
+
+            int fallbackBaud = GetNearestSupportedXRBaud(requestedBaud);
+            addWarningLine(
+                $"{context}: XR809 does not support {requestedBaud} baud; using nearest supported baud {fallbackBaud}. " +
+                $"Supported bauds: {SupportedBaudRatesText}.");
+            return fallbackBaud;
         }
 
         // =====================================================================
@@ -335,7 +392,7 @@ namespace BK7231Flasher
             if (!Sync())        return false;
             if (!ReadFlashId()) return false;
 
-            int requestedBaud = this.baudrate;
+            int requestedBaud = NormalizeRequestedXRBaud(this.baudrate, "GUI baud selection");
 
             if (bromVersion < 2)
             {
@@ -366,6 +423,15 @@ namespace BK7231Flasher
         // Sends the ChangeBaud command, switches the host serial port and re-syncs.
         bool ChangeBaudAndResync(int newBaud)
         {
+            if (!IsAllowedXRBaud(newBaud))
+            {
+                int fallbackBaud = GetNearestSupportedXRBaud(newBaud);
+                addWarningLine(
+                    $"XR809 does not support {newBaud} baud; switching transport to nearest supported baud {fallbackBaud}. " +
+                    $"Supported bauds: {SupportedBaudRatesText}.");
+                newBaud = fallbackBaud;
+            }
+
             BROMResponse resp = ExecuteRawPacket(
                 BuildChangeBaudPacket(newBaud), headerTimeoutMs: 2000, payloadTimeoutMs: 1000);
             if (resp.IsError)
