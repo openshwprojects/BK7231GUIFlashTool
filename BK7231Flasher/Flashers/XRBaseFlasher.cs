@@ -923,8 +923,11 @@ namespace BK7231Flasher
                         addLogLine($"Long name from CFG: {cfg.longDeviceName}");
                         addLogLine($"Short name from CFG: {cfg.shortDeviceName}");
                         addLogLine($"Web Root from CFG: {cfg.webappRoot}");
-                        addLogLine($"Writing config sector 0x{offset:X}...");
-                        if (!PerformRangeErase(offset, efdata.Length)) throw new Exception("Erase failed!");
+                        addLogLine($"Erasing OBK config area 0x{offset:X6} + 0x{efdata.Length:X} bytes...");
+                        if (!PerformRangeErase(offset, efdata.Length)) return;
+                        if (isCancelled) return;
+
+                        addLogLine($"Writing OBK config area 0x{offset:X6}...");
                         bool bOk = InternalWrite(offset, efdata);
                         if(bOk == false)
                         {
