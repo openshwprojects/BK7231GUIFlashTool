@@ -785,12 +785,6 @@ namespace BK7231Flasher
         public override void doReadAndWrite(
             int startSector, int sectors, string sourceFileName, WriteMode rwMode)
         {
-            if (rwMode == WriteMode.OnlyOBKConfig)
-            {
-                addErrorLine($"{XRChipName} does not support standalone OBK config writes.");
-                return;
-            }
-
             try
             {
                 if (!DoGenericSetup())               return;
@@ -807,90 +801,143 @@ namespace BK7231Flasher
                 }
 
                 if (isCancelled) return;
+                OBKConfig cfg = rwMode == WriteMode.OnlyOBKConfig ? logger.getConfig() : logger.getConfigToWrite();
 
-                if (rwMode != WriteMode.OnlyWrite && rwMode != WriteMode.ReadAndWrite) return;
-
-                if (string.IsNullOrEmpty(sourceFileName) || !File.Exists(sourceFileName))
+                if (rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite)
                 {
-                    addErrorLine($"Source file not found: {sourceFileName}");
-                    return;
-                }
-
-                addLogLine($"Loading: {sourceFileName}");
-                byte[] fileData           = File.ReadAllBytes(sourceFileName);
-                bool customRawWrite       = IsCustomRawWriteRequest(startSector, sectors, rwMode);
-                int requestedWriteAddress = PublicSectorIndexToByteAddress(startSector);
-                int writeAddress          = requestedWriteAddress;
-                int effectiveLen          = fileData.Length;
-                string ext                = Path.GetExtension(sourceFileName).ToLowerInvariant();
-                bool treatAsXRImage       = false;
-
-                if (customRawWrite)
-                {
-                    addLogLine($"Custom write: raw bytes at selected destination 0x{writeAddress:X6}.");
-                    if (ext != ".bin")
-                        addWarningLine($"Custom write ignores extension \"{ext}\" and writes raw bytes as selected.");
-                }
-                else if (ext == ".img")
-                {
-                    effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
-                    treatAsXRImage = true;
-                    if (requestedWriteAddress != 0)
+                    if (string.IsNullOrEmpty(sourceFileName) || !File.Exists(sourceFileName))
                     {
-                        addWarningLine($".img write ignores requested offset 0x{requestedWriteAddress:X6} " +
-                                       "and starts at 0x000000.");
+                        addErrorLine($"Source file not found: {sourceFileName}");
+                        return;
                     }
-                    writeAddress = 0;
-                    addLogLine($"Validated .img: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
-                }
-                else if (ext == ".bin")
-                {
-                    if (StartsWithAwihMagic(fileData))
+
+                    addLogLine($"Loading: {sourceFileName}");
+                    byte[] fileData           = File.ReadAllBytes(sourceFileName);
+                    bool customRawWrite       = IsCustomRawWriteRequest(startSector, sectors, rwMode);
+                    int requestedWriteAddress = PublicSectorIndexToByteAddress(startSector);
+                    int writeAddress          = requestedWriteAddress;
+                    int effectiveLen          = fileData.Length;
+                    string ext                = Path.GetExtension(sourceFileName).ToLowerInvariant();
+                    bool treatAsXRImage       = false;
+
+                    if (customRawWrite)
                     {
-                        addLogLine(".bin starts with AWIH magic, but main .bin writes are treated as raw full-flash data.");
+                        addLogLine($"Custom write: raw bytes at selected destination 0x{writeAddress:X6}.");
+                        if (ext != ".bin")
+                            addWarningLine($"Custom write ignores extension \"{ext}\" and writes raw bytes as selected.");
                     }
-                    addWarningLine($"Writing raw .bin at byte offset 0x{writeAddress:X6}.");
-                }
-                else
-                {
-                    addWarningLine($"Unrecognised extension \"{ext}\" – writing raw bytes.");
-                }
-
-                if ((long)writeAddress + effectiveLen > flashSizeBytes)
-                {
-                    addErrorLine($"Write range 0x{writeAddress:X6} + 0x{effectiveLen:X} bytes exceeds flash size " +
-                                 $"({flashSizeBytes / 0x100000} MB).  Aborting.");
-                    return;
-                }
-
-                byte[] toWrite = new byte[effectiveLen];
-                Buffer.BlockCopy(fileData, 0, toWrite, 0, effectiveLen);
-
-                if (customRawWrite)
-                {
-                    addLogLine($"{XRChipName} custom write erases only the 4 KB sectors covered by the raw data.");
-                    addLogLine($"Post-erase custom write destination: 0x{writeAddress:X6}");
-                    if (!PerformRangeErase(writeAddress, effectiveLen)) return;
-                    if (isCancelled) return;
-                }
-                else
-                {
-                    addLogLine($"{XRChipName} write path erases only the 4 KB sectors covered by the write.");
-                    addLogLine($"Post-erase write destination: 0x{writeAddress:X6}");
-                    if (!PerformRangeErase(writeAddress, effectiveLen)) return;
-                    if (isCancelled) return;
-
-                    if (treatAsXRImage)
+                    else if (ext == ".img")
                     {
-                        addLogLine("Image layout:");
-                        ValidateAndLogImgLayout(fileData, logLayout: true);
+                        effectiveLen = ValidateAndLogImgLayout(fileData, logLayout: false);
+                        treatAsXRImage = true;
+                        if (requestedWriteAddress != 0)
+                        {
+                            addWarningLine($".img write ignores requested offset 0x{requestedWriteAddress:X6} " +
+                                           "and starts at 0x000000.");
+                        }
+                        writeAddress = 0;
+                        addLogLine($"Validated .img: 0x{effectiveLen:X} bytes, will write to offset 0x000000");
+                    }
+                    else if (ext == ".bin")
+                    {
+                        if (StartsWithAwihMagic(fileData))
+                        {
+                            addLogLine(".bin starts with AWIH magic, but main .bin writes are treated as raw full-flash data.");
+                        }
+                        addWarningLine($"Writing raw .bin at byte offset 0x{writeAddress:X6}.");
+                    }
+                    else
+                    {
+                        addWarningLine($"Unrecognised extension \"{ext}\" – writing raw bytes.");
+                    }
+
+                    if ((long)writeAddress + effectiveLen > flashSizeBytes)
+                    {
+                        addErrorLine($"Write range 0x{writeAddress:X6} + 0x{effectiveLen:X} bytes exceeds flash size " +
+                                     $"({flashSizeBytes / 0x100000} MB).  Aborting.");
+                        return;
+                    }
+
+                    byte[] toWrite = new byte[effectiveLen];
+                    Buffer.BlockCopy(fileData, 0, toWrite, 0, effectiveLen);
+
+                    if (customRawWrite)
+                    {
+                        addLogLine($"{XRChipName} custom write erases only the 4 KB sectors covered by the raw data.");
+                        addLogLine($"Post-erase custom write destination: 0x{writeAddress:X6}");
+                        if (!PerformRangeErase(writeAddress, effectiveLen)) return;
+                        if (isCancelled) return;
+                    }
+                    else
+                    {
+                        addLogLine($"{XRChipName} write path erases only the 4 KB sectors covered by the write.");
+                        addLogLine($"Post-erase write destination: 0x{writeAddress:X6}");
+                        if (!PerformRangeErase(writeAddress, effectiveLen)) return;
+                        if (isCancelled) return;
+
+                        if (treatAsXRImage)
+                        {
+                            addLogLine("Image layout:");
+                            ValidateAndLogImgLayout(fileData, logLayout: true);
+                        }
+                    }
+
+                    addLogLine(customRawWrite ? "Writing raw custom data..." : "Writing firmware...");
+                    if (!InternalWrite(writeAddress, toWrite)) return;
+
+                    addSuccess($"{XRChipName} flash write complete!" + Environment.NewLine);
+                }
+                
+                if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && !isCancelled)
+                {
+                    if(cfg != null)
+                    {
+                        var offset = OBKFlashLayout.getConfigLocation(chipType, out var cfgSectors);
+                        var areaSize = cfgSectors * BK7231Flasher.SECTOR_SIZE;
+
+                        cfg.saveConfig(chipType);
+                        var cfgData = cfg.getData();
+                        byte[] efdata;
+                        if(cfg.efdata != null)
+                        {
+                            try
+                            {
+                                efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+                            }
+                            catch(Exception ex)
+                            {
+                                addLogLine("Saving config to existing EasyFlash failed");
+                                addLogLine(ex.Message);
+                                efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                            }
+                        }
+                        else
+                        {
+                            efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+                        }
+                        if(efdata == null)
+                        {
+                            throw new Exception("Something went wrong with EasyFlash");
+                        }
+                        addLogLine("Now will also write OBK config...");
+                        addLogLine($"Long name from CFG: {cfg.longDeviceName}");
+                        addLogLine($"Short name from CFG: {cfg.shortDeviceName}");
+                        addLogLine($"Web Root from CFG: {cfg.webappRoot}");
+                        addLogLine($"Writing config sector 0x{offset:X}...");
+                        if (!PerformRangeErase(offset, efdata.Length)) throw new Exception("Erase failed!");
+                        bool bOk = InternalWrite(offset, efdata);
+                        if(bOk == false)
+                        {
+                            logger.setState("Write error!", Color.Red);
+                            throw new Exception("Writing OBK config data to chip failed!");
+                        }
+                        logger.setState("OBK config write success!", Color.Green);
+                    }
+                    else
+                    {
+                        addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
                     }
                 }
-
-                addLogLine(customRawWrite ? "Writing raw custom data..." : "Writing firmware...");
-                if (!InternalWrite(writeAddress, toWrite)) return;
-
-                addSuccess($"{XRChipName} flash write complete!" + Environment.NewLine);
             }
             catch (OperationCanceledException)
             {
