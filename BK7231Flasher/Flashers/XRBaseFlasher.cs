@@ -924,7 +924,12 @@ namespace BK7231Flasher
                         addLogLine($"Short name from CFG: {cfg.shortDeviceName}");
                         addLogLine($"Web Root from CFG: {cfg.webappRoot}");
                         addLogLine($"Erasing OBK config area 0x{offset:X6} + 0x{efdata.Length:X} bytes...");
-                        if (!PerformRangeErase(offset, efdata.Length)) return;
+                        if (!PerformRangeErase(offset, efdata.Length))
+                        {
+                            logger.setState("Erase error!", Color.Red);
+                            addErrorLine("Erasing OBK config area failed; config was not written.");
+                            return;
+                        }
                         if (isCancelled) return;
 
                         addLogLine($"Writing OBK config area 0x{offset:X6}...");
