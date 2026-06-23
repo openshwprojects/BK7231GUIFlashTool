@@ -927,7 +927,7 @@ namespace BK7231Flasher
                         if (!PerformRangeErase(offset, efdata.Length))
                         {
                             logger.setState("Erase error!", Color.Red);
-                            addErrorLine("Erasing OBK config area failed; config was not written.");
+                            addErrorLine("Erase failed! OBK config was not written.");
                             return;
                         }
                         if (isCancelled) return;
