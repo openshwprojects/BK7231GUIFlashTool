@@ -16,6 +16,7 @@ namespace BK7231Flasher
         static byte CFG_DEFAULT_BTN_SHORT = 3;
         static byte CFG_DEFAULT_BTN_LONG = 10;
         static byte CFG_DEFAULT_BTN_REPEAT = 5;
+        const int OBK_FLAG_MQTT_BROADCASTSELFSTATEONCONNECT = 10;
 
 
         public void zeroMemory()
@@ -550,8 +551,10 @@ namespace BK7231Flasher
             this.buttonShortPress = CFG_DEFAULT_BTN_SHORT;
             // default value is 10, which means 1000ms
             this.buttonLongPress = CFG_DEFAULT_BTN_LONG;
+            this.setFlag(OBK_FLAG_MQTT_BROADCASTSELFSTATEONCONNECT, true);
             string randomSuffix = Rand.getRandomByte().ToString("X2") + Rand.getRandomByte().ToString("X2") + Rand.getRandomByte().ToString("X2");
             this.shortDeviceName = "obk" + randomSuffix;
+            this.mqtt_clientId = this.shortDeviceName;
             this.longDeviceName = "OpenBekenX_" + randomSuffix;
         }
 
