@@ -475,7 +475,7 @@ namespace BK7231Flasher
             //cfg.mqtt_clientId = "" + curType + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.shortDeviceName = "obk" + getTypeLetter(curType) + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.longDeviceName = "Open" + curType + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
-            var macstr = $"{mac[2]:X}{mac[3]:X}{mac[4]:X}{mac[5]:X}";
+            var macstr = $"{mac[2]:X2}{mac[3]:X2}{mac[4]:X2}{mac[5]:X2}";
             cfg.shortDeviceName = $"{getPrefixShort(curType)}{macstr}";
             cfg.mqtt_clientId = cfg.shortDeviceName;
             cfg.longDeviceName = $"Open{curType}_{macstr}";
@@ -489,7 +489,7 @@ namespace BK7231Flasher
             //cfg.mqtt_clientId = "obk_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.shortDeviceName = "obk" + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.longDeviceName = "OpenBK_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
-            var macstr = $"{mac[2]:X}{mac[3]:X}{mac[4]:X}{mac[5]:X}";
+            var macstr = $"{mac[2]:X2}{mac[3]:X2}{mac[4]:X2}{mac[5]:X2}";
             cfg.shortDeviceName = $"obk{macstr}";
             cfg.mqtt_clientId = cfg.shortDeviceName;
             cfg.longDeviceName = $"OpenBK_{macstr}";
