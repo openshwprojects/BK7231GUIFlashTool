@@ -15,6 +15,7 @@ namespace BK7231Flasher
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		static int Bit(byte x, int b) => (x >> b) & 1;
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static ushort Stage1(uint addr, byte param)
 		{
 			ushort part0 = (ushort)addr;
@@ -32,6 +33,7 @@ namespace BK7231Flasher
 			return (ushort)(rot ^ (0x6371 & z));
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static ushort Stage2(uint addr, byte param)
 		{
 			addr = (addr >> param) & 0x1FFFF;
@@ -46,6 +48,7 @@ namespace BK7231Flasher
 			return (ushort)(((addr >> 10) ^ (addr << 7) ^ (0x3659 & x)) & 0xFFFF);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint Stage3(uint addr, byte param)
 		{
 			int bits = (param & 3) * 8;
@@ -56,6 +59,7 @@ namespace BK7231Flasher
 			return rot ^ (0xE519A4F1u & x);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint Encrypt(uint addr, byte?[] selectors)
 		{
 			uint outv = 0;
@@ -68,12 +72,14 @@ namespace BK7231Flasher
 			return outv;
 		}
 
-		public static IEnumerable<uint> Keystream(byte?[] selectors, uint addr)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void Keystream(byte?[] selectors, uint addr, Memory<uint> mem)
 		{
-			for(uint i = addr; ; i += 4)
-				yield return Encrypt(i, selectors);
+			for(int i = 0; i < mem.Length; ++i)
+				mem.Span[i] = Encrypt(addr + (uint)(i << 2), selectors);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint FormatSettingsWord(byte?[] selectors)
 		{
 			uint outv = 0b01010101u << 24;
@@ -90,100 +96,68 @@ namespace BK7231Flasher
 
 	static class Utils
 	{
-		public static uint[] U8ToU32(byte[] xs)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static uint[] U8ToU32(Span<byte> xs) => MemoryMarshal.Cast<byte, uint>(xs).ToArray();
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static byte[] U32ToU8(Span<uint> xs) => MemoryMarshal.Cast<uint, byte>(xs).ToArray();
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static uint[] XorIter(Span<uint> xs, Span<uint> ys)
 		{
-			int len = xs.Length / 4;
-			var res = new uint[len];
-			unsafe
-			{
-				fixed(byte* p = xs)
-				{
-					uint* u = (uint*)p;
-					for(int i = 0; i < len; i++)
-						res[i] = u[i];
-				}
-			}
-			return res;
-		}
-
-		public static byte[] U32ToU8(ICollection<uint> xs)
-		{
-			int count = xs.Count;
-			byte[] result = new byte[count * 4];
-
-			unsafe
-			{
-				fixed(byte* p = result)
-				{
-					uint* u = (uint*)p;
-					int i = 0;
-					foreach(uint x in xs)
-						u[i++] = x;
-				}
-			}
-
-			return result;
-		}
-
-		public static List<T> XorIter<T>(IEnumerable<T> xs, IEnumerable<T> ys)
-			where T : unmanaged
-		{
-			var res = new List<T>();
-
-			using(var e1 = xs.GetEnumerator())
-			using(var e2 = ys.GetEnumerator())
-			{
-				while(e1.MoveNext() && e2.MoveNext())
-				{
-					T a = e1.Current;
-					T b = e2.Current;
-
-					res.Add(XorValue(a, b));
-				}
-			}
-
-			return res;
+			var len = Math.Min(xs.Length, ys.Length);
+			var r = new uint[len];
+			for(int i = 0; i < len; ++i)
+				r[i] = xs[i] ^ ys[i];
+			return r;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static unsafe T XorValue<T>(T a, T b) where T : unmanaged
+		public static byte[] XorIter(Span<byte> xs, Span<byte> ys)
 		{
-			switch(sizeof(T))
-			{
-				case 1:
-					return (T)(object)(byte)(*(byte*)&a ^ *(byte*)&b);
-				case 2:
-					return (T)(object)(ushort)(*(ushort*)&a ^ *(ushort*)&b);
-				case 4:
-					return (T)(object)(*(uint*)&a ^ *(uint*)&b);
-				case 8:
-					return (T)(object)(*(ulong*)&a ^ *(ulong*)&b);
-				default:
-					throw new Exception("Unsupported size for XOR");
-			}
+			var len = Math.Min(xs.Length, ys.Length);
+			var r = new byte[len];
+			for(int i = 0; i < len; ++i)
+				r[i] = (byte)(xs[i] ^ ys[i]);
+			return r;
 		}
 
-		public static IEnumerable<int> FindAll(byte[] haystack, byte[] needle)
+		public static int[] FindAll(byte[] haystack, byte[] needle)
 		{
-			if(needle.Length == 0)
-				yield break;
+			if(needle.Length == 0 || haystack.Length < needle.Length)
+				return Array.Empty<int>();
 
-			for(int i = 0; i <= haystack.Length - needle.Length; i++)
+			var skip = new int[256];
+			for(int i = 0; i < 256; ++i)
+				skip[i] = needle.Length;
+			for(int i = 0; i < needle.Length - 1; ++i)
+				skip[needle[i]] = needle.Length - 1 - i;
+
+			var matches = new List<int>();
+			int n = haystack.Length;
+			int m = needle.Length;
+
+			for(int i = 0; i <= n - m;)
 			{
-				bool match = true;
-				for(int j = 0; j < needle.Length; j++)
+				int j = m - 1;
+				while(j >= 0 && haystack[i + j] == needle[j])
+					--j;
+
+				if(j < 0)
 				{
-					if(haystack[i + j] != needle[j])
-					{
-						match = false;
-						break;
-					}
+					matches.Add(i);
+					++i;
 				}
-				if(match)
-					yield return i;
+				else
+				{
+					i += skip[haystack[i + m - 1]];
+				}
 			}
+
+			return matches.ToArray();
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint RotateLeft(uint value, int bits)
 			=> (value << bits) | (value >> (32 - bits));
 
@@ -254,12 +228,12 @@ namespace BK7231Flasher
 			decrKeys = new uint[4];
 			address = 0;
 
-			var decrypted = new uint[origWords.Length];
+			var decrypted = new uint[4];
 
 			foreach(var addr in KnownKeysAddresses)
 			{
 				address = addr;
-				var keyIndex = addr / 4;
+				var keyIndex = addr >> 2;
 
 				var keys = new uint[4];
 				Array.Copy(decryptedWords, keyIndex, keys, 0, 4);
@@ -280,14 +254,14 @@ namespace BK7231Flasher
 
 			extractedKeys = new uint[4];
 
-			uint offset = 0;
-			for(int i = 0; i < origWords.Length; i++)
+			uint offset = keyIndex << 2;
+			for(int i = 0; i < 4; i++)
 			{
-				buffer[i] = crypto.EncryptU32(offset, origWords[i]);
+				buffer[i] = crypto.EncryptU32(offset, origWords[i + keyIndex]);
 				offset += 4;
 			}
 
-			Array.Copy(buffer, keyIndex, extractedKeys, 0, 4);
+			Array.Copy(buffer, 0, extractedKeys, 0, 4);
 
 			return extractedKeys.SequenceEqual(keyCandidate);
 		}
@@ -295,7 +269,7 @@ namespace BK7231Flasher
 		public static byte[] EncryptDecryptBekenFW(uint[] keys, byte[] data, uint startAddr = 0)
 		{
 			var imageU32 = U8ToU32(data);
-			return EncryptDecryptBekenFW(keys, imageU32.ToArray(), startAddr);
+			return EncryptDecryptBekenFW(keys, imageU32, startAddr);
 		}
 
 		public static byte[] EncryptDecryptBekenFW(uint[] keys, uint[] data, uint startAddr = 0)
@@ -476,6 +450,7 @@ namespace BK7231Flasher
 			random = rand_bps ? 0u : coef2;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static uint Pn15(uint addr)
 		{
 			uint a = ((addr & 0x7F) << 9) | ((addr >> 7) & 0x1FF);
@@ -484,6 +459,7 @@ namespace BK7231Flasher
 			return a ^ c;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static uint Pn16(uint addr)
 		{
 			uint a = ((addr & 0x3FF) << 7) | ((addr >> 10) & 0x7F);
@@ -500,6 +476,7 @@ namespace BK7231Flasher
 			return a ^ d;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static uint pn32(uint addr)
 		{
 			uint a = ((addr & 0x7FFF) << 17) | ((addr >> 15) & 0x1FFFF);
@@ -508,6 +485,7 @@ namespace BK7231Flasher
 			return a ^ c;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public uint EncryptU32(uint addr, uint data)
 		{
 			if(bypass)

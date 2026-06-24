@@ -318,7 +318,7 @@ namespace BK7231Flasher
 					Thread.Sleep(100);
 					return false;
 				}
-				var ret = xm.Send(data);
+				var ret = xm.Send(data, (uint)addr);
 				if(ret != len)
 				{
 					addErrorLine($"Write failed ({xm.TerminationReason})! Expected sent bytes: {len}, really sent: {ret}");

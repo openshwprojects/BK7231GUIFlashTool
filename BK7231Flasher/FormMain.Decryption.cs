@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Compression;
@@ -78,7 +79,7 @@ namespace BK7231Flasher
 
 		private async void OnBtnDecryptClick(object sender, EventArgs e)
 		{
-			await Task.Delay(1); // dummy
+			await Task.Yield(); // dummy
 			var decrc = LoadFirmware(0, 0x10000, chkSkipDecrc.Checked);
 			if(!CheckDecrcLength(decrc, 27168)) // 27168 - tuya bk7252 bootloader
 			{
@@ -93,14 +94,18 @@ namespace BK7231Flasher
 				numCoeff4.Text = "0";
 				return;
 			}
+			var time = Stopwatch.StartNew();
 			var imageU32 = Utils.U8ToU32(decrc);
+			var keystream = new Memory<uint>(new uint[imageU32.Length]);
+			var decrypted = new uint[imageU32.Length];
 			var keys = new List<Tuple<uint, uint>>();
+			var selectorValues = new byte?[] { 0, 1, 2, 3, null };
 			foreach(var str in Utils.BootloaderDict)
 			{
 				var search = Encoding.ASCII.GetBytes(str);
-				var head = search.Take(4).ToArray();
-				var matcher = Utils.XorIter(search.Skip(4).ToArray(), search);
-				var selectorValues = new List<byte?> { 0, 1, 2, 3, null };
+				var head = search.AsSpan().Slice(0, 4).ToArray();
+				var rest = search.AsSpan().Slice(4).ToArray();
+				var matcher = Utils.XorIter(rest, search);
 
 				foreach(var sel1 in selectorValues)
 				foreach(var sel2 in selectorValues)
@@ -108,22 +113,21 @@ namespace BK7231Flasher
 				{
 					var selectors = new byte?[] { sel1, sel2, sel3 };
 
-					var keystream = Beken_Crypto.Keystream(selectors, 0).Take(imageU32.Length).ToArray();
-					var xoredImage = Utils.XorIter(imageU32, keystream);
+					Beken_Crypto.Keystream(selectors, 0, keystream);
+					var xoredImage = Utils.XorIter(imageU32, keystream.Span);
 
-					var preprocImage = Utils.U32ToU8(Utils.XorIter(xoredImage, xoredImage.Skip(1)));
-					var imageBytes = Utils.U32ToU8(xoredImage);
+					var preprocImage = Utils.U32ToU8(Utils.XorIter(xoredImage.AsSpan(), xoredImage.AsSpan().Slice(1)));
+					var imageBytes = new Memory<byte>(Utils.U32ToU8(xoredImage.AsSpan()));
 
 					uint settings = Beken_Crypto.FormatSettingsWord(selectors);
-					foreach(int hit in Utils.FindAll(preprocImage, matcher.ToArray()))
+					foreach(int hit in Utils.FindAll(preprocImage, matcher))
 					{
-						var keyPart = imageBytes.Skip(hit).Take(4).ToArray();
-						var key = Utils.XorIter(keyPart, head).ToArray();
+						//var keyPart = imageBytes.Span.Slice(hit, 4).ToArray();
+						var key = Utils.XorIter(imageBytes.Slice(hit, 4).Span, head);
 						uint k = BitConverter.ToUInt32(key, 0);
 						k = Utils.RotateLeft(k, (hit % 4) * 8);
 						keys.Add(new Tuple<uint, uint>(k, settings));
 						AddDecryptionLogLine($"Found match at 0x{hit:X} with key: 0 0 {k:X} {settings:X}", Color.Black);
-						var decrypted = new uint[imageU32.Length];
 						var crypto = new BekenCrypto(new uint[] { 0, 0, k, settings });
 						uint enaddr = 0;
 						for(int en = 0; en < imageU32.Length; en++)
@@ -133,6 +137,8 @@ namespace BK7231Flasher
 						}
 						if(Utils.VerifyDecrypt(imageU32, decrypted, out var decrKeys, out var keysAddress))
 						{
+							time.Stop();
+							AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
 							AddDecryptionLogLine($"Decrypt combination: 0 0 {k:X} {settings:X}", Color.Black);
 							AddDecryptionLogLine($"Bootloader key: {decrKeys[0]:X} {decrKeys[1]:X} {decrKeys[2]:X} {decrKeys[3]:X} at 0x{keysAddress:X}", Color.Green);
 							if(k == 0)
@@ -165,6 +171,8 @@ namespace BK7231Flasher
 			{
 				AddDecryptionLogLine($"Failed to get decrypt combination", Color.Orange);
 			}
+			time.Stop();
+			AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
 		}
 
 		private void OnBtnDecryptBootloaderClick(object sender, EventArgs e)
@@ -206,7 +214,7 @@ namespace BK7231Flasher
 			var keys = new uint[] { Convert.ToUInt32(numCoeff1.Text, 16), Convert.ToUInt32(numCoeff2.Text, 16), Convert.ToUInt32(numCoeff3.Text, 16), Convert.ToUInt32(numCoeff4.Text, 16) };
 			for(int i = 0x48, k = 0; i < 0x57; i += 4, k++)
 			{
-				Array.Copy(Utils.U32ToU8(new List<uint> { keys[k] }), 0, bootloader, i, 4);
+				Array.Copy(Utils.U32ToU8(new uint[] { keys[k] }), 0, bootloader, i, 4);
 			}
 			var uintdata = Utils.U8ToU32(bootloader);
 			var encr = Utils.EncryptDecryptBekenFW(keys, uintdata.ToArray(), 0);
@@ -233,7 +241,7 @@ namespace BK7231Flasher
 			var keys = new uint[] { Convert.ToUInt32(numCoeff1.Text, 16), Convert.ToUInt32(numCoeff2.Text, 16), Convert.ToUInt32(numCoeff3.Text, 16), Convert.ToUInt32(numCoeff4.Text, 16) };
 			for(int i = 0x1F08, k = 0; i < 0x1F17; i += 4, k++)
 			{
-				Array.Copy(Utils.U32ToU8(new List<uint> { keys[k] }), 0, bootloader, i, 4);
+				Array.Copy(Utils.U32ToU8(new uint[] { keys[k] }), 0, bootloader, i, 4);
 			}
 			var uintdata = Utils.U8ToU32(bootloader);
 			var encr = Utils.EncryptDecryptBekenFW(keys, uintdata, 0);
