@@ -146,7 +146,7 @@ namespace BK7231Flasher
                 listViewGPIO.Items.Add(it);
             }
             flagCheckBoxes = new List<CheckBox>();
-            for (int i = 0; i < 64; i++)
+            for (int i = 0; i < OBKFlags.OBK_TOTAL_FLAGS; i++)
             {
                 CheckBox cb;
                 if(i == 0)
@@ -186,6 +186,7 @@ namespace BK7231Flasher
                 flagCheckBoxes.Add(cb);
             }
             refreshPins();
+            refreshCheckBoxes();
 /*
             pinRoles.Add(comboBoxRoleP0);
 

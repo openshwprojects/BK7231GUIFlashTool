@@ -41,15 +41,15 @@ namespace BK7231Flasher
                 case BKType.RDA5981:
                     sectors = 0xA000 / BK7231Flasher.SECTOR_SIZE;
                     return 0xF4000;
-                //case BKType.XR809:
-                //    sectors = 0x10000 / BK7231Flasher.SECTOR_SIZE;
-                //    return 0x1E0000;
-                //case BKType.XR806:
-                //    sectors = 0x10000 / BK7231Flasher.SECTOR_SIZE;
-                //    return 0x1F0000;
-                //case BKType.XR872:
-                //    sectors = 0x8000 / BK7231Flasher.SECTOR_SIZE;
-                //    return 0xEF000;
+                case BKType.XR809:
+                    sectors = 0x10000 / BK7231Flasher.SECTOR_SIZE;
+                    return 0x1E0000;
+                case BKType.XR806:
+                    sectors = 0x10000 / BK7231Flasher.SECTOR_SIZE;
+                    return 0x1F0000;
+                case BKType.XR872:
+                    sectors = 0x8000 / BK7231Flasher.SECTOR_SIZE;
+                    return 0xEF000;
                 case BKType.W800:
                     //sectors = 0x21000 / BK7231Flasher.SECTOR_SIZE;
                     //return 0x1DB000;

@@ -115,6 +115,9 @@ namespace BK7231Flasher
                 case BKType.ECR6600:
                 case BKType.TR6260:
                 case BKType.RDA5981:
+                case BKType.XR806:
+                case BKType.XR809:
+                case BKType.XR872:
                     _ = OBKFlashLayout.getConfigLocation(type, out var sectors);
                     var sname = "ObkCfg";
                     if(type == BKType.BL602 || type == BKType.BL616)
@@ -592,6 +595,9 @@ namespace BK7231Flasher
                 case BKType.RDA5981:
                 case BKType.W600:
                 case BKType.W800:
+                case BKType.XR806:
+                case BKType.XR809:
+                case BKType.XR872:
                     crc = CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4);
                     break;
                 default:
@@ -634,6 +640,9 @@ namespace BK7231Flasher
                 case BKType.RDA5981:
                 case BKType.W600:
                 case BKType.W800:
+                case BKType.XR806:
+                case BKType.XR809:
+                case BKType.XR872:
                     crc = CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4);
                     break;
                 default:
