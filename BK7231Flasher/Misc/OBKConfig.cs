@@ -8,7 +8,7 @@ namespace BK7231Flasher
     {
         public byte[] efdata = null;
         static byte DEFAULT_BOOT_SUCCESS_TIME = 5;
-        static int OBK_CONFIG_VERSION = 5;
+        static int OBK_CONFIG_VERSION = 4;
         static int MAX_GPIO = 32;
         static int MAX_CHANNELS = 64;
 
@@ -447,22 +447,11 @@ namespace BK7231Flasher
         {
             get
             {
-                return readStr(0x00000C40, 68);
+                return readStr(0x00000C84, 64);
             }
             set
             {
-                writeStr(0x00000C40, value, 68);
-            }
-        }
-        public string webPassword
-        {
-            get
-            {
-                return readStr(0x00000C84, 33);
-            }
-            set
-            {
-                writeStr(0x00000C84, value, 33);
+                writeStr(0x00000C84, value, 64);
             }
         }
         string readIP(int ofs)
@@ -627,7 +616,7 @@ namespace BK7231Flasher
             raw[0] = (byte)'C';
             raw[1] = (byte)'F';
             raw[2] = (byte)'G';
-            version = OBK_CONFIG_VERSION;
+            version = 4;
             int realLen = getLenForVersion(version);
             switch(type)
             {
