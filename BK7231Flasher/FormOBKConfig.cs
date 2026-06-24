@@ -279,7 +279,8 @@ namespace BK7231Flasher
             byte[] fileBytes = File.ReadAllBytes(fname);
             if(type == BKType.Detect)
             {
-                switch(fname)
+                string detectName = Path.GetFileName(fname).ToUpperInvariant();
+                switch(detectName)
                 {
                     case var name when name.Contains("BK7231T"):    type = BKType.BK7231T;    break;
                     case var name when name.Contains("BK7231U"):    type = BKType.BK7231U;    break;
@@ -287,8 +288,8 @@ namespace BK7231Flasher
                     case var name when name.Contains("BK7231M"):    type = BKType.BK7231M;    break;
                     case var name when name.Contains("BK7236"):     type = BKType.BK7236;     break;
                     case var name when name.Contains("BK7238"):     type = BKType.BK7238;     break;
-                    case var name when name.Contains("BK7252"):     type = BKType.BK7252;     break;
                     case var name when name.Contains("BK7252N"):    type = BKType.BK7252N;    break;
+                    case var name when name.Contains("BK7252"):     type = BKType.BK7252;     break;
                     case var name when name.Contains("BK7258"):     type = BKType.BK7258;     break;
                     case var name when name.Contains("RTL8710B"):   type = BKType.RTL8710B;   break;
                     case var name when name.Contains("RTL87X0C"):   type = BKType.RTL87X0C;   break;
