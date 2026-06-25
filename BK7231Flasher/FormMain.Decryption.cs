@@ -3,10 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace BK7231Flasher
@@ -77,15 +74,14 @@ namespace BK7231Flasher
 			return skipCrc ? data : Utils.UnCRC(data);
 		}
 
-		private async void OnBtnDecryptClick(object sender, EventArgs e)
+		private void OnBtnDecryptClick(object sender, EventArgs e)
 		{
-			await Task.Yield(); // dummy
 			var decrc = LoadFirmware(0, 0x10000, chkSkipDecrc.Checked);
 			if(!CheckDecrcLength(decrc, 27168)) // 27168 - tuya bk7252 bootloader
 			{
 				return;
 			}
-			if(decrc.AsSpan().IndexOf(Encoding.ASCII.GetBytes(Utils.BootloaderDict[0])) > 0)
+			if(decrc.AsSpan().IndexOf(Utils.BootloaderDict[0]) > 0)
 			{
 				AddDecryptionLogLine($"Firmware built with zero keys.", Color.Green);
 				numCoeff1.Text = "0";
@@ -94,46 +90,60 @@ namespace BK7231Flasher
 				numCoeff4.Text = "0";
 				return;
 			}
-			var time = Stopwatch.StartNew();
-			var imageU32 = Utils.U8ToU32(decrc);
-			var keystream = new Memory<uint>(new uint[imageU32.Length]);
+			var imageU32 = Utils.U8ToU32Span(decrc);
+			var keystream = new Span<uint>(new uint[imageU32.Length]);
 			var decrypted = new uint[imageU32.Length];
-			var keys = new List<Tuple<uint, uint>>();
+			var xoredImage = new uint[imageU32.Length];
+			var xoredImage2 = new uint[imageU32.Length];
+			var keys = new List<(uint Key, uint Settings)>(32);
+			var key = new byte[4];
+			var cryptoKey = new uint[4] { 0, 0, 0, 0 };
 			var selectorValues = new byte?[] { 0, 1, 2, 3, null };
+			var selectors = new byte?[] { 0, 0, 0 };
+			var time = Stopwatch.StartNew();
 			foreach(var str in Utils.BootloaderDict)
 			{
-				var search = Encoding.ASCII.GetBytes(str);
-				var head = search.AsSpan().Slice(0, 4).ToArray();
-				var rest = search.AsSpan().Slice(4).ToArray();
-				var matcher = Utils.XorIter(rest, search);
+				var head = str.AsSpan().Slice(0, 4);
+				var rest = str.AsSpan().Slice(4);
+				var matcher = Utils.XorIter(rest, str);
 
 				foreach(var sel1 in selectorValues)
 				foreach(var sel2 in selectorValues)
 				foreach(var sel3 in selectorValues)
 				{
-					var selectors = new byte?[] { sel1, sel2, sel3 };
+					selectors[0] = sel1;
+					selectors[1] = sel2;
+					selectors[2] = sel3;
 
 					Beken_Crypto.Keystream(selectors, 0, keystream);
-					var xoredImage = Utils.XorIter(imageU32, keystream.Span);
-
-					var preprocImage = Utils.U32ToU8(Utils.XorIter(xoredImage.AsSpan(), xoredImage.AsSpan().Slice(1)));
-					var imageBytes = new Memory<byte>(Utils.U32ToU8(xoredImage.AsSpan()));
+					var xoredImageSpan = xoredImage.AsSpan();
+					Utils.XorIter(xoredImage, imageU32, keystream);
+					Utils.XorIter(xoredImage2, xoredImageSpan, xoredImageSpan.Slice(1));
+					var preprocImage = Utils.U32ToU8Span(xoredImage2);
+					var imageBytes = Utils.U32ToU8Span(xoredImageSpan);
 
 					uint settings = Beken_Crypto.FormatSettingsWord(selectors);
 					foreach(int hit in Utils.FindAll(preprocImage, matcher))
 					{
 						//var keyPart = imageBytes.Span.Slice(hit, 4).ToArray();
-						var key = Utils.XorIter(imageBytes.Slice(hit, 4).Span, head);
+						//var key = Utils.XorIter(imageBytes.Slice(hit, 4).Span, head);
+						Utils.XorIter(key, imageBytes.Slice(hit, 4), head);
 						uint k = BitConverter.ToUInt32(key, 0);
 						k = Utils.RotateLeft(k, (hit % 4) * 8);
-						keys.Add(new Tuple<uint, uint>(k, settings));
+						keys.Add((k, settings));
 						AddDecryptionLogLine($"Found match at 0x{hit:X} with key: 0 0 {k:X} {settings:X}", Color.Black);
-						var crypto = new BekenCrypto(new uint[] { 0, 0, k, settings });
-						uint enaddr = 0;
-						for(int en = 0; en < imageU32.Length; en++)
+						cryptoKey[2] = k;
+						cryptoKey[3] = settings;
+						var crypto = new BekenCrypto(cryptoKey);
+						// instead of decrypting whole image, just decrypt known key offsets
+						foreach(var addr in Utils.KnownKeysAddresses)
 						{
-							decrypted[en] = crypto.EncryptU32(enaddr, imageU32[en]);
-							enaddr += 4;
+							int keyIndex = (int)(addr >> 2);
+
+							decrypted[0 + keyIndex] = crypto.EncryptU32(addr + 0,  imageU32[0 + keyIndex]);
+							decrypted[1 + keyIndex] = crypto.EncryptU32(addr + 4,  imageU32[1 + keyIndex]);
+							decrypted[2 + keyIndex] = crypto.EncryptU32(addr + 8,  imageU32[2 + keyIndex]);
+							decrypted[3 + keyIndex] = crypto.EncryptU32(addr + 12, imageU32[3 + keyIndex]);
 						}
 						if(Utils.VerifyDecrypt(imageU32, decrypted, out var decrKeys, out var keysAddress))
 						{

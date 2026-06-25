@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace BK7231Flasher
 {
@@ -10,20 +12,11 @@ namespace BK7231Flasher
 	public static class Beken_Crypto
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static int Bit(uint x, int b) => (int)((x >> b) & 1);
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static int Bit(byte x, int b) => (x >> b) & 1;
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static ushort Stage1(uint addr, byte param)
 		{
-			ushort part0 = (ushort)addr;
-			if(Bit(param, 0) != 0)
-				part0 = (ushort)((part0 >> 8) | (part0 << 8));
-
+			ushort part0 = (param & 1) != 0 ? (ushort)((addr >> 8) | (addr << 8)) : (ushort)addr;
 			ushort part1 = (ushort)(addr >> 16);
-			if(Bit(param, 1) != 0)
+			if(((param >> 1) & 1) != 0)
 				part1 = (ushort)((part1 >> 8) | (part1 << 8));
 
 			ushort a = (ushort)(part0 ^ part1);
@@ -33,30 +26,41 @@ namespace BK7231Flasher
 			return (ushort)(rot ^ (0x6371 & z));
 		}
 
+
+		private static readonly ushort[] Stage2Table =
+		{
+			0x0000, 0x1011, 0x2200, 0x3211,
+			0x0440, 0x1451, 0x2640, 0x3651,
+			0x0008, 0x1019, 0x2208, 0x3219,
+			0x0448, 0x1459, 0x2648, 0x3659
+		};
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static ushort Stage2(uint addr, byte param)
 		{
-			addr = (addr >> param) & 0x1FFFF;
+			uint a = (addr >> param) & 0x1FFFF;
 
-			int x = (Bit(addr, 1) << 3) |
-					(Bit(addr, 5) << 2) |
-					(Bit(addr, 9) << 1) |
-					(Bit(addr, 13) << 0);
+			uint x = ((a >> 13) & 1) |
+					 (((a >> 9) & 1) << 1) |
+					 (((a >> 5) & 1) << 2) |
+					 (((a >> 1) & 1) << 3);
 
-			x *= 0x1111;
-
-			return (ushort)(((addr >> 10) ^ (addr << 7) ^ (0x3659 & x)) & 0xFFFF);
+			return (ushort)((a >> 10) ^ (a << 7) ^ Stage2Table[x]);
 		}
+		private static readonly uint[] Stage3Table = new uint[16]
+		{
+			0x00000000, 0x11111111, 0x22222222, 0x33333333,
+			0x44444444, 0x55555555, 0x66666666, 0x77777777,
+			0x88888888, 0x99999999, 0xAAAAAAAA, 0xBBBBBBBB,
+			0xCCCCCCCC, 0xDDDDDDDD, 0xEEEEEEEE, 0xFFFFFFFF
+		};
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint Stage3(uint addr, byte param)
 		{
-			int bits = (param & 3) * 8;
-			addr = (addr >> bits) | (addr << (32 - bits));
-
-			uint x = ((addr >> 2) & 0xF) * 0x11111111u;
-			uint rot = (addr >> 15) | (addr << (17));
-			return rot ^ (0xE519A4F1u & x);
+			int bits = (param & 3) << 3;
+			addr = Utils.RotateRight(addr, bits);
+			return Utils.RotateLeft(addr, 17) ^ (0xE519A4F1u & Stage3Table[(addr >> 2) & 0xF]);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -73,10 +77,13 @@ namespace BK7231Flasher
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Keystream(byte?[] selectors, uint addr, Memory<uint> mem)
+		public static unsafe void Keystream(byte?[] selectors, uint addr, Span<uint> mem)
 		{
-			for(int i = 0; i < mem.Length; ++i)
-				mem.Span[i] = Encrypt(addr + (uint)(i << 2), selectors);
+			fixed(uint* rp = &mem[0])
+			{
+				for(int i = 0; i < mem.Length; ++i)
+					rp[i] = Encrypt(addr + (uint)(i << 2), selectors);
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -100,84 +107,135 @@ namespace BK7231Flasher
 		public static uint[] U8ToU32(Span<byte> xs) => MemoryMarshal.Cast<byte, uint>(xs).ToArray();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Span<uint> U8ToU32Span(Span<byte> xs) => MemoryMarshal.Cast<byte, uint>(xs);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static byte[] U32ToU8(Span<uint> xs) => MemoryMarshal.Cast<uint, byte>(xs).ToArray();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static uint[] XorIter(Span<uint> xs, Span<uint> ys)
+		public static Span<byte> U32ToU8Span(Span<uint> xs) => MemoryMarshal.Cast<uint, byte>(xs);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe uint[] XorIter(Span<uint> xs, Span<uint> ys)
 		{
 			var len = Math.Min(xs.Length, ys.Length);
 			var r = new uint[len];
-			for(int i = 0; i < len; ++i)
-				r[i] = xs[i] ^ ys[i];
+			fixed(uint* rp = &r[0])
+			fixed(uint* xsPtr = &xs[0])
+			fixed(uint* ysPtr = &ys[0])
+			{
+				for(int i = 0; i < len; ++i)
+					rp[i] = xsPtr[i] ^ ysPtr[i];
+			}
 			return r;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static byte[] XorIter(Span<byte> xs, Span<byte> ys)
+		public static unsafe uint[] XorIter(uint[] r, Span<uint> xs, Span<uint> ys)
 		{
-			var len = Math.Min(xs.Length, ys.Length);
-			var r = new byte[len];
-			for(int i = 0; i < len; ++i)
-				r[i] = (byte)(xs[i] ^ ys[i]);
+			fixed(uint* rp = &r[0])
+			fixed(uint* xsPtr = &xs[0])
+			fixed(uint* ysPtr = &ys[0])
+			{
+				for(int i = 0; i < r.Length; ++i)
+					rp[i] = xsPtr[i] ^ ysPtr[i];
+			}
 			return r;
 		}
 
-		public static int[] FindAll(byte[] haystack, byte[] needle)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe byte[] XorIter(Span<byte> xs, Span<byte> ys)
 		{
-			if(needle.Length == 0 || haystack.Length < needle.Length)
-				return Array.Empty<int>();
-
-			var skip = new int[256];
-			for(int i = 0; i < 256; ++i)
-				skip[i] = needle.Length;
-			for(int i = 0; i < needle.Length - 1; ++i)
-				skip[needle[i]] = needle.Length - 1 - i;
-
-			var matches = new List<int>();
-			int n = haystack.Length;
-			int m = needle.Length;
-
-			for(int i = 0; i <= n - m;)
+			var len = Math.Min(xs.Length, ys.Length);
+			var r = new byte[len];
+			fixed(byte* rp = &r[0])
+			fixed(byte* xsPtr = &xs[0])
+			fixed(byte* ysPtr = &ys[0])
 			{
-				int j = m - 1;
-				while(j >= 0 && haystack[i + j] == needle[j])
-					--j;
+				for(int i = 0; i < len; ++i)
+					rp[i] = (byte)(xsPtr[i] ^ ysPtr[i]);
+			}
+			return r;
+		}
 
-				if(j < 0)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe byte[] XorIter(byte[] r, Span<byte> xs, Span<byte> ys)
+		{
+			fixed(byte* rp = &r[0])
+			fixed(byte* xsPtr = &xs[0])
+			fixed(byte* ysPtr = &ys[0])
+			{
+				for(int i = 0; i < r.Length; ++i)
+					rp[i] = (byte)(xsPtr[i] ^ ysPtr[i]);
+			}
+			return r;
+		}
+
+		private static readonly int[] FindAllTable = new int[256];
+		private static readonly List<int> FindAllMatches = new List<int>(256);
+		public static unsafe int[] FindAll(Span<byte> haystack, byte[] needle)
+		{
+			if(needle.Length == 0)
+				return Array.Empty<int>();
+			if(FindAllMatches.Count > 0)
+				FindAllMatches.Clear();
+			fixed(int* skip = &FindAllTable[0])
+			fixed(byte* hay = &haystack[0])
+			fixed(byte* ned = &needle[0])
+			{
+				for(int i = 0; i < 256; ++i)
+					skip[i] = needle.Length;
+				for(int i = 0; i < needle.Length - 1; ++i)
+					skip[ned[i]] = needle.Length - 1 - i;
+
+				int n = haystack.Length;
+				int m = needle.Length;
+
+				for(int i = 0; i <= n - m;)
 				{
-					matches.Add(i);
-					++i;
-				}
-				else
-				{
-					i += skip[haystack[i + m - 1]];
+					int j = m - 1;
+					while(j >= 0 && hay[i + j] == ned[j])
+						--j;
+
+					if(j < 0)
+					{
+						FindAllMatches.Add(i);
+						++i;
+					}
+					else
+					{
+						i += skip[hay[i + m - 1]];
+					}
 				}
 			}
-
-			return matches.ToArray();
+			return FindAllMatches.ToArray();
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint RotateLeft(uint value, int bits)
 			=> (value << bits) | (value >> (32 - bits));
 
-		public static readonly IReadOnlyList<string> BootloaderDict = new List<string>()
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static uint RotateRight(uint value, int bits) =>
+			(value >> bits) | (value << (32 - bits));
+
+		public static readonly IReadOnlyList<byte[]> BootloaderDict = new List<byte[]>()
 		{
-			"[ARM ANOMALY]",
-			"0123456789ABCDEF",
-			"pwm_iconfig_fail\r\n",
-			"incorrect header check",
-			"invalid window size",
-			"unknown compression method",
-			"Custom verify RAW firmware failed!",
-			"[E/OTA] (%s:%d) ",
-			"unknown header flags set",
-			"header crc mismatch",
-			"invalid block type",
-			"invalid stored block lengths",
-			"too many length or distance symbols",
-			"invalid code lengths set",
-		};
+			Encoding.ASCII.GetBytes("[ARM ANOMALY]"),
+			Encoding.ASCII.GetBytes("0123456789ABCDEF"),
+			Encoding.ASCII.GetBytes("pwm_iconfig_fail\r\n"),
+			Encoding.ASCII.GetBytes("incorrect header check"),
+			Encoding.ASCII.GetBytes("invalid window size"),
+			Encoding.ASCII.GetBytes("unknown compression method"),
+			Encoding.ASCII.GetBytes("Custom verify RAW firmware failed!"),
+			Encoding.ASCII.GetBytes("[E/OTA] (%s:%d) "),
+			Encoding.ASCII.GetBytes("unknown header flags set"),
+			Encoding.ASCII.GetBytes("header crc mismatch"),
+			Encoding.ASCII.GetBytes("invalid block type"),
+			Encoding.ASCII.GetBytes("invalid stored block lengths"),
+			Encoding.ASCII.GetBytes("too many length or distance symbols"),
+			Encoding.ASCII.GetBytes("invalid code lengths set"),
+		}.AsReadOnly();
 
 		public static readonly IReadOnlyList<uint> KnownKeysAddresses = new List<uint>()
 		{
@@ -223,47 +281,61 @@ namespace BK7231Flasher
 			return crc.ToArray();
 		}
 
-		public static bool VerifyDecrypt(uint[] origWords, uint[] decryptedWords, out uint[] decrKeys, out uint address)
-		{
-			decrKeys = new uint[4];
-			address = 0;
+		private static readonly uint[] VerifyDecryptBuffer = new uint[4];
+		private static readonly uint[] VerifyDecryptKeys = new uint[4];
 
-			var decrypted = new uint[4];
+		public static bool VerifyDecrypt(Span<uint> origWords, uint[] decryptedWords, out uint[] decrKeys, out uint address)
+		{
+			decrKeys = null;
+			address = 0;
 
 			foreach(var addr in KnownKeysAddresses)
 			{
 				address = addr;
 				var keyIndex = addr >> 2;
 
-				var keys = new uint[4];
-				Array.Copy(decryptedWords, keyIndex, keys, 0, 4);
+				VerifyDecryptKeys[0] = decryptedWords[keyIndex + 0];
+				VerifyDecryptKeys[1] = decryptedWords[keyIndex + 1];
+				VerifyDecryptKeys[2] = decryptedWords[keyIndex + 2];
+				VerifyDecryptKeys[3] = decryptedWords[keyIndex + 3];
 
-				if(TryDecryptAndValidate(origWords, keys, keyIndex, decrypted, out decrKeys))
+				if(TryDecryptAndValidate(origWords, VerifyDecryptKeys, keyIndex, VerifyDecryptBuffer, out decrKeys))
 					return true;
 
-				if(TryDecryptAndValidate(origWords, decrKeys, keyIndex, decrypted, out decrKeys))
+				if(TryDecryptAndValidate(origWords, decrKeys, keyIndex, VerifyDecryptBuffer, out decrKeys))
 					return true;
 			}
 
 			return false;
 		}
 
-		private static bool TryDecryptAndValidate(uint[] origWords, uint[] keyCandidate, uint keyIndex, uint[] buffer, out uint[] extractedKeys)
+		private static unsafe bool TryDecryptAndValidate(Span<uint> origWords, uint[] keyCandidate, uint keyIndex, uint[] buffer, out uint[] extractedKeys)
 		{
 			var crypto = new BekenCrypto(keyCandidate);
 
 			extractedKeys = new uint[4];
 
-			uint offset = keyIndex << 2;
-			for(int i = 0; i < 4; i++)
+			fixed(uint* eKeys = &extractedKeys[0])
+			fixed(uint* oWords = &origWords[0])
+			fixed(uint* keyC = &keyCandidate[0])
 			{
-				buffer[i] = crypto.EncryptU32(offset, origWords[i + keyIndex]);
-				offset += 4;
+				uint offset = keyIndex << 2;
+				for(int i = 0; i < 4; i++)
+				{
+					buffer[i] = crypto.EncryptU32(offset, oWords[i + (int)keyIndex]);
+					offset += 4;
+				}
+
+				eKeys[0] = buffer[0];
+				eKeys[1] = buffer[1];
+				eKeys[2] = buffer[2];
+				eKeys[3] = buffer[3];
+
+				for(int i = 0; i < 4; i++)
+					if(eKeys[i] != keyC[i])
+						return false;
 			}
-
-			Array.Copy(buffer, 0, extractedKeys, 0, 4);
-
-			return extractedKeys.SequenceEqual(keyCandidate);
+			return true;
 		}
 
 		public static byte[] EncryptDecryptBekenFW(uint[] keys, byte[] data, uint startAddr = 0)
