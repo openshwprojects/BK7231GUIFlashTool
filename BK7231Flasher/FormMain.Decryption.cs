@@ -81,7 +81,7 @@ namespace BK7231Flasher
 			{
 				return;
 			}
-			if(decrc.AsSpan().IndexOf(Utils.BootloaderDict[0]) > 0)
+			if(decrc.AsSpan().IndexOf(Utils.BootloaderDict[0].Span) > 0)
 			{
 				AddDecryptionLogLine($"Firmware built with zero keys.", Color.Green);
 				numCoeff1.Text = "0";
@@ -95,7 +95,8 @@ namespace BK7231Flasher
 			var decrypted = new uint[imageU32.Length];
 			var xoredImage = new uint[imageU32.Length];
 			var xoredImage2 = new uint[imageU32.Length];
-			var keys = new List<(uint Key, uint Settings)>(32);
+			var xoredImageSpan = xoredImage.AsSpan();
+			var keys = new List<(uint Key, uint Settings, int Hit)>(32);
 			var key = new byte[4];
 			var cryptoKey = new uint[4] { 0, 0, 0, 0 };
 			var selectorValues = new byte?[] { 0, 1, 2, 3, null };
@@ -103,9 +104,9 @@ namespace BK7231Flasher
 			var time = Stopwatch.StartNew();
 			foreach(var str in Utils.BootloaderDict)
 			{
-				var head = str.AsSpan().Slice(0, 4);
-				var rest = str.AsSpan().Slice(4);
-				var matcher = Utils.XorIter(rest, str);
+				var head = str.Span.Slice(0, 4);
+				var rest = str.Span.Slice(4);
+				var matcher = Utils.XorIter(rest, str.Span);
 
 				foreach(var sel1 in selectorValues)
 				foreach(var sel2 in selectorValues)
@@ -116,7 +117,6 @@ namespace BK7231Flasher
 					selectors[2] = sel3;
 
 					Beken_Crypto.Keystream(selectors, 0, keystream);
-					var xoredImageSpan = xoredImage.AsSpan();
 					Utils.XorIter(xoredImage, imageU32, keystream);
 					Utils.XorIter(xoredImage2, xoredImageSpan, xoredImageSpan.Slice(1));
 					var preprocImage = Utils.U32ToU8Span(xoredImage2);
@@ -128,10 +128,10 @@ namespace BK7231Flasher
 						//var keyPart = imageBytes.Span.Slice(hit, 4).ToArray();
 						//var key = Utils.XorIter(imageBytes.Slice(hit, 4).Span, head);
 						Utils.XorIter(key, imageBytes.Slice(hit, 4), head);
-						uint k = BitConverter.ToUInt32(key, 0);
-						k = Utils.RotateLeft(k, (hit % 4) * 8);
-						keys.Add((k, settings));
-						AddDecryptionLogLine($"Found match at 0x{hit:X} with key: 0 0 {k:X} {settings:X}", Color.Black);
+						uint k = (uint)BitConverter.ToInt32(key, 0);
+						k = Utils.RotateLeft(k, (hit & 3) << 3);
+						keys.Add((k, settings, hit));
+						//AddDecryptionLogLine($"Found match at 0x{hit:X} with key: 0 0 {k:X} {settings:X}", Color.Black);
 						cryptoKey[2] = k;
 						cryptoKey[3] = settings;
 						var crypto = new BekenCrypto(cryptoKey);
@@ -148,6 +148,10 @@ namespace BK7231Flasher
 						if(Utils.VerifyDecrypt(imageU32, decrypted, out var decrKeys, out var keysAddress))
 						{
 							time.Stop();
+							foreach(var (Key, Settings, Hit) in keys)
+							{
+								AddDecryptionLogLine($"Found match at 0x{Hit:X} with key: 0 0 {Key:X} {Settings:X}", Color.Black);
+							}
 							AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
 							AddDecryptionLogLine($"Decrypt combination: 0 0 {k:X} {settings:X}", Color.Black);
 							AddDecryptionLogLine($"Bootloader key: {decrKeys[0]:X} {decrKeys[1]:X} {decrKeys[2]:X} {decrKeys[3]:X} at 0x{keysAddress:X}", Color.Green);
@@ -164,6 +168,10 @@ namespace BK7231Flasher
 			}
 			if(keys.Count > 0)
 			{
+				foreach(var (Key, Settings, Hit) in keys)
+				{
+					AddDecryptionLogLine($"Found match at 0x{Hit:X} with key: 0 0 {Key:X} {Settings:X}", Color.Black);
+				}
 				var mostCommonCoeff = keys
 					.GroupBy(kv => kv)
 					.OrderByDescending(g => g.Count())

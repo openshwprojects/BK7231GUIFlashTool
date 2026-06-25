@@ -219,7 +219,7 @@ namespace BK7231Flasher
 		public static uint RotateRight(uint value, int bits) =>
 			(value >> bits) | (value << (32 - bits));
 
-		public static readonly IReadOnlyList<byte[]> BootloaderDict = new List<byte[]>()
+		public static readonly Memory<byte>[] BootloaderDict = new Memory<byte>[]
 		{
 			Encoding.ASCII.GetBytes("[ARM ANOMALY]"),
 			Encoding.ASCII.GetBytes("0123456789ABCDEF"),
@@ -235,7 +235,7 @@ namespace BK7231Flasher
 			Encoding.ASCII.GetBytes("invalid stored block lengths"),
 			Encoding.ASCII.GetBytes("too many length or distance symbols"),
 			Encoding.ASCII.GetBytes("invalid code lengths set"),
-		}.AsReadOnly();
+		};
 
 		public static readonly IReadOnlyList<uint> KnownKeysAddresses = new List<uint>()
 		{
@@ -281,8 +281,8 @@ namespace BK7231Flasher
 			return crc.ToArray();
 		}
 
-		private static readonly uint[] VerifyDecryptBuffer = new uint[4];
-		private static readonly uint[] VerifyDecryptKeys = new uint[4];
+		private static readonly uint[] TryDecryptAndValidateKeys1 = new uint[4];
+		private static readonly uint[] TryDecryptAndValidateKeys2 = new uint[4];
 
 		public static bool VerifyDecrypt(Span<uint> origWords, uint[] decryptedWords, out uint[] decrKeys, out uint address)
 		{
@@ -292,44 +292,37 @@ namespace BK7231Flasher
 			foreach(var addr in KnownKeysAddresses)
 			{
 				address = addr;
-				var keyIndex = addr >> 2;
+				int keyIndex = (int)(addr >> 2);
 
-				VerifyDecryptKeys[0] = decryptedWords[keyIndex + 0];
-				VerifyDecryptKeys[1] = decryptedWords[keyIndex + 1];
-				VerifyDecryptKeys[2] = decryptedWords[keyIndex + 2];
-				VerifyDecryptKeys[3] = decryptedWords[keyIndex + 3];
-
-				if(TryDecryptAndValidate(origWords, VerifyDecryptKeys, keyIndex, VerifyDecryptBuffer, out decrKeys))
+				if(TryDecryptAndValidate(origWords, decryptedWords.AsSpan().Slice(keyIndex, 4), keyIndex, TryDecryptAndValidateKeys1))
+				{
+					decrKeys = TryDecryptAndValidateKeys1;
 					return true;
+				}
 
-				if(TryDecryptAndValidate(origWords, decrKeys, keyIndex, VerifyDecryptBuffer, out decrKeys))
+				if(TryDecryptAndValidate(origWords, TryDecryptAndValidateKeys1, keyIndex, TryDecryptAndValidateKeys2))
+				{
+					decrKeys = TryDecryptAndValidateKeys2;
 					return true;
+				}
 			}
 
 			return false;
 		}
 
-		private static unsafe bool TryDecryptAndValidate(Span<uint> origWords, uint[] keyCandidate, uint keyIndex, uint[] buffer, out uint[] extractedKeys)
+		private static unsafe bool TryDecryptAndValidate(Span<uint> origWords, Span<uint> keyCandidate, int keyIndex, uint[] extractedKeys)
 		{
 			var crypto = new BekenCrypto(keyCandidate);
-
-			extractedKeys = new uint[4];
 
 			fixed(uint* eKeys = &extractedKeys[0])
 			fixed(uint* oWords = &origWords[0])
 			fixed(uint* keyC = &keyCandidate[0])
 			{
-				uint offset = keyIndex << 2;
-				for(int i = 0; i < 4; i++)
-				{
-					buffer[i] = crypto.EncryptU32(offset, oWords[i + (int)keyIndex]);
-					offset += 4;
-				}
-
-				eKeys[0] = buffer[0];
-				eKeys[1] = buffer[1];
-				eKeys[2] = buffer[2];
-				eKeys[3] = buffer[3];
+				uint offset = (uint)(keyIndex << 2);
+				extractedKeys[0] = crypto.EncryptU32(offset + 0,  oWords[0 + keyIndex]);
+				extractedKeys[1] = crypto.EncryptU32(offset + 4,  oWords[1 + keyIndex]);
+				extractedKeys[2] = crypto.EncryptU32(offset + 8,  oWords[2 + keyIndex]);
+				extractedKeys[3] = crypto.EncryptU32(offset + 12, oWords[3 + keyIndex]);
 
 				for(int i = 0; i < 4; i++)
 					if(eKeys[i] != keyC[i])
@@ -387,7 +380,7 @@ namespace BK7231Flasher
 	}
 
 	// vibe-coded
-	public class BekenCrypto
+	public ref struct BekenCrypto
 	{
 		private const uint PN15_CONST = 0x6371u;
 		private const uint PN32_CONST = 0xE519A4F1u;
@@ -412,8 +405,39 @@ namespace BK7231Flasher
 		private readonly bool usePn32;
 		private readonly Func<uint, uint> pn32_calc;
 
-		public BekenCrypto(uint[] coeffs)
+		public BekenCrypto(Span<uint> coeffs)
 		{
+			coef0 = 0u;
+			coef1_mix = 0u;
+			coef1_hi16 = 0u;
+			random = 0u;
+
+			bypass = false;
+			usePn15 = false;
+
+			a_hi_start = 0;
+			a_hi_stop = 0;
+			a_lo_start = 0;
+			a_lo_stop = 0;
+
+			b_hi_start = 0;
+			b_hi_stop = 0;
+			b_lo_start = 0;
+			b_lo_stop = 0;
+
+			mask_a_hi = 0u;
+			mask_a_lo = 0u;
+			mask_b_hi = 0u;
+			mask_b_lo = 0u;
+
+			usePn16 = false;
+			pn16_start = 0;
+			pn16_stop = 0;
+			pn16_mask = 0u;
+
+			usePn32 = false;
+			pn32_calc = null;
+
 			coef0 = coeffs[0];
 			uint coef1 = coeffs[1];
 			uint coef2 = coeffs[2];
