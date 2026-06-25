@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -172,19 +170,19 @@ namespace BK7231Flasher
 		}
 
 		private static readonly int[] FindAllTable = new int[256];
-		private static readonly List<int> FindAllMatches = new List<int>(256);
-		public static unsafe int[] FindAll(Span<byte> haystack, byte[] needle)
+		private static readonly List<int> FindAllMatches = new List<int>(8);
+		private static readonly List<int> EmptyList = new List<int>(0);
+		public static unsafe List<int> FindAll(Span<byte> haystack, byte[] needle)
 		{
 			if(needle.Length == 0)
-				return Array.Empty<int>();
+				return EmptyList;
 			if(FindAllMatches.Count > 0)
 				FindAllMatches.Clear();
 			fixed(int* skip = &FindAllTable[0])
 			fixed(byte* hay = &haystack[0])
 			fixed(byte* ned = &needle[0])
 			{
-				for(int i = 0; i < 256; ++i)
-					skip[i] = needle.Length;
+				FindAllTable.AsSpan().Fill(needle.Length);
 				for(int i = 0; i < needle.Length - 1; ++i)
 					skip[ned[i]] = needle.Length - 1 - i;
 
@@ -208,7 +206,7 @@ namespace BK7231Flasher
 					}
 				}
 			}
-			return FindAllMatches.ToArray();
+			return FindAllMatches;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -237,7 +235,7 @@ namespace BK7231Flasher
 			Encoding.ASCII.GetBytes("invalid code lengths set"),
 		};
 
-		public static readonly IReadOnlyList<uint> KnownKeysAddresses = new List<uint>()
+		public static readonly uint[] KnownKeysAddresses = new uint[]
 		{
 			0x1F08, // Common Beken bootloaders, 1.0.8, 1.0.13 etc.
 			0x48,   // Tuya 1.0.1 N or 1.0.5 T
@@ -289,10 +287,10 @@ namespace BK7231Flasher
 			decrKeys = null;
 			address = 0;
 
-			foreach(var addr in KnownKeysAddresses)
+			for(int i = 0; i < KnownKeysAddresses.Length; ++i)
 			{
-				address = addr;
-				int keyIndex = (int)(addr >> 2);
+				address = KnownKeysAddresses[i];
+				int keyIndex = (int)(address >> 2);
 
 				if(TryDecryptAndValidate(origWords, decryptedWords.AsSpan().Slice(keyIndex, 4), keyIndex, TryDecryptAndValidateKeys1))
 				{
@@ -582,7 +580,7 @@ namespace BK7231Flasher
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public uint EncryptU32(uint addr, uint data)
+		public readonly uint EncryptU32(uint addr, uint data)
 		{
 			if(bypass)
 				return data;

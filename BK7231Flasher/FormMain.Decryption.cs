@@ -102,19 +102,20 @@ namespace BK7231Flasher
 			var selectorValues = new byte?[] { 0, 1, 2, 3, null };
 			var selectors = new byte?[] { 0, 0, 0 };
 			var time = Stopwatch.StartNew();
-			foreach(var str in Utils.BootloaderDict)
+			for(int i = 0; i < Utils.BootloaderDict.Length; ++i)
 			{
-				var head = str.Span.Slice(0, 4);
-				var rest = str.Span.Slice(4);
-				var matcher = Utils.XorIter(rest, str.Span);
-
-				foreach(var sel1 in selectorValues)
-				foreach(var sel2 in selectorValues)
-				foreach(var sel3 in selectorValues)
+				var str = Utils.BootloaderDict[i].Span;
+				var head = str.Slice(0, 4);
+				var rest = str.Slice(4);
+				var matcher = Utils.XorIter(rest, str);
+				
+				for(int j = 0; j < selectorValues.Length; ++j)
+				for(int k = 0; k < selectorValues.Length; ++k)
+				for(int l = 0; l < selectorValues.Length; ++l)
 				{
-					selectors[0] = sel1;
-					selectors[1] = sel2;
-					selectors[2] = sel3;
+					selectors[0] = selectorValues[j];
+					selectors[1] = selectorValues[k];
+					selectors[2] = selectorValues[l];
 
 					Beken_Crypto.Keystream(selectors, 0, keystream);
 					Utils.XorIter(xoredImage, imageU32, keystream);
@@ -123,21 +124,21 @@ namespace BK7231Flasher
 					var imageBytes = Utils.U32ToU8Span(xoredImageSpan);
 
 					uint settings = Beken_Crypto.FormatSettingsWord(selectors);
-					foreach(int hit in Utils.FindAll(preprocImage, matcher))
+
+					var hits = Utils.FindAll(preprocImage, matcher);
+					for(int m = 0; m < hits.Count; ++m)
 					{
-						//var keyPart = imageBytes.Span.Slice(hit, 4).ToArray();
-						//var key = Utils.XorIter(imageBytes.Slice(hit, 4).Span, head);
-						Utils.XorIter(key, imageBytes.Slice(hit, 4), head);
-						uint k = (uint)BitConverter.ToInt32(key, 0);
-						k = Utils.RotateLeft(k, (hit & 3) << 3);
-						keys.Add((k, settings, hit));
-						//AddDecryptionLogLine($"Found match at 0x{hit:X} with key: 0 0 {k:X} {settings:X}", Color.Black);
-						cryptoKey[2] = k;
+						Utils.XorIter(key, imageBytes.Slice(hits[m], 4), head);
+						uint ku = (uint)BitConverter.ToInt32(key, 0);
+						ku = Utils.RotateLeft(ku, (hits[m] & 3) << 3);
+						keys.Add((ku, settings, hits[m]));
+						cryptoKey[2] = ku;
 						cryptoKey[3] = settings;
 						var crypto = new BekenCrypto(cryptoKey);
 						// instead of decrypting whole image, just decrypt known key offsets
-						foreach(var addr in Utils.KnownKeysAddresses)
+						for(int n = 0; n < Utils.KnownKeysAddresses.Length; ++n)
 						{
+							var addr = Utils.KnownKeysAddresses[n];
 							int keyIndex = (int)(addr >> 2);
 
 							decrypted[0 + keyIndex] = crypto.EncryptU32(addr + 0,  imageU32[0 + keyIndex]);
@@ -153,7 +154,7 @@ namespace BK7231Flasher
 								AddDecryptionLogLine($"Found match at 0x{Hit:X} with key: 0 0 {Key:X} {Settings:X}", Color.Black);
 							}
 							AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
-							AddDecryptionLogLine($"Decrypt combination: 0 0 {k:X} {settings:X}", Color.Black);
+							AddDecryptionLogLine($"Decrypt combination: 0 0 {ku:X} {settings:X}", Color.Black);
 							AddDecryptionLogLine($"Bootloader key: {decrKeys[0]:X} {decrKeys[1]:X} {decrKeys[2]:X} {decrKeys[3]:X} at 0x{keysAddress:X}", Color.Green);
 							if(k == 0)
 								AddDecryptionLogLine($"Coeff3 in decrypt combination is zero, firmware is most likely unencrypted, in which case bootloader key is incorrect.", Color.Orange);
@@ -176,6 +177,8 @@ namespace BK7231Flasher
 					.GroupBy(kv => kv)
 					.OrderByDescending(g => g.Count())
 					.First().Key;
+				time.Stop();
+				AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
 				AddDecryptionLogLine($"Most common decrypt combination: 0 0 {mostCommonCoeff.Item1:X} {mostCommonCoeff.Item2:X}", Color.Orange);
 				if(mostCommonCoeff.Item1 == 0)
 					AddDecryptionLogLine("Coeff3 in most common decrypt combination is zero, already unencrypted?", Color.Orange);
@@ -187,10 +190,10 @@ namespace BK7231Flasher
 			}
 			else
 			{
+				time.Stop();
+				AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
 				AddDecryptionLogLine($"Failed to get decrypt combination", Color.Orange);
 			}
-			time.Stop();
-			AddDecryptionLogLine($"Decryption took {time.ElapsedMilliseconds} ms", Color.DarkSlateGray);
 		}
 
 		private void OnBtnDecryptBootloaderClick(object sender, EventArgs e)
