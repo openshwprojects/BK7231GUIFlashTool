@@ -25,11 +25,14 @@ namespace BK7231Flasher
 			addLog("Going to open port: " + serialName + "." + Environment.NewLine);
 			try
 			{
-				serial = new SerialPort(serialName, 115200);
+				serial = new SerialPort(serialName, 115200)
+				{
+					ReadBufferSize = 65536,
+					ReadTimeout = 8000
+				};
 				serial.Open();
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
-				serial.ReadTimeout = 2000;
 				xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF)
 				{
 					MaxSenderRetries = 50,
@@ -97,8 +100,8 @@ namespace BK7231Flasher
 				serial.Close();
 				serial.BaudRate = baud;
 				serial.Open();
-				serial.ReadTimeout = 2000;
-				serial.WriteTimeout = 2000;
+				serial.ReadTimeout = 8000;
+				serial.WriteTimeout = 8000;
 				Thread.Sleep(50);
 				serial.DiscardInBuffer();
 				serial.DiscardOutBuffer();
@@ -191,7 +194,7 @@ namespace BK7231Flasher
 				if(rwMode == WriteMode.ReadAndWrite)
 				{
 					sectors = flashSizeMB * 256;
-					byte[] res = InternalRead(startSector, sectors);
+					byte[] res = InternalRead(startSector, sectors, bUseCompressionIfPossible);
 					if(res != null)
 						ms = new MemoryStream(res);
 					if(ms == null)

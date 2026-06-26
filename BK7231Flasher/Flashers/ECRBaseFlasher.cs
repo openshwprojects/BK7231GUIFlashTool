@@ -18,6 +18,10 @@ namespace BK7231Flasher
 		protected static readonly byte CMD_CUSTOM_FLASH_ID = 0x90;
 		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE = 0x91;
 		protected static readonly byte CMD_CUSTOM_XMODEM_READ = 0x92;
+		protected static readonly byte CMD_CUSTOM_KV_GET = 0x93;
+		protected static readonly byte CMD_CUSTOM_KV_SET = 0x94;
+		protected static readonly byte CMD_CUSTOM_GET_MAC = 0x95;
+		protected static readonly byte CMD_CUSTOM_XMODEM_READ_ZLIB = 0x96;
 
 		protected int flashSizeMB = 4;
 
@@ -79,7 +83,12 @@ namespace BK7231Flasher
 				{
 					sectors = flashSizeMB * 256;
 				}
-				byte[] res = InternalRead(startSector, sectors);
+				var useCompression = false;
+				if((chipType == BKType.RTL8721DA || chipType == BKType.RTL8720E) && bUseCompressionIfPossible)
+				{
+					useCompression = true;
+				}
+				byte[] res = InternalRead(startSector, sectors, useCompression);
 				if(res != null)
 					ms = new MemoryStream(res);
 			}
@@ -187,7 +196,7 @@ namespace BK7231Flasher
 			return ret;
 		}
 
-		protected byte[] InternalRead(int addr, int sectors)
+		protected byte[] InternalRead(int addr, int sectors, bool isCompressed = false)
 		{
 			if(sectors == 0)
 			{
@@ -195,23 +204,24 @@ namespace BK7231Flasher
 				return null;
 			}
 			var sha256Hash = SHA256.Create();
-			var expectedPackets = sectors * 4;
 			var offset = addr;
+			var toRead = sectors * 0x1000;
+			int startAmount = sectors * BK7231Flasher.SECTOR_SIZE;
 			void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
 			{
-				expectedPackets--;
-				logger.setProgress(sectors * 4 - expectedPackets, sectors * 4);
-				if((expectedPackets % 4) == 3)
+				if(((startAmount - toRead) % 0x1000) == 0)
 				{
-					addLog($"0x{offset:X}..");
+					addLog($"0x{offset:X}... ");
 				}
 				offset += packet.Length;
+				toRead -= packet.Length;
+				if(!isCancelled && !isCompressed)
+					logger.setProgress(startAmount - toRead, startAmount);
 			}
 			try
 			{
 				if(!SetBaud(baudrate))
 					return null;
-				int startAmount = sectors * BK7231Flasher.SECTOR_SIZE;
 				byte[] ret = new byte[startAmount];
 				logger.setProgress(0, sectors);
 				logger.setState("Reading", Color.White);
@@ -224,14 +234,17 @@ namespace BK7231Flasher
 				msg[5] = (byte)((startAmount >> 8) & 0xFF);
 				msg[6] = (byte)((startAmount >> 16) & 0xFF);
 				msg[7] = (byte)((startAmount >> 24) & 0xFF);
-				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_READ, msg, 2, 0);
+				var res = ExecuteCommand(isCompressed == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_ZLIB, msg, 2, 0);
 				var stream = new MemoryStream();
 				xm.PacketReceived += Xm_PacketReceived;
+				var sw = new Stopwatch();
+
 				try
 				{
 					var tries = 3;
 					while(tries-- >= 0)
 					{
+						sw.Start();
 						var recv = xm.Receive(stream);
 						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
 						{
@@ -239,8 +252,10 @@ namespace BK7231Flasher
 							stream.Dispose();
 							return null;
 						}
-						if(stream.Length >= startAmount)
+						else
+						{
 							break;
+						}
 
 						if(isCancelled)
 							return null;
@@ -248,11 +263,14 @@ namespace BK7231Flasher
 				}
 				finally
 				{
+					sw.Stop();
 					xm.PacketReceived -= Xm_PacketReceived;
 				}
+				addLogLine(Environment.NewLine + $"Flash read took {sw.ElapsedMilliseconds} ms");
 				ret = stream.ToArray();
 				stream.Dispose();
 				if(isCancelled) return null;
+				if(isCompressed) ret = Ionic.Zlib.ZlibStream.UncompressBuffer(ret);
 				addLogLine(Environment.NewLine + "Getting hash...");
 				res = ExecuteCommand(CMD_SHA256, msg, 30, 32);
 				if(res == null)
@@ -402,6 +420,8 @@ namespace BK7231Flasher
 			if(flashID == null)
 				return null;
 			addLogLine($"Flash ID: 0x{flashID[0]:X2}{flashID[1]:X2}{flashID[2]:X2}");
+			if(flashID[2] < 0x11 || flashID[2] > 0x22)
+				throw new Exception("Flash ID incorrect!");
 			flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
 			addLogLine($"Flash size is {flashSizeMB}MB");
 			return flashID;

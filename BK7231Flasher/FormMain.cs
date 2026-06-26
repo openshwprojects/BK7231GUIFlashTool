@@ -591,6 +591,7 @@ namespace BK7231Flasher
             flasher.setOverwriteBootloader(checkBoxOverwriteBootloader.Checked);
             flasher.setSkipKeyCheck(checkBoxSkipKeyCheck.Checked);
             flasher.setIgnoreCRCErr(chkIgnoreCRCErr.Checked);
+            flasher.setUseCompression(chkUseCompression.Checked);
         }
         
         void testWrite()
