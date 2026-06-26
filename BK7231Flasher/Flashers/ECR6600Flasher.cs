@@ -155,7 +155,7 @@ namespace BK7231Flasher
 				if(rwMode == WriteMode.ReadAndWrite)
 				{
 					sectors = flashSizeMB * 256;
-					byte[] res = InternalRead(startSector, sectors);
+					byte[] res = InternalRead(startSector, sectors, bUseCompressionIfPossible);
 					if(res != null)
 						ms = new MemoryStream(res);
 					if(ms == null)

@@ -12,10 +12,10 @@ namespace BK7231Flasher
 	{
 		static readonly byte GD32_GET = 0x00;
 		static readonly byte GD32_PID = 0x06;
-		static readonly byte GD32_READ = 0x11;
+		//static readonly byte GD32_READ = 0x11;
 		static readonly byte GD32_JUMP = 0x21;
 		static readonly byte GD32_PROGRAM = 0x31;
-		static readonly byte GD32_ERASE = 0x44;
+		//static readonly byte GD32_ERASE = 0x44;
 		static readonly byte ACK = 0x79;
 		static readonly byte NACK = 0x1F;
 
@@ -182,36 +182,36 @@ namespace BK7231Flasher
 			return CheckAck(GD32_JUMP, "address");
 		}
 
-		private byte[] SendReadCommand(int addr, byte len)
-		{
-			if(!AllowedCommands.Contains(GD32_READ))
-			{
-				addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
-				return null;
-			}
-
-			if(!SendCommand(GD32_READ)) return null;
-
-			var address = CreateAddressPacket(addr);
-
-			serial.Write(address, 0, address.Length);
-
-			if(!CheckAck(GD32_READ, "address")) return null;
-
-			serial.Write(new[] { len, (byte)~len }, 0, 2);
-
-			if(!CheckAck(GD32_READ, "length")) return null;
-
-			byte[] data = new byte[len];
-
-			int tries = 1000;
-			while(serial.BytesToRead < len && tries-- > 0)
-				Thread.Sleep(1);
-
-			serial.Read(data, 0, len);
-
-			return data;
-		}
+		//private byte[] SendReadCommand(int addr, byte len)
+		//{
+		//	if(!AllowedCommands.Contains(GD32_READ))
+		//	{
+		//		addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
+		//		return null;
+		//	}
+		//
+		//	if(!SendCommand(GD32_READ)) return null;
+		//
+		//	var address = CreateAddressPacket(addr);
+		//
+		//	serial.Write(address, 0, address.Length);
+		//
+		//	if(!CheckAck(GD32_READ, "address")) return null;
+		//
+		//	serial.Write(new[] { len, (byte)~len }, 0, 2);
+		//
+		//	if(!CheckAck(GD32_READ, "length")) return null;
+		//
+		//	byte[] data = new byte[len];
+		//
+		//	int tries = 1000;
+		//	while(serial.BytesToRead < len && tries-- > 0)
+		//		Thread.Sleep(1);
+		//
+		//	serial.Read(data, 0, len);
+		//
+		//	return data;
+		//}
 
 		protected override bool Sync()
 		{
@@ -309,7 +309,7 @@ namespace BK7231Flasher
 				if(rwMode == WriteMode.ReadAndWrite)
 				{
 					sectors = flashSizeMB * 256;
-					byte[] res = InternalRead(startSector, sectors);
+					byte[] res = InternalRead(startSector, sectors, bUseCompressionIfPossible);
 					if(res != null)
 						ms = new MemoryStream(res);
 					if(ms == null)

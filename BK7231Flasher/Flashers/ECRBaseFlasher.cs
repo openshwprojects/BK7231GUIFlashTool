@@ -84,7 +84,7 @@ namespace BK7231Flasher
 					sectors = flashSizeMB * 256;
 				}
 				var useCompression = false;
-				if((chipType == BKType.RTL8721DA || chipType == BKType.RTL8720E) && bUseCompressionIfPossible)
+				if(bUseCompressionIfPossible)
 				{
 					useCompression = true;
 				}
@@ -241,15 +241,16 @@ namespace BK7231Flasher
 
 				try
 				{
+					sw.Start();
 					var tries = 3;
 					while(tries-- >= 0)
 					{
-						sw.Start();
 						var recv = xm.Receive(stream);
+						//if(recv == XMODEM.TerminationReasonEnum.CancelNotificationReceived) continue;
+						//else 
 						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
 						{
 							addErrorLine($"Read failed with {recv}");
-							stream.Dispose();
 							return null;
 						}
 						else
@@ -260,18 +261,18 @@ namespace BK7231Flasher
 						if(isCancelled)
 							return null;
 					}
+					ret = stream.ToArray();
 				}
 				finally
 				{
 					sw.Stop();
 					xm.PacketReceived -= Xm_PacketReceived;
+					stream.Dispose();
 				}
-				addLogLine(Environment.NewLine + $"Flash read took {sw.ElapsedMilliseconds} ms");
-				ret = stream.ToArray();
-				stream.Dispose();
+				logger.addLog(Environment.NewLine + $"Flash read took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
 				if(isCancelled) return null;
 				if(isCompressed) ret = Ionic.Zlib.ZlibStream.UncompressBuffer(ret);
-				addLogLine(Environment.NewLine + "Getting hash...");
+				addLogLine("Getting hash...");
 				res = ExecuteCommand(CMD_SHA256, msg, 30, 32);
 				if(res == null)
 				{
