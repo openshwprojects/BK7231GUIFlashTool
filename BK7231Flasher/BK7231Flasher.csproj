@@ -203,15 +203,6 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.config" />
-    <AdditionalFiles Include="easyflash\libef.so">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\libef_ECR.so">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\libef_GRAN8.so">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
     <EmbeddedResource Include="Floaders\AmebaDFLoader.bin" />
     <EmbeddedResource Include="Floaders\AmebaZ_NewFloader.bin" />
     <EmbeddedResource Include="Floaders\BK7231N_1_0_1.bin" />
@@ -254,24 +245,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="bk_icon.ico" />
-    <AdditionalFiles Include="easyflash\WinEF_GRAN8_x64.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\WinEF_GRAN8_x86.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\WinEF_x64.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\WinEF_x86.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\WinEF_ECR_x64.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="easyflash\WinEF_ECR_x86.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AdditionalFiles>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="BeforeBuild">
