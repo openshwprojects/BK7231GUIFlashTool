@@ -217,7 +217,7 @@ namespace BK7231Flasher
                 addLog("Searching for Beken QIO firmware binaries for SPI flashing.");
                 foreach (FirmwareAsset asset in releaseAssets)
                 {
-                    if (isBekenSpiFlashableFirmware(asset.Name))
+                    if (bIsBekenSpiFlashableFirmware(asset.Name))
                         result.Add(asset);
                 }
                 result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
@@ -227,15 +227,15 @@ namespace BK7231Flasher
             List<string> prefixes = getFirmwareCandidatePrefixes();
             addLog("Searching for firmware prefix: " + string.Join(", ", prefixes.ToArray()) + "!");
 
-            bool haveReleaseBodyUsage = uartFlashFileNames != null && uartFlashFileNames.Count > 0;
-            if (haveReleaseBodyUsage)
+            bool bHaveReleaseBodyUsage = uartFlashFileNames != null && uartFlashFileNames.Count > 0;
+            if (bHaveReleaseBodyUsage)
                 addLog("Using release asset list, with release table data where available.");
             else
                 addWarning("Release body usage table was not available; falling back to filename filtering.");
 
             foreach (FirmwareAsset asset in releaseAssets)
             {
-                if (isMainFlashableFirmware(asset.Name, prefixes))
+                if (bIsMainFlashableFirmware(asset.Name, prefixes))
                     result.Add(asset);
             }
 
@@ -254,7 +254,7 @@ namespace BK7231Flasher
 
             return prefixes;
         }
-        bool isBekenSpiFlashableFirmware(string fileName)
+        bool bIsBekenSpiFlashableFirmware(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
                 return false;
@@ -277,11 +277,11 @@ namespace BK7231Flasher
 
             return true;
         }
-        bool isMainFlashableFirmware(string fileName, List<string> prefixes)
+        bool bIsMainFlashableFirmware(string fileName, List<string> prefixes)
         {
             if (string.IsNullOrEmpty(fileName))
                 return false;
-            if (startsWithAny(fileName, prefixes) == false)
+            if (bStartsWithAny(fileName, prefixes) == false)
                 return false;
 
             string lower = fileName.ToLowerInvariant();
@@ -300,7 +300,7 @@ namespace BK7231Flasher
             if (lower.EndsWith(".zip"))
                 return false;
 
-            if (isEspPlatform())
+            if (bIsEspPlatform())
                 return lower.EndsWith(".factory.bin");
 
             if (lower.EndsWith(".bin"))
@@ -312,7 +312,7 @@ namespace BK7231Flasher
 
             return false;
         }
-        bool startsWithAny(string fileName, List<string> prefixes)
+        bool bStartsWithAny(string fileName, List<string> prefixes)
         {
             foreach (string pfx in prefixes)
             {
@@ -321,7 +321,7 @@ namespace BK7231Flasher
             }
             return false;
         }
-        bool isEspPlatform()
+        bool bIsEspPlatform()
         {
             switch (bkType)
             {
@@ -350,13 +350,13 @@ namespace BK7231Flasher
         }
         int getFirmwareSortRank(FirmwareAsset asset, HashSet<string> uartFlashFileNames)
         {
-            if (isCurrentDefaultFirmwareName(asset.Name))
+            if (bIsCurrentDefaultFirmwareName(asset.Name))
                 return 0;
             if (uartFlashFileNames != null && uartFlashFileNames.Contains(asset.Name))
                 return 1;
             return 2;
         }
-        bool isCurrentDefaultFirmwareName(string fileName)
+        bool bIsCurrentDefaultFirmwareName(string fileName)
         {
             string pfx = FormMain.getFirmwarePrefix(bkType);
             if (fileName.StartsWith(pfx, StringComparison.OrdinalIgnoreCase) == false)
@@ -378,7 +378,7 @@ namespace BK7231Flasher
             FirmwareAsset defaultAsset = null;
             foreach (FirmwareAsset candidate in candidates)
             {
-                if (isCurrentDefaultFirmwareName(candidate.Name))
+                if (bIsCurrentDefaultFirmwareName(candidate.Name))
                 {
                     defaultAsset = candidate;
                     break;
@@ -399,7 +399,7 @@ namespace BK7231Flasher
                 defaultAsset = candidates[0];
 
             if (bkType != BKType.BekenSPI)
-                defaultAsset.IsDefault = true;
+                defaultAsset.bIsDefault = true;
             return defaultAsset;
         }
         FirmwareAsset chooseFirmwareAssetIfRequired(List<FirmwareAsset> candidates, FirmwareAsset defaultAsset)
@@ -555,7 +555,7 @@ namespace BK7231Flasher
             public readonly string Name;
             public readonly string Url;
             public readonly int ReleaseAssetIndex;
-            public bool IsDefault;
+            public bool bIsDefault;
 
             public FirmwareAsset(string name, string url, int releaseAssetIndex)
             {
@@ -575,7 +575,7 @@ namespace BK7231Flasher
 
             public override string ToString()
             {
-                if (Asset.IsDefault)
+                if (Asset.bIsDefault)
                     return Asset.Name + "  (default)";
                 return Asset.Name;
             }
