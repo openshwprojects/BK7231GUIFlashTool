@@ -433,7 +433,6 @@ namespace BK7231Flasher
         {
             using (Form f = new Form())
             using (Label label = new Label())
-            using (LinkLabel linkLabel = new LinkLabel())
             using (Button buttonYes = new Button())
             using (Button buttonNo = new Button())
             using (Button buttonCancel = new Button())
@@ -443,48 +442,37 @@ namespace BK7231Flasher
                 f.MinimizeBox = false;
                 f.MaximizeBox = false;
                 f.FormBorderStyle = FormBorderStyle.FixedDialog;
-                f.ClientSize = new Size(560, 205);
+                f.ClientSize = new Size(460, 165);
                 f.ShowIcon = false;
 
                 label.Left = 12;
                 label.Top = 12;
-                label.Width = 536;
+                label.Width = 436;
                 label.Height = 105;
                 label.Text = "Firmware variants are available for " + bkType + "." + Environment.NewLine + Environment.NewLine +
                     "Default:" + Environment.NewLine +
                     defaultAsset.Name + Environment.NewLine + Environment.NewLine +
                     "Do you want to choose a different variant?";
 
-                linkLabel.Left = 12;
-                linkLabel.Top = 122;
-                linkLabel.Width = 536;
-                linkLabel.Height = 20;
-                linkLabel.Text = "Review enabled features for each platform";
-                linkLabel.LinkClicked += (s, e) =>
-                {
-                    System.Diagnostics.Process.Start(enabledFeaturesUrl);
-                };
-
                 buttonYes.Text = "Choose variant";
-                buttonYes.Left = 164;
-                buttonYes.Top = 162;
+                buttonYes.Left = 48;
+                buttonYes.Top = 122;
                 buttonYes.Width = 120;
                 buttonYes.DialogResult = DialogResult.Yes;
 
                 buttonNo.Text = "Download default";
-                buttonNo.Left = 294;
-                buttonNo.Top = 162;
+                buttonNo.Left = 178;
+                buttonNo.Top = 122;
                 buttonNo.Width = 122;
                 buttonNo.DialogResult = DialogResult.No;
 
                 buttonCancel.Text = "Cancel";
-                buttonCancel.Left = 426;
-                buttonCancel.Top = 162;
+                buttonCancel.Left = 312;
+                buttonCancel.Top = 122;
                 buttonCancel.Width = 100;
                 buttonCancel.DialogResult = DialogResult.Cancel;
 
                 f.Controls.Add(label);
-                f.Controls.Add(linkLabel);
                 f.Controls.Add(buttonYes);
                 f.Controls.Add(buttonNo);
                 f.Controls.Add(buttonCancel);
@@ -498,6 +486,7 @@ namespace BK7231Flasher
         {
             using (Form f = new Form())
             using (Label label = new Label())
+            using (LinkLabel linkLabel = new LinkLabel())
             using (ListBox listBox = new ListBox())
             using (Button buttonDownload = new Button())
             using (Button buttonCancel = new Button())
@@ -507,11 +496,11 @@ namespace BK7231Flasher
                 f.MinimizeBox = false;
                 f.MaximizeBox = false;
                 f.FormBorderStyle = FormBorderStyle.FixedDialog;
-                f.ClientSize = new Size(660, 300);
+                f.ClientSize = new Size(560, 300);
 
                 label.Left = 12;
                 label.Top = 12;
-                label.Width = 636;
+                label.Width = 536;
                 label.Height = 40;
                 if (bkType == BKType.BekenSPI)
                     label.Text = "Choose a Beken SPI firmware file.";
@@ -520,9 +509,19 @@ namespace BK7231Flasher
 
                 listBox.Left = 12;
                 listBox.Top = 60;
-                listBox.Width = 636;
+                listBox.Width = 536;
                 listBox.Height = 185;
                 listBox.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right | AnchorStyles.Bottom;
+
+                linkLabel.Left = 12;
+                linkLabel.Top = 264;
+                linkLabel.Width = 260;
+                linkLabel.Height = 20;
+                linkLabel.Text = "Review enabled features for each platform";
+                linkLabel.LinkClicked += (s, e) =>
+                {
+                    System.Diagnostics.Process.Start(enabledFeaturesUrl);
+                };
 
                 FirmwareChoiceListItem defaultItem = null;
                 foreach (FirmwareAsset candidate in candidates)
@@ -538,18 +537,19 @@ namespace BK7231Flasher
                     listBox.SelectedIndex = 0;
 
                 buttonDownload.Text = "Download selected";
-                buttonDownload.Left = 418;
+                buttonDownload.Left = 318;
                 buttonDownload.Top = 260;
                 buttonDownload.Width = 110;
                 buttonDownload.DialogResult = DialogResult.OK;
 
                 buttonCancel.Text = "Cancel";
-                buttonCancel.Left = 538;
+                buttonCancel.Left = 438;
                 buttonCancel.Top = 260;
                 buttonCancel.Width = 110;
                 buttonCancel.DialogResult = DialogResult.Cancel;
 
                 f.Controls.Add(label);
+                f.Controls.Add(linkLabel);
                 f.Controls.Add(listBox);
                 f.Controls.Add(buttonDownload);
                 f.Controls.Add(buttonCancel);
