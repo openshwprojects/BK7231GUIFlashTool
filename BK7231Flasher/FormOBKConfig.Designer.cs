@@ -263,6 +263,7 @@
             // 
             // listViewGPIO
             // 
+            this.listViewGPIO.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
             this.listViewGPIO.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1,
             this.columnHeader2,
@@ -272,7 +273,7 @@
             this.listViewGPIO.HideSelection = false;
             this.listViewGPIO.Location = new System.Drawing.Point(507, 38);
             this.listViewGPIO.Name = "listViewGPIO";
-            this.listViewGPIO.Size = new System.Drawing.Size(306, 382);
+            this.listViewGPIO.Size = new System.Drawing.Size(326, 382);
             this.listViewGPIO.TabIndex = 24;
             this.listViewGPIO.UseCompatibleStateImageBehavior = false;
             this.listViewGPIO.View = System.Windows.Forms.View.Details;
@@ -346,7 +347,7 @@
             this.fileToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(829, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(849, 24);
             this.menuStrip1.TabIndex = 30;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -410,7 +411,7 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 24);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(829, 463);
+            this.tabControl1.Size = new System.Drawing.Size(849, 463);
             this.tabControl1.TabIndex = 32;
             // 
             // tabPage1
@@ -443,7 +444,7 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(821, 437);
+            this.tabPage1.Size = new System.Drawing.Size(841, 437);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Generic";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -454,7 +455,7 @@
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(821, 437);
+            this.tabPage2.Size = new System.Drawing.Size(841, 437);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Flags";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -486,7 +487,7 @@
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage3.Size = new System.Drawing.Size(821, 437);
+            this.tabPage3.Size = new System.Drawing.Size(841, 437);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Short startup command";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -515,7 +516,7 @@
             this.tabPage4.Location = new System.Drawing.Point(4, 22);
             this.tabPage4.Name = "tabPage4";
             this.tabPage4.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage4.Size = new System.Drawing.Size(821, 437);
+            this.tabPage4.Size = new System.Drawing.Size(841, 437);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "Misc";
             this.tabPage4.UseVisualStyleBackColor = true;
@@ -549,7 +550,7 @@
             this.tabPage5.Controls.Add(this.textBoxOBKIP);
             this.tabPage5.Location = new System.Drawing.Point(4, 22);
             this.tabPage5.Name = "tabPage5";
-            this.tabPage5.Size = new System.Drawing.Size(821, 437);
+            this.tabPage5.Size = new System.Drawing.Size(841, 437);
             this.tabPage5.TabIndex = 4;
             this.tabPage5.Text = "IP Config";
             this.tabPage5.UseVisualStyleBackColor = true;
@@ -632,7 +633,7 @@
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(829, 487);
+            this.ClientSize = new System.Drawing.Size(849, 487);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.label10);
             this.Controls.Add(this.menuStrip1);

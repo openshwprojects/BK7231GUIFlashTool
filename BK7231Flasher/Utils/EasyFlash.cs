@@ -1,663 +1,113 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace BK7231Flasher
 {
 	static class EasyFlash
 	{
-		static class EF32
-		{
-			const string Dll = "easyflash/WinEF_x86.dll";
+		internal static int EF_WRITE_GRAN = 1;
 
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
+		internal static bool RequireKVHeader = false;
 
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
+		internal static bool AlternateSectorHeader = false;
 
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
+		private static int WriteGran => EF_WRITE_GRAN < 8 ? 1 : EF_WRITE_GRAN / 8;
 
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
+		private static int SECTOR_HDR => EF_WRITE_GRAN == 32 ? 0x24 : EF_WRITE_GRAN == 8 ? 0x14 : 0x10;
 
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
+		private static int SectorMagicOffset => EF_WRITE_GRAN == 32 ? 0x18 : EF_WRITE_GRAN == 8 ? 0x08 : 0x04;
 
-		static class EF64
-		{
-			const string Dll = "easyflash/WinEF_x64.dll";
+		//private static int DataOff => EF_WRITE_GRAN == 32 ? 0x14 : EF_WRITE_GRAN == 8 ? 12 : 8;
+		private static int DataOff => EF_WRITE_GRAN == 32 ? 28 - (RequireKVHeader ? 0 : 8) : EF_WRITE_GRAN == 8 ? 12 - (RequireKVHeader ? 0 : 4) : (RequireKVHeader ? 8 : 4);
 
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EF32_GRAN8
-		{
-			const string Dll = "easyflash/WinEF_GRAN8_x86.dll";
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EF64_GRAN8
-		{
-			const string Dll = "easyflash/WinEF_GRAN8_x64.dll";
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EF32_GRAN32
-		{
-			const string Dll = "easyflash/WinEF_GRAN32_x86.dll";
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EF64_GRAN32
-		{
-			const string Dll = "easyflash/WinEF_GRAN32_x64.dll";
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EF32_ECR
-		{
-			const string Dll = "easyflash/WinEF_ECR_x86.dll";
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EF64_ECR
-		{
-			const string Dll = "easyflash/WinEF_ECR_x64.dll";
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EFLinux
-		{
-			const string Dll = "easyflash/libef.so";
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EFLinux_GRAN8
-		{
-			const string Dll = "easyflash/libef_GRAN8.so";
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EFLinux_GRAN32
-		{
-			const string Dll = "easyflash/libef_GRAN32.so";
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		static class EFLinux_ECR
-		{
-			const string Dll = "easyflash/libef_ECR.so";
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len);
-
-			[DllImport(Dll)]
-			public static extern unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len);
-
-			[DllImport(Dll)]
-			public static extern uint easyflash_init();
-
-			[DllImport(Dll)]
-			public static extern uint set_env_size(uint size);
-
-			[DllImport(Dll)]
-			public static extern unsafe byte* get_env_area();
-		}
-
-		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
-		private static extern IntPtr memcpy(IntPtr dest, IntPtr src, int count);
-
-		[DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
-		public static extern IntPtr memset(IntPtr dest, int c, int count);
-
-		static bool HasLinuxGran32()
-		{
-			try
-			{
-				return File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "easyflash", "libef_GRAN32.so"));
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		private static unsafe bool SetupBase(byte[] data, int size, BKType type, out byte* env)
-		{
-			try
-			{
-				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							EFLinux_GRAN8.set_env_size((uint)size);
-							break;
-						case BKType.TR6260:
-							if(HasLinuxGran32())
-							{
-								EFLinux_GRAN32.set_env_size((uint)size);
-							}
-							else
-							{
-								EFLinux.set_env_size((uint)size);
-							}
-							break;
-						case BKType.ECR6600:
-							EFLinux_ECR.set_env_size((uint)size);
-							break;
-						default:
-							EFLinux.set_env_size((uint)size);
-							break;
-					}
-				}
-				else if(IntPtr.Size == 8)
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							EF64_GRAN8.set_env_size((uint)size);
-							break;
-						case BKType.TR6260:
-							EF64_GRAN32.set_env_size((uint)size);
-							break;
-						case BKType.ECR6600:
-							EF64_ECR.set_env_size((uint)size);
-							break;
-						default:
-							EF64.set_env_size((uint)size);
-							break;
-					}
-				}
-				else
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							EF32_GRAN8.set_env_size((uint)size);
-							break;
-						case BKType.TR6260:
-							EF32_GRAN32.set_env_size((uint)size);
-							break;
-						case BKType.ECR6600:
-							EF32_ECR.set_env_size((uint)size);
-							break;
-						default:
-							EF32.set_env_size((uint)size);
-							break;
-					}
-				}
-
-				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							env = EFLinux_GRAN8.get_env_area();
-							break;
-						case BKType.TR6260:
-							env = HasLinuxGran32() ? EFLinux_GRAN32.get_env_area() : EFLinux.get_env_area();
-							break;
-						case BKType.ECR6600:
-							env = EFLinux_ECR.get_env_area();
-							break;
-						default:
-							env = EFLinux.get_env_area();
-							break;
-					}
-				}
-				else if(IntPtr.Size == 8)
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							env = EF64_GRAN8.get_env_area();
-							break;
-						case BKType.TR6260:
-							env = EF64_GRAN32.get_env_area();
-							break;
-						case BKType.ECR6600:
-							env = EF64_ECR.get_env_area();
-							break;
-						default:
-							env = EF64.get_env_area();
-							break;
-					}
-				}
-				else
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							env = EF32_GRAN8.get_env_area();
-							break;
-						case BKType.TR6260:
-							env = EF32_GRAN32.get_env_area();
-							break;
-						case BKType.ECR6600:
-							env = EF32_ECR.get_env_area();
-							break;
-						default:
-							env = EF32.get_env_area();
-							break;
-					}
-				}
-
-				fixed(byte* pdata = data)
-					memcpy((IntPtr)env, (IntPtr)pdata, size);
-
-				if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							EFLinux_GRAN8.easyflash_init();
-							break;
-						case BKType.TR6260:
-							if(HasLinuxGran32())
-							{
-								EFLinux_GRAN32.easyflash_init();
-							}
-							else
-							{
-								EFLinux.easyflash_init();
-							}
-							break;
-						case BKType.ECR6600:
-							EFLinux_ECR.easyflash_init();
-							break;
-						default:
-							EFLinux.easyflash_init();
-							break;
-					}
-				}
-				else if(IntPtr.Size == 8)
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							EF64_GRAN8.easyflash_init();
-							break;
-						case BKType.TR6260:
-							EF64_GRAN32.easyflash_init();
-							break;
-						case BKType.ECR6600:
-							EF64_ECR.easyflash_init();
-							break;
-						default:
-							EF64.easyflash_init();
-							break;
-					}
-				}
-				else
-				{
-					switch(type)
-					{
-						case BKType.BL602:
-						case BKType.BL616:
-							EF32_GRAN8.easyflash_init();
-							break;
-						case BKType.TR6260:
-							EF32_GRAN32.easyflash_init();
-							break;
-						case BKType.ECR6600:
-							EF32_ECR.easyflash_init();
-							break;
-						default:
-							EF32.easyflash_init();
-							break;
-					}
-				}
-			}
-			catch
-			{
-				env = null;
-				return false;
-			}
-			return true;
-		}
-
-		public static unsafe uint ef_get_env_blob(char* key, void* value_buf, uint buf_len, uint* saved_value_len, BKType type)
-		{
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				switch(type)
-				{
-					case BKType.BL602:
-					case BKType.BL616:
-						return EFLinux_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					case BKType.TR6260:
-						return HasLinuxGran32() ? EFLinux_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len) : EFLinux.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					case BKType.ECR6600:
-						return EFLinux_ECR.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					default:
-						return EFLinux.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-				}
-			}
-			else if(IntPtr.Size == 8)
-			{
-				switch(type)
-				{
-					case BKType.BL602:
-					case BKType.BL616:
-						return EF64_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					case BKType.TR6260:
-						return EF64_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					case BKType.ECR6600:
-						return EF64_ECR.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					default:
-						return EF64.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-				}
-			}
-			else
-			{
-				switch(type)
-				{
-					case BKType.BL602:
-					case BKType.BL616:
-						return EF32_GRAN8.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					case BKType.TR6260:
-						return EF32_GRAN32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					case BKType.ECR6600:
-						return EF32_ECR.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-					default:
-						return EF32.ef_get_env_blob(key, value_buf, buf_len, saved_value_len);
-				}
-			}
-		}
-
-		public static unsafe uint ef_set_env_blob(char* key, void* value_buf, uint buf_len, BKType type)
-		{
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				switch(type)
-				{
-					case BKType.BL602:
-					case BKType.BL616:
-						return EFLinux_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
-					case BKType.TR6260:
-						return HasLinuxGran32() ? EFLinux_GRAN32.ef_set_env_blob(key, value_buf, buf_len) : EFLinux.ef_set_env_blob(key, value_buf, buf_len);
-					case BKType.ECR6600:
-						return EFLinux_ECR.ef_set_env_blob(key, value_buf, buf_len);
-					default:
-						return EFLinux.ef_set_env_blob(key, value_buf, buf_len);
-				}
-			}
-			else if(IntPtr.Size == 8)
-			{
-				switch(type)
-				{
-					case BKType.BL602:
-					case BKType.BL616:
-						return EF64_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
-					case BKType.TR6260:
-						return EF64_GRAN32.ef_set_env_blob(key, value_buf, buf_len);
-					case BKType.ECR6600:
-						return EF64_ECR.ef_set_env_blob(key, value_buf, buf_len);
-					default:
-						return EF64.ef_set_env_blob(key, value_buf, buf_len);
-				}
-			}
-			else
-			{
-				switch(type)
-				{
-					case BKType.BL602:
-					case BKType.BL616:
-						return EF32_GRAN8.ef_set_env_blob(key, value_buf, buf_len);
-					case BKType.TR6260:
-						return EF32_GRAN32.ef_set_env_blob(key, value_buf, buf_len);
-					case BKType.ECR6600:
-						return EF32_ECR.ef_set_env_blob(key, value_buf, buf_len);
-					default:
-						return EF32.ef_set_env_blob(key, value_buf, buf_len);
-				}
-			}
-		}
-
-		public static unsafe byte[] LoadValueFromData(byte[] data, string sname, int size, BKType type, out byte[] efdata)
+		public static byte[] LoadValueFromData(byte[] data, string sname, int size, BKType type, out byte[] efdata)
 		{
 			efdata = data;
 			if(data == null)
 				return null;
-			if(type == BKType.TR6260)
-				return NativeGran32_Load(data, sname);
-			if(!SetupBase(data, size, type, out var env)) return null;
-			byte[] bname = Encoding.ASCII.GetBytes(sname);
-			fixed(byte* name = bname)
+			RequireKVHeader = true;
+			AlternateSectorHeader = false;
+			switch(type)
 			{
-				var test = stackalloc byte[1];
-				uint savedlen = 0;
-				uint res2 = ef_get_env_blob((char*)name, &test, 1, &savedlen, type);
-				if(res2 == 0)
-				{
-					Console.WriteLine("No config in EF!");
-					return null;
-				}
-				var config = stackalloc byte[(int)savedlen];
-				res2 = ef_get_env_blob((char*)name, config, savedlen, &savedlen, type);
-				byte[] managed_area = new byte[savedlen];
-				for(int i = 0; i < savedlen; i++)
-				{
-					managed_area[i] = config[i];
-				}
-				return managed_area;
+				case BKType.ECR6600:
+					EF_WRITE_GRAN = 32;
+					RequireKVHeader = false;
+					AlternateSectorHeader = true;
+					break;
+				case BKType.TR6260:
+					EF_WRITE_GRAN = 32;
+					RequireKVHeader = false;
+					break;
+				case BKType.BL602:
+				case BKType.BL616:
+				case BKType.BL702:
+					EF_WRITE_GRAN = 8;
+					break;
+				default:
+					EF_WRITE_GRAN = 1;
+					break;
 			}
+			return NativeEF_Load(data, sname);
 		}
 
-		public static unsafe byte[] SaveValueToNewEasyFlash(string sname, byte[] cfgData, int areaSize, BKType type)
+		public static byte[] SaveValueToNewEasyFlash(string sname, byte[] cfgData, int areaSize, BKType type)
 		{
-			if(type == BKType.TR6260)
-				return NativeGran32_Save(sname, cfgData, areaSize);
-			var data = new byte[areaSize];
-			fixed (byte* ptr = data) memset((IntPtr)ptr, 0xFF, areaSize);
-			if(!SetupBase(data, areaSize, type, out var env)) return null;
-
-			byte[] bname = Encoding.ASCII.GetBytes(sname);
-			fixed(byte* name = bname)
+			RequireKVHeader = true;
+			AlternateSectorHeader = false;
+			switch(type)
 			{
-				fixed(byte* pdata = cfgData)
-				{
-					uint res = ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length, type);
-					Console.WriteLine($"ef_set_env_blob returned {res}");
-					if(res != 0) return null;
-				}
-				var efdata = new byte[areaSize];
-				for(int i = 0; i < areaSize; i++)
-				{
-					efdata[i] = env[i];
-				}
-				return efdata;
+				case BKType.ECR6600:
+					EF_WRITE_GRAN = 32;
+					RequireKVHeader = false;
+					AlternateSectorHeader = true;
+					break;
+				case BKType.TR6260:
+					EF_WRITE_GRAN = 32;
+					RequireKVHeader = false;
+					break;
+				case BKType.BL602:
+				case BKType.BL616:
+				case BKType.BL702:
+					EF_WRITE_GRAN = 8;
+					break;
+				default:
+					EF_WRITE_GRAN = 1;
+					break;
 			}
+			return NativeEF_Save(sname, cfgData, areaSize);
 		}
 
-		public static unsafe byte[] SaveValueToExistingEasyFlash(string sname, byte[] efData, byte[] cfgData, int areaSize, BKType type)
+		public static byte[] SaveValueToExistingEasyFlash(string sname, byte[] efData, byte[] cfgData, int areaSize, BKType type)
 		{
-			if(type == BKType.TR6260)
+			RequireKVHeader = true;
+			AlternateSectorHeader = false;
+			switch(type)
 			{
-				// Read all existing entries, replace/insert the target key, reserialize.
-				// This preserves other keys that the firmware wrote (nv_version, OBK_FV,
-				// StaSSID, StaPW, PMK, etc.) rather than wiping them.
-				var existing = NativeGran32_ReadAllEntries(efData);
-				existing[sname] = cfgData;
-				return NativeGran32_SaveEntries(existing, areaSize);
+				case BKType.ECR6600:
+					EF_WRITE_GRAN = 32;
+					RequireKVHeader = false;
+					AlternateSectorHeader = true;
+					break;
+				case BKType.TR6260:
+					EF_WRITE_GRAN = 32;
+					RequireKVHeader = false;
+					break;
+				case BKType.BL602:
+				case BKType.BL616:
+				case BKType.BL702:
+					EF_WRITE_GRAN = 8;
+					break;
+				default:
+					EF_WRITE_GRAN = 1;
+					break;
 			}
-			if(efData.Length != areaSize)
-			{
-				throw new Exception("Saved EF data length != target EF length");
-			}
-			var data = new byte[areaSize];
-			fixed(byte* pdata = efData) fixed (byte* ptr = data) memcpy((IntPtr)ptr, (IntPtr)pdata, areaSize);
-			if(!SetupBase(data, areaSize, type, out var env)) return null;
-
-			byte[] bname = Encoding.ASCII.GetBytes(sname);
-			fixed(byte* name = bname)
-			{
-				fixed(byte* pdata = cfgData)
-				{
-					uint res = ef_set_env_blob((char*)name, pdata, (uint)cfgData.Length, type);
-					Console.WriteLine($"ef_set_env_blob returned {res}");
-					if(res != 0)
-						return null;
-				}
-				var efdata = new byte[areaSize];
-				for(int i = 0; i < areaSize; i++)
-				{
-					efdata[i] = env[i];
-				}
-				return efdata;
-			}
+			// Read all existing entries, replace/insert the target key, reserialize.
+			// This preserves other keys that the firmware wrote (nv_version, OBK_FV,
+			// StaSSID, StaPW, PMK, etc.) rather than wiping them.
+			var existing = NativeEF_ReadAllEntries(efData);
+			existing[sname] = cfgData;
+			return NativeEF_SaveEntries(existing, areaSize);
 		}
 
 		// ---------------------------------------------------------------------------
@@ -667,7 +117,7 @@ namespace BK7231Flasher
 		// correct GRAN=32 binary layout derived from the OpenTR6260 ef_env.c source
 		// and verified byte-for-byte against a live TR6260 flash dump.
 		//
-		// Sector layout (GRAN=32, EF_WRITE_GRAN=32, sector_size=4096):
+		// Sector layout (GRAN=32, EF_WRITE_GRAN=32, BK7231Flasher.SECTOR_SIZE=4096):
 		//   [+0x00..+0x0B]  store status  (3 × uint32 dirty words)
 		//   [+0x0C..+0x13]  dirty status  (2 × uint32 dirty words)
 		//   [+0x14..+0x17]  0xFFFFFFFF
@@ -686,80 +136,117 @@ namespace BK7231Flasher
 		//   [+0x24+WgAlign(name_len)..] value (WgAlign(value_len) bytes, 0xFF-padded)
 		// ---------------------------------------------------------------------------
 
-		private static int WgAlign32(int x) => (x + 3) & ~3;
+		private static int WgAlign(int x) => (x + (WriteGran - 1)) & ~(WriteGran - 1);
 
-		private static uint Crc32Ieee(byte[] data, int offset, int length)
-		{
-			// Standard IEEE 802.3 CRC-32 (same polynomial as zlib crc32).
-			// Matches ef_calc_crc32() in OpenTR6260 which uses crc^~0U init/final XOR.
-			CRC.initCRC();
-			uint crc = CRC.crc32_ver2(0xFFFFFFFF, data, length, (uint)offset);
-			return crc ^ 0xFFFFFFFF;
-		}
+		private static uint Crc32Ieee(byte[] data, int offset, int length) => CRC.crc32_ver2(0xFFFFFFFF, data, length, (uint)offset) ^ 0xFFFFFFFF;
 
 		/// <summary>
-		/// Build a single GRAN=32 EasyFlash entry (status_table + header + name + value).
+		/// Build a single EasyFlash entry (status_table + header + name + value).
 		/// </summary>
-		private static byte[] NativeGran32_MakeEntry(string key, byte[] value)
+		internal static byte[] NativeEF_MakeEntry(string key, byte[] value)
 		{
 			byte[] keyBytes = Encoding.ASCII.GetBytes(key);
-			int    nameLen  = keyBytes.Length;
-			int    valueLen = value.Length;
-			int    nameSz   = WgAlign32(nameLen);
-			int    valueSz  = WgAlign32(valueLen);
-			int    totalLen = 20 + 4 + 4 + 4 + 4 + nameSz + valueSz;
+			int nameLen = keyBytes.Length;
+			int valueLen = value.Length;
 
-			// CRC input: name_len(1) + pad(3) + value_len(4) + name_padded + value_padded
-			byte[] crcBuf = new byte[4 + 4 + nameSz + valueSz];
-			crcBuf[0] = (byte)nameLen;
-			crcBuf[1] = 0xFF; crcBuf[2] = 0xFF; crcBuf[3] = 0xFF;
-			crcBuf[4] = (byte)(valueLen      ); crcBuf[5] = (byte)(valueLen >>  8);
-			crcBuf[6] = (byte)(valueLen >> 16); crcBuf[7] = (byte)(valueLen >> 24);
-			for(int i = 8; i < crcBuf.Length; i++) crcBuf[i] = 0xFF;
-			Array.Copy(keyBytes, 0, crcBuf, 8,          nameLen);
-			Array.Copy(value,    0, crcBuf, 8 + nameSz, valueLen);
-			uint crc32 = Crc32Ieee(crcBuf, 0, crcBuf.Length);
+			int nameSz = WgAlign(nameLen);
+			int valSz = WgAlign(valueLen);
+
+			int totalLen = DataOff + 16 + nameSz + valSz;
 
 			byte[] entry = new byte[totalLen];
-			for(int i = 0; i < totalLen; i++) entry[i] = 0xFF;
-			entry[0] = 0x00;  // PRE_WRITE status word[0]
-			entry[4] = 0x00;  // WRITE     status word[1]
-			WriteUint32LE(entry, 0x14, (uint)totalLen);
-			WriteUint32LE(entry, 0x18, crc32);
-			entry[0x1C] = (byte)nameLen;
-			WriteUint32LE(entry, 0x20, (uint)valueLen);
-			Array.Copy(keyBytes, 0, entry, 0x24,          nameLen);
-			Array.Copy(value,    0, entry, 0x24 + nameSz, valueLen);
+			entry.AsSpan().Fill(0xFF);
+
+			if(EF_WRITE_GRAN == 1)
+			{
+				entry[0] = 0x3F; // ENV_PRE_WRITE && ENV_WRITE
+			}
+			else
+			{
+				entry[0] = 0x00; // ENV_PRE_WRITE
+				entry[WriteGran] = 0x00; // ENV_WRITE
+			}
+
+			if(RequireKVHeader)
+			{
+				entry[SectorMagicOffset + 0] = (byte)'K';
+				entry[SectorMagicOffset + 1] = (byte)'V';
+				entry[SectorMagicOffset + 2] = (byte)'4';
+				entry[SectorMagicOffset + 3] = (byte)'0';
+			}
+
+			MiscUtils.WriteU32LE(entry, DataOff, (uint)totalLen);
+
+			int crcBufSize = 8 + nameSz + valSz;
+			byte[] crcBuf = new byte[crcBufSize];
+			crcBuf.AsSpan().Fill(0xFF);
+			crcBuf[0] = (byte)nameLen;
+
+			crcBuf[4] = (byte)(valueLen);
+			crcBuf[5] = (byte)(valueLen >> 8);
+			crcBuf[6] = (byte)(valueLen >> 16);
+			crcBuf[7] = (byte)(valueLen >> 24);
+
+			Array.Copy(keyBytes, 0, crcBuf, 8, nameLen);
+			Array.Copy(value, 0, crcBuf, 8 + nameSz, valueLen);
+
+			uint crc32 = Crc32Ieee(crcBuf, 0, crcBuf.Length);
+			MiscUtils.WriteU32LE(entry, DataOff + 4, crc32);
+			entry[DataOff + 8] = (byte)nameLen;
+			MiscUtils.WriteU32LE(entry, DataOff + 12, (uint)valueLen);
+
+			int dataStart = DataOff + 16;
+			Array.Copy(keyBytes, 0, entry, dataStart, nameLen);
+			Array.Copy(value, 0, entry, dataStart + nameSz, valueLen);
+
 			return entry;
 		}
 
 		/// <summary>
-		/// Build a GRAN=32 sector header.
+		/// Build an EF sector header.
 		/// isActive=true  → STORE_USING (has entries); false → STORE_EMPTY (blank formatted).
 		/// </summary>
-		private static byte[] NativeGran32_MakeSectorHdr(bool isActive)
+		internal static byte[] NativeEF_MakeSectorHdr(bool isActive)
 		{
-			const int SECTOR_HDR = 0x24;
 			byte[] h = new byte[SECTOR_HDR];
-			for(int i = 0; i < SECTOR_HDR; i++) h[i] = 0xFF;
-			h[0]  = 0x00;  // store word[0] = EMPTY written
-			if(isActive) h[4] = 0x00;  // store word[1] = USING written
-			h[12] = 0x00;  // dirty word[0] = DIRTY_FALSE written
-			h[0x18] = 0x45; h[0x19] = 0x46;  // "EF40"
-			h[0x1A] = 0x34; h[0x1B] = 0x30;
+			h.AsSpan().Fill(0xFF);
+			if(EF_WRITE_GRAN == 1)
+			{
+				if(isActive)
+				{
+					h[0] = 0x3F; // EMPTY && USING
+					h[1] = 0x7F; // DIRTY_FALSE /*&& DIRTY_TRUE*/
+				}
+				else
+				{
+					h[0] = 0x7F; // EMPTY
+					h[1] = 0x7F; // DIRTY_FALSE
+				}
+			}
+			else
+			{
+				var table_size = ((4 - (EF_WRITE_GRAN == 1 ? 0 : 1)) * EF_WRITE_GRAN + 7) / 8;
+				h[0] = 0x00;  // store word[0] = EMPTY written
+				if(isActive)
+					h[WriteGran] = 0x00;  // store word[1] = USING written
+				h[table_size + 0] = 0x00;  // dirty word[0] = DIRTY_FALSE written
+				//h[table_size + 1] = 0x00;  // dirty word[1] = DIRTY_TRUE written
+			}
+			h[SectorMagicOffset + 0] = (byte)'E';
+			h[SectorMagicOffset + 1] = (byte)'F';
+			h[SectorMagicOffset + 2] = (byte)'4';
+			h[SectorMagicOffset + 3] = AlternateSectorHeader == false ? (byte)'0' : (byte)'1';
 			return h;
 		}
 
 		/// <summary>
-		/// Serialize key/value pairs into a complete GRAN=32 EasyFlash area image.
+		/// Serialize key/value pairs into a complete EasyFlash area image.
 		/// Entries are packed across as many sectors as needed; remaining sectors
 		/// are written as blank-but-formatted (magic present, no entries).
 		/// </summary>
-		private static byte[] NativeGran32_SaveEntries(System.Collections.Generic.Dictionary<string, byte[]> kvPairs, int areaSize)
+		internal static byte[] NativeEF_SaveEntries(System.Collections.Generic.Dictionary<string, byte[]> kvPairs, int areaSize)
 		{
-			const int SECTOR_SIZE  = 4096;
-			const int SECTOR_HDR   = 0x24;
-			const int SECTOR_AVAIL = SECTOR_SIZE - SECTOR_HDR;
+			int SECTOR_AVAIL = BK7231Flasher.SECTOR_SIZE - SECTOR_HDR;
 
 			// Pack entries into sectors, splitting when a sector would overflow.
 			var sectors = new System.Collections.Generic.List<System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, byte[]>>>();
@@ -768,7 +255,7 @@ namespace BK7231Flasher
 
 			foreach(var kv in kvPairs)
 			{
-				byte[] entry = NativeGran32_MakeEntry(kv.Key, kv.Value);
+				byte[] entry = NativeEF_MakeEntry(kv.Key, kv.Value);
 				if(curUsed + entry.Length > SECTOR_AVAIL && cur.Count > 0)
 				{
 					sectors.Add(cur);
@@ -781,22 +268,22 @@ namespace BK7231Flasher
 			if(cur.Count > 0) sectors.Add(cur);
 
 			byte[] result = new byte[areaSize];
-			for(int i = 0; i < areaSize; i++) result[i] = 0xFF;
+			result.AsSpan().Fill(0xFF);
 
-			byte[] blankHdr = NativeGran32_MakeSectorHdr(false);
-			int nSectors = areaSize / SECTOR_SIZE;
+			byte[] blankHdr = NativeEF_MakeSectorHdr(false);
+			int nSectors = areaSize / BK7231Flasher.SECTOR_SIZE;
 
 			for(int s = 0; s < nSectors; s++)
 			{
-				int base_ = s * SECTOR_SIZE;
+				int base_ = s * BK7231Flasher.SECTOR_SIZE;
 				if(s < sectors.Count)
 				{
-					byte[] hdr = NativeGran32_MakeSectorHdr(true);
+					byte[] hdr = NativeEF_MakeSectorHdr(true);
 					Array.Copy(hdr, 0, result, base_, SECTOR_HDR);
 					int pos = base_ + SECTOR_HDR;
 					foreach(var kv in sectors[s])
 					{
-						byte[] entry = NativeGran32_MakeEntry(kv.Key, kv.Value);
+						byte[] entry = NativeEF_MakeEntry(kv.Key, kv.Value);
 						Array.Copy(entry, 0, result, pos, entry.Length);
 						pos += entry.Length;
 					}
@@ -811,52 +298,69 @@ namespace BK7231Flasher
 		}
 
 		/// <summary>
-		/// Build a fresh GRAN=32 EasyFlash area image containing a single key/value entry.
+		/// Build a fresh EasyFlash area image containing a single key/value entry.
 		/// Used when no existing EF data is available (SaveValueToNewEasyFlash path).
 		/// </summary>
-		private static byte[] NativeGran32_Save(string key, byte[] value, int areaSize)
+		internal static byte[] NativeEF_Save(string key, byte[] value, int areaSize)
 		{
-			var kv = new System.Collections.Generic.Dictionary<string, byte[]> { { key, value } };
-			return NativeGran32_SaveEntries(kv, areaSize);
+			var kv = new System.Collections.Generic.Dictionary<string, byte[]> { { key, value }, { "nv_version", new byte[] { 0x30, 0x2e, 0x30, 0x31 } } };
+			return NativeEF_SaveEntries(kv, areaSize);
 		}
 
 		/// <summary>
-		/// Read all WRITE-committed entries from a GRAN=32 EasyFlash area.
+		/// Read all WRITE-committed entries from an EasyFlash area.
 		/// Returns a dictionary of key -> value (latest value wins for duplicate keys).
 		/// </summary>
-		private static System.Collections.Generic.Dictionary<string, byte[]> NativeGran32_ReadAllEntries(byte[] data)
+		internal static System.Collections.Generic.Dictionary<string, byte[]> NativeEF_ReadAllEntries(byte[] data)
 		{
-			const int SECTOR_SIZE = 4096;
-			const int SECTOR_HDR  = 0x24;
 			var result = new System.Collections.Generic.Dictionary<string, byte[]>();
 
-			for(int sectorOff = 0; sectorOff + SECTOR_SIZE <= data.Length; sectorOff += SECTOR_SIZE)
+			for(int sectorOff = 0; sectorOff + BK7231Flasher.SECTOR_SIZE <= data.Length; sectorOff += BK7231Flasher.SECTOR_SIZE)
 			{
-				if(data[sectorOff+0x18] != 0x45 || data[sectorOff+0x19] != 0x46 ||
-				   data[sectorOff+0x1A] != 0x34 || data[sectorOff+0x1B] != 0x30)
+				if(data[sectorOff + SectorMagicOffset + 0] != (byte)'E' ||
+					data[sectorOff + SectorMagicOffset + 1] != (byte)'F' ||
+					data[sectorOff + SectorMagicOffset + 2] != (byte)'4' ||
+					(data[sectorOff + SectorMagicOffset + 3] != (byte)'0' &&
+					data[sectorOff + SectorMagicOffset + 3] != (byte)'1'))
 					continue;
 
 				int pos = sectorOff + SECTOR_HDR;
-				while(pos + 36 <= sectorOff + SECTOR_SIZE)
+				while(pos + EF_WRITE_GRAN + 4 <= sectorOff + BK7231Flasher.SECTOR_SIZE)
 				{
 					byte s0 = data[pos];
 					if(s0 == 0xFF) break;
-
-					int totalLen = (int)ReadUint32LE(data, pos + 0x14);
+					var off = DataOff;
+					int totalLen = (int)MiscUtils.ReadU32LE(data, pos + off);
 					if(totalLen == unchecked((int)0xFFFFFFFF) || totalLen <= 0 ||
-					   pos + totalLen > sectorOff + SECTOR_SIZE)
+					   pos + totalLen > sectorOff + BK7231Flasher.SECTOR_SIZE)
 						break;
-
-					byte s1 = data[pos + 4];
-					if(s0 == 0x00 && s1 == 0x00)
+					if(RequireKVHeader &&
+						(data[pos + SectorMagicOffset + 0] != (byte)'K' ||
+						data[pos + SectorMagicOffset + 1] != (byte)'V' ||
+						data[pos + SectorMagicOffset + 2] != (byte)'4' ||
+						data[pos + SectorMagicOffset + 3] != (byte)'0'))
 					{
-						int nameLen  = data[pos + 0x1C];
-						int valueLen = (int)ReadUint32LE(data, pos + 0x20);
-						int nameSz   = WgAlign32(nameLen);
-						int valStart = pos + 0x24 + nameSz;
-						if(nameLen > 0 && valStart + valueLen <= sectorOff + SECTOR_SIZE)
+						pos += totalLen;
+						continue;
+					}
+					byte s1 = data[pos + WriteGran];
+					if((EF_WRITE_GRAN >= 8 && s0 == 0x00 && s1 == 0x00) || (EF_WRITE_GRAN < 8 && (s0 == 0x3F || s0 == 0xBF)))
+					{
+						int nameLen  = data[pos + off + 8];
+						int valueLen = (int)MiscUtils.ReadU32LE(data, pos + off + 12);
+						int nameSz   = WgAlign(nameLen);
+						var crcRead = MiscUtils.ReadU32LE(data, pos + off + 4);
+						var crcEf = Crc32Ieee(data, pos + off + 8, nameSz + valueLen + 8);
+						if(crcRead != crcEf)
 						{
-							string name = Encoding.ASCII.GetString(data, pos + 0x24, nameLen);
+							Console.WriteLine($"Bad CRC32 for EF entry! Skipping...");
+							pos += totalLen;
+							continue;
+						}
+						int valStart = pos + off + 16 + nameSz;
+						if(nameLen > 0 && valStart + valueLen <= sectorOff + BK7231Flasher.SECTOR_SIZE)
+						{
+							string name = Encoding.ASCII.GetString(data, pos + off + 16, nameLen);
 							byte[] val  = new byte[valueLen];
 							Array.Copy(data, valStart, val, 0, valueLen);
 							result[name] = val;  // latest write wins
@@ -871,26 +375,13 @@ namespace BK7231Flasher
 		}
 
 		/// <summary>
-		/// Scan a GRAN=32 EasyFlash area image and return the most recent value
+		/// Scan an EasyFlash area image and return the most recent value
 		/// stored under 'key', or null if not found.
 		/// </summary>
-		private static byte[] NativeGran32_Load(byte[] data, string key)
+		internal static byte[] NativeEF_Load(byte[] data, string key)
 		{
-			var all = NativeGran32_ReadAllEntries(data);
+			var all = NativeEF_ReadAllEntries(data);
 			return all.TryGetValue(key, out var val) ? val : null;
-		}
-
-		private static void WriteUint32LE(byte[] buf, int offset, uint value)
-		{
-			buf[offset]     = (byte) value;
-			buf[offset + 1] = (byte)(value >>  8);
-			buf[offset + 2] = (byte)(value >> 16);
-			buf[offset + 3] = (byte)(value >> 24);
-		}
-
-		private static uint ReadUint32LE(byte[] buf, int offset)
-		{
-			return (uint)(buf[offset] | (buf[offset+1] << 8) | (buf[offset+2] << 16) | (buf[offset+3] << 24));
 		}
 	}
 }
