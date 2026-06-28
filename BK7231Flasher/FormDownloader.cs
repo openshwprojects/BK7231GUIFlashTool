@@ -19,6 +19,7 @@ namespace BK7231Flasher
         string release_api_url = "https://api.github.com/repos/openshwprojects/OpenBK7231T_App/releases/latest";
         // string list_url = "http://example.com/";
         BKType bkType;
+        const string enabledFeaturesUrl = "https://github.com/openshwprojects/OpenBK7231T_App/tree/main/docs/enabledFeatures.md";
 
         public FormDownloader(FormMain formMain, BKType bkType)
         {
@@ -420,19 +421,78 @@ namespace BK7231Flasher
             if (bkType == BKType.BekenSPI)
                 return showFirmwareVariantDialog(candidates, defaultAsset);
 
-            string msg = "Firmware variants are available for " + bkType + "." + Environment.NewLine + Environment.NewLine +
-                "Default:" + Environment.NewLine +
-                defaultAsset.Name + Environment.NewLine + Environment.NewLine +
-                "Do you want to choose a different variant?" + Environment.NewLine +
-                "Click No to download the default file.";
-
-            DialogResult res = MessageBox.Show(this, msg, "Firmware variants available", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+            DialogResult res = showFirmwareVariantOfferDialog(defaultAsset);
             if (res == DialogResult.Cancel)
                 return null;
             if (res == DialogResult.No)
                 return defaultAsset;
 
             return showFirmwareVariantDialog(candidates, defaultAsset);
+        }
+        DialogResult showFirmwareVariantOfferDialog(FirmwareAsset defaultAsset)
+        {
+            using (Form f = new Form())
+            using (Label label = new Label())
+            using (LinkLabel linkLabel = new LinkLabel())
+            using (Button buttonYes = new Button())
+            using (Button buttonNo = new Button())
+            using (Button buttonCancel = new Button())
+            {
+                f.Text = "Firmware variants available";
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.MinimizeBox = false;
+                f.MaximizeBox = false;
+                f.FormBorderStyle = FormBorderStyle.FixedDialog;
+                f.ClientSize = new Size(560, 205);
+                f.ShowIcon = false;
+
+                label.Left = 12;
+                label.Top = 12;
+                label.Width = 536;
+                label.Height = 105;
+                label.Text = "Firmware variants are available for " + bkType + "." + Environment.NewLine + Environment.NewLine +
+                    "Default:" + Environment.NewLine +
+                    defaultAsset.Name + Environment.NewLine + Environment.NewLine +
+                    "Do you want to choose a different variant?";
+
+                linkLabel.Left = 12;
+                linkLabel.Top = 122;
+                linkLabel.Width = 536;
+                linkLabel.Height = 20;
+                linkLabel.Text = "Review enabled features for each platform";
+                linkLabel.LinkClicked += (s, e) =>
+                {
+                    System.Diagnostics.Process.Start(enabledFeaturesUrl);
+                };
+
+                buttonYes.Text = "Choose variant";
+                buttonYes.Left = 164;
+                buttonYes.Top = 162;
+                buttonYes.Width = 120;
+                buttonYes.DialogResult = DialogResult.Yes;
+
+                buttonNo.Text = "Download default";
+                buttonNo.Left = 294;
+                buttonNo.Top = 162;
+                buttonNo.Width = 122;
+                buttonNo.DialogResult = DialogResult.No;
+
+                buttonCancel.Text = "Cancel";
+                buttonCancel.Left = 426;
+                buttonCancel.Top = 162;
+                buttonCancel.Width = 100;
+                buttonCancel.DialogResult = DialogResult.Cancel;
+
+                f.Controls.Add(label);
+                f.Controls.Add(linkLabel);
+                f.Controls.Add(buttonYes);
+                f.Controls.Add(buttonNo);
+                f.Controls.Add(buttonCancel);
+                f.AcceptButton = buttonNo;
+                f.CancelButton = buttonCancel;
+
+                return f.ShowDialog(this);
+            }
         }
         FirmwareAsset showFirmwareVariantDialog(List<FirmwareAsset> candidates, FirmwareAsset defaultAsset)
         {
