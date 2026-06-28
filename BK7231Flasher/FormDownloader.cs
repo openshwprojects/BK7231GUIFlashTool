@@ -211,6 +211,19 @@ namespace BK7231Flasher
         List<FirmwareAsset> getFirmwareCandidatesForPlatform(List<FirmwareAsset> releaseAssets, HashSet<string> uartFlashFileNames)
         {
             List<FirmwareAsset> result = new List<FirmwareAsset>();
+
+            if (bkType == BKType.BekenSPI)
+            {
+                addLog("Searching for Beken QIO firmware binaries for SPI flashing.");
+                foreach (FirmwareAsset asset in releaseAssets)
+                {
+                    if (isBekenSpiFlashableFirmware(asset.Name))
+                        result.Add(asset);
+                }
+                result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                return result;
+            }
+
             List<string> prefixes = getFirmwareCandidatePrefixes();
             addLog("Searching for firmware prefix: " + string.Join(", ", prefixes.ToArray()) + "!");
 
@@ -240,6 +253,29 @@ namespace BK7231Flasher
                 prefixes.Add("OpenBK7231M_ALT_QIO_");
 
             return prefixes;
+        }
+        bool isBekenSpiFlashableFirmware(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return false;
+
+            string lower = fileName.ToLowerInvariant();
+            if (lower.StartsWith("openbk") == false)
+                return false;
+            if (lower.Contains("_qio_") == false)
+                return false;
+            if (lower.EndsWith(".bin") == false)
+                return false;
+            if (lower.Contains("_ota"))
+                return false;
+            if (lower.Contains("_ug_"))
+                return false;
+            if (lower.Contains("_gz"))
+                return false;
+            if (lower.Contains("cloudcutter"))
+                return false;
+
+            return true;
         }
         bool isMainFlashableFirmware(string fileName, List<string> prefixes)
         {
@@ -362,7 +398,8 @@ namespace BK7231Flasher
             if (defaultAsset == null)
                 defaultAsset = candidates[0];
 
-            defaultAsset.IsDefault = true;
+            if (bkType != BKType.BekenSPI)
+                defaultAsset.IsDefault = true;
             return defaultAsset;
         }
         FirmwareAsset chooseFirmwareAssetIfRequired(List<FirmwareAsset> candidates, FirmwareAsset defaultAsset)
@@ -380,6 +417,9 @@ namespace BK7231Flasher
         }
         FirmwareAsset chooseFirmwareAssetOnUiThread(List<FirmwareAsset> candidates, FirmwareAsset defaultAsset)
         {
+            if (bkType == BKType.BekenSPI)
+                return showFirmwareVariantDialog(candidates, defaultAsset);
+
             string msg = "Firmware variants are available for " + bkType + "." + Environment.NewLine + Environment.NewLine +
                 "Default:" + Environment.NewLine +
                 defaultAsset.Name + Environment.NewLine + Environment.NewLine +
@@ -402,7 +442,7 @@ namespace BK7231Flasher
             using (Button buttonDownload = new Button())
             using (Button buttonCancel = new Button())
             {
-                f.Text = "Choose firmware variant";
+                f.Text = bkType == BKType.BekenSPI ? "Choose Beken SPI firmware" : "Choose firmware variant";
                 f.StartPosition = FormStartPosition.CenterParent;
                 f.MinimizeBox = false;
                 f.MaximizeBox = false;
@@ -413,7 +453,10 @@ namespace BK7231Flasher
                 label.Top = 12;
                 label.Width = 636;
                 label.Height = 40;
-                label.Text = "Choose a firmware variant for " + bkType + ". If unsure, keep the default.";
+                if (bkType == BKType.BekenSPI)
+                    label.Text = "Choose a Beken SPI firmware file.";
+                else
+                    label.Text = "Choose a firmware variant for " + bkType + ". If unsure, keep the default.";
 
                 listBox.Left = 12;
                 listBox.Top = 60;
