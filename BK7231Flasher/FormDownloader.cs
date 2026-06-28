@@ -110,12 +110,12 @@ namespace BK7231Flasher
             {
                 string pfx = FormMain.getFirmwarePrefix(bkType);
                 setState("Failed to find binary link!", Color.Red);
-                addError("Failed to find a main UART-flashable firmware file for " + bkType + ".");
+                addError("Failed to find a firmware file for " + bkType + ".");
                 addError("Expected prefix: " + pfx);
                 return;
             }
 
-            FirmwareAsset defaultAsset = pickDefaultFirmwareAsset(candidates);
+            FirmwareAsset defaultAsset = pickDefaultFirmwareAsset(candidates, uartFlashFileNames);
             FirmwareAsset selectedAsset = chooseFirmwareAssetIfRequired(candidates, defaultAsset);
             if (selectedAsset == null)
             {
@@ -211,41 +211,49 @@ namespace BK7231Flasher
         List<FirmwareAsset> getFirmwareCandidatesForPlatform(List<FirmwareAsset> releaseAssets, HashSet<string> uartFlashFileNames)
         {
             List<FirmwareAsset> result = new List<FirmwareAsset>();
-            string pfx = FormMain.getFirmwarePrefix(bkType);
-            addLog("Searching for main UART firmware prefix: " + pfx + "!");
+            List<string> prefixes = getFirmwareCandidatePrefixes();
+            addLog("Searching for firmware prefix: " + string.Join(", ", prefixes.ToArray()) + "!");
 
             bool haveReleaseBodyUsage = uartFlashFileNames != null && uartFlashFileNames.Count > 0;
             if (haveReleaseBodyUsage)
-                addLog("Using release body usage table to hide OTA, CloudCutter and SPI-flash files.");
+                addLog("Using release asset list, with release table data where available.");
             else
                 addWarning("Release body usage table was not available; falling back to filename filtering.");
 
             foreach (FirmwareAsset asset in releaseAssets)
             {
-                if (haveReleaseBodyUsage)
-                {
-                    if (asset.Name.StartsWith(pfx, StringComparison.OrdinalIgnoreCase) && uartFlashFileNames.Contains(asset.Name))
-                        result.Add(asset);
-                }
-                else
-                {
-                    if (isMainUartFlashableFirmware(asset.Name, pfx))
-                        result.Add(asset);
-                }
+                if (isMainFlashableFirmware(asset.Name, prefixes))
+                    result.Add(asset);
             }
 
-            result.Sort((a, b) => a.ReleaseAssetIndex.CompareTo(b.ReleaseAssetIndex));
+            result.Sort((a, b) => compareFirmwareAssets(a, b, uartFlashFileNames));
             return result;
         }
-        bool isMainUartFlashableFirmware(string fileName, string pfx)
+        List<string> getFirmwareCandidatePrefixes()
+        {
+            List<string> prefixes = new List<string>();
+            string pfx = FormMain.getFirmwarePrefix(bkType);
+            prefixes.Add(pfx);
+
+            // BK7231M has normal and ALT QIO UART-flashable builds in current OpenBeken releases.
+            if (bkType == BKType.BK7231M)
+                prefixes.Add("OpenBK7231M_ALT_QIO_");
+
+            return prefixes;
+        }
+        bool isMainFlashableFirmware(string fileName, List<string> prefixes)
         {
             if (string.IsNullOrEmpty(fileName))
                 return false;
-            if (fileName.StartsWith(pfx, StringComparison.OrdinalIgnoreCase) == false)
+            if (startsWithAny(fileName, prefixes) == false)
                 return false;
 
             string lower = fileName.ToLowerInvariant();
-            if (lower.Contains("ota"))
+            if (lower.EndsWith(".rbl"))
+                return false;
+            if (lower.EndsWith(".ota"))
+                return false;
+            if (lower.Contains("_ota"))
                 return false;
             if (lower.Contains("_ug_"))
                 return false;
@@ -253,15 +261,107 @@ namespace BK7231Flasher
                 return false;
             if (lower.Contains("cloudcutter"))
                 return false;
+            if (lower.EndsWith(".zip"))
+                return false;
 
-            return true;
+            if (isEspPlatform())
+                return lower.EndsWith(".factory.bin");
+
+            if (lower.EndsWith(".bin"))
+                return true;
+            if (lower.EndsWith(".img"))
+                return true;
+            if (lower.EndsWith(".fls"))
+                return true;
+
+            return false;
         }
-        FirmwareAsset pickDefaultFirmwareAsset(List<FirmwareAsset> candidates)
+        bool startsWithAny(string fileName, List<string> prefixes)
+        {
+            foreach (string pfx in prefixes)
+            {
+                if (fileName.StartsWith(pfx, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+        bool isEspPlatform()
+        {
+            switch (bkType)
+            {
+                case BKType.ESP32:
+                case BKType.ESP32S2:
+                case BKType.ESP32S3:
+                case BKType.ESP32C2:
+                case BKType.ESP32C3:
+                case BKType.ESP32C5:
+                case BKType.ESP32C6:
+                case BKType.ESP32C61:
+                case BKType.ESP8266:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        int compareFirmwareAssets(FirmwareAsset a, FirmwareAsset b, HashSet<string> uartFlashFileNames)
+        {
+            int ar = getFirmwareSortRank(a, uartFlashFileNames);
+            int br = getFirmwareSortRank(b, uartFlashFileNames);
+            if (ar != br)
+                return ar.CompareTo(br);
+
+            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+        }
+        int getFirmwareSortRank(FirmwareAsset asset, HashSet<string> uartFlashFileNames)
+        {
+            if (isCurrentDefaultFirmwareName(asset.Name))
+                return 0;
+            if (uartFlashFileNames != null && uartFlashFileNames.Contains(asset.Name))
+                return 1;
+            return 2;
+        }
+        bool isCurrentDefaultFirmwareName(string fileName)
+        {
+            string pfx = FormMain.getFirmwarePrefix(bkType);
+            if (fileName.StartsWith(pfx, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            string rest = fileName.Substring(pfx.Length);
+            int dot = rest.LastIndexOf('.');
+            if (dot < 0)
+                return false;
+
+            string withoutExtension = rest.Substring(0, dot);
+            return withoutExtension.IndexOf('_') < 0;
+        }
+        FirmwareAsset pickDefaultFirmwareAsset(List<FirmwareAsset> candidates, HashSet<string> uartFlashFileNames)
         {
             if (candidates == null || candidates.Count <= 0)
                 return null;
 
-            FirmwareAsset defaultAsset = candidates[0];
+            FirmwareAsset defaultAsset = null;
+            foreach (FirmwareAsset candidate in candidates)
+            {
+                if (isCurrentDefaultFirmwareName(candidate.Name))
+                {
+                    defaultAsset = candidate;
+                    break;
+                }
+            }
+            if (defaultAsset == null && uartFlashFileNames != null)
+            {
+                foreach (FirmwareAsset candidate in candidates)
+                {
+                    if (uartFlashFileNames.Contains(candidate.Name))
+                    {
+                        defaultAsset = candidate;
+                        break;
+                    }
+                }
+            }
+            if (defaultAsset == null)
+                defaultAsset = candidates[0];
+
             defaultAsset.IsDefault = true;
             return defaultAsset;
         }
@@ -280,7 +380,7 @@ namespace BK7231Flasher
         }
         FirmwareAsset chooseFirmwareAssetOnUiThread(List<FirmwareAsset> candidates, FirmwareAsset defaultAsset)
         {
-            string msg = "More than one main UART-flashable firmware file is available for " + bkType + "." + Environment.NewLine + Environment.NewLine +
+            string msg = "Firmware variants are available for " + bkType + "." + Environment.NewLine + Environment.NewLine +
                 "Default:" + Environment.NewLine +
                 defaultAsset.Name + Environment.NewLine + Environment.NewLine +
                 "Do you want to choose a different variant?" + Environment.NewLine +
@@ -313,7 +413,7 @@ namespace BK7231Flasher
                 label.Top = 12;
                 label.Width = 636;
                 label.Height = 40;
-                label.Text = "Choose a main UART-flashable firmware file for " + bkType + ". OTA, CloudCutter and SPI-flash files are intentionally hidden.";
+                label.Text = "Choose a firmware variant for " + bkType + ". If unsure, keep the default.";
 
                 listBox.Left = 12;
                 listBox.Top = 60;
