@@ -93,11 +93,13 @@ namespace BK7231Flasher
         HLW8112_SCSN,
         RCRecv,
         RCRecv_nPup,
-        error1,
-        error2,
-        error3,
-        error4,
-        error5,
+        Button_pd,
+        Button_pd_n,
+        ToggleChannelOnToggle_pd,
+        ShutterA,
+        ShutterB,
+        Button_ShutterUp,
+        Button_ShutterDown,
     };
     class OBKRoles
     {
