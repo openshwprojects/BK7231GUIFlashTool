@@ -10,10 +10,13 @@ namespace BK7231Flasher
     public class LN882HFlasher : BaseFlasher
     {
         int timeoutMs = 2000;
+        const int eraseTimeoutMs = 300000;
         int flashSizeMB = 2;
         byte[] flashID;
         string LN882H_RomVersion = "Mar 14 2021/00:23:32\r";
         string LN8825_RomVersion = "Jun 19 2019/21:01:04\r";
+        const string CommandPass = "pppp";
+        const string CommandFail = "ffff";
 
         bool doGenericSetup()
         {
@@ -478,7 +481,59 @@ namespace BK7231Flasher
         }
         public override bool doErase(int startSector, int sectors, bool bAll)
         {
-            return false;
+            if(doGenericSetup() == false)
+            {
+                return false;
+            }
+            if(upload_ram_loader())
+            {
+                return false;
+            }
+
+            try
+            {
+                logger.setState("Erasing flash...", Color.White);
+                change_baudrate(this.baudrate);
+
+                bool result;
+                if(bAll)
+                {
+                    addLogLine("Full chip erase requested for " + chipType + ".");
+                    result = SendCommandExpectResult("ferase_all", eraseTimeoutMs);
+                }
+                else
+                {
+                    int offset = startSector;
+                    int length = sectors * BK7231Flasher.SECTOR_SIZE;
+                    addLogLine($"Flash erase requested for offset 0x{offset:X}, length 0x{length:X}.");
+                    result = SendCommandExpectResult($"ferase 0x{offset:X} 0x{length:X}", eraseTimeoutMs);
+                }
+
+                logger.setState(result ? "Erase complete!" : "Erase failed!", result ? Color.DarkGreen : Color.Red);
+                if(result)
+                {
+                    addSuccess("Erase complete!" + Environment.NewLine);
+                }
+                else
+                {
+                    addError("Erase failed!" + Environment.NewLine);
+                }
+                return result;
+            }
+            catch(Exception ex)
+            {
+                addErrorLine("Erase failed: " + ex.Message);
+                logger.setState("Erase failed!", Color.Red);
+                return false;
+            }
+            finally
+            {
+                if(serial != null && serial.IsOpen)
+                {
+                    try { change_baudrate(115200, false); }
+                    catch(Exception ex) { addWarningLine("Could not restore baud rate after erase: " + ex.Message); }
+                }
+            }
         }
         public override void closePort()
         {
@@ -486,7 +541,19 @@ namespace BK7231Flasher
             {
                 serial.Close();
                 serial.Dispose();
+                serial = null;
             }
+        }
+        public override void Dispose()
+        {
+            if(xm != null)
+            {
+                xm.PacketSent -= Xm_PacketSent;
+            }
+            ms?.Dispose();
+            ms = null;
+            closePort();
+            base.Dispose();
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -585,6 +652,61 @@ namespace BK7231Flasher
             addLogLine(serial.ReadLine().Trim());
             serial.Write("upgrade\r\n");
             serial.Read(new byte[7], 0, 7);
+        }
+
+        private bool SendCommandExpectResult(string command, int readTimeout)
+        {
+            addLogLine("Sending command: " + command);
+            flush_com();
+            int oldReadTimeout = serial.ReadTimeout;
+            serial.ReadTimeout = 1000;
+            try
+            {
+                serial.Write(command + "\r\n");
+                string response = "";
+                Stopwatch sw = Stopwatch.StartNew();
+                while(!isCancelled && sw.ElapsedMilliseconds < readTimeout)
+                {
+                    try
+                    {
+                        int ch = serial.ReadByte();
+                        if(ch < 0)
+                        {
+                            continue;
+                        }
+                        response += (char)ch;
+                        if(response.Length > 64)
+                        {
+                            response = response.Substring(response.Length - 64);
+                        }
+                        if(response.Contains(CommandPass))
+                        {
+                            addLogLine("Command result: " + CommandPass);
+                            return true;
+                        }
+                        if(response.Contains(CommandFail))
+                        {
+                            addLogLine("Command result: " + CommandFail);
+                            return false;
+                        }
+                    }
+                    catch(TimeoutException)
+                    {
+                        continue;
+                    }
+                }
+                if(isCancelled)
+                {
+                    addWarningLine("Erase cancelled by user.");
+                    return false;
+                }
+                addErrorLine("Timed out waiting for erase result.");
+                return false;
+            }
+            finally
+            {
+                serial.ReadTimeout = oldReadTimeout;
+            }
         }
     }
 }
