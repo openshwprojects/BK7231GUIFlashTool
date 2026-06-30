@@ -342,9 +342,9 @@ namespace BK7231Flasher
 
             if (chipType == BKType.BK7252)
             {
-                startSector = 0x11000;
-                sectors = (BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE) - (startSector / BK7231Flasher.SECTOR_SIZE);
-                Console.WriteLine("BK7252 mode - read offset is 0x11000, bootloader not accessible.");
+                startSector = 0x0;
+                sectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
+                Console.WriteLine("BK7252 mode - full QIO backup will use BK7252U mapped reads.");
             }
             else
             {
