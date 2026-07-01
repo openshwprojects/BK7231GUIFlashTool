@@ -30,6 +30,13 @@ namespace BK7231Flasher
             addLogLine($"Detected flash size: {size / 1024} KB");
             return size;
         }
+
+        int GetFlashMIDFromJEDEC(byte[] jedec)
+        {
+            if (jedec == null || jedec.Length < 4)
+                return 0;
+            return jedec[1] | (jedec[2] << 8) | (jedec[3] << 16);
+        }
         
         public bool CheckFlashEmpty(uint address, int size)
         {
@@ -398,6 +405,22 @@ namespace BK7231Flasher
             {
                 addErrorLine("Failed to extract flash size!");
                 return true;
+            }
+            int deviceMID = GetFlashMIDFromJEDEC(jedec);
+            addLogLine("Flash MID: " + deviceMID.ToString("X8"));
+            BKFlash flashInfo = BKFlashList.Singleton.findFlashForMID(deviceMID);
+            if(flashInfo != null)
+            {
+                addLogLine("Flash information: " + flashInfo.ToString());
+                if(flashInfo.szMem != flashSize)
+                {
+                    addWarningLine("JEDEC flash size differs from flash list size: JEDEC="
+                        + flashSize.ToString("X2") + ", list=" + flashInfo.szMem.ToString("X2"));
+                }
+            }
+            else
+            {
+                addWarningLine("No flash definition found for MID " + deviceMID.ToString("X8") + ".");
             }
           
             return false;
