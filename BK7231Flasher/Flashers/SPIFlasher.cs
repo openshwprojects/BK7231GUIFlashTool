@@ -30,6 +30,13 @@ namespace BK7231Flasher
             addLogLine($"Detected flash size: {size / 1024} KB");
             return size;
         }
+
+        int GetFlashMIDFromJEDEC(byte[] jedec)
+        {
+            if (jedec == null || jedec.Length < 4)
+                return 0;
+            return jedec[1] | (jedec[2] << 8) | (jedec[3] << 16);
+        }
         
         public bool CheckFlashEmpty(uint address, int size)
         {
@@ -108,7 +115,12 @@ namespace BK7231Flasher
         }
         public byte ReadStatus()
         {
-            byte[] cmd = new byte[2] { 0x05, 0x00 }; // Read Status Register
+            return ReadStatusRegister(0x05);
+        }
+
+        public byte ReadStatusRegister(byte opcode)
+        {
+            byte[] cmd = new byte[2] { opcode, 0x00 }; // Read Status Register
             byte[] resp = hd.Ch341SPI4Stream(cmd);
             return resp != null ? resp[1] : (byte)0xFF;
         }
@@ -133,6 +145,30 @@ namespace BK7231Flasher
             byte[] cmd = new byte[1] { 0x06 }; // Write Enable
             hd.Ch341SPI4Stream(cmd);
             return (ReadStatus() & 0x02) != 0; // WEL=1
+        }
+
+        public bool WriteStatusRegister(byte opcode, byte value)
+        {
+            // Enable writes
+            if (!WriteEnable())
+                return false;
+
+            byte[] cmd = new byte[2] { opcode, value };
+            hd.Ch341SPI4Stream(cmd);
+
+            return WaitWriteComplete(5000);
+        }
+
+        public bool WriteStatusRegisters(byte status1, byte status2)
+        {
+            // Enable writes
+            if (!WriteEnable())
+                return false;
+
+            byte[] cmd = new byte[3] { 0x01, status1, status2 };
+            hd.Ch341SPI4Stream(cmd);
+
+            return WaitWriteComplete(5000);
         }
 
         public bool ChipErase()
@@ -370,6 +406,21 @@ namespace BK7231Flasher
                 addErrorLine("Failed to extract flash size!");
                 return true;
             }
+            int deviceMID = GetFlashMIDFromJEDEC(jedec);
+            BKFlash flashInfo = BKFlashList.Singleton.findFlashForMID(deviceMID);
+            if(flashInfo != null)
+            {
+                addLogLine("Flash information: " + flashInfo.ToString());
+                if(flashInfo.szMem != flashSize)
+                {
+                    addWarningLine("JEDEC flash size differs from flash list size: JEDEC="
+                        + flashSize.ToString("X2") + ", list=" + flashInfo.szMem.ToString("X2"));
+                }
+            }
+            else
+            {
+                addWarningLine("No flash definition found for MID " + deviceMID.ToString("X8") + ".");
+            }
           
             return false;
         }
@@ -473,22 +524,53 @@ namespace BK7231Flasher
         }
         public bool UnprotectFlash()
         {
-            // Enable writes
-            if (!WriteEnable())
+            // Read out status registers before changing protection bits.
+            byte sr1Before = ReadStatusRegister(0x05);
+            byte sr2Before = ReadStatusRegister(0x35);
+            byte sr3Before = ReadStatusRegister(0x15);
+            addLogLine("Status before unprotect: SR1=0x" + sr1Before.ToString("X2")
+                + ", SR2(35h)=0x" + sr2Before.ToString("X2")
+                + ", SR3(15h)=0x" + sr3Before.ToString("X2"));
+
+            // Write 0x00 to Status Register 1 (clear BP bits and common TB/SEC/SRP bits)
+            if (!WriteStatusRegister(0x01, 0x00))
                 return false;
 
-            // Write 0x00 to Status Register (clear BP bits)
-            byte[] cmd = new byte[2] { 0x01, 0x00 };
-            hd.Ch341SPI4Stream(cmd);
+            byte sr1After = ReadStatusRegister(0x05);
+            byte sr2After = ReadStatusRegister(0x35);
 
-            if (!WaitWriteComplete(5000))
-                return false;
+            if ((sr2After & 0x40) != 0)
+            {
+                if (sr2After == 0xFF)
+                {
+                    addWarningLine("SR2 read as 0xFF; leaving SR2 bit 6 untouched because the SR2 opcode may be unsupported.");
+                }
+                else
+                {
+                    // Clear SR2 CMP/TB only, preserving other bits such as QE.
+                    byte newSr2 = (byte)(sr2After & ~0x40);
+                    addLogLine("SR2 bit 6 (CMP/TB) is set; clearing it while preserving other SR2 bits.");
+                    if (!WriteStatusRegister(0x31, newSr2))
+                        return false;
 
-            // Verify unprotected: check status register has BP=0
-            byte status = ReadStatus();
-            addLogLine("Unprotect done, SR1=0x" + status.ToString("X2"));
+                    sr2After = ReadStatusRegister(0x35);
+                    if ((sr2After & 0x40) != 0)
+                    {
+                        addWarningLine("SR2 bit 6 remained set after WRSR2(31h); trying two-byte WRSR(01h SR1 SR2).");
+                        if (!WriteStatusRegisters(sr1After, newSr2))
+                            return false;
+                        sr2After = ReadStatusRegister(0x35);
+                    }
+                }
+            }
 
-            return (status & 0x1C) == 0; // BP0..BP3 = 0
+            // Verify unprotected: check status register has BP=0 and SR2 CMP/TB is clear.
+            sr1After = ReadStatusRegister(0x05);
+            sr2After = ReadStatusRegister(0x35);
+            addLogLine("Unprotect done, SR1=0x" + sr1After.ToString("X2")
+                + ", SR2(35h)=0x" + sr2After.ToString("X2"));
+
+            return (sr1After & 0x1C) == 0 && (sr2After == 0xFF || (sr2After & 0x40) == 0); // BP0..BP3 and SR2 CMP/TB
         }
         public override void closePort()
         {
