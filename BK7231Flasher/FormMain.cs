@@ -1052,6 +1052,14 @@ namespace BK7231Flasher
                         return true;
                     }
                     break;
+                case BKType.BekenSPI:
+                    if(s.StartsWith("OpenBK", StringComparison.OrdinalIgnoreCase)
+                        && s.IndexOf("_QIO_", StringComparison.OrdinalIgnoreCase) >= 0
+                        && s.EndsWith(".bin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                    break;
                 case BKType.W600:
                 case BKType.W800:
                     if(s.StartsWith($"Open{curType}_") && (s.EndsWith(".fls") || s.EndsWith(".bin")))
