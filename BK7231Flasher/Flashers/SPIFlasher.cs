@@ -407,7 +407,7 @@ namespace BK7231Flasher
                 return true;
             }
             int deviceMID = GetFlashMIDFromJEDEC(jedec);
-            BKFlash flashInfo = BKFlashList.Singleton.findFlashForMID(deviceMID);
+            SPIFlashInfo flashInfo = SPIFlashInfoList.Singleton.findFlashForMID(deviceMID);
             if(flashInfo != null)
             {
                 addLogLine("Flash information: " + flashInfo.ToString());
