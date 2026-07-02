@@ -861,10 +861,10 @@ namespace BK7231Flasher
             }
             else if(curType == BKType.BK7252)
             {
-                startSector = 0x11000;
-                sectors = getBackupSectorCountForCurrentPlatform() - (startSector/ BK7231Flasher.SECTOR_SIZE);
+                startSector = 0x0;
+                sectors = getBackupSectorCountForCurrentPlatform();
                 addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
-                addLog("BK7252 mode - read offset is 0x11000, we can't access bootloader." + Environment.NewLine, Color.DarkOrange);
+                addLog("BK7252 mode - full QIO backup will use BK7252U mapped reads." + Environment.NewLine, Color.DarkOrange);
                 addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
             }
             else
