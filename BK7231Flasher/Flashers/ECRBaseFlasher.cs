@@ -21,7 +21,8 @@ namespace BK7231Flasher
 		protected static readonly byte CMD_CUSTOM_KV_GET = 0x93;
 		protected static readonly byte CMD_CUSTOM_KV_SET = 0x94;
 		protected static readonly byte CMD_CUSTOM_GET_MAC = 0x95;
-		protected static readonly byte CMD_CUSTOM_XMODEM_READ_ZLIB = 0x96;
+		protected static readonly byte CMD_CUSTOM_XMODEM_READ_COMPRESSED = 0x96;
+		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE_COMPRESSED = 0x97;
 
 		protected int flashSizeMB = 4;
 
@@ -234,7 +235,7 @@ namespace BK7231Flasher
 				msg[5] = (byte)((startAmount >> 8) & 0xFF);
 				msg[6] = (byte)((startAmount >> 16) & 0xFF);
 				msg[7] = (byte)((startAmount >> 24) & 0xFF);
-				var res = ExecuteCommand(isCompressed == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_ZLIB, msg, 2, 0);
+				var res = ExecuteCommand(isCompressed == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_COMPRESSED, msg, 2, 0);
 				var stream = new MemoryStream();
 				xm.PacketReceived += Xm_PacketReceived;
 				var sw = new Stopwatch();
@@ -271,7 +272,7 @@ namespace BK7231Flasher
 				}
 				logger.addLog(Environment.NewLine + $"Flash read took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
 				if(isCancelled) return null;
-				if(isCompressed) ret = Ionic.Zlib.ZlibStream.UncompressBuffer(ret);
+				if(isCompressed) ret = Decompress(ret);
 				addLogLine("Getting hash...");
 				res = ExecuteCommand(CMD_SHA256, msg, 30, 32);
 				if(res == null)
@@ -330,14 +331,31 @@ namespace BK7231Flasher
 				cmd[5] = (byte)((len >> 8) & 0xFF);
 				cmd[6] = (byte)((len >> 16) & 0xFF);
 				cmd[7] = (byte)((len >> 24) & 0xFF);
-				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
+				var res = ExecuteCommand(bUseCompressionIfPossible ? CMD_CUSTOM_XMODEM_WRITE_COMPRESSED : CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
 				if(res == null)
 				{
 					serial.Write(new[] { xm.EOT }, 0, 1);
 					Thread.Sleep(100);
 					return false;
 				}
-				var ret = xm.Send(data, (uint)addr);
+				int ret;
+				var sw = new Stopwatch();
+				if(bUseCompressionIfPossible)
+				{
+					var compData = Compress(data);
+					addLogLine($"Using compression, writing {compData.Length} bytes, compression rate - {((double)data.Length - compData.Length) / data.Length * 100.0:F2}%");
+					len = compData.Length;
+					sw.Start();
+					ret = xm.Send(compData, (uint)addr);
+					sw.Stop();
+				}
+				else
+				{
+					sw.Start();
+					ret = xm.Send(data, (uint)addr);
+					sw.Stop();
+				}
+				logger.addLog(Environment.NewLine + $"Flash write took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
 				if(ret != len)
 				{
 					addErrorLine($"Write failed ({xm.TerminationReason})! Expected sent bytes: {len}, really sent: {ret}");
@@ -346,7 +364,7 @@ namespace BK7231Flasher
 					Thread.Sleep(100);
 					return false;
 				}
-				addLogLine(Environment.NewLine + "Getting hash...");
+				addLogLine("Getting hash...");
 				res = ExecuteCommand(CMD_SHA256, cmd, 30f, 32);
 				var readHash = HashToStr(sha256Hash.ComputeHash(data));
 				var expectedHash = HashToStr(res);

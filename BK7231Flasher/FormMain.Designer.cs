@@ -44,10 +44,11 @@ namespace BK7231Flasher
 			this.buttonBrowseFirmware = new System.Windows.Forms.Button();
 			this.tabControl1 = new System.Windows.Forms.TabControl();
 			this.tabPage1 = new System.Windows.Forms.TabPage();
+			this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
+			this.chkUseCompression = new System.Windows.Forms.CheckBox();
 			this.buttonDetect = new System.Windows.Forms.Button();
 			this.buttonVerify = new System.Windows.Forms.Button();
 			this.buttonBlankCheck = new System.Windows.Forms.Button();
-			this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
 			this.buttonCustomOperation = new System.Windows.Forms.Button();
 			this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
 			this.checkBoxOverwriteBootloader = new System.Windows.Forms.CheckBox();
@@ -199,7 +200,6 @@ namespace BK7231Flasher
 			this.lblFirmware = new System.Windows.Forms.Label();
 			this.btnSelectFirmware = new System.Windows.Forms.Button();
 			this.timer100ms = new System.Windows.Forms.Timer(this.components);
-			this.chkUseCompression = new System.Windows.Forms.CheckBox();
 			this.tabControl1.SuspendLayout();
 			this.tabPage1.SuspendLayout();
 			this.tabPagePageTool.SuspendLayout();
@@ -374,6 +374,27 @@ namespace BK7231Flasher
 			this.tabPage1.Text = "Flasher";
 			this.tabPage1.UseVisualStyleBackColor = true;
 			// 
+			// chkIgnoreCRCErr
+			// 
+			this.chkIgnoreCRCErr.AutoSize = true;
+			this.chkIgnoreCRCErr.Location = new System.Drawing.Point(779, 22);
+			this.chkIgnoreCRCErr.Name = "chkIgnoreCRCErr";
+			this.chkIgnoreCRCErr.Size = new System.Drawing.Size(106, 17);
+			this.chkIgnoreCRCErr.TabIndex = 37;
+			this.chkIgnoreCRCErr.Text = "Ignore CRC Error";
+			this.chkIgnoreCRCErr.UseVisualStyleBackColor = true;
+			this.chkIgnoreCRCErr.CheckedChanged += new System.EventHandler(this.chkIgnoreCRCErr_CheckedChanged);
+			// 
+			// chkUseCompression
+			// 
+			this.chkUseCompression.AutoSize = true;
+			this.chkUseCompression.Location = new System.Drawing.Point(658, 22);
+			this.chkUseCompression.Name = "chkUseCompression";
+			this.chkUseCompression.Size = new System.Drawing.Size(121, 17);
+			this.chkUseCompression.TabIndex = 41;
+			this.chkUseCompression.Text = "Compress if possible";
+			this.chkUseCompression.UseVisualStyleBackColor = true;
+			// 
 			// buttonDetect
 			// 
 			this.buttonDetect.Location = new System.Drawing.Point(728, 39);
@@ -404,17 +425,6 @@ namespace BK7231Flasher
 			this.buttonBlankCheck.UseVisualStyleBackColor = true;
 			this.buttonBlankCheck.Click += new System.EventHandler(this.buttonBlankCheck_Click);
 			// 
-			// chkIgnoreCRCErr
-			// 
-			this.chkIgnoreCRCErr.AutoSize = true;
-			this.chkIgnoreCRCErr.Location = new System.Drawing.Point(772, 22);
-			this.chkIgnoreCRCErr.Name = "chkIgnoreCRCErr";
-			this.chkIgnoreCRCErr.Size = new System.Drawing.Size(106, 17);
-			this.chkIgnoreCRCErr.TabIndex = 37;
-			this.chkIgnoreCRCErr.Text = "Ignore CRC Error";
-			this.chkIgnoreCRCErr.UseVisualStyleBackColor = true;
-			this.chkIgnoreCRCErr.CheckedChanged += new System.EventHandler(this.chkIgnoreCRCErr_CheckedChanged);
-			// 
 			// buttonCustomOperation
 			// 
 			this.buttonCustomOperation.Location = new System.Drawing.Point(658, 39);
@@ -428,7 +438,7 @@ namespace BK7231Flasher
 			// checkBoxSkipKeyCheck
 			// 
 			this.checkBoxSkipKeyCheck.AutoSize = true;
-			this.checkBoxSkipKeyCheck.Location = new System.Drawing.Point(772, 5);
+			this.checkBoxSkipKeyCheck.Location = new System.Drawing.Point(779, 5);
 			this.checkBoxSkipKeyCheck.Name = "checkBoxSkipKeyCheck";
 			this.checkBoxSkipKeyCheck.Size = new System.Drawing.Size(125, 17);
 			this.checkBoxSkipKeyCheck.TabIndex = 35;
@@ -1955,16 +1965,6 @@ namespace BK7231Flasher
 			// 
 			this.timer100ms.Enabled = true;
 			this.timer100ms.Tick += new System.EventHandler(this.timer100ms_Tick);
-			// 
-			// chkUseCompression
-			// 
-			this.chkUseCompression.AutoSize = true;
-			this.chkUseCompression.Location = new System.Drawing.Point(654, 22);
-			this.chkUseCompression.Name = "chkUseCompression";
-			this.chkUseCompression.Size = new System.Drawing.Size(121, 17);
-			this.chkUseCompression.TabIndex = 41;
-			this.chkUseCompression.Text = "Compress if possible";
-			this.chkUseCompression.UseVisualStyleBackColor = true;
 			// 
 			// FormMain
 			// 

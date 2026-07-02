@@ -25,6 +25,7 @@ namespace BK7231Flasher
 			addLog("Going to open port: " + serialName + "." + Environment.NewLine);
 			try
 			{
+				cancellationToken.ThrowIfCancellationRequested();
 				serial = new SerialPort(serialName, 115200)
 				{
 					ReadBufferSize = 65536,

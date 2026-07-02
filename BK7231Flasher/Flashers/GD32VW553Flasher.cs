@@ -218,8 +218,8 @@ namespace BK7231Flasher
 			var timeout = serial.ReadTimeout;
 			serial.ReadTimeout = 100;
 			serial.Parity = Parity.Even;
-			var sync = new byte[] { 0x7F };
-			serial.Write(sync, 0, 1);
+			serial.BaudRate = baudrate > 921600 ? 921600 : baudrate;
+			serial.Write(new byte[] { 0x7F }, 0, 1);
 			var resp = 0;
 			try
 			{
@@ -242,6 +242,7 @@ namespace BK7231Flasher
 				addLogLine($"Flash size is {flashSizeMB}MB");
 				return UploadStub();
 			}
+			serial.BaudRate = 115200;
 			serial.Parity = Parity.None;
 			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
 			if(stubsync != null)
@@ -286,6 +287,7 @@ namespace BK7231Flasher
 				return false;
 			}
 
+			serial.BaudRate = 115200;
 			serial.Parity = Parity.None;
 			Thread.Sleep(10);
 			serial.Write(stub, 0, 1); // dummy write to let stub select uart
