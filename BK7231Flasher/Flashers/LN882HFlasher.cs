@@ -453,7 +453,14 @@ namespace BK7231Flasher
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);
             logger.setProgress(0, 1);
-            serial.Write($"{(bUseCompressionIfPossible ? "fdumpz" : "fdump")} 0x{startSector:X} 0x{size:X}\r\n");
+            if(bUseCompressionIfPossible)
+            {
+                serial.Write($"fdumpz 0x{startSector:X} 0x{size:X}\r\n");
+            }
+            else
+            {
+                serial.Write($"fdump 0x{startSector:X} 0x{size:X} 0\r\n");
+            }
             ms?.Dispose();
             ms = new MemoryStream();
             var offset = startSector;
