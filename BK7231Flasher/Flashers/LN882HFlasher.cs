@@ -440,7 +440,7 @@ namespace BK7231Flasher
             {
                 throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported range.");
             }
-            return ReadLn882hXmodemDump($"fdump 0x{offset:X} 0x{length:X} 1", offset, length, "Reading " + targetKindName + "...", targetKindName, true);
+            return ReadLn882hXmodemDump($"fdump 0x{offset:X} 0x{length:X} 1", offset, length, "Reading " + targetKindName + "...", targetKindName);
         }
 
         byte[] ReadLn882hFixedDump(string command, int expectedLength, string label, string targetKindName)
@@ -461,7 +461,7 @@ namespace BK7231Flasher
             return result;
         }
 
-        byte[] ReadLn882hXmodemDump(string command, int offset, int size, string stateText, string targetKindName, bool preservePendingBytes = false)
+        byte[] ReadLn882hXmodemDump(string command, int offset, int size, string stateText, string targetKindName)
         {
             logger.setState(stateText, Color.Green);
             logger.setProgress(0, size);
@@ -483,8 +483,6 @@ namespace BK7231Flasher
                     if(!isCancelled) logger.setProgress(size - toRead, size);
                 }
                 xm.PacketReceived += Xm_PacketReceived;
-                bool oldDiscardBuffersOnReceive = xm.DiscardBuffersOnReceive;
-                xm.DiscardBuffersOnReceive = !preservePendingBytes;
                 try
                 {
                     var res = xm.Receive(dump);
@@ -495,7 +493,6 @@ namespace BK7231Flasher
                 }
                 finally
                 {
-                    xm.DiscardBuffersOnReceive = oldDiscardBuffersOnReceive;
                     addLog(Environment.NewLine);
                     xm.PacketReceived -= Xm_PacketReceived;
                 }
