@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class RTLZ2Flasher : BaseFlasher
+	public class RTLZ2Flasher : BaseFlasher, IRomReadFlasher
 	{
 		MemoryStream ms;
 		private readonly List<string> USED_COMMANDS = new List<string>() 
@@ -39,6 +39,26 @@ namespace BK7231Flasher
 		const int CommandRetryLimit = 3;
 		const int FallbackBaudRate = 115200;
 		const string InternalBuildId = "rtlz2-resiliency-r26";
+		const uint Rtlz2EfuseCodeAddress = 0x10037000;
+		const uint Rtlz2EfuseDataAddress = 0x10038000;
+		const int Rtlz2RomSize = 384 * 1024;
+		const int Rtlz2EfusePhysicalSize = 512;
+		static readonly byte[] Rtlz2EfuseReadShimCode = new byte[]
+		{
+			// Reads the 0x200-byte physical eFuse area into Rtlz2EfuseDataAddress.
+			// Ghidra notes: pointer table 0x508 -> normal eFuse primitive (0x8511),
+			// 0x518 -> secure eFuse primitive (0x8749). The normal primitive rejects
+			// indexes 0x130..0x1AF, so the shim switches to the secure primitive there.
+			0xF8, 0xB5, 0x00, 0x25, 0x0B, 0x4E, 0x0C, 0x4F,
+			0x0C, 0x4C, 0xA5, 0x42, 0x02, 0xD3, 0x80, 0x34,
+			0xA5, 0x42, 0x01, 0xD3, 0xB4, 0x68, 0x00, 0xE0,
+			0xB4, 0x69, 0x09, 0x48, 0xAA, 0x23, 0x7A, 0x19,
+			0x13, 0x70, 0x00, 0x23, 0x29, 0x46, 0xA0, 0x47,
+			0x01, 0x35, 0x06, 0x4C, 0xA5, 0x42, 0xEB, 0xD1,
+			0xF8, 0xBD, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00,
+			0x00, 0x80, 0x03, 0x10, 0x30, 0x01, 0x00, 0x00,
+			0x00, 0x00, 0x30, 0x33, 0x00, 0x02, 0x00, 0x00
+		};
 
 		public RTLZ2Flasher(CancellationToken ct) : base(ct)
 		{
@@ -593,6 +613,20 @@ namespace BK7231Flasher
 			if(response.Contains("ERR"))
 			{
 				throw new Exception($"Register write failed at 0x{addr:X}");
+			}
+		}
+
+		void RegisterWriteBytes(uint addr, byte[] bytes)
+		{
+			for(int i = 0; i < bytes.Length; i += 4)
+			{
+				uint word = 0;
+				int chunk = Math.Min(4, bytes.Length - i);
+				for(int j = 0; j < chunk; j++)
+				{
+					word |= (uint)bytes[i + j] << (8 * j);
+				}
+				RegisterWrite(addr + (uint)i, word);
 			}
 		}
 
@@ -1323,6 +1357,117 @@ namespace BK7231Flasher
 			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
 			ms = res != null ? new MemoryStream(res) : null;
 			return ms == null;
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(chipType != BKType.RTL87X0C || target.Platform != BKType.RTL87X0C)
+				{
+					addError("RTL87X0C ROM reader target is not supported by this flasher." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				if(ChangeBaud(baudrate) == false)
+				{
+					return null;
+				}
+
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return ReadRtlz2Memory((uint)(target.Address ?? 0), target.Length ?? Rtlz2RomSize, targetKindName);
+					case RomReadKind.Efuse:
+						return ReadRtlz2Efuse(target.Address ?? 0, target.Length ?? Rtlz2EfusePhysicalSize, targetKindName);
+					default:
+						addError("Selected RTL87X0C ROM reader target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try
+				{
+					if(serial != null && serial.IsOpen && serial.BaudRate != FallbackBaudRate)
+					{
+						ChangeBaud(FallbackBaudRate);
+					}
+				}
+				catch { }
+				closePort();
+			}
+		}
+
+		byte[] ReadRtlz2Efuse(int offset, int length, string targetKindName)
+		{
+			if(offset < 0 || length <= 0 || offset > Rtlz2EfusePhysicalSize - length)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " eFuse read range is outside the physical eFuse area.");
+			}
+			logger.setState("Preparing eFuse read...", Color.Transparent);
+			logger.setProgress(0, length);
+			addLogLine("Uploading RTL87X0C eFuse read shim (normal+secure ROM primitives) to SRAM at " + formatHex((int)Rtlz2EfuseCodeAddress) + ".");
+			RegisterWriteBytes(Rtlz2EfuseCodeAddress, Rtlz2EfuseReadShimCode);
+			MemoryBoot(Rtlz2EfuseCodeAddress);
+			return ReadRtlz2Memory(Rtlz2EfuseDataAddress + (uint)offset, length, targetKindName);
+		}
+
+		byte[] ReadRtlz2Memory(uint offset, int length, string targetKindName)
+		{
+			if(length <= 0)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " " + targetKindName + " read length must be positive.");
+			}
+			byte[] result = new byte[length];
+			int copied = 0;
+			int itemsOnLine = 0;
+			logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+			logger.setProgress(0, length);
+			addLogLine("Reading " + chipType + " " + targetKindName + " from " + formatHex((int)offset) + ", length " + formatHex(length) + ".");
+
+			while(copied < length)
+			{
+				_ct.ThrowIfCancellationRequested();
+				uint chunkAddr = offset + (uint)copied;
+				int chunkLength = Math.Min(ReadUnitSize, length - copied);
+				byte[] chunk = null;
+				if(!RunWithRecovery("Read " + targetKindName + " " + formatHex((int)chunkAddr), CommandRetryLimit, () => DumpBytes(chunkAddr, chunkLength, out chunk)) || chunk == null)
+				{
+					throw new IOException(targetKindName + " read failed at " + formatHex((int)chunkAddr));
+				}
+				Buffer.BlockCopy(chunk, 0, result, copied, chunkLength);
+				itemsOnLine = LogProgressAddress(chunkAddr, false, itemsOnLine);
+				copied += chunkLength;
+				logger.setProgress(copied, length);
+			}
+
+			EndProgressLineIfNeeded();
+			logger.setState(targetKindName + " read success!", Color.Green);
+			return result;
 		}
 
 		public override byte[] getReadResult()
