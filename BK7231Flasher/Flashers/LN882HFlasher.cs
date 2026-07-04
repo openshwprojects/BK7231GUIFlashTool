@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-    public class LN882HFlasher : BaseFlasher
+    public class LN882HFlasher : BaseFlasher, IRomReadFlasher
     {
         int timeoutMs = 2000;
         const int eraseTimeoutMs = 300000;
@@ -17,6 +17,10 @@ namespace BK7231Flasher
         string LN8825_RomVersion = "Jun 19 2019/21:01:04\r";
         const string CommandPass = "pppp";
         const string CommandFail = "ffff";
+        const int LN882H_ROM_SIZE = 0x20000;
+        const int LN882H_EFUSE_DUMP_SIZE = 0x10 + 2;
+        const int LN882H_FLASH_OTP_DUMP_SIZE = 0x400 + 2;
+        const int LN882H_SPECIAL_READ_TIMEOUT_MS = 5000;
 
         bool doGenericSetup()
         {
@@ -383,6 +387,168 @@ namespace BK7231Flasher
 
             return false;
         }
+
+        public byte[] ReadRomTarget(RomReadTarget target)
+        {
+            try
+            {
+                if(target == null)
+                {
+                    addError("No ROM reader target selected." + Environment.NewLine);
+                    return null;
+                }
+                if((chipType != BKType.LN882H && chipType != BKType.LN8825) || target.Platform != chipType)
+                {
+                    addError("LN882x ROM reader target is not supported by this flasher." + Environment.NewLine);
+                    return null;
+                }
+                if(doGenericSetup() == false)
+                {
+                    return null;
+                }
+                if(upload_ram_loader())
+                {
+                    return null;
+                }
+                change_baudrate(baudrate);
+                string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+                switch(target.Kind)
+                {
+                    case RomReadKind.Rom:
+                        return ReadLn882hRom(target.Address ?? 0, target.Length ?? LN882H_ROM_SIZE, targetKindName);
+                    case RomReadKind.Otp:
+                        return ReadLn882hFixedDump("otp_dump", target.Length ?? LN882H_FLASH_OTP_DUMP_SIZE, "flash OTP", targetKindName);
+                    case RomReadKind.Efuse:
+                        return ReadLn882hFixedDump("efuse_dump", target.Length ?? LN882H_EFUSE_DUMP_SIZE, "eFuse", targetKindName);
+                    default:
+                        addError("Selected LN882x ROM reader target is not implemented." + Environment.NewLine);
+                        return null;
+                }
+            }
+            catch(Exception ex)
+            {
+                string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+                addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+                logger.setState(targetKindName + " read failed.", Color.Red);
+                return null;
+            }
+        }
+
+        byte[] ReadLn882hRom(int offset, int length, string targetKindName)
+        {
+            if(offset < 0 || length <= 0)
+            {
+                throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported range.");
+            }
+            return ReadLn882hXmodemDump($"fdump 0x{offset:X} 0x{length:X} 1", offset, length, "Reading " + targetKindName + "...", targetKindName, true);
+        }
+
+        byte[] ReadLn882hFixedDump(string command, int expectedLength, string label, string targetKindName)
+        {
+            if(expectedLength <= 2)
+            {
+                throw new ArgumentOutOfRangeException("expectedLength", chipType + " dump length must include data and CRC16.");
+            }
+            logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+            logger.setProgress(0, expectedLength);
+            addLogLine("Reading " + chipType + " " + label + " via " + command + ".");
+            flush_com();
+            serial.Write(command + "\r\n");
+            byte[] result = ReadLn882hSerialBytes(expectedLength, LN882H_SPECIAL_READ_TIMEOUT_MS);
+            logger.setProgress(expectedLength, expectedLength);
+            addLogLine("Returned CRC16: " + formatHex((ushort)(result[expectedLength - 2] | (result[expectedLength - 1] << 8))));
+            logger.setState(targetKindName + " read success!", Color.Green);
+            return result;
+        }
+
+        byte[] ReadLn882hXmodemDump(string command, int offset, int size, string stateText, string targetKindName, bool preservePendingBytes = false)
+        {
+            logger.setState(stateText, Color.Green);
+            logger.setProgress(0, size);
+            addLogLine("Sending command: " + command);
+            flush_com();
+            serial.Write(command + "\r\n");
+            using(MemoryStream dump = new MemoryStream())
+            {
+                int toRead = size;
+                int currentOffset = offset;
+                void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
+                {
+                    if(((size - toRead) % 0x1000) == 0)
+                    {
+                        addLog($"0x{currentOffset:X}... ");
+                    }
+                    currentOffset += packet.Length;
+                    toRead -= packet.Length;
+                    if(!isCancelled) logger.setProgress(size - toRead, size);
+                }
+                xm.PacketReceived += Xm_PacketReceived;
+                bool oldDiscardBuffersOnReceive = xm.DiscardBuffersOnReceive;
+                xm.DiscardBuffersOnReceive = !preservePendingBytes;
+                try
+                {
+                    var res = xm.Receive(dump);
+                    if(res != XMODEM.TerminationReasonEnum.EndOfFile)
+                    {
+                        throw new IOException(chipType + " dump failed with " + res);
+                    }
+                }
+                finally
+                {
+                    xm.DiscardBuffersOnReceive = oldDiscardBuffersOnReceive;
+                    addLog(Environment.NewLine);
+                    xm.PacketReceived -= Xm_PacketReceived;
+                }
+                if(dump.Length != size)
+                {
+                    throw new IOException("Read " + dump.Length + " bytes, but expected " + size + ".");
+                }
+                logger.setState(targetKindName + " read success!", Color.Green);
+                return dump.ToArray();
+            }
+        }
+
+        byte[] ReadLn882hSerialBytes(int expectedLength, int readTimeout)
+        {
+            byte[] result = new byte[expectedLength];
+            int offset = 0;
+            int oldReadTimeout = serial.ReadTimeout;
+            serial.ReadTimeout = 500;
+            try
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+                while(!isCancelled && offset < expectedLength && sw.ElapsedMilliseconds < readTimeout)
+                {
+                    try
+                    {
+                        int read = serial.Read(result, offset, expectedLength - offset);
+                        if(read > 0)
+                        {
+                            offset += read;
+                            logger.setProgress(offset, expectedLength);
+                        }
+                    }
+                    catch(TimeoutException)
+                    {
+                        continue;
+                    }
+                }
+                if(isCancelled)
+                {
+                    throw new OperationCanceledException("Read cancelled by user.");
+                }
+                if(offset == expectedLength)
+                {
+                    return result;
+                }
+                throw new TimeoutException("Timed out waiting for " + chipType + " dump response.");
+            }
+            finally
+            {
+                serial.ReadTimeout = oldReadTimeout;
+            }
+        }
+
         public bool doReadInternal(int startSector = 0x000, int size = 0x1000, bool fullRead = false, bool restoreBaud = true)
         {
             if(fullRead)
