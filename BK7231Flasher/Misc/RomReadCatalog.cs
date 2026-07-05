@@ -63,6 +63,7 @@ namespace BK7231Flasher
     public static class RomReadCatalog
     {
         static readonly int[] CommonSerialBauds = new int[] { 9600, 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000 };
+        static readonly int[] Xr809SerialBauds = new int[] { 9600, 115200, 921600, 1000000, 1500000, 3000000 };
         const string BekenRomSpace = "ROM memory";
         const string BekenRomBackend = "register read";
         const string BekenRomController = "direct";
@@ -88,6 +89,11 @@ namespace BK7231Flasher
         const string RdaEfuseSpace = "eFuse pages 0..15";
         const string RdaEfuseBackend = "RAM helper EFUSE32";
         const string RdaEfuseController = "RF SPI @ 0x4001301C";
+        const string Xr809RomSpace = "ROM memory";
+        const string Xr809EfuseSpace = "eFuse raw image";
+        const string Xr809Backend = "PhoenixMC memory command";
+        const string Xr809RomController = "stub cmd 0x08";
+        const string Xr809EfuseController = "eFuse regs 0x40043C40/0x40043C60";
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
@@ -112,6 +118,8 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2Backend, Rtlz2EfuseController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, Xr809SerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Efuse, "eFuse", 0x00000000, 0x100, 921600, Xr809SerialBauds, true, Xr809EfuseSpace, Xr809Backend, Xr809EfuseController),
         };
 
         public static IEnumerable<BKType> GetSupportedPlatforms()
