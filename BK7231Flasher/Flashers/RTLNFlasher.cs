@@ -12,7 +12,6 @@ namespace BK7231Flasher
 		byte[] flashID;
 		static readonly byte CMD_KV_GET = 0x93;
 		static readonly byte CMD_KV_SET = 0x94;
-		static readonly byte CMD_MAC_GET = 0x95;
 
 		public RTLNFlasher(CancellationToken ct) : base(ct)
 		{
@@ -48,11 +47,6 @@ namespace BK7231Flasher
 			}
 			addLog("Port ready!" + Environment.NewLine);
 			return true;
-		}
-
-		internal byte[] ReadMAC()
-		{
-			return ExecuteCommand(CMD_MAC_GET, expectedReplyLen: 6);
 		}
 
 		private bool SetBaud(int baud, bool noCheck = false)
@@ -345,6 +339,15 @@ namespace BK7231Flasher
 				}
 			}
 			return false;
+		}
+
+		internal override byte[] ReadMAC()
+		{
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 0x400);
+			if(rf_efuse == null) return null;
+			var mac = new byte[6];
+			Array.Copy(rf_efuse, 0x11A, mac, 0, 6);
+			return mac;
 		}
 	}
 }

@@ -1177,11 +1177,11 @@ namespace BK7231Flasher
                     addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
                 }
             }
-            else if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E)
+            else if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E || curType == BKType.GD32VW553)
             {
                 try
                 {
-                    mac = ((RTLNFlasher)flasher).ReadMAC() ?? null;
+                    mac = ((ECRBaseFlasher)flasher).ReadMAC() ?? null;
                 }
                 catch
                 {
@@ -1190,7 +1190,7 @@ namespace BK7231Flasher
             }
             if(mac != null)
             {
-                addLog($"MAC seems to be {mac[0]:X}:{mac[1]:X}:{mac[2]:X}:{mac[3]:X}:{mac[4]:X}:{mac[5]:X}" + Environment.NewLine, Color.Green);
+                addLog($"MAC seems to be {mac[0]:X2}:{mac[1]:X2}:{mac[2]:X2}:{mac[3]:X2}:{mac[4]:X2}:{mac[5]:X2}" + Environment.NewLine, Color.Green);
                 formObkCfg.onMACLoaded(mac, curType);
             }
             return mac;

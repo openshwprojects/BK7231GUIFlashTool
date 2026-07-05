@@ -23,6 +23,8 @@ namespace BK7231Flasher
 		protected static readonly byte CMD_CUSTOM_GET_MAC = 0x95;
 		protected static readonly byte CMD_CUSTOM_XMODEM_READ_COMPRESSED = 0x96;
 		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE_COMPRESSED = 0x97;
+		protected static readonly byte CMD_CUSTOM_XMODEM_READ_RAW = 0x98;
+		protected static readonly byte CMD_CUSTOM_READ_EFUSE = 0x99;
 
 		protected int flashSizeMB = 4;
 
@@ -282,6 +284,7 @@ namespace BK7231Flasher
 			}
 			finally
 			{
+				Thread.Sleep(1);
 				SetBaud(115200);
 			}
 		}
@@ -354,6 +357,7 @@ namespace BK7231Flasher
 			finally
 			{
 				xm.PacketSent -= Xm_PacketSent;
+				Thread.Sleep(1);
 				SetBaud(115200);
 			}
 		}
@@ -440,6 +444,11 @@ namespace BK7231Flasher
 				return true;
 			}
 			return false;
+		}
+
+		internal virtual byte[] ReadMAC()
+		{
+			return ExecuteCommand(CMD_CUSTOM_GET_MAC, expectedReplyLen: 6);
 		}
 	}
 }

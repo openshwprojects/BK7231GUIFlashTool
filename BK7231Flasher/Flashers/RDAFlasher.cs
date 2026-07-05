@@ -71,21 +71,36 @@ namespace BK7231Flasher
 						{
 							logger.addLog("... OK!" + Environment.NewLine, Color.Green);
 							var ramcode = FLoaders.GetRawBinaryFromAssembly("RDA5981_Stub");
+							addLogLine("Uploading stub...");
 							serial.Write($"loadb 00100000 {ramcode.Length:X}\r");
 							Thread.Sleep(1);
 							var resp = serial.ReadExisting();
-							if(!resp.Contains("Download")) continue;
+							if(!resp.Contains("Download"))
+							{
+								addLogLine("Upload stage 1 failed! Retrying...");
+								continue;
+							}
 							serial.Write(ramcode, 0, ramcode.Length);
 							Thread.Sleep(1);
 							resp = serial.ReadExisting();
-							if(!resp.Contains("Done")) continue;
+							if(!resp.Contains("Done"))
+							{
+								addLogLine("Upload stage 2 failed! Retrying...");
+								continue;
+							}
+							addLogLine("Upload done, verifying...");
 							serial.Write($"checksum 1 00100000 {ramcode.Length}\r");
 							Thread.Sleep(20);
 							var calc = CRC.crc32_ver2(0xFFFFFFFF, ramcode);
 							resp = serial.ReadExisting();
 							resp = resp.Substring(resp.IndexOf("CRC32") + 8, 10);
 							var crc = Convert.ToUInt32(resp, 16);
-							if(crc != calc) continue;
+							if(crc != calc)
+							{
+								addLogLine("Verification failed! Retrying...");
+								continue;
+							}
+							addLogLine("Verified, jumping...");
 							serial.Write($"\rgo 2 {addr:X}\r");
 							Thread.Sleep(20);
 							serial.BaudRate = 115200;
