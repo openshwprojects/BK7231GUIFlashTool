@@ -18,8 +18,9 @@ namespace BK7231Flasher
         const string CommandPass = "pppp";
         const string CommandFail = "ffff";
         const int LN882H_ROM_SIZE = 0x20000;
-        const int LN882H_EFUSE_DUMP_SIZE = 0x10 + 2;
-        const int LN882H_FLASH_OTP_DUMP_SIZE = 0x400 + 2;
+        const int LN882H_EFUSE_PAYLOAD_SIZE = 0x40;
+        const int LN882H_FLASH_OTP_PAYLOAD_SIZE = 0x400;
+        const int LN882H_FIXED_DUMP_CRC_SIZE = 2;
         const int LN882H_SPECIAL_READ_TIMEOUT_MS = 5000;
 
         bool doGenericSetup()
@@ -417,9 +418,11 @@ namespace BK7231Flasher
                     case RomReadKind.Rom:
                         return ReadLn882hRom(target.Address ?? 0, target.Length ?? LN882H_ROM_SIZE, targetKindName);
                     case RomReadKind.Otp:
-                        return ReadLn882hFixedDump("otp_dump", target.Length ?? LN882H_FLASH_OTP_DUMP_SIZE, "flash OTP", targetKindName);
+                        return ReadLn882hFixedDump("otp_dump", target.Length ?? LN882H_FLASH_OTP_PAYLOAD_SIZE,
+                            target.ReadTrailerLength, target.ReadTrailerName, "flash OTP", targetKindName);
                     case RomReadKind.Efuse:
-                        return ReadLn882hFixedDump("efuse_dump", target.Length ?? LN882H_EFUSE_DUMP_SIZE, "eFuse", targetKindName);
+                        return ReadLn882hFixedDump("efuse_dump", target.Length ?? LN882H_EFUSE_PAYLOAD_SIZE,
+                            target.ReadTrailerLength, target.ReadTrailerName, "eFuse", targetKindName);
                     default:
                         addError("Selected LN882x ROM reader target is not implemented." + Environment.NewLine);
                         return null;
@@ -443,22 +446,38 @@ namespace BK7231Flasher
             return ReadLn882hXmodemDump($"fdump 0x{offset:X} 0x{length:X} 1", offset, length, "Reading " + targetKindName + "...", targetKindName);
         }
 
-        byte[] ReadLn882hFixedDump(string command, int expectedLength, string label, string targetKindName)
+        byte[] ReadLn882hFixedDump(string command, int payloadLength, int trailerLength, string trailerName, string label, string targetKindName)
         {
-            if(expectedLength <= 2)
+            if(payloadLength <= 0 || trailerLength < 0)
             {
-                throw new ArgumentOutOfRangeException("expectedLength", chipType + " dump length must include data and CRC16.");
+                throw new ArgumentOutOfRangeException("payloadLength", chipType + " dump length is invalid.");
             }
+            int wireLength = payloadLength + trailerLength;
             logger.setState("Reading " + targetKindName + "...", Color.Transparent);
-            logger.setProgress(0, expectedLength);
+            logger.setProgress(0, wireLength);
             addLogLine("Reading " + chipType + " " + label + " via " + command + ".");
             flush_com();
             serial.Write(command + "\r\n");
-            byte[] result = ReadLn882hSerialBytes(expectedLength, LN882H_SPECIAL_READ_TIMEOUT_MS);
-            logger.setProgress(expectedLength, expectedLength);
-            addLogLine("Returned CRC16: " + formatHex((ushort)(result[expectedLength - 2] | (result[expectedLength - 1] << 8))));
+            byte[] result = ReadLn882hSerialBytes(wireLength, LN882H_SPECIAL_READ_TIMEOUT_MS);
+            logger.setProgress(wireLength, wireLength);
+            if(trailerLength == LN882H_FIXED_DUMP_CRC_SIZE)
+            {
+                addLogLine("Returned " + (string.IsNullOrEmpty(trailerName) ? "trailer" : trailerName) + ": " +
+                    formatHex((ushort)(result[payloadLength] | (result[payloadLength + 1] << 8))));
+            }
+            else if(trailerLength > 0)
+            {
+                addLogLine("Returned " + trailerLength + " " +
+                    (string.IsNullOrEmpty(trailerName) ? "trailer" : trailerName) + " byte(s).");
+            }
             logger.setState(targetKindName + " read success!", Color.Green);
-            return result;
+            if(trailerLength == 0)
+            {
+                return result;
+            }
+            byte[] payload = new byte[payloadLength];
+            Buffer.BlockCopy(result, 0, payload, 0, payloadLength);
+            return payload;
         }
 
         byte[] ReadLn882hXmodemDump(string command, int offset, int size, string stateText, string targetKindName)

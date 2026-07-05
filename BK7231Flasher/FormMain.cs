@@ -1681,6 +1681,10 @@ namespace BK7231Flasher
             {
                 return;
             }
+            if (promptForBackupName() == false)
+            {
+                return;
+            }
             startWorkerThread(readRomThread, target, OperationUiTarget.ReadRom);
         }
 

@@ -30,6 +30,7 @@ namespace BK7231Flasher
             { BKType.ESP32S3, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
             { BKType.ESP8266, "Hold GPIO0 low, reset or power-cycle the device, then release GPIO0 after sync starts." },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
+            { BKType.RDA5981, GetRda5981Instructions() },
             { BKType.TR6260, "Use the same serial boot/download-mode wiring used for normal TR6260 flash read/write." },
             { BKType.W800, "Use the same UART boot/download-mode wiring used for normal W800 flash read/write." },
             { BKType.XR806, "Use the same UART boot/download-mode wiring used for normal XR806 flash read/write." },
@@ -68,6 +69,17 @@ namespace BK7231Flasher
                 "- PA13 / GPIO13 (RXD) -> 3.3 V" + System.Environment.NewLine +
                 "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
                 "With PA00 and PA13 pulledd high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
+        }
+
+        static string GetRda5981Instructions()
+        {
+            return "Connect the RDA5981 UART flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> RDA5981 TX0 (GPIO27)" + System.Environment.NewLine +
+                "- Adapter TX -> RDA5981 RX (GPIO26)" + System.Environment.NewLine +
+                "- Adapter GND -> board GND" + System.Environment.NewLine +
+                "- IO21 -> 3.3 V if the board does not enter UART download mode" + System.Environment.NewLine +
+                "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
+                "Start the read first. While the tool is trying to connect, reset or power-cycle the device; if linking does not start, try again with IO21 pulled high.";
         }
 
         public static string GetInstructions(BKType platform)

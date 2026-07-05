@@ -5,16 +5,30 @@ using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class RDAFlasher : BaseFlasher
+	public class RDAFlasher : BaseFlasher, IRomReadFlasher
 	{
 		MemoryStream ms;
 		int flashSizeMB = 1;
 		readonly int FLASH_MMAP_BASE = 0x18000000;
 		readonly int DumpAmount = 0x1000;
+		const int RdaRomBase = 0x00000000;
+		const int RdaRomSize = 0x00010000;
+		const int RdaEfuseStubLoadAddress = 0x00100000;
+		const int RdaEfuseStubEntryAddress = 0x00100001;
+		const int RdaEfuseRawSize = 0x20;
+		const int RdaEfuseStubReadyTimeoutMs = 5000;
+		const int RdaEfuseCommandTimeoutMs = 5000;
+		const int RdaEfusePostGoProbeTimeoutMs = 1200;
+		const int RdaEfuseStubVerifyBytes = 0x00;
+		const string RdaEfuseStubResource = "RDA5981_EFuse_Stub";
+		const string RdaEfuseReadyText = "RDAEFUSE ready";
+		const string RdaEfuseReadyToken = "RDAEFUSE";
+		const string RdaEfusePromptText = "> ";
 
 		public RDAFlasher(CancellationToken ct) : base(ct)
 		{
@@ -347,6 +361,347 @@ namespace BK7231Flasher
 					ms = new MemoryStream(res);
 			}
 			return;
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(chipType != BKType.RDA5981 || target.Platform != BKType.RDA5981)
+				{
+					addError("RDA5981 read target is not supported by this flasher." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				if(Sync() == false)
+				{
+					logger.setState("Sync failed!", Color.Red);
+					return null;
+				}
+
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return ReadRdaRom(target.Address ?? RdaRomBase, target.Length ?? RdaRomSize, targetKindName);
+					case RomReadKind.Efuse:
+						return ReadRdaEfuse(target.Length ?? RdaEfuseRawSize, targetKindName);
+					default:
+						addError("Selected RDA5981 read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try { closePort(); } catch { }
+			}
+		}
+
+		byte[] ReadRdaRom(int offset, int length, string targetKindName)
+		{
+			if(offset < RdaRomBase || length <= 0 || offset > RdaRomBase + RdaRomSize - length)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
+			}
+
+			byte[] result = new byte[length];
+			int copied = 0;
+			int errCount = 0;
+			logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+			logger.setProgress(0, length);
+			addLogLine("Reading " + chipType + " " + targetKindName + " from " + formatHex(offset) + ", length " + formatHex(length) + ".");
+
+			while(copied < length && errCount < 10)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				int chunkAddress = offset + copied;
+				int chunkLength = Math.Min(DumpAmount, length - copied);
+				addLog("Reading at 0x" + chunkAddress.ToString("X6") + "... ");
+				try
+				{
+					byte[] bytes;
+					DumpBytes(chunkAddress, chunkLength, out bytes);
+					if(bytes == null || bytes.Length != chunkLength)
+					{
+						throw new IOException("Read " + (bytes == null ? 0 : bytes.Length) + " bytes, expected " + chunkLength + ".");
+					}
+					bytes.CopyTo(result, copied);
+					copied += chunkLength;
+					errCount = 0;
+					logger.setProgress(copied, length);
+					addLogLine("OK");
+				}
+				catch(Exception ex)
+				{
+					errCount++;
+					addWarningLine("failed with " + ex.Message + ", retrying...");
+					Thread.Sleep(250);
+				}
+			}
+			if(errCount >= 10)
+			{
+				throw new IOException("Error count exceeded limit.");
+			}
+
+			logger.setState(targetKindName + " read success!", Color.Green);
+			return result;
+		}
+
+		byte[] ReadRdaEfuse(int expectedLength, string targetKindName)
+		{
+			if(expectedLength != RdaEfuseRawSize)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + RdaEfuseRawSize + " bytes.");
+			}
+
+			UploadRdaEfuseStub();
+			logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+			logger.setProgress(0, expectedLength);
+			addLogLine("Requesting " + chipType + " EFUSE32 dump: pages 0..15, 32 bytes.");
+			serial.DiscardInBuffer();
+			serial.Write("F\r");
+
+			string response = ReadUntilSerialText(RdaEfusePromptText, RdaEfuseCommandTimeoutMs);
+			addLogLine("eFuse helper response: " + FormatSerialSnippet(response));
+			byte[] result = ParseRdaEfuseDump(response, "EFUSE32", expectedLength);
+			logger.setProgress(expectedLength, expectedLength);
+			logger.setState(targetKindName + " read success!", Color.Green);
+			return result;
+		}
+
+		void UploadRdaEfuseStub()
+		{
+			byte[] stub = FLoaders.GetRawBinaryFromAssembly(RdaEfuseStubResource);
+			addLogLine("Uploading RDA5981 eFuse helper (" + stub.Length + " bytes) to " + formatHex(RdaEfuseStubLoadAddress) + " using ROM loadb.");
+			logger.setState("Uploading eFuse helper", Color.Transparent);
+			logger.setProgress(0, stub.Length);
+			UploadRdaEfuseStubWithLoadb(stub);
+			addLogLine("eFuse helper uploaded.");
+			ValidateRdaEfuseStubUpload(stub);
+			// The helper is a hand-written flat Thumb function; use ROM monitor custom mode with the Thumb bit set.
+			addLogLine("Starting RDA5981 eFuse helper at " + formatHex(RdaEfuseStubEntryAddress) + ".");
+			serial.DiscardInBuffer();
+			serial.Write("go 2 " + RdaEfuseStubEntryAddress.ToString("X8") + "\r");
+			string response = ReadUntilSerialText(RdaEfusePromptText, RdaEfuseStubReadyTimeoutMs);
+			if(ResponseContainsRdaEfuseBanner(response) == false)
+			{
+				addWarningLine("No eFuse helper banner after go. Post-go serial text: " + FormatSerialSnippet(response));
+				if(ProbeRdaEfuseStubAfterMissingBanner())
+				{
+					addWarningLine("eFuse helper answered help probe after banner timeout; continuing.");
+					return;
+				}
+				throw new IOException("Timed out waiting for RDA5981 eFuse helper banner. See post-go/probe serial diagnostics above.");
+			}
+			addLogLine(RdaEfuseReadyText);
+		}
+		void UploadRdaEfuseStubWithLoadb(byte[] stub)
+		{
+			serial.DiscardInBuffer();
+			string command = "loadb " + RdaEfuseStubLoadAddress.ToString("X8") + " " + stub.Length.ToString("X") + "\r";
+			serial.Write(command);
+			string preData = ReadUntilSerialText("Download to", 3000);
+			Thread.Sleep(50);
+			preData += serial.ReadExisting();
+			if(preData.Contains("Download to") == false)
+			{
+				throw new IOException("ROM did not enter loadb raw input mode. Response: " + FormatSerialSnippet(preData));
+			}
+			addLogLine("loadb pre-data response: " + FormatSerialSnippet(preData));
+			int sent = 0;
+			const int chunkSize = 64;
+			while(sent < stub.Length)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				int chunk = Math.Min(chunkSize, stub.Length - sent);
+				serial.Write(stub, sent, chunk);
+				sent += chunk;
+				logger.setProgress(sent, stub.Length);
+				Thread.Sleep(2);
+			}
+			string postData = ReadUntilSerialText("Boot >", 5000);
+			addLogLine("loadb post-data response: " + FormatSerialSnippet(postData));
+			if(postData.Contains("Boot >") == false)
+			{
+				throw new IOException("Timed out waiting for Boot prompt after loadb helper upload. Response: " + FormatSerialSnippet(postData));
+			}
+			if(postData.Contains("Done") == false)
+			{
+				addWarningLine("loadb returned to Boot prompt without visible Done text.");
+			}
+		}
+		void ValidateRdaEfuseStubUpload(byte[] stub)
+		{
+			int verifyLength = Math.Min(RdaEfuseStubVerifyBytes, stub.Length);
+			if(verifyLength <= 0)
+			{
+				return;
+			}
+
+			addLogLine("Verifying first " + verifyLength + " bytes of eFuse helper at " + formatHex(RdaEfuseStubLoadAddress) + ".");
+			try
+			{
+				byte[] readBack;
+				DumpBytes(RdaEfuseStubLoadAddress, verifyLength, out readBack);
+				if(readBack == null || readBack.Length != verifyLength)
+				{
+					throw new IOException("eFuse helper upload verify read " + (readBack == null ? 0 : readBack.Length) + " bytes, expected " + verifyLength + ".");
+				}
+				for(int i = 0; i < verifyLength; i++)
+				{
+					if(readBack[i] != stub[i])
+					{
+						throw new IOException("eFuse helper upload verify mismatch at +0x" + i.ToString("X") + ": expected 0x" + stub[i].ToString("X2") + ", got 0x" + readBack[i].ToString("X2") + ".");
+					}
+				}
+				addLogLine("eFuse helper RAM verify OK (" + verifyLength + " bytes).");
+			}
+			catch(Exception ex)
+			{
+				serial.ReadTimeout = 3000;
+				addWarningLine("eFuse helper RAM verify failed with " + ex.Message + "; continuing to launch helper.");
+			}
+		}
+
+		bool ResponseContainsRdaEfuseBanner(string response)
+		{
+			return string.IsNullOrEmpty(response) == false && response.Contains(RdaEfuseReadyToken);
+		}
+		bool ProbeRdaEfuseStubAfterMissingBanner()
+		{
+			try
+			{
+				serial.Write("?\r");
+				string probe = ReadUntilSerialText(RdaEfusePromptText, RdaEfusePostGoProbeTimeoutMs);
+				addWarningLine("eFuse helper '?' probe response: " + FormatSerialSnippet(probe));
+				return ResponseContainsRdaEfuseBanner(probe);
+			}
+			catch(Exception ex)
+			{
+				addWarningLine("eFuse helper '?' probe failed: " + ex.Message);
+				return false;
+			}
+		}
+
+		string ReadUntilSerialText(string expectedText, int timeoutMs)
+		{
+			DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+			StringBuilder response = new StringBuilder();
+			while(DateTime.UtcNow < deadline)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				string chunk = serial.ReadExisting();
+				if(string.IsNullOrEmpty(chunk) == false)
+				{
+					response.Append(chunk);
+					if(response.ToString().Contains(expectedText))
+					{
+						break;
+					}
+				}
+				Thread.Sleep(20);
+			}
+			return response.ToString();
+		}
+
+		byte[] ParseRdaEfuseDump(string response, string tag, int expectedLength)
+		{
+			string marker = tag + "=";
+			int start = response.IndexOf(marker, StringComparison.Ordinal);
+			if(start < 0)
+			{
+				throw new IOException("RDA5981 eFuse helper did not return " + marker + ".");
+			}
+			start += marker.Length;
+			int hexLength = expectedLength * 2;
+			if(response.Length < start + hexLength)
+			{
+				throw new IOException("RDA5981 eFuse helper returned a short " + tag + " dump.");
+			}
+
+			string hex = response.Substring(start, hexLength);
+			if(IsHexString(hex) == false)
+			{
+				throw new IOException("RDA5981 eFuse helper returned non-hex " + tag + " data.");
+			}
+			byte[] result = new byte[expectedLength];
+			uint actualSum = 0;
+			for(int i = 0; i < result.Length; i++)
+			{
+				byte value = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+				result[i] = value;
+				actualSum += value;
+			}
+
+			string sumMarker = " SUM=";
+			int sumStart = response.IndexOf(sumMarker, start + hexLength, StringComparison.Ordinal);
+			if(sumStart < 0 || response.Length < sumStart + sumMarker.Length + 8)
+			{
+				throw new IOException("RDA5981 eFuse helper did not return a checksum.");
+			}
+			string sumText = response.Substring(sumStart + sumMarker.Length, 8);
+			if(IsHexString(sumText) == false)
+			{
+				throw new IOException("RDA5981 eFuse helper returned a non-hex checksum.");
+			}
+			uint expectedSum = Convert.ToUInt32(sumText, 16);
+			if(actualSum != expectedSum)
+			{
+				throw new IOException("RDA5981 eFuse checksum mismatch: expected " + expectedSum.ToString("X8") + ", got " + actualSum.ToString("X8") + ".");
+			}
+
+			addLogLine("Returned SUM: 0x" + expectedSum.ToString("X8"));
+			return result;
+		}
+
+		string FormatSerialSnippet(string value)
+		{
+			if(string.IsNullOrEmpty(value))
+			{
+				return "<no serial text>";
+			}
+			string escaped = value.Replace("\r", "\\r").Replace("\n", "\\n");
+			if(escaped.Length > 800)
+			{
+				return escaped.Substring(0, 800) + "...";
+			}
+			return escaped;
+		}
+
+		bool IsHexString(string value)
+		{
+			for(int i = 0; i < value.Length; i++)
+			{
+				char c = value[i];
+				if((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+				{
+					continue;
+				}
+				return false;
+			}
+			return true;
 		}
 
 		private void GetFlashSize()

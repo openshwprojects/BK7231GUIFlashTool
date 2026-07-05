@@ -17,6 +17,8 @@ namespace BK7231Flasher
         public string DisplayName { get; private set; }
         public int? Address { get; private set; }
         public int? Length { get; private set; }
+        public int ReadTrailerLength { get; private set; }
+        public string ReadTrailerName { get; private set; }
         public int DefaultBaudRate { get; private set; }
         public int[] AllowedBaudRates { get; private set; }
         public bool IsImplemented { get; private set; }
@@ -26,13 +28,16 @@ namespace BK7231Flasher
 
         public RomReadTarget(BKType platform, RomReadKind kind, string displayName,
             int? address, int? length, int defaultBaudRate, int[] allowedBaudRates, bool isImplemented,
-            string addressSpace = null, string backend = null, string controller = null)
+            string addressSpace = null, string backend = null, string controller = null,
+            int readTrailerLength = 0, string readTrailerName = null)
         {
             Platform = platform;
             Kind = kind;
             DisplayName = displayName;
             Address = address;
             Length = length;
+            ReadTrailerLength = readTrailerLength;
+            ReadTrailerName = readTrailerName ?? "";
             DefaultBaudRate = defaultBaudRate;
             AllowedBaudRates = allowedBaudRates ?? new int[0];
             IsImplemented = isImplemented;
@@ -44,6 +49,14 @@ namespace BK7231Flasher
         public override string ToString()
         {
             return DisplayName;
+        }
+
+        public int? WireReadLength
+        {
+            get
+            {
+                return Length.HasValue ? Length.Value + ReadTrailerLength : (int?)null;
+            }
         }
     }
 
@@ -58,7 +71,7 @@ namespace BK7231Flasher
         const string BekenSctrlEfuseController = "SCTRL 0x00800074/0x00800078";
         const string BekenArminoEfuseController = "EFUSE 0x44880010/0x44880014";
         const string LnRomSpace = "ROM memory";
-        const string LnEfuseSpace = "eFuse dump + CRC16";
+        const string LnEfuseSpace = "eFuse shadow/current + CRC16";
         const string LnFlashOtpSpace = "SPI flash OTP + CRC16";
         const string LnRamcodeBackend = "custom RAMCODE command";
         const string LnRomController = "fdump with ROM flag";
@@ -69,6 +82,12 @@ namespace BK7231Flasher
         const string Rtlz2Backend = "ROM console DB/EW";
         const string Rtlz2RomController = "DB direct memory";
         const string Rtlz2EfuseController = "SRAM helper @ 0x10037000";
+        const string RdaRomSpace = "ROM memory";
+        const string RdaRomBackend = "Boot console md.b";
+        const string RdaRomController = "CPU memory";
+        const string RdaEfuseSpace = "eFuse pages 0..15";
+        const string RdaEfuseBackend = "RAM helper EFUSE32";
+        const string RdaEfuseController = "RF SPI @ 0x4001301C";
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
@@ -82,18 +101,17 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.BK7231T, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             new RomReadTarget(BKType.BK7231U, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
             new RomReadTarget(BKType.BK7231U, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7236, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenArminoEfuseController),
-            // BK7258 ROM probe returned a blank dump; keep disabled until the address/protocol is proven.
-            new RomReadTarget(BKType.BK7258, RomReadKind.Rom, "ROM probe", 0x06000000, 0x1000, 115200, CommonSerialBauds, false, BekenRomSpace, BekenRomBackend, "needs proof"),
-            new RomReadTarget(BKType.BK7258, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenArminoEfuseController),
+            // BK7236/BK7258 are omitted until their ROM/eFuse read protocols are proven.
             new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),
-            new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x402, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController),
-            new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x12, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController),
+            new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
+            new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
             new RomReadTarget(BKType.LN8825, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),
-            new RomReadTarget(BKType.LN8825, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x402, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController),
-            new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x12, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController),
+            new RomReadTarget(BKType.LN8825, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
+            new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, true, Rtlz2RomSpace, Rtlz2Backend, Rtlz2RomController),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2Backend, Rtlz2EfuseController),
+            new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
+            new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
         };
 
         public static IEnumerable<BKType> GetSupportedPlatforms()
