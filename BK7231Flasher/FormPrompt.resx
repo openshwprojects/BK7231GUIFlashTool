@@ -118,11 +118,12 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="label1.Text" xml:space="preserve">
-    <value>Please enter the device name to include in the backup file name.
-For example: "treatlife_SW10".
-The file prefix (platform), extension, and read date will be added automatically.
+    <value>Enter an optional device name to include in the backup file name,
+for example: "treatlife_SW10".
 
-Leave this blank to use only the platform and date in the backup file name.
+The platform prefix, extension, and read date are added automatically.
+
+Leave blank to use only the platform and date.
 </value>
   </data>
 </root>
