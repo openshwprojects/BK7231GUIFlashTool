@@ -6,36 +6,36 @@ namespace BK7231Flasher
     {
         static readonly IReadOnlyDictionary<BKType, string> Instructions = new Dictionary<BKType, string>()
         {
-            { BKType.BK7231M, "Use the same UART download-mode wiring/reset sequence used for normal BK7231M flash read/write." },
+            { BKType.BK7231M, "" },
             { BKType.BK7231N, GetBekenUart1Instructions("BK7231N") },
             { BKType.BK7231T, GetBekenUart1Instructions("BK7231T") },
             { BKType.BK7231U, GetBekenUart1Instructions("BK7231U") },
-            { BKType.BK7236, GetBekenUart1Instructions("BK7236") },
+            { BKType.BK7236, "" },
             { BKType.BK7238, GetBekenUart1Instructions("BK7238") },
-            { BKType.BK7252, "Use the same UART download-mode wiring/reset sequence used for normal BK7252 flash read/write." },
+            { BKType.BK7252, "" },
             { BKType.BK7252N, GetBekenUart1Instructions("BK7252N") },
-            { BKType.BK7258, GetBekenUart1Instructions("BK7258") },
-            { BKType.BL602, "Hold BOOT/IO8 in boot mode, reset or power-cycle the device, then start the operation." },
-            { BKType.BL702, "Hold BOOT/IO28 in boot mode, reset or power-cycle the device, then start the operation." },
-            { BKType.BL616, "Hold BOOT/IO28 in boot mode, reset or power-cycle the device, then start the operation." },
+            { BKType.BK7258, "" },
+            { BKType.BL602, "" },
+            { BKType.BL702, "" },
+            { BKType.BL616, "" },
             { BKType.LN882H, GetLn882xInstructions("LN882H", "A2", "A3", "BOOT/GPIOA9") },
             { BKType.LN8825, GetLn882xInstructions("LN8825B", "B9", "B8", "BOOT/GPIOA10") },
-            { BKType.ESP32, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32S2, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32C2, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32C3, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32C5, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32C6, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32C61, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP32S3, "Hold BOOT/GPIO0 low, reset or power-cycle the device, then release BOOT after sync starts." },
-            { BKType.ESP8266, "Hold GPIO0 low, reset or power-cycle the device, then release GPIO0 after sync starts." },
+            { BKType.ESP32, "" },
+            { BKType.ESP32S2, "" },
+            { BKType.ESP32C2, "" },
+            { BKType.ESP32C3, "" },
+            { BKType.ESP32C5, "" },
+            { BKType.ESP32C6, "" },
+            { BKType.ESP32C61, "" },
+            { BKType.ESP32S3, "" },
+            { BKType.ESP8266, "" },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
-            { BKType.TR6260, "Use the same serial boot/download-mode wiring used for normal TR6260 flash read/write." },
-            { BKType.W800, "Use the same UART boot/download-mode wiring used for normal W800 flash read/write." },
-            { BKType.XR806, "Use the same UART boot/download-mode wiring used for normal XR806 flash read/write." },
-            { BKType.XR809, "Use the same UART boot/download-mode wiring used for normal XR809 flash read/write." },
-            { BKType.XR872, "Use the same UART boot/download-mode wiring used for normal XR872 flash read/write." },
+            { BKType.TR6260, "" },
+            { BKType.W800, "" },
+            { BKType.XR806, "" },
+            { BKType.XR809, GetXr809Instructions() },
+            { BKType.XR872, "" },
         };
 
         static string GetBekenUart1Instructions(string platformName)
@@ -80,6 +80,18 @@ namespace BK7231Flasher
                 "- IO21 -> 3.3 V if the board does not enter UART download mode" + System.Environment.NewLine +
                 "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
                 "Start the read first. While the tool is trying to connect, reset or power-cycle the device; if linking does not start, try again with IO21 pulled high.";
+        }
+
+        static string GetXr809Instructions()
+        {
+            return "Connect the XR809 UART0 flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> XR809 TX0 (PB00)" + System.Environment.NewLine +
+                "- Adapter TX -> XR809 RX0 (PB01)" + System.Environment.NewLine +
+                "- Adapter GND -> board GND" + System.Environment.NewLine +
+                "- PB02 -> GND" + System.Environment.NewLine +
+                "- PB03 -> GND" + System.Environment.NewLine +
+                "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
+                "With PB02 and PB03 held low, start the read operation first, then reset or power-cycle the device.";
         }
 
         public static string GetInstructions(BKType platform)
