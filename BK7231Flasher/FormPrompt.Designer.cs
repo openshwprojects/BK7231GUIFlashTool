@@ -46,7 +46,7 @@
             // 
             // textBox1
             // 
-            this.textBox1.Location = new System.Drawing.Point(16, 95);
+            this.textBox1.Location = new System.Drawing.Point(16, 84);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(333, 20);
             this.textBox1.TabIndex = 1;
@@ -54,7 +54,7 @@
             // 
             // buttonOk
             // 
-            this.buttonOk.Location = new System.Drawing.Point(362, 121);
+            this.buttonOk.Location = new System.Drawing.Point(362, 110);
             this.buttonOk.Name = "buttonOk";
             this.buttonOk.Size = new System.Drawing.Size(75, 23);
             this.buttonOk.TabIndex = 2;
@@ -64,7 +64,7 @@
             // 
             // buttonCancel
             // 
-            this.buttonCancel.Location = new System.Drawing.Point(16, 121);
+            this.buttonCancel.Location = new System.Drawing.Point(16, 110);
             this.buttonCancel.Name = "buttonCancel";
             this.buttonCancel.Size = new System.Drawing.Size(75, 23);
             this.buttonCancel.TabIndex = 3;
@@ -76,7 +76,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(449, 156);
+            this.ClientSize = new System.Drawing.Size(449, 145);
             this.Controls.Add(this.buttonCancel);
             this.Controls.Add(this.buttonOk);
             this.Controls.Add(this.textBox1);
