@@ -30,7 +30,7 @@ namespace BK7231Flasher
         const byte XR_ERASE_MODE_4K    = 0x01;
         const byte XR_ERASE_MODE_64K   = 0x03;
         const int  XR809_ROM_BASE      = 0x00000000;
-        const int  XR809_ROM_SIZE      = 0x00010000;
+        const int  XR809_ROM_SIZE      = 0x00004000;
         const int  XR809_ROM_READ_CHUNK_SIZE = 0x1000;
         const int  XR809_EFUSE_BYTES   = 0x100;
         const int  XR809_EFUSE_WORDS   = XR809_EFUSE_BYTES / 4;

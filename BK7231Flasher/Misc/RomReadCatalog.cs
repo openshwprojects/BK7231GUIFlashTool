@@ -125,7 +125,7 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
             new RomReadTarget(BKType.XR806, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
             new RomReadTarget(BKType.XR806, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
-            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, XrSerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 921600, XrSerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
             new RomReadTarget(BKType.XR809, RomReadKind.Efuse, "eFuse", 0x00000000, 0x100, 921600, XrSerialBauds, true, Xr809EfuseSpace, Xr809Backend, Xr809EfuseController),
             new RomReadTarget(BKType.XR872, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
             new RomReadTarget(BKType.XR872, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
