@@ -1148,12 +1148,28 @@ namespace BK7231Flasher
 				RegisterWrite(0x10038000 + 0, (uint)addr);   // set read offset
 				RegisterWrite(0x10038000 + 4, (uint)amount); // set read length
 				RegisterWrite(0x10038000 + 8, 0); // set mode (0 - from FLASH_MMAP_BASE, 1 - from 0)
-				if(RamTransmit(FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub"), 0x10037000))
+				if(bUseCompressionIfPossible)
 				{
-					addLogLine(" OK!");
+					if(RamTransmit(FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub_z"), 0x10035000))
+					{
+						addLogLine(" OK!");
+					}
+					else
+						return null;
+					if(!MemoryBoot(0x10035000))
+						return null;
 				}
-				else return null;
-				if(!MemoryBoot(0x10037000)) return null;
+				else
+				{
+					if(RamTransmit(FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub"), 0x10037000))
+					{
+						addLogLine(" OK!");
+					}
+					else
+						return null;
+					if(!MemoryBoot(0x10037000))
+						return null;
+				}
 				logger.setState("Reading", Color.White);
 				Thread.Sleep(5);
 
@@ -1191,9 +1207,10 @@ namespace BK7231Flasher
 					xm.PacketReceived -= Xm_PacketReceived;
 					xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
 				}
-
+				
+				if(bUseCompressionIfPossible) ret = Decompress(ret);
 				using var sha = SHA256.Create();
-				var hash = sha.ComputeHash(ms.ToArray());
+				var hash = sha.ComputeHash(ret);
 				addLogLine(Environment.NewLine + "Getting hash...");
 				var readHash = HashToStr(hash);
 				var expectedHashBytes = FlashReadHash((uint)addr, amount) ?? throw new Exception("Final hash read failed");

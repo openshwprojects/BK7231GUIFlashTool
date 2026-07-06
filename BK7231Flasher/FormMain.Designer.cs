@@ -394,6 +394,7 @@ namespace BK7231Flasher
 			this.chkUseCompression.TabIndex = 41;
 			this.chkUseCompression.Text = "Compress if possible";
 			this.chkUseCompression.UseVisualStyleBackColor = true;
+			this.chkUseCompression.CheckedChanged += new System.EventHandler(this.chkUseCompression_CheckedChanged);
 			// 
 			// buttonDetect
 			// 

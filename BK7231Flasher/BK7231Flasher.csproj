@@ -234,6 +234,7 @@
     <EmbeddedResource Include="Floaders\RTL8720E_Stub.bin" />
     <EmbeddedResource Include="Floaders\RDA5981_Stub.bin" />
     <EmbeddedResource Include="Floaders\Z2_XModem_Stub.bin" />
+    <EmbeddedResource Include="Floaders\Z2_XModem_Stub_z.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

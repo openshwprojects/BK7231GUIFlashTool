@@ -329,6 +329,10 @@ namespace BK7231Flasher
             {
                 textBoxEndIP.Text = settings.FindKeyValue("ScannerLast");
             }
+            if (settings.HasKey("bUseCompressionIfPossible"))
+            {
+                chkUseCompression.Checked = settings.FindKeyValueBool("bUseCompressionIfPossible");
+            }
         }
         public void setComboBoxValueByContent(ComboBox comboBox, string itemToSet)
         {
@@ -1495,6 +1499,7 @@ namespace BK7231Flasher
             checkBoxSkipKeyCheck.Visible = b;
             buttonCustomOperation.Visible = b;
             chkIgnoreCRCErr.Visible = b;
+            chkUseCompression.Visible = b;
 
             // Advanced-only firmware browse button + combobox width management
             if (firmwareComboWidthNormal < 0)
@@ -2058,6 +2063,11 @@ namespace BK7231Flasher
             cp.ofs = 0;
             cp.sourceFileName = "";
             doCustomWrite(cp);
+        }
+
+        private void chkUseCompression_CheckedChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("bUseCompressionIfPossible", chkUseCompression.Checked); 
         }
     }
 
