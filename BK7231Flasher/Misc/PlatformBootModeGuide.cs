@@ -33,9 +33,9 @@ namespace BK7231Flasher
             { BKType.RDA5981, GetRda5981Instructions() },
             { BKType.TR6260, "" },
             { BKType.W800, "" },
-            { BKType.XR806, "" },
-            { BKType.XR809, GetXr809Instructions() },
-            { BKType.XR872, "" },
+            { BKType.XR806, GetXr806Instructions() },
+            { BKType.XR809, GetXrUart0TwoBootPinsInstructions("XR809") },
+            { BKType.XR872, GetXrUart0TwoBootPinsInstructions("XR872") },
         };
 
         static string GetBekenUart1Instructions(string platformName)
@@ -82,16 +82,32 @@ namespace BK7231Flasher
                 "Start the read first. While the tool is trying to connect, reset or power-cycle the device; if linking does not start, try again with IO21 pulled high.";
         }
 
-        static string GetXr809Instructions()
+        static string GetXr806Instructions()
         {
-            return "Connect the XR809 UART0 flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
-                "- Adapter RX -> XR809 TX0 (PB00)" + System.Environment.NewLine +
-                "- Adapter TX -> XR809 RX0 (PB01)" + System.Environment.NewLine +
-                "- Adapter GND -> board GND" + System.Environment.NewLine +
+            return GetXrUart0Instructions(
+                "XR806",
+                "- PB02 -> GND",
+                "With PB02 held low, start the read operation first, reset the chip by pulling CHIP_PWD low and releasing it, then release PB02.");
+        }
+
+        static string GetXrUart0TwoBootPinsInstructions(string platformName)
+        {
+            return GetXrUart0Instructions(
+                platformName,
                 "- PB02 -> GND" + System.Environment.NewLine +
-                "- PB03 -> GND" + System.Environment.NewLine +
+                "- PB03 -> GND",
+                "With PB02 and PB03 held low, start the read operation first, then reset the chip by pulling CHIP_PWD low and releasing it, or power-cycle the device.");
+        }
+
+        static string GetXrUart0Instructions(string platformName, string bootPinLines, string bootModeAction)
+        {
+            return "Connect the " + platformName + " UART0 flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> " + platformName + " TX0 (PB00)" + System.Environment.NewLine +
+                "- Adapter TX -> " + platformName + " RX0 (PB01)" + System.Environment.NewLine +
+                "- Adapter GND -> board GND" + System.Environment.NewLine +
+                bootPinLines + System.Environment.NewLine +
                 "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
-                "With PB02 and PB03 held low, start the read operation first, then reset or power-cycle the device.";
+                bootModeAction;
         }
 
         public static string GetInstructions(BKType platform)

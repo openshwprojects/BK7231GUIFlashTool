@@ -63,7 +63,7 @@ namespace BK7231Flasher
     public static class RomReadCatalog
     {
         static readonly int[] CommonSerialBauds = new int[] { 9600, 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000 };
-        static readonly int[] Xr809SerialBauds = new int[] { 9600, 115200, 921600, 1000000, 1500000, 3000000 };
+        static readonly int[] XrSerialBauds = new int[] { 9600, 115200, 921600, 1000000, 1500000, 3000000 };
         const string BekenRomSpace = "ROM memory";
         const string BekenRomBackend = "register read";
         const string BekenRomController = "direct";
@@ -94,6 +94,11 @@ namespace BK7231Flasher
         const string Xr809Backend = "PhoenixMC memory command";
         const string Xr809RomController = "stub cmd 0x08";
         const string Xr809EfuseController = "eFuse regs 0x40043C40/0x40043C60";
+        const string XrRomSpace = "ROM memory";
+        const string XrEfuseSpace = "eFuse raw image";
+        const string XrBromBackend = "PhoenixMC BROM memory command";
+        const string XrRomController = "BROM cmd 0x08";
+        const string XrEfuseController = "eFuse regs 0x40043C40/0x40043C60";
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
@@ -118,8 +123,12 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2Backend, Rtlz2EfuseController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
-            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, Xr809SerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
-            new RomReadTarget(BKType.XR809, RomReadKind.Efuse, "eFuse", 0x00000000, 0x100, 921600, Xr809SerialBauds, true, Xr809EfuseSpace, Xr809Backend, Xr809EfuseController),
+            new RomReadTarget(BKType.XR806, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
+            new RomReadTarget(BKType.XR806, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, XrSerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Efuse, "eFuse", 0x00000000, 0x100, 921600, XrSerialBauds, true, Xr809EfuseSpace, Xr809Backend, Xr809EfuseController),
+            new RomReadTarget(BKType.XR872, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
+            new RomReadTarget(BKType.XR872, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
         };
 
         public static IEnumerable<BKType> GetSupportedPlatforms()
