@@ -28,8 +28,8 @@
 | RTL87X0C (AmebaZ2) | Realtek | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8721DA (AmebaDp) | Realtek | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8720E (AmebaLite) | Realtek | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
-| W600 (write only) | WinnerMicro | ❌⁵ | ✅⁵ | ❌ | ⚠️⁵ | ➖ | ➖ | ❌ |
-| W80x | WinnerMicro | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ℹ️ |
+| W600 (write only) | WinnerMicro | ❌⁵ | ✅⁵ | ❌ | ⚠️⁵ | ➖ | ➖ | ✅ |
+| W80x | WinnerMicro | ✅ | ✅ | ❌ | ✅ | ➖ | ➖ | ✅ |
 | XR806 | XRadio | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | XR809 | XRadio | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | XR872 (XF16) | XRadio | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
