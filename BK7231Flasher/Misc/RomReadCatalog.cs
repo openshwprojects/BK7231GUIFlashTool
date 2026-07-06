@@ -84,10 +84,10 @@ namespace BK7231Flasher
         const string Rtlz2RomController = "DB direct memory";
         const string Rtlz2EfuseController = "SRAM helper @ 0x10037000";
         const string RdaRomSpace = "ROM memory";
-        const string RdaRomBackend = "Boot console md.b";
-        const string RdaRomController = "CPU memory";
+        const string RdaRomBackend = "RDA5981_Stub cmd 0x98";
+        const string RdaRomController = "raw CPU memory via XMODEM";
         const string RdaEfuseSpace = "eFuse pages 0..15";
-        const string RdaEfuseBackend = "RAM helper EFUSE32";
+        const string RdaEfuseBackend = "RDA5981_Stub cmd 0x99";
         const string RdaEfuseController = "RF SPI @ 0x4001301C";
         const string Xr809RomSpace = "ROM memory";
         const string Xr809EfuseSpace = "eFuse raw image";

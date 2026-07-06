@@ -223,7 +223,7 @@
     <EmbeddedResource Include="Floaders\W800_Stub.bin" />
     <EmbeddedResource Include="Floaders\XR809_Stub.bin" />
     <EmbeddedResource Include="Floaders\LN88xx_RamCode.bin" />
-    <EmbeddedResource Include="Floaders\RDA5981_EFuse_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RDA5981_Stub.bin" />
     <EmbeddedResource Include="Floaders\ESP32_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32S2_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32C2_Stub.json" />
