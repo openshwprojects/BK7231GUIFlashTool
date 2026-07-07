@@ -374,6 +374,37 @@ namespace BK7231Flasher
 			return noResync || Sync();
 		}
 
+		private bool EraseAndWait(string label, byte[] parms, int timeoutSeconds)
+		{
+			addLogLine(label);
+			var response = ExecuteCommand(0x32, parms, timeoutSeconds, 4);
+			return response != null && response.Length >= 4
+				&& response[0] == 'C' && response[1] == 'C' && response[2] == 'C' && response[3] == 'C';
+		}
+
+		private bool EraseW800Flash()
+		{
+			if(!EraseAndWait("Erasing W800 secboot area...", new byte[] { 0x02, 0x00, 0x0E, 0x00 }, 60))
+			{
+				addErrorLine("W800 secboot erase failed.");
+				return false;
+			}
+
+			int count = flashSizeMB * 16 - 1;
+			byte[] parms =
+			{
+				0x01, 0x80,
+				(byte)(count & 0xFF),
+				(byte)((count >> 8) & 0xFF)
+			};
+			if(!EraseAndWait($"Erasing W800 flash blocks from 0x8001, count {count}...", parms, 60))
+			{
+				addErrorLine("W800 flash erase failed.");
+				return false;
+			}
+			return true;
+		}
+
 		public bool ReadFlash(MemoryStream stream, int offset, int size)
 		{
 			var readLength = 4096;
@@ -497,34 +528,35 @@ namespace BK7231Flasher
 
 		public override bool doErase(int startSector = 0x000, int sectors = 10, bool bAll = false)
 		{
-			//if(bAll)
-			//{
-			//	if(doGenericSetup() == false)
-			//	{
-			//		return false;
-			//	}
-			//	if(Sync())
-			//	{
-			//		//addLogLine("Doing chip erase...");
-			//		//var msg = new byte[4];
-			//		//msg[0] = (byte)(2 & 0xFF);
-			//		//msg[1] = (byte)((2 >> 8) & 0xFF);
-			//		//msg[2] = (byte)(0x1FE00 & 0xFF);
-			//		//msg[3] = (byte)((0x1FE00 >> 8) & 0xFF);
-			//		//return ExecuteCommand(0x32, msg, 10) != null;
-			//	}
-			//}
-			//else
-			//{
-			//	//var msg = new byte[4];
-			//	//var length = sectors * BK7231Flasher.SECTOR_SIZE / 10;
-			//	//msg[0] = (byte)(startSector & 0xFF);
-			//	//msg[1] = (byte)((startSector >> 8) & 0xFF);
-			//	//msg[2] = (byte)(length & 0xFF);
-			//	//msg[3] = (byte)((length >> 8) & 0xFF);
-			//	//return ExecuteCommand(0x32, msg, 10) != null;
-			//}
-			return false;
+			if(!bAll)
+			{
+				addErrorLine("W600/W800 range erase is not implemented.");
+				return false;
+			}
+
+			if(doGenericSetup() == false)
+			{
+				return false;
+			}
+			if(InitialSync() == false || ReadFlashId() == null || UploadStub() == false)
+			{
+				return false;
+			}
+
+			bool ok = chipType == BKType.W600
+				? EraseAndWait("Erasing W600 flash...", null, 24)
+				: EraseW800Flash();
+			if(ok)
+			{
+				logger.setState("Erase done", Color.DarkGreen);
+				logger.setProgress(1, 1);
+				addLogLine("Erase flash ok.");
+			}
+			else
+			{
+				logger.setState("Erase error!", Color.Red);
+			}
+			return ok;
 		}
 		
 		public override void closePort()
