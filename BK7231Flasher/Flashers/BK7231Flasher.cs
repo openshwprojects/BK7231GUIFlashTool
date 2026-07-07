@@ -16,14 +16,19 @@ namespace BK7231Flasher
         MemoryStream ms;
         string lastEncryptionKey;
         BKChipIdentityResult chipIdentity;
+        const int DEFAULT_FLASH_SIZE = 0x200000;
+        const int BK7252_MAX_FLASH_SIZE = 0x400000;
+        const int READ_RESPONSE_HEADER_SIZE = 15;
+        const int BK7252_READ_ATTEMPTS = 20;
         public static int SECTOR_SIZE = 0x1000;
         public static int BLOCK_SIZE = 0x10000;
         public static int SECTORS_PER_BLOCK = BLOCK_SIZE / SECTOR_SIZE;
-        public static int FLASH_SIZE = 0x200000;
+        public static int FLASH_SIZE = DEFAULT_FLASH_SIZE;
         public static int BOOTLOADER_SIZE = 0x11000;
         public static int TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
         public static string TUYA_ENCRYPTION_KEY = "510fb093 a3cbeadc 5993a17e c7adeb03";
         public static string EMPTY_ENCRYPTION_KEY = "00000000 00000000 00000000 00000000";
+        int bk7252ReadAddressBase = DEFAULT_FLASH_SIZE;
         bool openPort()
         {
             // Close any previously open port before re-opening
@@ -780,10 +785,23 @@ namespace BK7231Flasher
             try
             {
                 logger.setProgress(0, sectors);
-                addLog("Erase started with ofs " + formatHex(startSector) + " and len in sectors " + sectors);
+                addLog("Erase started with ofs " + formatHex(startSector) + " and requested len in sectors " + sectors + Environment.NewLine);
                 if (doGenericSetup() == false)
                 {
                     return false;
+                }
+                if (chipType == BKType.BK7252)
+                {
+                    detectBK7252UFlashSize();
+                    if (bAll)
+                    {
+                        sectors = (FLASH_SIZE - startSector) / SECTOR_SIZE;
+                        logger.setProgress(0, sectors);
+                        addLog("BK7252U: erase-all using detected flash size " + formatFlashSize(FLASH_SIZE)
+                            + ", start " + formatHex(startSector)
+                            + ", sectors " + sectors
+                            + ", end " + formatHex(startSector + sectors * SECTOR_SIZE) + Environment.NewLine);
+                    }
                 }
                 if (doEraseInternal(startSector, sectors) == false)
                 {
@@ -890,6 +908,7 @@ namespace BK7231Flasher
         
         bool doGenericSetup()
         {
+            resetLegacyFlashSize();
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
             addLog("Going to open port: " + serialName + "." + Environment.NewLine);
@@ -1005,6 +1024,7 @@ namespace BK7231Flasher
             }
             addLog(Environment.NewLine);
             addLog("All selected sectors erased!" + Environment.NewLine);
+            logger.setState("Erase complete.", Color.Green);
             return true;
         }
         int deviceMID;
@@ -1033,8 +1053,7 @@ namespace BK7231Flasher
             }
             addSuccess("Flash def found! For: " + deviceMID.ToString("X2") + Environment.NewLine);
             addLog("Flash information: " + flashInfo.ToString() + Environment.NewLine);
-            FLASH_SIZE = flashInfo.szMem;
-            TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
+            setFlashSize(flashInfo.szMem);
             addLog("Flash size is " + FLASH_SIZE / 1024 / 1024 + "MB" + Environment.NewLine);
             if (setProtectState(true))
             {
@@ -1118,6 +1137,14 @@ namespace BK7231Flasher
             {
                 data = MiscUtils.padArray(data, SECTOR_SIZE);
                 sectors = data.Length / SECTOR_SIZE;
+                if(chipType == BKType.BK7252 && startSector + data.Length > FLASH_SIZE)
+                {
+                    addError("BK7252U: write range " + formatHex(startSector) + ".."
+                        + formatHex(startSector + data.Length)
+                        + " exceeds detected flash size " + formatFlashSize(FLASH_SIZE)
+                        + ". Aborting before erase." + Environment.NewLine);
+                    return false;
+                }
             }
             logger.setProgress(0, sectors);
             if (data != null)
@@ -1192,6 +1219,10 @@ namespace BK7231Flasher
             {
                 return false;
             }
+            if (chipType == BKType.BK7252)
+            {
+                detectBK7252UFlashSize();
+            }
             if (doEraseInternal(startSector, sectors) == false)
             {
                 return false;
@@ -1220,6 +1251,10 @@ namespace BK7231Flasher
             if (doGetBusAndSetBaudRate() == false)
             {
                 return false;
+            }
+            if (chipType == BKType.BK7252)
+            {
+                detectBK7252UFlashSize();
             }
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
@@ -1250,6 +1285,10 @@ namespace BK7231Flasher
             if (doGenericSetup() == false)
             {
                 return false;
+            }
+            if (chipType == BKType.BK7252)
+            {
+                detectBK7252UFlashSize();
             }
             if(!eraseRange(startSector, sectors))
             {
@@ -1317,6 +1356,168 @@ namespace BK7231Flasher
             Console.WriteLine("Encryption Key: " + encryptionKey);
             return encryptionKey;
         }
+        static void setFlashSize(int size)
+        {
+            FLASH_SIZE = size;
+            TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
+        }
+        void resetLegacyFlashSize()
+        {
+            if (chipType == BKType.BK7231T || chipType == BKType.BK7231U || chipType == BKType.BK7252)
+            {
+                setFlashSize(DEFAULT_FLASH_SIZE);
+                bk7252ReadAddressBase = DEFAULT_FLASH_SIZE;
+            }
+        }
+        int translateReadAddressForChip(int logicalAddr)
+        {
+            // Original Easy Flasher wrap-around hack:
+            // BK7231T/U do not allow direct bootloader reads, but the protected window can be read
+            // by wrapping logical addresses into the mirrored upper flash range.
+            if(chipType == BKType.BK7231T || chipType == BKType.BK7231U)
+            {
+                return logicalAddr + FLASH_SIZE;
+            }
+            // BK7252U uses the same style of mapped read, but the usable base depends on detected flash size.
+            if(chipType == BKType.BK7252)
+            {
+                return logicalAddr + bk7252ReadAddressBase;
+            }
+            return logicalAddr;
+        }
+        string formatFlashSize(int size)
+        {
+            int mb = size / (1024 * 1024);
+            if(size == mb * 1024 * 1024)
+            {
+                return formatHex(size) + " (" + mb + "MB)";
+            }
+            return formatHex(size);
+        }
+        static bool IsFilledWith(byte[] data, byte value)
+        {
+            return data != null && data.All(b => b == value);
+        }
+        byte[] readSectorPayload(int wireAddr, int retries = 2, float timeout = 15)
+        {
+            for(int attempt = 0; attempt <= retries; attempt++)
+            {
+                byte[] res = readSector(wireAddr, timeout);
+                if(res == null)
+                {
+                    addWarning("BK7252U: read " + formatHex(wireAddr) + " returned no data"
+                        + (attempt < retries ? ", retrying." : ".") + Environment.NewLine);
+                    continue;
+                }
+                if(res.Length < READ_RESPONSE_HEADER_SIZE + SECTOR_SIZE)
+                {
+                    addWarning("Read response for " + formatHex(wireAddr) + " was too short (" + res.Length + " bytes)"
+                        + (attempt < retries ? ", retrying." : ".") + Environment.NewLine);
+                    continue;
+                }
+                byte[] payload = new byte[SECTOR_SIZE];
+                Array.Copy(res, READ_RESPONSE_HEADER_SIZE, payload, 0, SECTOR_SIZE);
+                return payload;
+            }
+            return null;
+        }
+        byte[] readBK7252UProbePage(int logicalAddr, int readAddressBase, string readMode)
+        {
+            int wireAddr = logicalAddr + readAddressBase;
+            addLog("BK7252U: probe " + readMode + " logical " + formatHex(logicalAddr) + " -> wire " + formatHex(wireAddr) + "... ");
+            byte[] payload = readSectorPayload(wireAddr, 0, 2);
+            if(payload == null)
+            {
+                addLog("FAIL" + Environment.NewLine);
+                return null;
+            }
+            addLog("OK, first 16 bytes " + string.Join(" ", payload.Take(16).Select(b => b.ToString("X2"))) + Environment.NewLine);
+            return payload;
+        }
+        int detectBK7252UFlashSizeWithReadBase(int readAddressBase, string readMode)
+        {
+            byte[] basePage = readBK7252UProbePage(0x11000, readAddressBase, readMode);
+            if(basePage == null)
+            {
+                addWarning("BK7252U: " + readMode + " flash size detection failed (could not read base page)." + Environment.NewLine);
+                return 0;
+            }
+            if(IsFilledWith(basePage, 0xFF) || IsFilledWith(basePage, 0x00))
+            {
+                addWarning("BK7252U: " + readMode + " flash size detection is ambiguous because the base page is blank." + Environment.NewLine);
+                return 0;
+            }
+
+            int[] candidateSizes = new int[] { DEFAULT_FLASH_SIZE, BK7252_MAX_FLASH_SIZE };
+            foreach(int candidateSize in candidateSizes)
+            {
+                int logicalAddr = 0x11000 + candidateSize;
+                addLog("BK7252U: checking " + readMode + " wraparound at " + formatHex(logicalAddr) + Environment.NewLine);
+                byte[] probePage = readBK7252UProbePage(logicalAddr, readAddressBase, readMode);
+                if(probePage != null && basePage.SequenceEqual(probePage))
+                {
+                    return candidateSize;
+                }
+            }
+
+            return 0;
+        }
+        int detectBK7252UFlashSizeFromBootloaderMirror()
+        {
+            byte[] lowerMirror = readBK7252UProbePage(0, DEFAULT_FLASH_SIZE, "bootloader mirror 2MB");
+            byte[] upperMirror = readBK7252UProbePage(0, BK7252_MAX_FLASH_SIZE, "bootloader mirror 4MB");
+            if(upperMirror == null || IsFilledWith(upperMirror, 0xFF) || IsFilledWith(upperMirror, 0x00))
+            {
+                addWarning("BK7252U: bootloader mirror detection is ambiguous because the upper mirror is blank or unreadable." + Environment.NewLine);
+                return 0;
+            }
+            if(lowerMirror != null && lowerMirror.SequenceEqual(upperMirror))
+            {
+                return DEFAULT_FLASH_SIZE;
+            }
+            return BK7252_MAX_FLASH_SIZE;
+        }
+        void detectBK7252UFlashSize(int fallbackSize = 0)
+        {
+            if(chipType != BKType.BK7252)
+            {
+                return;
+            }
+            setFlashSize(DEFAULT_FLASH_SIZE);
+            bk7252ReadAddressBase = DEFAULT_FLASH_SIZE;
+            addLog("BK7252U: detecting flash size by wrap-around" + Environment.NewLine);
+
+            int detectedSize = detectBK7252UFlashSizeWithReadBase(0, "raw");
+            if(detectedSize == 0)
+            {
+                addWarning("BK7252U: raw wrap detection failed; trying shifted read window." + Environment.NewLine);
+                detectedSize = detectBK7252UFlashSizeWithReadBase(DEFAULT_FLASH_SIZE, "shifted");
+            }
+            if(detectedSize == 0)
+            {
+                addWarning("BK7252U: shifted wrap detection failed; trying bootloader mirror probe." + Environment.NewLine);
+                detectedSize = detectBK7252UFlashSizeFromBootloaderMirror();
+            }
+            if(detectedSize != 0)
+            {
+                setFlashSize(detectedSize);
+                bk7252ReadAddressBase = detectedSize;
+                addSuccess("BK7252U: detected flash size " + formatFlashSize(detectedSize)
+                    + ", full reads will use wire base " + formatHex(bk7252ReadAddressBase) + Environment.NewLine);
+                return;
+            }
+
+            if(fallbackSize > DEFAULT_FLASH_SIZE && fallbackSize <= BK7252_MAX_FLASH_SIZE)
+            {
+                setFlashSize(fallbackSize);
+                bk7252ReadAddressBase = fallbackSize;
+                addWarning("BK7252U: flash size wrap-around not detected, using requested size "
+                    + formatFlashSize(fallbackSize) + " and wire base " + formatHex(bk7252ReadAddressBase) + "." + Environment.NewLine);
+                return;
+            }
+
+            addWarning("BK7252U: flash size wrap-around not detected, keeping default 2MB and wire base 0x200000." + Environment.NewLine);
+        }
         MemoryStream readChunk(int startSector, int sectors)
         {
             logger.setState("Reading...", Color.Transparent);
@@ -1324,25 +1525,35 @@ namespace BK7231Flasher
             MemoryStream tempResult = new MemoryStream();
 
             int step = 4096;
-           // startSector = 0x11000;
             // 4K page align
             startSector = (int)(startSector & 0xfffff000);
             addLog("Going to start reading at offset " + formatHex(startSector) + "..." + Environment.NewLine);
             for (int i = 0; i < sectors; i++)
             {
-                int addr = startSector + step * i;
-                addLog(formatHex(addr) + "... ");
-                // BK7231T does not allow bootloader read, but we can use a wrap-around hack
-                if(chipType == BKType.BK7231T || chipType == BKType.BK7231U)
+                int logicalAddr = startSector + step * i;
+                int wireAddr = translateReadAddressForChip(logicalAddr);
+                if(wireAddr != logicalAddr)
                 {
-                    addr += FLASH_SIZE;
+                    addLog(formatHex(logicalAddr) + " -> " + formatHex(wireAddr) + "... ");
                 }
                 else
                 {
-                    // wrap-around breaks stuff here, maybe it has 4MB flash?
-                    //addr += 0x400000;// not working for BK7252 as well
+                    addLog(formatHex(logicalAddr) + "... ");
                 }
-                bool bOk = readSectorTo(addr, tempResult);
+                bool bOk;
+                if(chipType == BKType.BK7252)
+                {
+                    byte[] payload = readSectorPayload(wireAddr, BK7252_READ_ATTEMPTS - 1);
+                    bOk = payload != null;
+                    if(bOk)
+                    {
+                        tempResult.Write(payload, 0, payload.Length);
+                    }
+                }
+                else
+                {
+                    bOk = readSectorTo(wireAddr, tempResult);
+                }
                 if (bOk == false)
                 {
                     logger.setState("Reading failed.", Color.Red);
@@ -1363,6 +1574,17 @@ namespace BK7231Flasher
             if (false == checkAbnormal(startSector, sectors, tempResult.ToArray()))
             {
                 return null;
+            }
+            if (chipType == BKType.BK7252)
+            {
+                if (false == checkBK7252ReadCRC(startSector, sectors, tempResult.ToArray()))
+                {
+                    return null;
+                }
+                logger.setState("Reading success!", Color.Green);
+                addSuccess("All read!" + Environment.NewLine);
+                addLog("Loaded total " + formatHex(sectors* step) + " bytes " + Environment.NewLine);
+                return tempResult;
             }
             if (false==checkCRC(startSector, sectors, tempResult.ToArray()))
             {
@@ -1425,12 +1647,73 @@ namespace BK7231Flasher
             addSuccess("CRC matches " + formatHex(bk_crc) + "!" + Environment.NewLine);
             return true;
         }
+        bool checkBK7252ReadCRC(int startSector, int total, byte[] array)
+        {
+            logger.setState("Doing CRC verification...", Color.Transparent);
+            int logicalEnd = startSector + total * SECTOR_SIZE;
+            int mappedStart = translateReadAddressForChip(startSector);
+            int mappedEnd = translateReadAddressForChip(logicalEnd);
+            uint our_crc = CRC.crc32_ver2(0xffffffff, array);
+
+            addLog("BK7252U: starting mapped CRC check for " + total + " sectors, logical "
+                + formatHex(startSector) + ".." + formatHex(logicalEnd)
+                + " -> wire " + formatHex(mappedStart) + ".." + formatHex(mappedEnd) + Environment.NewLine);
+
+            uint mapped_crc = calcCRC(mappedStart, mappedEnd);
+            if (mapped_crc == our_crc)
+            {
+                addSuccess("BK7252U: mapped CRC matches " + formatHex(mapped_crc) + "!" + Environment.NewLine);
+                return true;
+            }
+
+            addWarning("BK7252U: mapped CRC " + formatHex(mapped_crc) + " did not match our CRC "
+                + formatHex(our_crc) + "; trying logical CRC range." + Environment.NewLine);
+
+            uint logical_crc = calcCRC(startSector, logicalEnd);
+            if (logical_crc == our_crc)
+            {
+                addSuccess("BK7252U: logical CRC matches " + formatHex(logical_crc) + "!" + Environment.NewLine);
+                return true;
+            }
+
+            logger.setState("CRC mismatch!", Color.Red);
+            addError("BK7252U CRC mismatch!" + Environment.NewLine);
+            addError("Mapped CRC " + formatHex(mapped_crc) + ", logical CRC " + formatHex(logical_crc)
+                + ", our CRC " + formatHex(our_crc) + Environment.NewLine);
+            if (bIgnoreCRCErr)
+            {
+                addWarning("IgnoreCRCErr checked, bin will be saved even if there is a crc mismatch" + Environment.NewLine);
+                return true;
+            }
+            return false;
+        }
+        bool checkBK7252USessionAliveBeforeWrite()
+        {
+            int logicalAddr = BOOTLOADER_SIZE;
+            int wireAddr = translateReadAddressForChip(logicalAddr);
+            addLog("BK7252U: checking existing flasher session before write at logical "
+                + formatHex(logicalAddr) + " -> wire " + formatHex(wireAddr) + "... ");
+            byte[] payload = readSectorPayload(wireAddr, 1, 2);
+            if(payload == null)
+            {
+                addError("failed." + Environment.NewLine);
+                addError("BK7252U: flasher session is not responding after backup; aborting before erase/write." + Environment.NewLine);
+                return false;
+            }
+            addSuccess("OK." + Environment.NewLine);
+            return true;
+        }
 
         static bool FileNameHasQioMarker(string sourceFileName)
         {
             string fileName = Path.GetFileName(sourceFileName);
             return !string.IsNullOrEmpty(fileName) &&
                 fileName.IndexOf("_QIO_", StringComparison.Ordinal) >= 0;
+        }
+
+        static bool IsBK7252UFullBackupLength(int length)
+        {
+            return length == DEFAULT_FLASH_SIZE || length == BK7252_MAX_FLASH_SIZE;
         }
 
         bool doReadAndWriteInternal(int startSector, int sectors, string sourceFileName, WriteMode rwMode)
@@ -1452,17 +1735,18 @@ namespace BK7231Flasher
             {
                 return false;
             }
-            // hack
-            int realStart = 0;
-            int realLen = TOTAL_SECTORS;
             if(chipType == BKType.BK7252)
             {
-                realStart = 0x11000;
-                realLen = TOTAL_SECTORS - (0x11000 / 0x1000);
+                detectBK7252UFlashSize();
             }
+            int realStart = 0;
+            int realLen = TOTAL_SECTORS;
             if (rwMode == WriteMode.ReadAndWrite)
             {
-                //ms = readChunk(startSector, sectors);
+                if(chipType == BKType.BK7252)
+                {
+                    addLog("BK7252U: full QIO backup before write logical 0x000000.." + formatHex(FLASH_SIZE - 1) + Environment.NewLine);
+                }
                 ms = readChunk(realStart, realLen);
                 if (ms == null)
                 {
@@ -1491,7 +1775,9 @@ namespace BK7231Flasher
                 }
                 addSuccess("Loaded " + data.Length + " bytes from " + sourceFileName + "..." + Environment.NewLine);
                 bool bSkipBootloader = false;
-                if (!bCustomWriteMode && FileNameHasQioMarker(sourceFileName))
+                bool bHasQioMarker = FileNameHasQioMarker(sourceFileName);
+                if (!bCustomWriteMode && (bHasQioMarker
+                    || (chipType == BKType.BK7252 && IsBK7252UFullBackupLength(data.Length))))
                 {
                     if(bOverwriteBootloader == false && (chipType == BKType.BK7231N || chipType == BKType.BK7231M))
                     {
@@ -1503,9 +1789,7 @@ namespace BK7231Flasher
                         startSector = BK7231Flasher.BOOTLOADER_SIZE;
                         bSkipBootloader = true;
                     }
-                    if (
-                        bOverwriteBootloader == false &&
-                        this.chipType == BKType.BK7252)
+                    if (this.chipType == BKType.BK7252)
                     {
                         startSector = BK7231Flasher.BOOTLOADER_SIZE;
                         bSkipBootloader = true;
@@ -1513,7 +1797,7 @@ namespace BK7231Flasher
                 }
                 if (bSkipBootloader && startSector == BK7231Flasher.BOOTLOADER_SIZE)
                 {
-                    // very hacky, but skip bootloader
+                    // Skip the bootloader in full-image/QIO writes for bootloader-protected chips.
                     if (data.Length <= startSector)
                     {
                         addError("Cannot skip QIO bootloader area because the file is only "
@@ -1526,15 +1810,30 @@ namespace BK7231Flasher
                     byte[] newData = new byte[length];
                     Array.Copy(data, startSector, newData, 0, length);
                     data = newData;
-                    addWarning("Using hack to write QIO - just skip bootloader..." + Environment.NewLine);
+                    addWarning("Writing full image from " + formatHex(startSector) + " and skipping protected bootloader..." + Environment.NewLine);
                     addWarning("... so bootloader will not be overwritten!" + Environment.NewLine);
                 }
             }
-            addLog("Preparing to write data file to chip - resetting bus and baud..." + Environment.NewLine);
-            // it must be redone
-            if (doGetBusAndSetBaudRate() == false)
+            if(chipType == BKType.BK7252 && rwMode == WriteMode.ReadAndWrite)
             {
-                return false;
+                addLog("BK7252U: backup complete, keeping current flasher session for write phase." + Environment.NewLine);
+                if(checkBK7252USessionAliveBeforeWrite() == false)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                addLog("Preparing to write data file to chip - resetting bus and baud..." + Environment.NewLine);
+                // it must be redone
+                if (doGetBusAndSetBaudRate() == false)
+                {
+                    return false;
+                }
+                if(chipType == BKType.BK7252)
+                {
+                    detectBK7252UFlashSize();
+                }
             }
             if (chipType != BKType.BK7231T && chipType != BKType.BK7231U && chipType != BKType.BK7252)
             {
@@ -1589,12 +1888,20 @@ namespace BK7231Flasher
             {
                 return;
             }
+            if(chipType == BKType.BK7252)
+            {
+                int requestedFullReadSize = fullRead ? BK7252_MAX_FLASH_SIZE : 0;
+                detectBK7252UFlashSize(requestedFullReadSize);
+                if(fullRead)
+                {
+                    startSector = 0;
+                    addLog("BK7252U: full QIO read logical 0x000000.." + formatHex(FLASH_SIZE - 1) + Environment.NewLine);
+                }
+            }
             if(fullRead)
-                sectors = TOTAL_SECTORS; 
+                sectors = TOTAL_SECTORS;
             ms = readChunk(startSector, sectors);
-            // reset flash size
-            FLASH_SIZE = 0x200000;
-            TOTAL_SECTORS = FLASH_SIZE / SECTOR_SIZE;
+            resetLegacyFlashSize();
             if (ms == null)
             {
                 return;
@@ -1790,11 +2097,11 @@ namespace BK7231Flasher
             //addLog("Failed!" + Environment.NewLine);
             return false;
         }
-        byte[] readSector(int addr)
+        byte[] readSector(int addr, float timeout = 15)
         {
             //addLog("Starting read sector for " + addr + Environment.NewLine);
             byte[] txbuf = BuildCmd_FlashRead4K(addr);
-            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashRead4K(), 15);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashRead4K(), timeout);
             if (rxbuf != null)
             {
                 //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
@@ -1846,7 +2153,7 @@ namespace BK7231Flasher
                 return true;
             if (addr >= 0 && addr < BOOTLOADER_SIZE)
             {
-                addError("ERROR: T bootloader overwriting attempt detected, interrupting.");
+                addError("ERROR: protected bootloader overwriting attempt detected, interrupting.");
                 return false;
             }
             return true;

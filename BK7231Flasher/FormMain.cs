@@ -861,10 +861,10 @@ namespace BK7231Flasher
             }
             else if(curType == BKType.BK7252)
             {
-                startSector = 0x11000;
-                sectors = getBackupSectorCountForCurrentPlatform() - (startSector/ BK7231Flasher.SECTOR_SIZE);
+                startSector = 0x0;
+                sectors = getBackupSectorCountForCurrentPlatform();
                 addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
-                addLog("BK7252 mode - read offset is 0x11000, we can't access bootloader." + Environment.NewLine, Color.DarkOrange);
+                addLog("BK7252 mode - full QIO backup will use BK7252U mapped reads." + Environment.NewLine, Color.DarkOrange);
                 addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
             }
             else
@@ -1048,6 +1048,14 @@ namespace BK7231Flasher
                 case BKType.BK7252N:
                 case BKType.BK7258:
                     if(s.StartsWith($"Open{curType}_QIO_") || s.StartsWith($"Open{curType}_UA_"))
+                    {
+                        return true;
+                    }
+                    break;
+                case BKType.BekenSPI:
+                    if(s.StartsWith("OpenBK", StringComparison.OrdinalIgnoreCase)
+                        && s.IndexOf("_QIO_", StringComparison.OrdinalIgnoreCase) >= 0
+                        && s.EndsWith(".bin", StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
@@ -1551,8 +1559,7 @@ namespace BK7231Flasher
                 "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
-                "Full chip erase: BL602, BL702, BL616 / BL618, ECR6600, TR6260, LN882H, LN8825B, XR806, XR809, XR872, RTL8710B, RTL8720DN, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI / Generic SPI, ESP8266, ESP32 family." + _nl + _nl +
-                "Erase not implemented: W800, W600." + _nl + _nl +
+                "Full chip erase: W600, W800, BL602, BL702, BL616 / BL618, ECR6600, TR6260, LN882H, LN8825B, XR806, XR809, XR872, RTL8710B, RTL8720DN, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI / Generic SPI, ESP8266, ESP32 family." + _nl + _nl +
                 "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
                 "Continue?";
             var res = MessageBox.Show(_msg, "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
