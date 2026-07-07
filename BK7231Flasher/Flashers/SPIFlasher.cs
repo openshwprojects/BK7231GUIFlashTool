@@ -8,6 +8,7 @@ namespace BK7231Flasher
     public class SPIFlasher : BaseFlasher
     {
         protected CH341DEV hd;
+        private bool ch341Opened;
 
 
 
@@ -245,7 +246,7 @@ namespace BK7231Flasher
                     {
                         addLogLine("Erase verfication failed at " + addr);
                         logger.setState("Erase fail", Color.Red);
-                        return true;
+                        return false;
                     }
                     addLogLine("Error at " + addr + ", retry "+ errors);
                 }
@@ -257,16 +258,13 @@ namespace BK7231Flasher
         public bool WriteFlash(uint ofs, int len, byte[] buffer)
         {
             const int pageSize = 256;
-            byte[] cmd = new byte[4 + pageSize];
             addLogLine("Starting flash write, ofs 0x" + ofs.ToString("X") + ", len 0x" + len.ToString("X"));
 
             logger.setProgress(0, len);
             logger.setState("Writing", Color.White);
             int loops = 0;
-            for (int offset = 0; offset < len; offset += pageSize)
+            for (int offset = 0; offset < len;)
             {
-                int writeSize = Math.Min(pageSize, len - offset);
-
                 logger.setProgress(offset, len);
                 if (!WriteEnable())
                 {
@@ -274,6 +272,9 @@ namespace BK7231Flasher
                 }
 
                 uint addr = ofs + (uint)offset;
+                int pageRemaining = pageSize - (int)(addr % pageSize);
+                int writeSize = Math.Min(pageRemaining, len - offset);
+                byte[] cmd = new byte[4 + writeSize];
                 cmd[0] = 0x02; // Page Program
                 cmd[1] = (byte)((addr >> 16) & 0xFF);
                 cmd[2] = (byte)((addr >> 8) & 0xFF);
@@ -303,6 +304,7 @@ namespace BK7231Flasher
                     }
                 }
                 loops++;
+                offset += writeSize;
 
             }
             logger.setState("Writing done", Color.DarkGreen);
@@ -368,25 +370,35 @@ namespace BK7231Flasher
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
 
+            closePort();
             hd = new CH341DEV(0);
             if (hd.Ch341Open() == -1)
             {
                 addError("CH341 error " + hd.getLastError() + Environment.NewLine);
-                return true;
+                hd = null;
+                return false;
             }
-            hd.Ch341SetI2CSpeed(3);
+            ch341Opened = true;
+            if (hd.Ch341SetI2CSpeed(3) < 0)
+            {
+                addError("CH341 setup error " + hd.getLastError() + Environment.NewLine);
+                closePort();
+                return false;
+            }
             addLog("CH341 ready!" + Environment.NewLine);
 
             if (this.Sync() == false)
             {
-                // failed
-                return true;
+                addErrorLine("CH341 sync failed.");
+                closePort();
+                return false;
             }
             if (this.getAndPrintInfo())
             {
                 addErrorLine("Initial get info failed.");
                 addErrorLine("This may happen if you don't reset between flash operations");
                 addErrorLine("So, make sure that BOOT is connected, do reset (or power off/on) and try again");
+                closePort();
                 return false;
             }
             return true;
@@ -463,7 +475,8 @@ namespace BK7231Flasher
             }
             else
             {
-                doReadInternal((uint)startSector * 4096, sectors * 4096);
+                // In CH341 SPI modes this inherited parameter is a byte offset.
+                doReadInternal((uint)startSector, sectors * 4096);
             }
             ChipReset();
         }
@@ -574,7 +587,18 @@ namespace BK7231Flasher
         }
         public override void closePort()
         {
-
+            if (hd != null)
+            {
+                if (ch341Opened)
+                    hd.Ch341Close();
+                hd = null;
+                ch341Opened = false;
+            }
+        }
+        public override void Dispose()
+        {
+            closePort();
+            base.Dispose();
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -601,12 +625,32 @@ namespace BK7231Flasher
             }
             addLogLine("Reading " + sourceFileName + "...");
             byte[] x = File.ReadAllBytes(sourceFileName);
-            if(EraseFlash(0, x.Length)==false)
+            // In CH341 SPI modes this inherited parameter is a byte offset.
+            uint writeOffset = (uint)startSector;
+            int eraseLen = x.Length;
+            if(bCustomWriteMode && sectors > 0)
+            {
+                int requestedLen = sectors * BK7231Flasher.SECTOR_SIZE;
+                if(x.Length > requestedLen)
+                {
+                    addErrorLine("Source file length 0x" + x.Length.ToString("X")
+                        + " exceeds requested custom write length 0x" + requestedLen.ToString("X") + ".");
+                    return;
+                }
+                eraseLen = requestedLen;
+            }
+            addLogLine("Starting SPI write at offset 0x" + writeOffset.ToString("X")
+                + ", erase length 0x" + eraseLen.ToString("X") + ".");
+            if(EraseFlash(writeOffset, eraseLen)==false)
             {
 
                 return;
             }
-            WriteFlash(0, x.Length,x);
+            if(WriteFlash(writeOffset, x.Length,x) == false)
+            {
+                addErrorLine("SPI write failed.");
+                return;
+            }
             ChipReset();
         }
         bool saveReadResult(string fileName)
