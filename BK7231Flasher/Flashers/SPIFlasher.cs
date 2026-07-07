@@ -8,6 +8,7 @@ namespace BK7231Flasher
     public class SPIFlasher : BaseFlasher
     {
         protected CH341DEV hd;
+        private bool ch341Opened;
 
 
 
@@ -29,6 +30,13 @@ namespace BK7231Flasher
             int size = 1 << jedec[3]; // common formula: 2^N bytes
             addLogLine($"Detected flash size: {size / 1024} KB");
             return size;
+        }
+
+        int GetFlashMIDFromJEDEC(byte[] jedec)
+        {
+            if (jedec == null || jedec.Length < 4)
+                return 0;
+            return jedec[1] | (jedec[2] << 8) | (jedec[3] << 16);
         }
         
         public bool CheckFlashEmpty(uint address, int size)
@@ -108,7 +116,12 @@ namespace BK7231Flasher
         }
         public byte ReadStatus()
         {
-            byte[] cmd = new byte[2] { 0x05, 0x00 }; // Read Status Register
+            return ReadStatusRegister(0x05);
+        }
+
+        public byte ReadStatusRegister(byte opcode)
+        {
+            byte[] cmd = new byte[2] { opcode, 0x00 }; // Read Status Register
             byte[] resp = hd.Ch341SPI4Stream(cmd);
             return resp != null ? resp[1] : (byte)0xFF;
         }
@@ -133,6 +146,30 @@ namespace BK7231Flasher
             byte[] cmd = new byte[1] { 0x06 }; // Write Enable
             hd.Ch341SPI4Stream(cmd);
             return (ReadStatus() & 0x02) != 0; // WEL=1
+        }
+
+        public bool WriteStatusRegister(byte opcode, byte value)
+        {
+            // Enable writes
+            if (!WriteEnable())
+                return false;
+
+            byte[] cmd = new byte[2] { opcode, value };
+            hd.Ch341SPI4Stream(cmd);
+
+            return WaitWriteComplete(5000);
+        }
+
+        public bool WriteStatusRegisters(byte status1, byte status2)
+        {
+            // Enable writes
+            if (!WriteEnable())
+                return false;
+
+            byte[] cmd = new byte[3] { 0x01, status1, status2 };
+            hd.Ch341SPI4Stream(cmd);
+
+            return WaitWriteComplete(5000);
         }
 
         public bool ChipErase()
@@ -209,7 +246,7 @@ namespace BK7231Flasher
                     {
                         addLogLine("Erase verfication failed at " + addr);
                         logger.setState("Erase fail", Color.Red);
-                        return true;
+                        return false;
                     }
                     addLogLine("Error at " + addr + ", retry "+ errors);
                 }
@@ -221,16 +258,13 @@ namespace BK7231Flasher
         public bool WriteFlash(uint ofs, int len, byte[] buffer)
         {
             const int pageSize = 256;
-            byte[] cmd = new byte[4 + pageSize];
             addLogLine("Starting flash write, ofs 0x" + ofs.ToString("X") + ", len 0x" + len.ToString("X"));
 
             logger.setProgress(0, len);
             logger.setState("Writing", Color.White);
             int loops = 0;
-            for (int offset = 0; offset < len; offset += pageSize)
+            for (int offset = 0; offset < len;)
             {
-                int writeSize = Math.Min(pageSize, len - offset);
-
                 logger.setProgress(offset, len);
                 if (!WriteEnable())
                 {
@@ -238,6 +272,9 @@ namespace BK7231Flasher
                 }
 
                 uint addr = ofs + (uint)offset;
+                int pageRemaining = pageSize - (int)(addr % pageSize);
+                int writeSize = Math.Min(pageRemaining, len - offset);
+                byte[] cmd = new byte[4 + writeSize];
                 cmd[0] = 0x02; // Page Program
                 cmd[1] = (byte)((addr >> 16) & 0xFF);
                 cmd[2] = (byte)((addr >> 8) & 0xFF);
@@ -267,6 +304,7 @@ namespace BK7231Flasher
                     }
                 }
                 loops++;
+                offset += writeSize;
 
             }
             logger.setState("Writing done", Color.DarkGreen);
@@ -332,25 +370,36 @@ namespace BK7231Flasher
             addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
             addLog("Flasher mode: " + chipType + Environment.NewLine);
 
+            closePort();
             hd = new CH341DEV(0);
             if (hd.Ch341Open() == -1)
             {
                 addError("CH341 error " + hd.getLastError() + Environment.NewLine);
-                return true;
+                hd = null;
+                return false;
             }
-            hd.Ch341SetI2CSpeed(3);
+            ch341Opened = true;
+            addLog(CH341DEV.GetDllDiagnostics() + Environment.NewLine);
+            if (hd.Ch341SetI2CSpeed(3) < 0)
+            {
+                addError("CH341 setup error " + hd.getLastError() + Environment.NewLine);
+                closePort();
+                return false;
+            }
             addLog("CH341 ready!" + Environment.NewLine);
 
             if (this.Sync() == false)
             {
-                // failed
-                return true;
+                addErrorLine("CH341 sync failed.");
+                closePort();
+                return false;
             }
             if (this.getAndPrintInfo())
             {
                 addErrorLine("Initial get info failed.");
                 addErrorLine("This may happen if you don't reset between flash operations");
                 addErrorLine("So, make sure that BOOT is connected, do reset (or power off/on) and try again");
+                closePort();
                 return false;
             }
             return true;
@@ -369,6 +418,21 @@ namespace BK7231Flasher
             {
                 addErrorLine("Failed to extract flash size!");
                 return true;
+            }
+            int deviceMID = GetFlashMIDFromJEDEC(jedec);
+            SPIFlashInfo flashInfo = SPIFlashInfoList.Singleton.findFlashForMID(deviceMID);
+            if(flashInfo != null)
+            {
+                addLogLine("Flash information: " + flashInfo.ToString());
+                if(flashInfo.szMem != flashSize)
+                {
+                    addWarningLine("JEDEC flash size differs from flash list size: JEDEC="
+                        + flashSize.ToString("X2") + ", list=" + flashInfo.szMem.ToString("X2"));
+                }
+            }
+            else
+            {
+                addWarningLine("No flash definition found for MID " + deviceMID.ToString("X8") + ".");
             }
           
             return false;
@@ -412,7 +476,8 @@ namespace BK7231Flasher
             }
             else
             {
-                doReadInternal((uint)startSector * 4096, sectors * 4096);
+                // In CH341 SPI modes this inherited parameter is a byte offset.
+                doReadInternal((uint)startSector, sectors * 4096);
             }
             ChipReset();
         }
@@ -473,26 +538,68 @@ namespace BK7231Flasher
         }
         public bool UnprotectFlash()
         {
-            // Enable writes
-            if (!WriteEnable())
+            // Read out status registers before changing protection bits.
+            byte sr1Before = ReadStatusRegister(0x05);
+            byte sr2Before = ReadStatusRegister(0x35);
+            byte sr3Before = ReadStatusRegister(0x15);
+            addLogLine("Status before unprotect: SR1=0x" + sr1Before.ToString("X2")
+                + ", SR2(35h)=0x" + sr2Before.ToString("X2")
+                + ", SR3(15h)=0x" + sr3Before.ToString("X2"));
+
+            // Write 0x00 to Status Register 1 (clear BP bits and common TB/SEC/SRP bits)
+            if (!WriteStatusRegister(0x01, 0x00))
                 return false;
 
-            // Write 0x00 to Status Register (clear BP bits)
-            byte[] cmd = new byte[2] { 0x01, 0x00 };
-            hd.Ch341SPI4Stream(cmd);
+            byte sr1After = ReadStatusRegister(0x05);
+            byte sr2After = ReadStatusRegister(0x35);
 
-            if (!WaitWriteComplete(5000))
-                return false;
+            if ((sr2After & 0x40) != 0)
+            {
+                if (sr2After == 0xFF)
+                {
+                    addWarningLine("SR2 read as 0xFF; leaving SR2 bit 6 untouched because the SR2 opcode may be unsupported.");
+                }
+                else
+                {
+                    // Clear SR2 CMP/TB only, preserving other bits such as QE.
+                    byte newSr2 = (byte)(sr2After & ~0x40);
+                    addLogLine("SR2 bit 6 (CMP/TB) is set; clearing it while preserving other SR2 bits.");
+                    if (!WriteStatusRegister(0x31, newSr2))
+                        return false;
 
-            // Verify unprotected: check status register has BP=0
-            byte status = ReadStatus();
-            addLogLine("Unprotect done, SR1=0x" + status.ToString("X2"));
+                    sr2After = ReadStatusRegister(0x35);
+                    if ((sr2After & 0x40) != 0)
+                    {
+                        addWarningLine("SR2 bit 6 remained set after WRSR2(31h); trying two-byte WRSR(01h SR1 SR2).");
+                        if (!WriteStatusRegisters(sr1After, newSr2))
+                            return false;
+                        sr2After = ReadStatusRegister(0x35);
+                    }
+                }
+            }
 
-            return (status & 0x1C) == 0; // BP0..BP3 = 0
+            // Verify unprotected: check status register has BP=0 and SR2 CMP/TB is clear.
+            sr1After = ReadStatusRegister(0x05);
+            sr2After = ReadStatusRegister(0x35);
+            addLogLine("Unprotect done, SR1=0x" + sr1After.ToString("X2")
+                + ", SR2(35h)=0x" + sr2After.ToString("X2"));
+
+            return (sr1After & 0x1C) == 0 && (sr2After == 0xFF || (sr2After & 0x40) == 0); // BP0..BP3 and SR2 CMP/TB
         }
         public override void closePort()
         {
-
+            if (hd != null)
+            {
+                if (ch341Opened)
+                    hd.Ch341Close();
+                hd = null;
+                ch341Opened = false;
+            }
+        }
+        public override void Dispose()
+        {
+            closePort();
+            base.Dispose();
         }
         public override void doTestReadWrite(int startSector = 0x000, int sectors = 10)
         {
@@ -519,12 +626,32 @@ namespace BK7231Flasher
             }
             addLogLine("Reading " + sourceFileName + "...");
             byte[] x = File.ReadAllBytes(sourceFileName);
-            if(EraseFlash(0, x.Length)==false)
+            // In CH341 SPI modes this inherited parameter is a byte offset.
+            uint writeOffset = (uint)startSector;
+            int eraseLen = x.Length;
+            if(bCustomWriteMode && sectors > 0)
+            {
+                int requestedLen = sectors * BK7231Flasher.SECTOR_SIZE;
+                if(x.Length > requestedLen)
+                {
+                    addErrorLine("Source file length 0x" + x.Length.ToString("X")
+                        + " exceeds requested custom write length 0x" + requestedLen.ToString("X") + ".");
+                    return;
+                }
+                eraseLen = requestedLen;
+            }
+            addLogLine("Starting SPI write at offset 0x" + writeOffset.ToString("X")
+                + ", erase length 0x" + eraseLen.ToString("X") + ".");
+            if(EraseFlash(writeOffset, eraseLen)==false)
             {
 
                 return;
             }
-            WriteFlash(0, x.Length,x);
+            if(WriteFlash(writeOffset, x.Length,x) == false)
+            {
+                addErrorLine("SPI write failed.");
+                return;
+            }
             ChipReset();
         }
         bool saveReadResult(string fileName)

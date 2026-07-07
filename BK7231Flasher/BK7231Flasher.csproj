@@ -82,6 +82,7 @@
     <Compile Include="Helpers\BitUtils.cs" />
     <Compile Include="Flashers\BK7231Flasher.cs" />
     <Compile Include="Misc\BKFlashList.cs" />
+    <Compile Include="Misc\SPIFlashInfoList.cs" />
     <Compile Include="Flashers\RTLZ2Flasher.cs" />
     <Compile Include="Flashers\BL602Flasher.cs" />
     <Compile Include="Flashers\TR6260Flasher.cs" />

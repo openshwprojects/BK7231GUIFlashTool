@@ -91,7 +91,7 @@ Alternatively, you can use prebuilt release binary.
 4. Click "Download latest from web" to get firmware binary
 5. Click "Do backup and flash new"
 6. Reset/repower Beken
-7. Tool will do both read and flash in one row. 
+7. Tool will do both read and flash in one go.
 8. Done!
 
 No command line and no strange arguments required.
