@@ -71,6 +71,7 @@ namespace BK7231Flasher
             this.buttonVerify = new System.Windows.Forms.Button();
             this.buttonBlankCheck = new System.Windows.Forms.Button();
             this.chkIgnoreCRCErr = new System.Windows.Forms.CheckBox();
+            this.chkUseCompression = new System.Windows.Forms.CheckBox();
             this.buttonCustomOperation = new System.Windows.Forms.Button();
             this.checkBoxSkipKeyCheck = new System.Windows.Forms.CheckBox();
             this.checkBoxOverwriteBootloader = new System.Windows.Forms.CheckBox();
@@ -355,6 +356,7 @@ namespace BK7231Flasher
             this.tabPage1.Controls.Add(this.buttonVerify);
             this.tabPage1.Controls.Add(this.buttonBlankCheck);
             this.tabPage1.Controls.Add(this.chkIgnoreCRCErr);
+            this.tabPage1.Controls.Add(this.chkUseCompression);
             this.tabPage1.Controls.Add(this.buttonCustomOperation);
             this.tabPage1.Controls.Add(this.checkBoxSkipKeyCheck);
             this.tabPage1.Controls.Add(this.checkBoxOverwriteBootloader);
@@ -686,6 +688,17 @@ namespace BK7231Flasher
             this.chkIgnoreCRCErr.Text = "Ignore CRC Error";
             this.chkIgnoreCRCErr.UseVisualStyleBackColor = true;
             this.chkIgnoreCRCErr.CheckedChanged += new System.EventHandler(this.chkIgnoreCRCErr_CheckedChanged);
+            // 
+            // chkUseCompression
+            // 
+            this.chkUseCompression.AutoSize = true;
+            this.chkUseCompression.Location = new System.Drawing.Point(658, 22);
+            this.chkUseCompression.Name = "chkUseCompression";
+            this.chkUseCompression.Size = new System.Drawing.Size(121, 17);
+            this.chkUseCompression.TabIndex = 41;
+            this.chkUseCompression.Text = "Compress if possible";
+            this.chkUseCompression.UseVisualStyleBackColor = true;
+            this.chkUseCompression.CheckedChanged += new System.EventHandler(this.chkUseCompression_CheckedChanged);
             // 
             // buttonCustomOperation
             // 
@@ -2438,6 +2451,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.Button buttonBlankCheck;
         private System.Windows.Forms.Button buttonVerify;
         private System.Windows.Forms.Button buttonDetect;
+        private System.Windows.Forms.CheckBox chkUseCompression;
         private System.Windows.Forms.TabPage tabDecryption;
         private System.Windows.Forms.Button btnSelectFirmware;
         private System.Windows.Forms.Label lblFirmware;

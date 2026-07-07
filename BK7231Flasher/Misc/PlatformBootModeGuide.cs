@@ -29,6 +29,7 @@ namespace BK7231Flasher
             { BKType.ESP32C61, "" },
             { BKType.ESP32S3, "" },
             { BKType.ESP8266, "" },
+            { BKType.GD32VW553, GetGd32vw553Instructions() },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
             { BKType.TR6260, "" },
@@ -69,6 +70,19 @@ namespace BK7231Flasher
                 "- PA13 / GPIO13 (RXD) -> 3.3 V" + System.Environment.NewLine +
                 "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
                 "With PA00 and PA13 pulledd high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
+        }
+
+        static string GetGd32vw553Instructions()
+        {
+            return "Connect the GD32VW553 USART0 bootloader port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> GD32VW553 USART0 TX (PB15)" + System.Environment.NewLine +
+                "- Adapter TX -> GD32VW553 USART0 RX (PA8)" + System.Environment.NewLine +
+                "- Adapter GND -> board GND" + System.Environment.NewLine +
+                "- PC8 / BOOT0 -> 3.3 V" + System.Environment.NewLine +
+                "- PB1 / BOOT1 -> GND" + System.Environment.NewLine +
+                "UART1 (PA4/PA5) and UART2 (PA6/PA7) are also ROM-bootloader UART options if those are the pins routed by the board." + System.Environment.NewLine +
+                "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
+                "Start the read first. With BOOT0 held high and BOOT1 held low, reset the chip with NRST or power-cycle the 3.3 V supply.";
         }
 
         static string GetRda5981Instructions()

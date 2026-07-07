@@ -69,11 +69,10 @@ namespace BK7231Flasher
         }
         public override bool Sync()
         {
-            int loop = 0;
-            while (true)
+            const int maxAttempts = 10;
+            for (int loop = 0; loop < maxAttempts && !isCancelled; loop++)
             {
                 addLogLine("CH341 Beken sync attempt " + loop);
-                loop++;
                 bool bResetOk = ChipReset();
                 if(bResetOk)
                 {
@@ -89,6 +88,14 @@ namespace BK7231Flasher
                     // already printed errior in ChipReset
                 }
                 Thread.Sleep(1000);
+            }
+            if(isCancelled)
+            {
+                addLogLine("CH341 Beken sync cancelled.");
+            }
+            else
+            {
+                addErrorLine("CH341 Beken sync failed.");
             }
             return false;
         }

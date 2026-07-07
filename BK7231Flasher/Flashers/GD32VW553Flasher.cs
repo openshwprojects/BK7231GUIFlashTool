@@ -8,16 +8,20 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class GD32VW553Flasher : ECRBaseFlasher
+	public class GD32VW553Flasher : ECRBaseFlasher, IRomReadFlasher
 	{
 		static readonly byte GD32_GET = 0x00;
 		static readonly byte GD32_PID = 0x06;
-		static readonly byte GD32_READ = 0x11;
+		//static readonly byte GD32_READ = 0x11;
 		static readonly byte GD32_JUMP = 0x21;
 		static readonly byte GD32_PROGRAM = 0x31;
-		static readonly byte GD32_ERASE = 0x44;
+		//static readonly byte GD32_ERASE = 0x44;
 		static readonly byte ACK = 0x79;
 		static readonly byte NACK = 0x1F;
+		const int Gd32RomBase = 0x0BF40000;
+		const int Gd32RomSize = 0x00040000;
+		// The current GD32 stub exports a 63-byte eFuse payload via cmd 0x99.
+		const int Gd32EfusePayloadSize = 0x3F;
 
 		private static byte[] AllowedCommands;
 
@@ -182,44 +186,44 @@ namespace BK7231Flasher
 			return CheckAck(GD32_JUMP, "address");
 		}
 
-		private byte[] SendReadCommand(int addr, byte len)
-		{
-			if(!AllowedCommands.Contains(GD32_READ))
-			{
-				addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
-				return null;
-			}
-
-			if(!SendCommand(GD32_READ)) return null;
-
-			var address = CreateAddressPacket(addr);
-
-			serial.Write(address, 0, address.Length);
-
-			if(!CheckAck(GD32_READ, "address")) return null;
-
-			serial.Write(new[] { len, (byte)~len }, 0, 2);
-
-			if(!CheckAck(GD32_READ, "length")) return null;
-
-			byte[] data = new byte[len];
-
-			int tries = 1000;
-			while(serial.BytesToRead < len && tries-- > 0)
-				Thread.Sleep(1);
-
-			serial.Read(data, 0, len);
-
-			return data;
-		}
+		//private byte[] SendReadCommand(int addr, byte len)
+		//{
+		//	if(!AllowedCommands.Contains(GD32_READ))
+		//	{
+		//		addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
+		//		return null;
+		//	}
+		//
+		//	if(!SendCommand(GD32_READ)) return null;
+		//
+		//	var address = CreateAddressPacket(addr);
+		//
+		//	serial.Write(address, 0, address.Length);
+		//
+		//	if(!CheckAck(GD32_READ, "address")) return null;
+		//
+		//	serial.Write(new[] { len, (byte)~len }, 0, 2);
+		//
+		//	if(!CheckAck(GD32_READ, "length")) return null;
+		//
+		//	byte[] data = new byte[len];
+		//
+		//	int tries = 1000;
+		//	while(serial.BytesToRead < len && tries-- > 0)
+		//		Thread.Sleep(1);
+		//
+		//	serial.Read(data, 0, len);
+		//
+		//	return data;
+		//}
 
 		protected override bool Sync()
 		{
 			var timeout = serial.ReadTimeout;
 			serial.ReadTimeout = 100;
 			serial.Parity = Parity.Even;
-			var sync = new byte[] { 0x7F };
-			serial.Write(sync, 0, 1);
+			serial.BaudRate = baudrate > 921600 ? 921600 : baudrate;
+			serial.Write(new byte[] { 0x7F }, 0, 1);
 			var resp = 0;
 			try
 			{
@@ -242,6 +246,7 @@ namespace BK7231Flasher
 				addLogLine($"Flash size is {flashSizeMB}MB");
 				return UploadStub();
 			}
+			serial.BaudRate = 115200;
 			serial.Parity = Parity.None;
 			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
 			if(stubsync != null)
@@ -286,6 +291,7 @@ namespace BK7231Flasher
 				return false;
 			}
 
+			serial.BaudRate = 115200;
 			serial.Parity = Parity.None;
 			Thread.Sleep(10);
 			serial.Write(stub, 0, 1); // dummy write to let stub select uart
@@ -360,6 +366,89 @@ namespace BK7231Flasher
 					}
 				}
 			}
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(chipType != BKType.GD32VW553 || target.Platform != BKType.GD32VW553)
+				{
+					addError("GD32VW553 ROM reader target is not supported by this flasher." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				if(Sync() == false)
+				{
+					logger.setState("Sync failed!", Color.Red);
+					return null;
+				}
+
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return ReadGd32Rom(target.Address ?? Gd32RomBase, target.Length ?? Gd32RomSize, targetKindName);
+					case RomReadKind.Efuse:
+						return ReadGd32Efuse(target.Length ?? Gd32EfusePayloadSize, targetKindName);
+					default:
+						addError("Selected GD32VW553 read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try { closePort(); } catch { }
+			}
+		}
+
+		byte[] ReadGd32Rom(int offset, int length, string targetKindName)
+		{
+			if(offset < Gd32RomBase || length <= 0 || offset > Gd32RomBase + Gd32RomSize - length)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
+			}
+
+			return InternalReadRawMemory(offset, length, targetKindName);
+		}
+
+		byte[] ReadGd32Efuse(int expectedLength, string targetKindName)
+		{
+			if(expectedLength != Gd32EfusePayloadSize)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + Gd32EfusePayloadSize + " bytes.");
+			}
+
+			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
+			return InternalReadEfusePayload(expectedLength, targetKindName);
+		}
+
+		internal override byte[] ReadMAC()
+		{
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 63);
+			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[31], rf_efuse[33], rf_efuse[34] };
 		}
 	}
 }

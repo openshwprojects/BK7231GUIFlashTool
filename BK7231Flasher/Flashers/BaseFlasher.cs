@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Drawing;
+using System.IO;
+using System.IO.Compression;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
@@ -88,6 +90,7 @@ namespace BK7231Flasher
         protected bool bSkipKeyCheck;
         protected bool bIgnoreCRCErr = false;
         protected bool bCustomWriteMode = false;
+        protected bool bUseCompressionIfPossible = false;
         protected SerialPort serial;
         protected string serialName;
         protected BKType chipType = BKType.BK7231N;
@@ -127,7 +130,7 @@ namespace BK7231Flasher
         {
             logger.addLog(s, Color.Black);
         }
-        public void addLogLine(string format, params object[] args)
+        public void addLogLine(string format = "", params object[] args)
         {
             string s = string.Format(format, args);
             logger.addLog(s + Environment.NewLine, Color.Black);
@@ -187,6 +190,10 @@ namespace BK7231Flasher
         public void setIgnoreCRCErr(bool b)
         {
             bIgnoreCRCErr = b;
+        }
+        public void setUseCompression(bool b)
+        {
+            bUseCompressionIfPossible = b;
         }
 
         public void setOverwriteBootloader(bool b)
@@ -266,6 +273,27 @@ namespace BK7231Flasher
                 sb.Append(b.ToString("X2"));
 
             return sb.ToString();
+        }
+
+        internal static byte[] Decompress(byte[] data)
+        {
+            using MemoryStream decompressedStream = new MemoryStream();
+            using MemoryStream compressStream = new MemoryStream(data);
+            using DeflateStream deflateStream = new DeflateStream(compressStream, CompressionMode.Decompress);
+            deflateStream.CopyTo(decompressedStream);
+            byte[] decompressedArray = decompressedStream.ToArray();
+
+            return decompressedArray;
+        }
+
+        internal static byte[] Compress(byte[] data)
+        {
+            using var inputStream = new MemoryStream(data);
+            using var compressStream = new MemoryStream();
+            using var compressor = new DeflateStream(compressStream, CompressionLevel.Optimal);
+            inputStream.CopyTo(compressor);
+            compressor.Close();
+            return compressStream.ToArray();
         }
     }
 }

@@ -18,6 +18,13 @@ namespace BK7231Flasher
 		protected static readonly byte CMD_CUSTOM_FLASH_ID = 0x90;
 		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE = 0x91;
 		protected static readonly byte CMD_CUSTOM_XMODEM_READ = 0x92;
+		protected static readonly byte CMD_CUSTOM_KV_GET = 0x93;
+		protected static readonly byte CMD_CUSTOM_KV_SET = 0x94;
+		protected static readonly byte CMD_CUSTOM_GET_MAC = 0x95;
+		protected static readonly byte CMD_CUSTOM_XMODEM_READ_COMPRESSED = 0x96;
+		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE_COMPRESSED = 0x97;
+		protected static readonly byte CMD_CUSTOM_XMODEM_READ_RAW = 0x98;
+		protected static readonly byte CMD_CUSTOM_READ_EFUSE = 0x99;
 
 		protected int flashSizeMB = 4;
 
@@ -194,24 +201,24 @@ namespace BK7231Flasher
 				addErrorLine($"Read length cannot be zero!");
 				return null;
 			}
-			var sha256Hash = SHA256.Create();
-			var expectedPackets = sectors * 4;
 			var offset = addr;
+			var toRead = sectors * 0x1000;
+			int startAmount = sectors * BK7231Flasher.SECTOR_SIZE;
 			void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
 			{
-				expectedPackets--;
-				logger.setProgress(sectors * 4 - expectedPackets, sectors * 4);
-				if((expectedPackets % 4) == 3)
+				if(((startAmount - toRead) % 0x1000) == 0)
 				{
-					addLog($"0x{offset:X}..");
+					addLog($"0x{offset:X}... ");
 				}
 				offset += packet.Length;
+				toRead -= packet.Length;
+				if(!isCancelled && !bUseCompressionIfPossible)
+					logger.setProgress(startAmount - toRead, startAmount);
 			}
 			try
 			{
 				if(!SetBaud(baudrate))
 					return null;
-				int startAmount = sectors * BK7231Flasher.SECTOR_SIZE;
 				byte[] ret = new byte[startAmount];
 				logger.setProgress(0, sectors);
 				logger.setState("Reading", Color.White);
@@ -224,57 +231,51 @@ namespace BK7231Flasher
 				msg[5] = (byte)((startAmount >> 8) & 0xFF);
 				msg[6] = (byte)((startAmount >> 16) & 0xFF);
 				msg[7] = (byte)((startAmount >> 24) & 0xFF);
-				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_READ, msg, 2, 0);
+				var res = ExecuteCommand(bUseCompressionIfPossible == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_COMPRESSED, msg, 2, 0);
+				if(res == null)
+					return null;
 				var stream = new MemoryStream();
 				xm.PacketReceived += Xm_PacketReceived;
+				var sw = new Stopwatch();
+
 				try
 				{
+					sw.Start();
 					var tries = 3;
 					while(tries-- >= 0)
 					{
 						var recv = xm.Receive(stream);
+						//if(recv == XMODEM.TerminationReasonEnum.CancelNotificationReceived) continue;
+						//else 
 						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
 						{
 							addErrorLine($"Read failed with {recv}");
-							stream.Dispose();
 							return null;
 						}
-						if(stream.Length >= startAmount)
+						else
+						{
 							break;
+						}
 
 						if(isCancelled)
 							return null;
 					}
+					ret = stream.ToArray();
 				}
 				finally
 				{
+					sw.Stop();
 					xm.PacketReceived -= Xm_PacketReceived;
+					stream.Dispose();
 				}
-				ret = stream.ToArray();
-				stream.Dispose();
+				logger.addLog(Environment.NewLine + $"Flash read took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
 				if(isCancelled) return null;
-				addLogLine(Environment.NewLine + "Getting hash...");
-				res = ExecuteCommand(CMD_SHA256, msg, 30, 32);
-				if(res == null)
+				if(bUseCompressionIfPossible) ret = Decompress(ret);
+				addLogLine("Getting hash...");
+				if(!CheckHash(addr, startAmount, ret))
 				{
-					addErrorLine($"Failed to get hash!");
-					logger.setState("SHA failed!", Color.Red);
-					if(!bIgnoreCRCErr) return null;
-				}
-				else
-				{
-					var readHash = HashToStr(sha256Hash.ComputeHash(ret));
-					var expectedHash = HashToStr(res);
-					if(readHash != expectedHash)
-					{
-						addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
-						logger.setState("SHA mismatch!", Color.Red);
-						if(!bIgnoreCRCErr) return null;
-					}
-					else
-					{
-						addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
-					}
+					if(!bIgnoreCRCErr)
+						return null;
 				}
 				logger.setProgress(sectors, sectors);
 				logger.setState("Read done", Color.DarkGreen);
@@ -283,14 +284,117 @@ namespace BK7231Flasher
 			}
 			finally
 			{
+				Thread.Sleep(1);
 				SetBaud(115200);
-				sha256Hash.Clear();
+			}
+		}
+
+		protected byte[] InternalReadRawMemory(int addr, int length, string targetKindName)
+		{
+			if(length <= 0)
+			{
+				addErrorLine($"Read length cannot be zero!");
+				return null;
+			}
+			int received = 0;
+			int currentOffset = addr;
+			void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
+			{
+				if((received % 0x1000) == 0)
+				{
+					addLog($"0x{currentOffset:X}... ");
+				}
+				currentOffset += packet.Length;
+				received += packet.Length;
+				logger.setProgress(Math.Min(received, length), length);
+			}
+			try
+			{
+				if(!SetBaud(baudrate))
+					return null;
+				logger.setProgress(0, length);
+				logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+				addLogLine("Requesting " + chipType + " " + targetKindName + " raw memory dump: address " + formatHex(addr) + ", length " + formatHex(length) + ".");
+				var msg = new byte[8];
+				msg[0] = (byte)(addr & 0xFF);
+				msg[1] = (byte)((addr >> 8) & 0xFF);
+				msg[2] = (byte)((addr >> 16) & 0xFF);
+				msg[3] = (byte)((addr >> 24) & 0xFF);
+				msg[4] = (byte)(length & 0xFF);
+				msg[5] = (byte)((length >> 8) & 0xFF);
+				msg[6] = (byte)((length >> 16) & 0xFF);
+				msg[7] = (byte)((length >> 24) & 0xFF);
+				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_READ_RAW, msg, 2, 0);
+				if(res == null)
+				{
+					throw new IOException(chipType + " " + targetKindName + " raw read command was not accepted.");
+				}
+				using(MemoryStream stream = new MemoryStream())
+				{
+					xm.PacketReceived += Xm_PacketReceived;
+					try
+					{
+						var recv = xm.Receive(stream);
+						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+						{
+							throw new IOException(chipType + " " + targetKindName + " dump failed with " + recv + ".");
+						}
+					}
+					finally
+					{
+						addLog(Environment.NewLine);
+						xm.PacketReceived -= Xm_PacketReceived;
+					}
+					if(stream.Length < length)
+					{
+						throw new IOException("Read " + stream.Length + " bytes, but expected " + length + ".");
+					}
+					byte[] ret = stream.ToArray();
+					if(ret.Length != length)
+					{
+						Array.Resize(ref ret, length);
+					}
+					logger.setProgress(length, length);
+					logger.setState(targetKindName + " read success!", Color.Green);
+					addLogLine("Read complete!");
+					return ret;
+				}
+			}
+			finally
+			{
+				SetBaud(115200);
+			}
+		}
+
+		protected byte[] InternalReadEfusePayload(int expectedLength, string targetKindName)
+		{
+			if(expectedLength <= 0)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", "eFuse read length must be greater than zero.");
+			}
+			try
+			{
+				if(!SetBaud(baudrate))
+					return null;
+				logger.setProgress(0, expectedLength);
+				logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+				byte[] result = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, null, 2, expectedLength);
+				if(result == null)
+				{
+					throw new IOException(chipType + " " + targetKindName + " command returned no data.");
+				}
+				logger.setProgress(expectedLength, expectedLength);
+				logger.setState(targetKindName + " read success!", Color.Green);
+				return result;
+			}
+			finally
+			{
+				SetBaud(115200);
 			}
 		}
 
 		protected bool InternalWrite(int addr, byte[] data, int len = -1)
 		{
-			var sha256Hash = SHA256.Create();
 			try
 			{
 				xm.PacketSent += Xm_PacketSent;
@@ -298,6 +402,7 @@ namespace BK7231Flasher
 					return false;
 				if(len < 0)
 					len = data.Length;
+				var hlen = len;
 				logger.setProgress(0, len);
 				//doErase(addr, (len + 4095) / 4096);
 				addLogLine("Starting flash write " + len);
@@ -311,14 +416,31 @@ namespace BK7231Flasher
 				cmd[5] = (byte)((len >> 8) & 0xFF);
 				cmd[6] = (byte)((len >> 16) & 0xFF);
 				cmd[7] = (byte)((len >> 24) & 0xFF);
-				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
+				var res = ExecuteCommand(bUseCompressionIfPossible ? CMD_CUSTOM_XMODEM_WRITE_COMPRESSED : CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
 				if(res == null)
 				{
 					serial.Write(new[] { xm.EOT }, 0, 1);
 					Thread.Sleep(100);
 					return false;
 				}
-				var ret = xm.Send(data, (uint)addr);
+				int ret;
+				var sw = new Stopwatch();
+				if(bUseCompressionIfPossible)
+				{
+					var compData = Compress(data);
+					addLogLine($"Using compression, writing {compData.Length} bytes, compression rate - {((double)data.Length - compData.Length) / data.Length * 100.0:F2}%");
+					len = compData.Length;
+					sw.Start();
+					ret = xm.Send(compData, (uint)addr);
+					sw.Stop();
+				}
+				else
+				{
+					sw.Start();
+					ret = xm.Send(data, (uint)addr);
+					sw.Stop();
+				}
+				logger.addLog(Environment.NewLine + $"Flash write took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
 				if(ret != len)
 				{
 					addErrorLine($"Write failed ({xm.TerminationReason})! Expected sent bytes: {len}, really sent: {ret}");
@@ -327,19 +449,10 @@ namespace BK7231Flasher
 					Thread.Sleep(100);
 					return false;
 				}
-				addLogLine(Environment.NewLine + "Getting hash...");
-				res = ExecuteCommand(CMD_SHA256, cmd, 30f, 32);
-				var readHash = HashToStr(sha256Hash.ComputeHash(data));
-				var expectedHash = HashToStr(res);
-				if(readHash != expectedHash)
+				addLogLine("Getting hash...");
+				if(!CheckHash(addr, hlen, data))
 				{
-					addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
-					logger.setState("SHA mismatch!", Color.Red);
 					return false;
-				}
-				else
-				{
-					addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
 				}
 				logger.setState("Writing done", Color.DarkGreen);
 				addLogLine("Done flash write " + len);
@@ -348,7 +461,7 @@ namespace BK7231Flasher
 			finally
 			{
 				xm.PacketSent -= Xm_PacketSent;
-				sha256Hash.Clear();
+				Thread.Sleep(1);
 				SetBaud(115200);
 			}
 		}
@@ -402,9 +515,44 @@ namespace BK7231Flasher
 			if(flashID == null)
 				return null;
 			addLogLine($"Flash ID: 0x{flashID[0]:X2}{flashID[1]:X2}{flashID[2]:X2}");
+			if(flashID[2] < 0x11 || flashID[2] > 0x22)
+				throw new Exception("Flash ID incorrect!");
 			flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
 			addLogLine($"Flash size is {flashSizeMB}MB");
 			return flashID;
+		}
+
+		protected virtual bool CheckHash(int addr, int len, byte[] data)
+		{
+			var cmd = new byte[8];
+			cmd[0] = (byte)(addr & 0xFF);
+			cmd[1] = (byte)((addr >> 8) & 0xFF);
+			cmd[2] = (byte)((addr >> 16) & 0xFF);
+			cmd[3] = (byte)((addr >> 24) & 0xFF);
+			cmd[4] = (byte)(len & 0xFF);
+			cmd[5] = (byte)((len >> 8) & 0xFF);
+			cmd[6] = (byte)((len >> 16) & 0xFF);
+			cmd[7] = (byte)((len >> 24) & 0xFF);
+			var res = ExecuteCommand(CMD_SHA256, cmd, 30f, 32);
+			using var sha256Hash = SHA256.Create();
+			var readHash = HashToStr(sha256Hash.ComputeHash(data));
+			var expectedHash = HashToStr(res);
+			if(readHash != expectedHash)
+			{
+				addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
+				logger.setState("SHA mismatch!", Color.Red);
+			}
+			else
+			{
+				addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
+				return true;
+			}
+			return false;
+		}
+
+		internal virtual byte[] ReadMAC()
+		{
+			return ExecuteCommand(CMD_CUSTOM_GET_MAC, expectedReplyLen: 6);
 		}
 	}
 }

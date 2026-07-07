@@ -89,6 +89,12 @@ namespace BK7231Flasher
         const string RdaEfuseSpace = "eFuse pages 0..15";
         const string RdaEfuseBackend = "RDA5981_Stub cmd 0x99";
         const string RdaEfuseController = "RF SPI @ 0x4001301C";
+        const string Gd32RomSpace = "ROM memory";
+        const string Gd32RomBackend = "GD32VW553_Stub cmd 0x98";
+        const string Gd32RomController = "raw CPU memory via XMODEM";
+        const string Gd32EfuseSpace = "stub eFuse payload";
+        const string Gd32EfuseBackend = "GD32VW553_Stub cmd 0x99";
+        const string Gd32EfuseController = "EFUSE controller export";
         const string Xr809RomSpace = "ROM memory";
         const string Xr809EfuseSpace = "eFuse raw image";
         const string Xr809Backend = "PhoenixMC memory command";
@@ -123,6 +129,8 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2Backend, Rtlz2EfuseController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
+            new RomReadTarget(BKType.GD32VW553, RomReadKind.Rom, "ROM", 0x0BF40000, 0x40000, 921600, CommonSerialBauds, true, Gd32RomSpace, Gd32RomBackend, Gd32RomController),
+            new RomReadTarget(BKType.GD32VW553, RomReadKind.Efuse, "eFuse", 0x00000000, 0x3F, 921600, CommonSerialBauds, true, Gd32EfuseSpace, Gd32EfuseBackend, Gd32EfuseController),
             new RomReadTarget(BKType.XR806, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
             new RomReadTarget(BKType.XR806, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
             new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 921600, XrSerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
