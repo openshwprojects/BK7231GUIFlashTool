@@ -69,7 +69,7 @@ namespace BK7231Flasher
                 "- PA00 / GPIO0 -> 3.3 V" + System.Environment.NewLine +
                 "- PA13 / GPIO13 (RXD) -> 3.3 V" + System.Environment.NewLine +
                 "Use a stable 3.3 V supply and a common ground between the board and adapter." + System.Environment.NewLine +
-                "With PA00 and PA13 pulledd high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
+                "With PA00 and PA13 pulled high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
         }
 
         static string GetGd32vw553Instructions()
