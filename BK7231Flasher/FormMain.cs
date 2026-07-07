@@ -1733,12 +1733,7 @@ namespace BK7231Flasher
                     return;
                 }
 
-                Directory.CreateDirectory("backups");
-                string targetName = target.Kind.ToString().ToUpperInvariant();
-                string fileName = MiscUtils.formatDateNowFileName("readResult_" + target.Platform + "_" + targetName, lastBackupNameEnteredByUser, "bin");
-                string fullPath = Path.Combine("backups", fileName);
-                File.WriteAllBytes(fullPath, result);
-                addLog(targetKindName + " read saved " + result.Length + " bytes to " + fullPath + Environment.NewLine, Color.Green);
+                saveReadRomResult(target, targetKindName, result);
                 setState(targetKindName + " read success!", Color.Green);
             }
             catch (Exception ex)
@@ -1754,6 +1749,38 @@ namespace BK7231Flasher
                 clearUp();
                 setButtonStates(true);
             }
+        }
+
+        void saveReadRomResult(RomReadTarget target, string targetKindName, byte[] result)
+        {
+            Directory.CreateDirectory(backupsPath);
+            if (target.OutputSlices.Count == 0)
+            {
+                string targetName = target.Kind.ToString().ToUpperInvariant();
+                saveReadRomBytes(target, targetName, targetKindName, result);
+                return;
+            }
+
+            foreach (RomReadOutputSlice slice in target.OutputSlices)
+            {
+                if (slice.Offset < 0 || slice.Length <= 0 || slice.Offset + slice.Length > result.Length)
+                {
+                    throw new InvalidOperationException(target.DisplayName + " output slice " + slice.DisplayName + " is outside the returned payload.");
+                }
+
+                byte[] sliceBytes = new byte[slice.Length];
+                Array.Copy(result, slice.Offset, sliceBytes, 0, slice.Length);
+                string fileNameTag = string.IsNullOrEmpty(slice.FileNameTag) ? target.Kind.ToString().ToUpperInvariant() : slice.FileNameTag;
+                saveReadRomBytes(target, fileNameTag, targetKindName + " " + slice.DisplayName, sliceBytes);
+            }
+        }
+
+        void saveReadRomBytes(RomReadTarget target, string fileNameTag, string logName, byte[] data)
+        {
+            string fileName = MiscUtils.formatDateNowFileName("readResult_" + target.Platform + "_" + fileNameTag, lastBackupNameEnteredByUser, "bin");
+            string fullPath = Path.Combine(backupsPath, fileName);
+            File.WriteAllBytes(fullPath, data);
+            addLog(logName + " read saved " + data.Length + " bytes to " + fullPath + Environment.NewLine, Color.Green);
         }
 
         private void buttonReadRomStop_Click(object sender, EventArgs e)

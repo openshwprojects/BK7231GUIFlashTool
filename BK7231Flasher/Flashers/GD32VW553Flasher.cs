@@ -20,8 +20,10 @@ namespace BK7231Flasher
 		static readonly byte NACK = 0x1F;
 		const int Gd32RomBase = 0x0BF40000;
 		const int Gd32RomSize = 0x00040000;
-		// The current GD32 stub exports a 63-byte eFuse payload via cmd 0x99.
-		const int Gd32EfusePayloadSize = 0x3F;
+		// Stub cmd 0x99 returns the RF eFuse map followed by the raw MCU EFUSE register block.
+		const int Gd32RfEfusePayloadSize = 0x3F;
+		const int Gd32McuEfuseRegisterPayloadSize = 0x94;
+		const int Gd32EfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfuseRegisterPayloadSize;
 
 		private static byte[] AllowedCommands;
 
@@ -447,7 +449,9 @@ namespace BK7231Flasher
 
 		internal override byte[] ReadMAC()
 		{
-			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 63);
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: Gd32EfusePayloadSize);
+			if(rf_efuse == null)
+				return null;
 			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[31], rf_efuse[33], rf_efuse[34] };
 		}
 	}
