@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 public class CH341DEV
@@ -6,6 +8,7 @@ public class CH341DEV
     public int usb_id;
     public int open_status;
     public int i2c_speed;
+    static string dllDiagnostics;
 
     public CH341DEV(int dev_index = 0)
     {
@@ -33,6 +36,51 @@ public class CH341DEV
     {
         return lastError;
     }
+    public static string GetDllDiagnostics()
+    {
+        if (dllDiagnostics != null)
+        {
+            return dllDiagnostics;
+        }
+
+        string bitness = Environment.Is64BitProcess ? "64-bit" : "32-bit";
+        try
+        {
+            string dllPath = FindLoadedDllPath("CH341DLL.DLL");
+            if (string.IsNullOrEmpty(dllPath))
+            {
+                return "CH341 DLL loaded: path unavailable" + Environment.NewLine
+                    + "Version: unknown" + Environment.NewLine
+                    + "Process bitness: " + bitness;
+            }
+
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(dllPath);
+            string version = string.IsNullOrEmpty(versionInfo.FileVersion) ? "unknown" : versionInfo.FileVersion;
+            dllDiagnostics = "CH341 DLL loaded: " + dllPath + Environment.NewLine
+                + "Version: " + version + Environment.NewLine
+                + "Process bitness: " + bitness;
+        }
+        catch (Exception ex)
+        {
+            return "CH341 DLL diagnostics unavailable: " + ex.Message + Environment.NewLine
+                + "Process bitness: " + bitness;
+        }
+        return dllDiagnostics;
+    }
+    static string FindLoadedDllPath(string dllName)
+    {
+        using (Process process = Process.GetCurrentProcess())
+        {
+            foreach (ProcessModule module in process.Modules)
+            {
+                if (string.Equals(Path.GetFileName(module.FileName), dllName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return module.FileName;
+                }
+            }
+        }
+        return "";
+    }
     public int Ch341Open()
     {
         try
@@ -57,6 +105,10 @@ public class CH341DEV
         catch (EntryPointNotFoundException)
         {
             doError("Error: CH341DLL.DLL found, but function not exported.");
+        }
+        catch (BadImageFormatException)
+        {
+            doError("Error: CH341DLL.DLL has the wrong bitness for this process.");
         }
         return -1;
     }

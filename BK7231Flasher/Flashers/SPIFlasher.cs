@@ -379,6 +379,7 @@ namespace BK7231Flasher
                 return false;
             }
             ch341Opened = true;
+            addLog(CH341DEV.GetDllDiagnostics() + Environment.NewLine);
             if (hd.Ch341SetI2CSpeed(3) < 0)
             {
                 addError("CH341 setup error " + hd.getLastError() + Environment.NewLine);
