@@ -19,7 +19,6 @@ namespace BK7231Flasher
 			"ping","disc","ucfg","DW","DB","EW","EB","WDTRST","hashq","fwd","fwdram"
 		};
 		readonly uint FLASH_MMAP_BASE = 0x98000000;
-		readonly int DumpAmount = 0x1000;
 		uint? FuncPtr = null;
 		string FuncName = string.Empty;
 		int? FlashMode;
@@ -32,8 +31,6 @@ namespace BK7231Flasher
 		readonly CancellationToken _ct;
 		const int ReadUnitSize = 0x1000;
 		const int VerifyWindowSize = 256 * 1024;
-		const int ReadChunkRetryLimit = 3;
-		const int ReadWindowRetryLimit = 3;
 		const int WriteWindowRetryLimit = 3;
 		const int HashRetryLimit = 3;
 		const int CommandRetryLimit = 3;
@@ -553,24 +550,6 @@ namespace BK7231Flasher
 			return true;
 		}
 
-		// Flash-read variant of DumpWords: takes a byte count (must be a multiple of 4),
-		// calls DumpWords with the mapped flash address, and converts the returned 32-bit words
-		// to a byte array. ARM is little-endian, so BitConverter.GetBytes(uint) preserves byte
-		// order correctly on any LE host (x86/x64 Windows or Linux).
-		bool DumpFlashWords(uint start, int byteCount, out byte[] bytes)
-		{
-			int wordCount = byteCount / 4;
-			if(!DumpWords(start, wordCount, out var words) || words == null || words.Length != wordCount)
-			{
-				bytes = null;
-				return false;
-			}
-			bytes = new byte[wordCount * 4];
-			for(int i = 0; i < wordCount; i++)
-				Buffer.BlockCopy(BitConverter.GetBytes(words[i]), 0, bytes, i * 4, 4);
-			return true;
-		}
-
 		int RegisterRead(uint addr)
 		{
 			uint start = addr & ~0xFU;
@@ -723,6 +702,46 @@ namespace BK7231Flasher
 
 				logger.setState("Writing...", Color.Transparent);
 				var res = xm.Send(data.ToArray(), offset | FLASH_MMAP_BASE);
+				if(res != data.Length)
+				{
+					logger.setState("Write error!", Color.Transparent);
+					return false;
+				}
+			}
+			finally
+			{
+				PopReadTimeout();
+			}
+			Thread.Sleep(50);
+			return Link();
+		}
+
+		bool RamTransmit(byte[] data, uint offset)
+		{
+			PushReadTimeout(3000);
+			try
+			{
+				Command($"fwdram {offset:x}");
+				FlashHashOffset = offset;
+				if(data == null)
+				{
+					var resp = serial.ReadByte();
+					if(resp != '\x15')
+					{
+						throw new Exception($"expected NAK, got {resp}");
+					}
+					serial.Write("\x18");
+					Flush();
+					var response = ReadExactly(3);
+					if(response == null || response.Length != 3 || response[0] != 24 || response[1] != (byte)'E' || response[2] != (byte)'R')
+					{
+						throw new Exception($"expected CAN, got {(response == null ? "<null>" : Encoding.ASCII.GetString(response))}");
+					}
+					return Link();
+				}
+
+				logger.setState("Writing...", Color.Transparent);
+				var res = xm.Send(data, offset);
 				if(res != data.Length)
 				{
 					logger.setState("Write error!", Color.Transparent);
@@ -1099,118 +1118,9 @@ namespace BK7231Flasher
 					return;
 				}
 				sectors = flashSizeMB * 256;
-				//while(sectors < 4096)
-				//{
-				//	DumpBytes((uint)sectors * 0x1000 | FLASH_MMAP_BASE, 16, out var bytes);
-				//	if(bytes[0] != 0x99 && bytes[1] != 0x99 && bytes[2] != 0x96 && bytes[3] != 0x96)
-				//	{
-				//		sectors *= 2;
-				//	}
-				//	else
-				//		break;
-				//	if(sectors == 8192)
-				//	{
-				//		sectors = 512;
-				//		break;
-				//	}
-				//}
 			}
 			byte[] res = readFlash(startSector * 0x1000, sectors * 0x1000);
 			ms = res != null ? new MemoryStream(res) : null;
-		}
-
-		byte[] ReadVerifiedWindow(uint startAddr, int windowLength, int progressBase, int progressTotal)
-		{
-			EnsureWindowBounds(startAddr, windowLength);
-			for(int attempt = 1; attempt <= ReadWindowRetryLimit; attempt++)
-			{
-				_ct.ThrowIfCancellationRequested();
-				logger.setState("Reading...", Color.Transparent);
-				var window = new byte[windowLength];
-				int copied = 0;
-				bool failed = false;
-				int itemsOnLine = 0;
-				for(int chunkOffset = 0; chunkOffset < windowLength; chunkOffset += ReadUnitSize)
-				{
-					_ct.ThrowIfCancellationRequested();
-					int chunkLength = Math.Min(ReadUnitSize, windowLength - chunkOffset);
-					uint chunkAddr = startAddr + (uint)chunkOffset;
-					byte[] chunk = null;
-					for(int chunkAttempt = 1; chunkAttempt <= ReadChunkRetryLimit; chunkAttempt++)
-					{
-						if(RunWithRecovery($"Read 0x{chunkAddr:X6}", CommandRetryLimit, () => DumpFlashWords(chunkAddr | FLASH_MMAP_BASE, chunkLength, out chunk)))
-						{
-							if(chunkAttempt > 1)
-							{
-								EndProgressLineIfNeeded();
-								addLogLine($"Read retry succeeded at 0x{chunkAddr:X6} on attempt {chunkAttempt}/{ReadChunkRetryLimit}");
-							}
-							break;
-						}
-						if(chunkAttempt < ReadChunkRetryLimit)
-						{
-							EndProgressLineIfNeeded();
-							addWarningLine($"Read retry at 0x{chunkAddr:X6} ({chunkAttempt + 1}/{ReadChunkRetryLimit})");
-							Thread.Sleep(75);
-						}
-					}
-					if(chunk == null || chunk.Length != chunkLength)
-					{
-						EndProgressLineIfNeeded();
-						addWarningLine($"Read failed at 0x{chunkAddr:X6}");
-						failed = true;
-						break;
-					}
-					Buffer.BlockCopy(chunk, 0, window, copied, chunkLength);
-					itemsOnLine = LogProgressAddress(chunkAddr, false, itemsOnLine);
-					copied += chunkLength;
-					logger.setProgress(progressBase + copied, progressTotal);
-				}
-
-				EndProgressLineIfNeeded();
-				itemsOnLine = 0;
-
-				if(failed)
-				{
-					if(attempt == 2 && serial.BaudRate > FallbackBaudRate)
-					{
-						addWarningLine($"Lowering baud rate to {FallbackBaudRate} for read recovery");
-						ChangeBaud(FallbackBaudRate);
-					}
-					if(attempt < ReadWindowRetryLimit)
-					{
-						addWarningLine($"Retrying read window 0x{startAddr:X6} ({attempt + 1}/{ReadWindowRetryLimit})");
-					}
-					continue;
-				}
-
-				logger.setState("Verifying read...", Color.Transparent);
-				addLogLine($"Verifying read window 0x{startAddr:X6} len 0x{windowLength:X}");
-				if(VerifyFlashWindow(window, startAddr))
-				{
-					if(attempt > 1)
-					{
-						addLogLine($"Read window recovered at 0x{startAddr:X6} on attempt {attempt}/{ReadWindowRetryLimit}");
-					}
-					addLogLine($"Read window verified at 0x{startAddr:X6} len 0x{windowLength:X}");
-					logger.setState("Reading...", Color.Transparent);
-					return window;
-				}
-
-				addWarningLine($"Read verify failed at 0x{startAddr:X6} len 0x{windowLength:X} attempt {attempt}/{ReadWindowRetryLimit}");
-				try { Flush(); } catch { }
-				try { Link(); } catch(OperationCanceledException) { throw; } catch { }
-				if(attempt == 2 && serial.BaudRate > FallbackBaudRate)
-				{
-					addWarningLine($"Lowering baud rate to {FallbackBaudRate} for read recovery");
-					ChangeBaud(FallbackBaudRate);
-				}
-				if(attempt < ReadWindowRetryLimit)
-				{
-					addWarningLine($"Retrying read window 0x{startAddr:X6} ({attempt + 1}/{ReadWindowRetryLimit})");
-				}
-			}
-			return null;
 		}
 
 		internal byte[] readFlash(int addr = 0, int amount = 4096)
@@ -1220,7 +1130,6 @@ namespace BK7231Flasher
 				EnsureWindowBounds((uint)addr, amount);
 				var ret = new byte[amount];
 				logger.setProgress(0, amount);
-				logger.setState("Reading", Color.White);
 				addLogLine("Starting read...");
 				addLog("Read parms: start 0x" +
 					(addr).ToString("X2")
@@ -1235,65 +1144,76 @@ namespace BK7231Flasher
 					return null;
 				}
 
-				var totalTimer = Stopwatch.StartNew();
-				using(var overallSha = SHA256.Create())
+				addLog("Uploading stub for faster read...");
+				RegisterWrite(0x10038000 + 0, (uint)addr);   // set read offset
+				RegisterWrite(0x10038000 + 4, (uint)amount); // set read length
+				RegisterWrite(0x10038000 + 8, 0); // set mode (0 - from FLASH_MMAP_BASE, 1 - from 0)
+				var stub = bUseCompressionIfPossible ? FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub_z") : FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub");
+				if(RamTransmit(stub, 0x10035000))
 				{
-					uint currentAddr = (uint)addr;
-					int remaining = amount;
-					int copied = 0;
-					bool loggedRate = false;
-
-					while(remaining > 0)
-					{
-						_ct.ThrowIfCancellationRequested();
-						int windowLength = Math.Min(VerifyWindowSize, remaining);
-						var windowTimer = Stopwatch.StartNew();
-						var window = ReadVerifiedWindow(currentAddr, windowLength, copied, amount);
-						windowTimer.Stop();
-						if(window == null)
-						{
-							throw new Exception($"Verified read failed at 0x{currentAddr:X6}");
-						}
-
-						Buffer.BlockCopy(window, 0, ret, copied, windowLength);
-						overallSha.TransformBlock(window, 0, windowLength, null, 0);
-
-						copied += windowLength;
-						currentAddr += (uint)windowLength;
-						remaining -= windowLength;
-						logger.setProgress(copied, amount);
-
-						if(!loggedRate)
-						{
-							loggedRate = true;
-							var seconds = Math.Max(windowTimer.Elapsed.TotalSeconds, 0.001);
-							var rate = windowLength / seconds;
-							addLogLine($"Observed read rate: {rate / 1024.0:F1} KiB/s");
-						}
-					}
-
-					overallSha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-					addLogLine(Environment.NewLine + "Getting hash...");
-					var readHash = HashToStr(overallSha.Hash);
-					var expectedHashBytes = FlashReadHash((uint)addr, amount);
-					if(expectedHashBytes == null)
-					{
-						throw new Exception("Final hash read failed");
-					}
-					var expectedHash = HashToStr(expectedHashBytes);
-					if(readHash != expectedHash)
-					{
-						addErrorLine($"Hash mismatch!\r\nexpected\t{expectedHash}\r\ngot\t{readHash}");
-						logger.setState("SHA mismatch!", Color.Red);
-						ChangeBaud(FallbackBaudRate);
-						closePort();
-						return null;
-					}
-
-					addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
-					totalTimer.Stop();
-					addLogLine($"Read time: {totalTimer.Elapsed}");
+					addLogLine(" OK!");
 				}
+				else
+					return null;
+				if(!MemoryBoot(0x10035000))
+					return null;
+				logger.setState("Reading", Color.White);
+				Thread.Sleep(5);
+
+				var offset = addr;
+				var toRead = amount;
+				int startAmount = amount;
+				void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
+				{
+					if(((startAmount - toRead) % 0x1000) == 0)
+					{
+						addLog($"0x{offset:X}... ");
+					}
+					offset += packet.Length;
+					toRead -= packet.Length;
+					if(!isCancelled && !bUseCompressionIfPossible)
+						logger.setProgress(startAmount - toRead, startAmount);
+				}
+
+				var ms = new MemoryStream();
+				var totalTimer = Stopwatch.StartNew();
+				try
+				{
+					xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF);
+					xm.PacketReceived += Xm_PacketReceived;
+					var recv = xm.Receive(ms);
+					if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+					{
+						serial.Write(new byte[] { xm.ACK }, 0, 1);
+						throw new Exception($"Read failed with {recv}");
+					}
+					ret = ms.ToArray();
+				}
+				finally
+				{
+					xm.PacketReceived -= Xm_PacketReceived;
+					xm = new XMODEM(serial, XMODEM.Variants.XModem1KChecksum, 0xFF);
+				}
+				
+				if(bUseCompressionIfPossible) ret = Decompress(ret);
+				using var sha = SHA256.Create();
+				var hash = sha.ComputeHash(ret);
+				addLogLine(Environment.NewLine + "Getting hash...");
+				var readHash = HashToStr(hash);
+				var expectedHashBytes = FlashReadHash((uint)addr, amount) ?? throw new Exception("Final hash read failed");
+				var expectedHash = HashToStr(expectedHashBytes);
+				if(readHash != expectedHash)
+				{
+					addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
+					logger.setState("SHA mismatch!", Color.Red);
+					ChangeBaud(FallbackBaudRate);
+					closePort();
+					return null;
+				}
+
+				addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
+				totalTimer.Stop();
+				addLogLine($"Read time: {totalTimer.Elapsed}");
 
 				logger.setState("Read done", Color.DarkGreen);
 				addLogLine("Read complete!");

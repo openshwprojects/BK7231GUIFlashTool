@@ -121,7 +121,24 @@ namespace BK7231Flasher
                 if(mode != WriteMode.OnlyOBKConfig)
                 {
                     addLogLine("flash_program: will flash " + len + " bytes " + filename);
-                    if(chipType == BKType.LN882H)
+                    var sw = new Stopwatch();
+                    sw.Start();
+                    if(bUseCompressionIfPossible)
+                    {
+                        var compData = Compress(data);
+                        addLogLine($"Using compression, writing {compData.Length} bytes, compression rate - {((double)data.Length - compData.Length) / data.Length * 100.0:F2}%");
+                        PreWrite(ofs, len, true);
+                        int res = xm.Send(compData, (uint)ofs);
+                        addLogLine();
+                        if(res != compData.Length)
+                        {
+                            addLogLine($"flash_program: failed to flash ({xm.TerminationReason}), flashed only " +
+                                res + " out of " + compData.Length + " bytes!");
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    else if(chipType == BKType.LN882H)
                     {
                         PreWrite(ofs);
                         YModem modem = new YModem(serial, logger);
@@ -137,7 +154,8 @@ namespace BK7231Flasher
                     else
                     {
                         PreWrite(ofs, data.Length, true);
-                        int res = xm.Send(data);
+                        int res = xm.Send(data, (uint)ofs);
+                        addLogLine();
                         if(res != data.Length)
                         {
                             addLogLine("flash_program: failed to flash, flashed only " +
@@ -146,8 +164,9 @@ namespace BK7231Flasher
                             return;
                         }
                     }
+                    sw.Stop();
                     logger.setProgress(1, 1);
-                    addLogLine("flash_program: sending file done");
+                    addLogLine($"flash_program: sending file done in {sw.ElapsedMilliseconds}ms");
 
                     addLogLine("flash_program: flashed " + len + " bytes!");
                     if(!ChecksumVerify(ofs, len, data))
@@ -170,7 +189,22 @@ namespace BK7231Flasher
                     addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
                     addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
                     addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
-                    if(chipType == BKType.LN882H)
+                    if(bUseCompressionIfPossible)
+                    {
+                        var compData = Compress(wd);
+                        addLogLine($"Using compression, writing {compData.Length} bytes, compression rate - {((double)wd.Length - compData.Length) / wd.Length * 100.0:F2}%");
+                        PreWrite((int)offset, wd.Length, true);
+                        int res = xm.Send(compData, offset);
+                        addLogLine("");
+                        if(res != compData.Length)
+                        {
+                            logger.setState("Writing error!", Color.Red);
+                            addError("Writing OBK config data to chip failed." + Environment.NewLine);
+                            change_baudrate(115200, false);
+                            return;
+                        }
+                    }
+                    else if(chipType == BKType.LN882H)
                     {
                         PreWrite((int)offset);
                         YModem modem = new YModem(serial, logger);
@@ -186,7 +220,8 @@ namespace BK7231Flasher
                     else
                     {
                         PreWrite((int)offset, wd.Length, true);
-                        int res = xm.Send(wd);
+                        int res = xm.Send(wd, offset);
+                        addLogLine("");
                         if(res != wd.Length)
                         {
                             logger.setState("Writing error!", Color.Red);
@@ -327,7 +362,12 @@ namespace BK7231Flasher
                 addLogLine("Uploading RAM code");
 
                 YModem modem = new YModem(serial, logger);
-                modem.send(dat, "RAMCODE", dat.Length, false);
+                var sent = modem.send(dat, "RAMCODE", dat.Length, false);
+                if(sent < 0)
+                {
+                    addErrorLine(Environment.NewLine + "Failed to upload ramcode!");
+                    return true;
+                }
                 serial.BaudRate = 115200;
                 int attempts = 0;
                 int maxAttempts = 100;
@@ -401,6 +441,7 @@ namespace BK7231Flasher
                     addLogLine("Error on flash_id");
                     return false;
                 }
+                if(flashID[0] < 0x11 || flashID[0] > 0x22) throw new Exception("Flash ID incorrect!");
                 flashSizeMB = (1 << (flashID[0] - 0x11)) / 8;
                 addLog("Flash ID: 0x" + flashID[2].ToString("X2") + flashID[1].ToString("X2") + flashID[0].ToString("X2")+Environment.NewLine);
                 addLog("Flash size is " + flashSizeMB + "MB" + Environment.NewLine);
@@ -411,7 +452,15 @@ namespace BK7231Flasher
             var result = true;
             var t = Stopwatch.StartNew();
             logger.setState("Reading flash", Color.Green);
-            serial.Write($"fdump 0x{startSector:X} 0x{size:X}\r\n");
+            logger.setProgress(0, 1);
+            if(bUseCompressionIfPossible)
+            {
+                serial.Write($"fdumpz 0x{startSector:X} 0x{size:X}\r\n");
+            }
+            else
+            {
+                serial.Write($"fdump 0x{startSector:X} 0x{size:X} 0\r\n");
+            }
             ms?.Dispose();
             ms = new MemoryStream();
             var offset = startSector;
@@ -426,7 +475,7 @@ namespace BK7231Flasher
                 }
                 offset += packet.Length;
                 toRead -= packet.Length;
-                if(!isCancelled) logger.setProgress(size - toRead, size);
+                if(!isCancelled && !bUseCompressionIfPossible) logger.setProgress(size - toRead, size);
             }
             xm.PacketReceived += Xm_PacketReceived;
             try
@@ -438,7 +487,7 @@ namespace BK7231Flasher
                     Thread.Sleep(100);
                     result = false;
                 }
-                if(ms.Length != size)
+                if(ms.Length != size && !bUseCompressionIfPossible)
                 {
                     addError($"Read {ms.Length} bytes, but expected {size}! Try with lower baud rate?");
                     result = false;
@@ -449,7 +498,15 @@ namespace BK7231Flasher
                 addLog(Environment.NewLine);
                 xm.PacketReceived -= Xm_PacketReceived;
             }
-            if(result && !ChecksumVerify(startSector, size, ms.ToArray()))
+            var ret = ms.ToArray();
+            if(bUseCompressionIfPossible)
+            {
+                ret = Decompress(ret);
+                addLogLine($"Uncompressed, compression ratio {((double)ret.Length - ms.Length) / ret.Length * 100.0:F2}%");
+                ms?.Dispose();
+                ms = new MemoryStream(ret);
+            }
+            if(result && !ChecksumVerify(startSector, size, ret))
             {
                 result = false;
             }
@@ -644,7 +701,7 @@ namespace BK7231Flasher
         {
             if(xm_mode)
             {
-                serial.Write($"fwrite 0x{startAddr:X} 0x{size:X}\r\n");
+                serial.Write($"fwrite{(bUseCompressionIfPossible ? "z" : "")} 0x{startAddr:X} 0x{size:X}\r\n");
                 return;
             }
             serial.Write($"startaddr 0x{startAddr:X}\r\n");
