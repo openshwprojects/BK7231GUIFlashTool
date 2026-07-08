@@ -13,11 +13,11 @@
 | BL602 | Bouffalo Lab | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ⚠️⁴ |
 | BL616/BL618 | Bouffalo Lab | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ⚠️⁴ |
 | BL702 | Bouffalo Lab | ✅ | ✅ | ➖ | ➖ | ✅ | ⚠️⁶ | ➖ | ➖ | ⚠️⁴ |
-| ESP32 | Espressif | ✅ | ✅ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ✅ |
-| ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ✅ |
+| ESP32 | Espressif | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ➖ | ➖ | ✅ |
+| ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ➖ | ➖ | ✅ |
 | ESP8266<br>ESP8285 | Espressif | ✅ | ✅ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ✅ |
 | ECR6600 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TR6260 | ESWIN / Transa | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ⚠️ |
+| TR6260 | ESWIN / Transa | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ℹ️ |
 | GD32VW553 | GigaDevice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | Generic SPI CH341 | CH341 SPI | ✅ | ✅³ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ℹ️ |
 | LN882H | Lightning Semi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
