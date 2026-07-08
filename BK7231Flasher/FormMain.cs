@@ -1052,7 +1052,7 @@ namespace BK7231Flasher
                 case BKType.BK7252:
                 case BKType.BK7252N:
                 case BKType.BK7258:
-                    if(s.StartsWith($"Open{curType}_QIO_") || s.StartsWith($"Open{curType}_UA_"))
+                    if(bIsBekenFirmwareForCurType(s))
                     {
                         return true;
                     }
@@ -1086,6 +1086,18 @@ namespace BK7231Flasher
                 return true;
             }*/
             return false;
+        }
+        bool bIsBekenFirmwareForCurType(string s)
+        {
+            string platformPrefix = $"Open{curType}_";
+            if (s.StartsWith(platformPrefix, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            string rest = s.Substring(platformPrefix.Length);
+            return rest.StartsWith("QIO_", StringComparison.OrdinalIgnoreCase)
+                || rest.StartsWith("UA_", StringComparison.OrdinalIgnoreCase)
+                || rest.IndexOf("_QIO_", StringComparison.OrdinalIgnoreCase) > 0
+                || rest.IndexOf("_UA_", StringComparison.OrdinalIgnoreCase) > 0;
         }
         public OBKConfig getConfig()
         {
