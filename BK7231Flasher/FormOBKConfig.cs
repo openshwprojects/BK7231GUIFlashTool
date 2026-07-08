@@ -280,7 +280,8 @@ namespace BK7231Flasher
             byte[] fileBytes = File.ReadAllBytes(fname);
             if(type == BKType.Detect)
             {
-                switch(fname)
+                string detectName = Path.GetFileName(fname).ToUpperInvariant();
+                switch(detectName)
                 {
                     case var name when name.Contains("BK7231T"):    type = BKType.BK7231T;    break;
                     case var name when name.Contains("BK7231U"):    type = BKType.BK7231U;    break;
@@ -288,8 +289,8 @@ namespace BK7231Flasher
                     case var name when name.Contains("BK7231M"):    type = BKType.BK7231M;    break;
                     case var name when name.Contains("BK7236"):     type = BKType.BK7236;     break;
                     case var name when name.Contains("BK7238"):     type = BKType.BK7238;     break;
-                    case var name when name.Contains("BK7252"):     type = BKType.BK7252;     break;
                     case var name when name.Contains("BK7252N"):    type = BKType.BK7252N;    break;
+                    case var name when name.Contains("BK7252"):     type = BKType.BK7252;     break;
                     case var name when name.Contains("BK7258"):     type = BKType.BK7258;     break;
                     case var name when name.Contains("RTL8710B"):   type = BKType.RTL8710B;   break;
                     case var name when name.Contains("RTL87X0C"):   type = BKType.RTL87X0C;   break;
@@ -476,7 +477,7 @@ namespace BK7231Flasher
             //cfg.mqtt_clientId = "" + curType + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.shortDeviceName = "obk" + getTypeLetter(curType) + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.longDeviceName = "Open" + curType + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
-            var macstr = $"{mac[2]:X}{mac[3]:X}{mac[4]:X}{mac[5]:X}";
+            var macstr = $"{mac[2]:X2}{mac[3]:X2}{mac[4]:X2}{mac[5]:X2}";
             cfg.shortDeviceName = $"{getPrefixShort(curType)}{macstr}";
             cfg.mqtt_clientId = cfg.shortDeviceName;
             cfg.longDeviceName = $"Open{curType}_{macstr}";
@@ -490,7 +491,7 @@ namespace BK7231Flasher
             //cfg.mqtt_clientId = "obk_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.shortDeviceName = "obk" + "_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
             //cfg.longDeviceName = "OpenBK_" + mac[3].ToString("X2") + mac[4].ToString("X2") + mac[5].ToString("X5");
-            var macstr = $"{mac[2]:X}{mac[3]:X}{mac[4]:X}{mac[5]:X}";
+            var macstr = $"{mac[2]:X2}{mac[3]:X2}{mac[4]:X2}{mac[5]:X2}";
             cfg.shortDeviceName = $"obk{macstr}";
             cfg.mqtt_clientId = cfg.shortDeviceName;
             cfg.longDeviceName = $"OpenBK_{macstr}";

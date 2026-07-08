@@ -399,7 +399,7 @@ namespace BK7231Flasher
         /// </summary>
         public int NumCancellationBytesReceived
         {
-            get { return _NumCancellationBytesRequired; }
+            get { return _NumCancellationBytesReceived; }
         }
 
         /// <summary>

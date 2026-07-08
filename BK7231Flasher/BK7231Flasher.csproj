@@ -82,6 +82,7 @@
     <Compile Include="Helpers\BitUtils.cs" />
     <Compile Include="Flashers\BK7231Flasher.cs" />
     <Compile Include="Misc\BKFlashList.cs" />
+    <Compile Include="Misc\SPIFlashInfoList.cs" />
     <Compile Include="Flashers\RTLZ2Flasher.cs" />
     <Compile Include="Flashers\BL602Flasher.cs" />
     <Compile Include="Flashers\TR6260Flasher.cs" />
@@ -232,6 +233,9 @@
     <EmbeddedResource Include="Floaders\GD32VW553_Stub.bin" />
     <EmbeddedResource Include="Floaders\RTL8721DA_Stub.bin" />
     <EmbeddedResource Include="Floaders\RTL8720E_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RDA5981_Stub.bin" />
+    <EmbeddedResource Include="Floaders\Z2_XModem_Stub.bin" />
+    <EmbeddedResource Include="Floaders\Z2_XModem_Stub_z.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

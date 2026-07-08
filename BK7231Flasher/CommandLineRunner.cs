@@ -269,6 +269,14 @@ namespace BK7231Flasher
                 Environment.Exit(1);
                 return;
             }
+            if ((chipType == BKType.BekenSPI || chipType == BKType.GenericSPI)
+                && (operation == CliOperation.CustomRead || operation == CliOperation.CustomWrite || operation == CliOperation.Test)
+                && ((ofs % BK7231Flasher.SECTOR_SIZE) != 0 || (len % BK7231Flasher.SECTOR_SIZE) != 0))
+            {
+                Console.Error.WriteLine("Error: BekenSPI/GenericSPI custom operations require --addr and --size to be 0x1000-aligned.");
+                Environment.Exit(1);
+                return;
+            }
 
             int exitCode = ExecuteOperation(operation, port ?? "", baud, chipType, ofs, len, outputName, writeFile, legacyMode);
             Environment.Exit(exitCode);
@@ -342,9 +350,9 @@ namespace BK7231Flasher
 
             if (chipType == BKType.BK7252)
             {
-                startSector = 0x11000;
-                sectors = (BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE) - (startSector / BK7231Flasher.SECTOR_SIZE);
-                Console.WriteLine("BK7252 mode - read offset is 0x11000, bootloader not accessible.");
+                startSector = 0x0;
+                sectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
+                Console.WriteLine("BK7252 mode - full QIO backup will use BK7252U mapped reads.");
             }
             else
             {

@@ -329,6 +329,10 @@ namespace BK7231Flasher
             {
                 textBoxEndIP.Text = settings.FindKeyValue("ScannerLast");
             }
+            if (settings.HasKey("bUseCompressionIfPossible"))
+            {
+                chkUseCompression.Checked = settings.FindKeyValueBool("bUseCompressionIfPossible");
+            }
         }
         public void setComboBoxValueByContent(ComboBox comboBox, string itemToSet)
         {
@@ -591,6 +595,7 @@ namespace BK7231Flasher
             flasher.setOverwriteBootloader(checkBoxOverwriteBootloader.Checked);
             flasher.setSkipKeyCheck(checkBoxSkipKeyCheck.Checked);
             flasher.setIgnoreCRCErr(chkIgnoreCRCErr.Checked);
+            flasher.setUseCompression(chkUseCompression.Checked);
         }
         
         void testWrite()
@@ -861,10 +866,10 @@ namespace BK7231Flasher
             }
             else if(curType == BKType.BK7252)
             {
-                startSector = 0x11000;
-                sectors = getBackupSectorCountForCurrentPlatform() - (startSector/ BK7231Flasher.SECTOR_SIZE);
+                startSector = 0x0;
+                sectors = getBackupSectorCountForCurrentPlatform();
                 addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
-                addLog("BK7252 mode - read offset is 0x11000, we can't access bootloader." + Environment.NewLine, Color.DarkOrange);
+                addLog("BK7252 mode - full QIO backup will use BK7252U mapped reads." + Environment.NewLine, Color.DarkOrange);
                 addLog("^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*" + Environment.NewLine, Color.DarkOrange);
             }
             else
@@ -1176,11 +1181,11 @@ namespace BK7231Flasher
                     addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
                 }
             }
-            else if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E)
+            else if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E || curType == BKType.GD32VW553)
             {
                 try
                 {
-                    mac = ((RTLNFlasher)flasher).ReadMAC() ?? null;
+                    mac = ((ECRBaseFlasher)flasher).ReadMAC() ?? null;
                 }
                 catch
                 {
@@ -1189,7 +1194,7 @@ namespace BK7231Flasher
             }
             if(mac != null)
             {
-                addLog($"MAC seems to be {mac[0]:X}:{mac[1]:X}:{mac[2]:X}:{mac[3]:X}:{mac[4]:X}:{mac[5]:X}" + Environment.NewLine, Color.Green);
+                addLog($"MAC seems to be {mac[0]:X2}:{mac[1]:X2}:{mac[2]:X2}:{mac[3]:X2}:{mac[4]:X2}:{mac[5]:X2}" + Environment.NewLine, Color.Green);
                 formObkCfg.onMACLoaded(mac, curType);
             }
             return mac;
@@ -1494,6 +1499,7 @@ namespace BK7231Flasher
             checkBoxSkipKeyCheck.Visible = b;
             buttonCustomOperation.Visible = b;
             chkIgnoreCRCErr.Visible = b;
+            chkUseCompression.Visible = b;
 
             // Advanced-only firmware browse button + combobox width management
             if (firmwareComboWidthNormal < 0)
@@ -1559,8 +1565,7 @@ namespace BK7231Flasher
                 "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
-                "Full chip erase: BL602, BL702, BL616 / BL618, ECR6600, TR6260, XR806, XR809, XR872, RTL8710B, RTL8720DN, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI / Generic SPI, ESP8266, ESP32 family." + _nl + _nl +
-                "Erase not implemented: LN882H, LN8825B, W800, W600." + _nl + _nl +
+                "Full chip erase: W600, W800, BL602, BL702, BL616 / BL618, ECR6600, TR6260, LN882H, LN8825B, XR806, XR809, XR872, RTL8710B, RTL8720DN, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI / Generic SPI, ESP8266, ESP32 family." + _nl + _nl +
                 "All BK series UART chips negotiate to the GUI baud rate before erasing - lower baud may help if erase fails." + _nl + _nl +
                 "Continue?";
             var res = MessageBox.Show(_msg, "WARNING! NUKE CHIP?", MessageBoxButtons.YesNo);
@@ -2057,6 +2062,11 @@ namespace BK7231Flasher
             cp.ofs = 0;
             cp.sourceFileName = "";
             doCustomWrite(cp);
+        }
+
+        private void chkUseCompression_CheckedChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("bUseCompressionIfPossible", chkUseCompression.Checked); 
         }
     }
 
