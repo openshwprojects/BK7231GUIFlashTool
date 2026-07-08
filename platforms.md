@@ -1,4 +1,4 @@
-| Platform | Family | Read | Write | R cmp | W cmp | Erase | OBK Config | RF restore | RF reloc. | Custom R/W |
+| Platform | Family | Read | Write | R cmp | W cmp | Erase | OBK Config | RF restore | RF reloc | Custom R/W |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | BK7231M | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
 | BK7231N (T2, T34) | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
