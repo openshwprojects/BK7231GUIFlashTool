@@ -12,7 +12,7 @@ namespace BK7231Flasher
 	{
 		static readonly byte GD32_GET = 0x00;
 		static readonly byte GD32_PID = 0x06;
-		//static readonly byte GD32_READ = 0x11;
+		static readonly byte GD32_READ = 0x11;
 		static readonly byte GD32_JUMP = 0x21;
 		static readonly byte GD32_PROGRAM = 0x31;
 		//static readonly byte GD32_ERASE = 0x44;
@@ -20,13 +20,13 @@ namespace BK7231Flasher
 		static readonly byte NACK = 0x1F;
 		const int Gd32RomBase = 0x0BF40000;
 		const int Gd32RomSize = 0x00040000;
-		// GD32 tool describes MCU eFuse as 0x40022808 length 0x8C;
-		// stub cmd 0x99 returns that register window with an 8-byte prefix.
+		// GD32 tool describes MCU eFuse as 0x40022808 length 0x8C.
 		const int Gd32RfEfusePayloadSize = 0x3F;
-		const int Gd32McuEfuseRegisterPrefixSize = 0x08;
-		const int Gd32McuEfuseRegisterPayloadSize = 0x94;
-		const int Gd32McuEfusePayloadSize = Gd32McuEfuseRegisterPayloadSize - Gd32McuEfuseRegisterPrefixSize;
-		const int Gd32StubEfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfuseRegisterPayloadSize;
+		const int Gd32McuEfuseAddress = 0x40022808;
+		const int Gd32McuEfusePayloadSize = 0x8C;
+		// Stub cmd 0x99 returns RF eFuse plus a sparse MCU register window; only RF is trusted here.
+		const int Gd32StubMcuEfuseRegisterPayloadSize = 0x94;
+		const int Gd32StubEfusePayloadSize = Gd32RfEfusePayloadSize + Gd32StubMcuEfuseRegisterPayloadSize;
 		const int Gd32EfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfusePayloadSize;
 
 		private static byte[] AllowedCommands;
@@ -192,38 +192,60 @@ namespace BK7231Flasher
 			return CheckAck(GD32_JUMP, "address");
 		}
 
-		//private byte[] SendReadCommand(int addr, byte len)
-		//{
-		//	if(!AllowedCommands.Contains(GD32_READ))
-		//	{
-		//		addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
-		//		return null;
-		//	}
-		//
-		//	if(!SendCommand(GD32_READ)) return null;
-		//
-		//	var address = CreateAddressPacket(addr);
-		//
-		//	serial.Write(address, 0, address.Length);
-		//
-		//	if(!CheckAck(GD32_READ, "address")) return null;
-		//
-		//	serial.Write(new[] { len, (byte)~len }, 0, 2);
-		//
-		//	if(!CheckAck(GD32_READ, "length")) return null;
-		//
-		//	byte[] data = new byte[len];
-		//
-		//	int tries = 1000;
-		//	while(serial.BytesToRead < len && tries-- > 0)
-		//		Thread.Sleep(1);
-		//
-		//	serial.Read(data, 0, len);
-		//
-		//	return data;
-		//}
+		private byte[] SendReadCommand(int addr, int length)
+		{
+			if(length <= 0 || length > 256)
+			{
+				throw new ArgumentOutOfRangeException("length", "GD32 bootloader read length must be 1..256 bytes.");
+			}
+			if(!AllowedCommands.Contains(GD32_READ))
+			{
+				addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
+				return null;
+			}
+
+			if(!SendCommand(GD32_READ)) return null;
+
+			var address = CreateAddressPacket(addr);
+
+			serial.Write(address, 0, address.Length);
+
+			if(!CheckAck(GD32_READ, "address")) return null;
+
+			byte count = (byte)(length - 1);
+
+			serial.Write(new[] { count, (byte)~count }, 0, 2);
+
+			if(!CheckAck(GD32_READ, "length")) return null;
+
+			byte[] data = new byte[length];
+			int read = 0;
+			while(read < length)
+			{
+				read += serial.Read(data, read, length - read);
+			}
+
+			return data;
+		}
 
 		protected override bool Sync()
+		{
+			if(SyncBootloader())
+			{
+				return UploadStub();
+			}
+			serial.BaudRate = 115200;
+			serial.Parity = Parity.None;
+			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
+			if(stubsync != null)
+			{
+				addLogLine("Stub is already uploaded!");
+				return true;
+			}
+			return false;
+		}
+
+		private bool SyncBootloader()
 		{
 			var timeout = serial.ReadTimeout;
 			serial.ReadTimeout = 100;
@@ -240,8 +262,17 @@ namespace BK7231Flasher
 			if(resp == 0x79 || resp == 0x1F)
 			{
 				AllowedCommands = SendGETCommand(out var bootVersion);
+				if(AllowedCommands == null)
+				{
+					return false;
+				}
 				addLogLine($"Bootloader version: 0x{bootVersion:X}");
-				var pid = Encoding.ASCII.GetString(SendPIDCommand().Take(4).ToArray());
+				var pidData = SendPIDCommand();
+				if(pidData == null || pidData.Length < 3)
+				{
+					return false;
+				}
+				var pid = Encoding.ASCII.GetString(pidData.Take(4).ToArray());
 				addLogLine($"Product ID: {pid}");
 				flashSizeMB = pid[2] switch
 				{
@@ -250,14 +281,6 @@ namespace BK7231Flasher
 					_ => throw new Exception("Unknown chip rev")
 				};
 				addLogLine($"Flash size is {flashSizeMB}MB");
-				return UploadStub();
-			}
-			serial.BaudRate = 115200;
-			serial.Parity = Parity.None;
-			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
-			if(stubsync != null)
-			{
-				addLogLine("Stub is already uploaded!");
 				return true;
 			}
 			return false;
@@ -392,18 +415,23 @@ namespace BK7231Flasher
 				{
 					return null;
 				}
-				if(Sync() == false)
-				{
-					logger.setState("Sync failed!", Color.Red);
-					return null;
-				}
-
 				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
 				switch(target.Kind)
 				{
 					case RomReadKind.Rom:
+						if(Sync() == false)
+						{
+							logger.setState("Sync failed!", Color.Red);
+							return null;
+						}
 						return ReadGd32Rom(target.Address ?? Gd32RomBase, target.Length ?? Gd32RomSize, targetKindName);
 					case RomReadKind.Efuse:
+						if(SyncBootloader() == false)
+						{
+							addError("GD32VW553 eFuse read needs ROM bootloader sync. Reset the target into UART download mode and retry." + Environment.NewLine);
+							logger.setState("Sync failed!", Color.Red);
+							return null;
+						}
 						return ReadGd32Efuse(target.Length ?? Gd32EfusePayloadSize, targetKindName);
 					default:
 						addError("Selected GD32VW553 read target is not implemented." + Environment.NewLine);
@@ -449,7 +477,18 @@ namespace BK7231Flasher
 
 			logger.setProgress(0, expectedLength);
 			logger.setState("Reading " + targetKindName + "...", Color.Transparent);
-			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
+			addLogLine("Reading " + chipType + " MCU eFuse via ROM bootloader READ at " + formatHex(Gd32McuEfuseAddress) + ".");
+			byte[] mcuEfuse = SendReadCommand(Gd32McuEfuseAddress, Gd32McuEfusePayloadSize);
+			if(mcuEfuse == null || mcuEfuse.Length != Gd32McuEfusePayloadSize)
+			{
+				throw new IOException(chipType + " ROM bootloader returned no MCU eFuse data.");
+			}
+			logger.setProgress(Gd32McuEfusePayloadSize, expectedLength);
+			if(!UploadStub())
+			{
+				throw new IOException(chipType + " stub upload failed.");
+			}
+			addLogLine("Reading " + chipType + " RF eFuse via custom stub command 0x99.");
 			byte[] stubEfuse;
 			try
 			{
@@ -470,8 +509,7 @@ namespace BK7231Flasher
 
 			byte[] result = new byte[expectedLength];
 			Array.Copy(stubEfuse, 0, result, 0, Gd32RfEfusePayloadSize);
-			Array.Copy(stubEfuse, Gd32RfEfusePayloadSize + Gd32McuEfuseRegisterPrefixSize, result,
-				Gd32RfEfusePayloadSize, Gd32McuEfusePayloadSize);
+			Array.Copy(mcuEfuse, 0, result, Gd32RfEfusePayloadSize, Gd32McuEfusePayloadSize);
 			logger.setProgress(expectedLength, expectedLength);
 			logger.setState(targetKindName + " read success!", Color.Green);
 			return result;
