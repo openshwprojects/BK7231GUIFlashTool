@@ -144,7 +144,8 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.BK7231T, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             new RomReadTarget(BKType.BK7231U, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
             new RomReadTarget(BKType.BK7231U, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            // BK7236/BK7258 are omitted until their ROM/eFuse read protocols are proven.
+            // BK7236/BK7258 are omitted for now: they do not use the standard BK72xx
+            // SCTRL eFuse path below, and their ROM/eFuse read flow still needs proving.
             new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),
             new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
             new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),

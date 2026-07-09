@@ -23,8 +23,6 @@ namespace BK7231Flasher
         const int BEKEN_EFUSE_SIZE = 0x20;
         const int SCTRL_EFUSE_CTRL = 0x00800074;
         const int SCTRL_EFUSE_OPTR = 0x00800078;
-        const int ARMINO_EFUSE_CTRL = 0x44880010;
-        const int ARMINO_EFUSE_OPTR = 0x44880014;
         public static int SECTOR_SIZE = 0x1000;
         public static int BLOCK_SIZE = 0x10000;
         public static int SECTORS_PER_BLOCK = BLOCK_SIZE / SECTOR_SIZE;
@@ -1376,8 +1374,6 @@ namespace BK7231Flasher
                 case BKType.BK7252N:
                 case BKType.BK7231T:
                 case BKType.BK7231U:
-                case BKType.BK7236:
-                case BKType.BK7258:
                     return true;
                 default:
                     return false;
@@ -1427,9 +1423,8 @@ namespace BK7231Flasher
             logger.setProgress(0, length);
             addLog("Reading " + chipType + " eFuse from " + formatHex(offset) + ", length " + formatHex(length) + Environment.NewLine);
             byte[] result = new byte[length];
-            int efuseCtrl;
-            int efuseOptr;
-            GetBekenEfuseRegisters(out efuseCtrl, out efuseOptr);
+            int efuseCtrl = SCTRL_EFUSE_CTRL;
+            int efuseOptr = SCTRL_EFUSE_OPTR;
             for (int ofs = 0; ofs < length; ofs++)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -1442,22 +1437,6 @@ namespace BK7231Flasher
             }
             logger.setState("eFuse read success!", Color.Green);
             return result;
-        }
-
-        void GetBekenEfuseRegisters(out int efuseCtrl, out int efuseOptr)
-        {
-            switch (chipType)
-            {
-                case BKType.BK7236:
-                case BKType.BK7258:
-                    efuseCtrl = ARMINO_EFUSE_CTRL;
-                    efuseOptr = ARMINO_EFUSE_OPTR;
-                    break;
-                default:
-                    efuseCtrl = SCTRL_EFUSE_CTRL;
-                    efuseOptr = SCTRL_EFUSE_OPTR;
-                    break;
-            }
         }
 
         byte ReadBekenEfuseByte(int efuseCtrl, int efuseOptr, int addr)
