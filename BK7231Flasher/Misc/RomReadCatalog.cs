@@ -117,12 +117,12 @@ namespace BK7231Flasher
         const string Gd32EfuseController = "RF map 0x3F + MCU regs 0x94";
         const string Xr809RomSpace = "ROM memory";
         const string Xr809EfuseSpace = "eFuse raw image";
-        const string Xr809Backend = "PhoenixMC memory command";
-        const string Xr809RomController = "stub cmd 0x08";
+        const string Xr809Backend = "XRadio BROM/stub command";
+        const string Xr809RomController = "BROM/stub cmd 0x08";
         const string Xr809EfuseController = "eFuse regs 0x40043C40/0x40043C60";
         const string XrRomSpace = "ROM memory";
         const string XrEfuseSpace = "eFuse raw image";
-        const string XrBromBackend = "PhoenixMC BROM memory command";
+        const string XrBromBackend = "XRadio BROM command";
         const string XrRomController = "BROM cmd 0x08";
         const string XrEfuseController = "eFuse regs 0x40043C40/0x40043C60";
 
