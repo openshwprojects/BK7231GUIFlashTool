@@ -115,7 +115,6 @@ namespace BK7231Flasher
 			this.label8 = new System.Windows.Forms.Label();
 			this.label7 = new System.Windows.Forms.Label();
 			this.linkLabelOpenBeken = new System.Windows.Forms.LinkLabel();
-			this.tabPage4 = new System.Windows.Forms.TabPage();
 			this.label15 = new System.Windows.Forms.Label();
 			this.linkLabel3 = new System.Windows.Forms.LinkLabel();
 			this.label14 = new System.Windows.Forms.Label();
@@ -224,7 +223,6 @@ namespace BK7231Flasher
 			this.groupBoxReadRomTargets.SuspendLayout();
 			this.tabPagePageTool.SuspendLayout();
 			this.tabPage3.SuspendLayout();
-			this.tabPage4.SuspendLayout();
 			this.tabPage2.SuspendLayout();
 			this.tabPage5.SuspendLayout();
 			this.tabPage6.SuspendLayout();
@@ -328,13 +326,12 @@ namespace BK7231Flasher
 			this.tabControl1.Controls.Add(this.tabPage1);
 			this.tabControl1.Controls.Add(this.tabPageReadRom);
 			this.tabControl1.Controls.Add(this.tabPagePageTool);
-			this.tabControl1.Controls.Add(this.tabPage3);
-			this.tabControl1.Controls.Add(this.tabPage4);
 			this.tabControl1.Controls.Add(this.tabPage2);
 			this.tabControl1.Controls.Add(this.tabPage5);
 			this.tabControl1.Controls.Add(this.tabPage6);
 			this.tabControl1.Controls.Add(this.tabPage7);
 			this.tabControl1.Controls.Add(this.tabDecryption);
+			this.tabControl1.Controls.Add(this.tabPage3);
 			this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.tabControl1.Location = new System.Drawing.Point(0, 0);
 			this.tabControl1.Name = "tabControl1";
@@ -993,6 +990,11 @@ namespace BK7231Flasher
 			// 
 			// tabPage3
 			// 
+			this.tabPage3.Controls.Add(this.label15);
+			this.tabPage3.Controls.Add(this.linkLabel3);
+			this.tabPage3.Controls.Add(this.label14);
+			this.tabPage3.Controls.Add(this.linkLabel2);
+			this.tabPage3.Controls.Add(this.label13);
 			this.tabPage3.Controls.Add(this.linkLabel1);
 			this.tabPage3.Controls.Add(this.label12);
 			this.tabPage3.Controls.Add(this.linkLabelSPIFlasher);
@@ -1009,16 +1011,16 @@ namespace BK7231Flasher
 			this.tabPage3.Name = "tabPage3";
 			this.tabPage3.Size = new System.Drawing.Size(907, 484);
 			this.tabPage3.TabIndex = 2;
-			this.tabPage3.Text = "Documentation/Tutorials";
+			this.tabPage3.Text = "Docs and Help";
 			this.tabPage3.UseVisualStyleBackColor = true;
 			// 
 			// linkLabel1
 			// 
 			this.linkLabel1.AutoSize = true;
-			this.linkLabel1.Location = new System.Drawing.Point(231, 130);
+			this.linkLabel1.Location = new System.Drawing.Point(231, 216);
 			this.linkLabel1.Name = "linkLabel1";
 			this.linkLabel1.Size = new System.Drawing.Size(246, 13);
-			this.linkLabel1.TabIndex = 11;
+			this.linkLabel1.TabIndex = 16;
 			this.linkLabel1.TabStop = true;
 			this.linkLabel1.Text = "https://github.com/openshwprojects/obkSimulator";
 			this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1026,19 +1028,19 @@ namespace BK7231Flasher
 			// label12
 			// 
 			this.label12.AutoSize = true;
-			this.label12.Location = new System.Drawing.Point(9, 130);
+			this.label12.Location = new System.Drawing.Point(9, 216);
 			this.label12.Name = "label12";
 			this.label12.Size = new System.Drawing.Size(143, 13);
-			this.label12.TabIndex = 10;
+			this.label12.TabIndex = 15;
 			this.label12.Text = "OpenBK Windows Simulator:";
 			// 
 			// linkLabelSPIFlasher
 			// 
 			this.linkLabelSPIFlasher.AutoSize = true;
-			this.linkLabelSPIFlasher.Location = new System.Drawing.Point(231, 106);
+			this.linkLabelSPIFlasher.Location = new System.Drawing.Point(231, 192);
 			this.linkLabelSPIFlasher.Name = "linkLabelSPIFlasher";
 			this.linkLabelSPIFlasher.Size = new System.Drawing.Size(286, 13);
-			this.linkLabelSPIFlasher.TabIndex = 9;
+			this.linkLabelSPIFlasher.TabIndex = 14;
 			this.linkLabelSPIFlasher.TabStop = true;
 			this.linkLabelSPIFlasher.Text = "https://github.com/openshwprojects/BK7231_SPI_Flasher";
 			this.linkLabelSPIFlasher.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1046,19 +1048,19 @@ namespace BK7231Flasher
 			// label11
 			// 
 			this.label11.AutoSize = true;
-			this.label11.Location = new System.Drawing.Point(9, 106);
+			this.label11.Location = new System.Drawing.Point(9, 192);
 			this.label11.Name = "label11";
 			this.label11.Size = new System.Drawing.Size(201, 13);
-			this.label11.TabIndex = 8;
+			this.label11.TabIndex = 13;
 			this.label11.Text = "Our SPI BK7231 flasher (recovery mode):";
 			// 
 			// linkLabelForumDevicesSectio
 			// 
 			this.linkLabelForumDevicesSectio.AutoSize = true;
-			this.linkLabelForumDevicesSectio.Location = new System.Drawing.Point(231, 82);
+			this.linkLabelForumDevicesSectio.Location = new System.Drawing.Point(231, 168);
 			this.linkLabelForumDevicesSectio.Name = "linkLabelForumDevicesSectio";
 			this.linkLabelForumDevicesSectio.Size = new System.Drawing.Size(251, 13);
-			this.linkLabelForumDevicesSectio.TabIndex = 7;
+			this.linkLabelForumDevicesSectio.TabIndex = 12;
 			this.linkLabelForumDevicesSectio.TabStop = true;
 			this.linkLabelForumDevicesSectio.Text = "https://www.elektroda.com/rtvforum/forum507.html";
 			this.linkLabelForumDevicesSectio.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1066,10 +1068,10 @@ namespace BK7231Flasher
 			// linkLabelDevicesDB
 			// 
 			this.linkLabelDevicesDB.AutoSize = true;
-			this.linkLabelDevicesDB.Location = new System.Drawing.Point(230, 57);
+			this.linkLabelDevicesDB.Location = new System.Drawing.Point(230, 144);
 			this.linkLabelDevicesDB.Name = "linkLabelDevicesDB";
 			this.linkLabelDevicesDB.Size = new System.Drawing.Size(274, 13);
-			this.linkLabelDevicesDB.TabIndex = 6;
+			this.linkLabelDevicesDB.TabIndex = 10;
 			this.linkLabelDevicesDB.TabStop = true;
 			this.linkLabelDevicesDB.Text = "https://openbekeniot.github.io/webapp/devicesList.html";
 			this.linkLabelDevicesDB.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1077,10 +1079,10 @@ namespace BK7231Flasher
 			// linkLabelForum
 			// 
 			this.linkLabelForum.AutoSize = true;
-			this.linkLabelForum.Location = new System.Drawing.Point(230, 34);
+			this.linkLabelForum.Location = new System.Drawing.Point(230, 120);
 			this.linkLabelForum.Name = "linkLabelForum";
 			this.linkLabelForum.Size = new System.Drawing.Size(142, 13);
-			this.linkLabelForum.TabIndex = 5;
+			this.linkLabelForum.TabIndex = 8;
 			this.linkLabelForum.TabStop = true;
 			this.linkLabelForum.Text = "https://www.elektroda.com/";
 			this.linkLabelForum.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1088,80 +1090,65 @@ namespace BK7231Flasher
 			// label10
 			// 
 			this.label10.AutoSize = true;
-			this.label10.Location = new System.Drawing.Point(9, 82);
+			this.label10.Location = new System.Drawing.Point(9, 168);
 			this.label10.Name = "label10";
 			this.label10.Size = new System.Drawing.Size(216, 13);
-			this.label10.TabIndex = 4;
+			this.label10.TabIndex = 11;
 			this.label10.Text = "Devices forum (submit new teardowns here):";
 			// 
 			// label9
 			// 
 			this.label9.AutoSize = true;
-			this.label9.Location = new System.Drawing.Point(9, 57);
+			this.label9.Location = new System.Drawing.Point(9, 144);
 			this.label9.Name = "label9";
 			this.label9.Size = new System.Drawing.Size(150, 13);
-			this.label9.TabIndex = 3;
+			this.label9.TabIndex = 9;
 			this.label9.Text = "Devices Templates/database:";
 			// 
 			// label8
 			// 
 			this.label8.AutoSize = true;
-			this.label8.Location = new System.Drawing.Point(9, 34);
+			this.label8.Location = new System.Drawing.Point(9, 120);
 			this.label8.Name = "label8";
 			this.label8.Size = new System.Drawing.Size(144, 13);
-			this.label8.TabIndex = 2;
+			this.label8.TabIndex = 7;
 			this.label8.Text = "Our forum (ask here for help):";
 			// 
 			// label7
 			// 
 			this.label7.AutoSize = true;
-			this.label7.Location = new System.Drawing.Point(9, 12);
+			this.label7.Location = new System.Drawing.Point(9, 96);
 			this.label7.Name = "label7";
 			this.label7.Size = new System.Drawing.Size(151, 13);
-			this.label7.TabIndex = 1;
+			this.label7.TabIndex = 5;
 			this.label7.Text = "Our repository (for developers):";
 			// 
 			// linkLabelOpenBeken
 			// 
 			this.linkLabelOpenBeken.AutoSize = true;
-			this.linkLabelOpenBeken.Location = new System.Drawing.Point(230, 12);
+			this.linkLabelOpenBeken.Location = new System.Drawing.Point(230, 96);
 			this.linkLabelOpenBeken.Name = "linkLabelOpenBeken";
 			this.linkLabelOpenBeken.Size = new System.Drawing.Size(281, 13);
-			this.linkLabelOpenBeken.TabIndex = 0;
+			this.linkLabelOpenBeken.TabIndex = 6;
 			this.linkLabelOpenBeken.TabStop = true;
 			this.linkLabelOpenBeken.Text = "https://github.com/openshwprojects/OpenBK7231T_App";
 			this.linkLabelOpenBeken.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
-			// 
-			// tabPage4
-			// 
-			this.tabPage4.Controls.Add(this.label15);
-			this.tabPage4.Controls.Add(this.linkLabel3);
-			this.tabPage4.Controls.Add(this.label14);
-			this.tabPage4.Controls.Add(this.linkLabel2);
-			this.tabPage4.Controls.Add(this.label13);
-			this.tabPage4.Location = new System.Drawing.Point(4, 22);
-			this.tabPage4.Name = "tabPage4";
-			this.tabPage4.Size = new System.Drawing.Size(907, 484);
-			this.tabPage4.TabIndex = 3;
-			this.tabPage4.Text = "Help contact";
-			this.tabPage4.UseVisualStyleBackColor = true;
-			// 
 			// label15
 			// 
 			this.label15.AutoSize = true;
-			this.label15.Location = new System.Drawing.Point(20, 67);
+			this.label15.Location = new System.Drawing.Point(9, 60);
 			this.label15.Name = "label15";
 			this.label15.Size = new System.Drawing.Size(274, 13);
-			this.label15.TabIndex = 9;
+			this.label15.TabIndex = 4;
 			this.label15.Text = "We will guide you step by step with device configuration!";
 			// 
 			// linkLabel3
 			// 
 			this.linkLabel3.AutoSize = true;
-			this.linkLabel3.Location = new System.Drawing.Point(282, 40);
+			this.linkLabel3.Location = new System.Drawing.Point(282, 36);
 			this.linkLabel3.Name = "linkLabel3";
 			this.linkLabel3.Size = new System.Drawing.Size(318, 13);
-			this.linkLabel3.TabIndex = 8;
+			this.linkLabel3.TabIndex = 3;
 			this.linkLabel3.TabStop = true;
 			this.linkLabel3.Text = "https://www.elektroda.com/rtvforum/forum390.html?tylko_dzial=1";
 			this.linkLabel3.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1169,19 +1156,19 @@ namespace BK7231Flasher
 			// label14
 			// 
 			this.label14.AutoSize = true;
-			this.label14.Location = new System.Drawing.Point(20, 40);
+			this.label14.Location = new System.Drawing.Point(9, 36);
 			this.label14.Name = "label14";
 			this.label14.Size = new System.Drawing.Size(256, 13);
-			this.label14.TabIndex = 7;
+			this.label14.TabIndex = 2;
 			this.label14.Text = "The preferred section for quick IoT questions is here:";
 			// 
 			// linkLabel2
 			// 
 			this.linkLabel2.AutoSize = true;
-			this.linkLabel2.Location = new System.Drawing.Point(198, 14);
+			this.linkLabel2.Location = new System.Drawing.Point(230, 12);
 			this.linkLabel2.Name = "linkLabel2";
 			this.linkLabel2.Size = new System.Drawing.Size(142, 13);
-			this.linkLabel2.TabIndex = 6;
+			this.linkLabel2.TabIndex = 1;
 			this.linkLabel2.TabStop = true;
 			this.linkLabel2.Text = "https://www.elektroda.com/";
 			this.linkLabel2.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
@@ -1189,7 +1176,7 @@ namespace BK7231Flasher
 			// label13
 			// 
 			this.label13.AutoSize = true;
-			this.label13.Location = new System.Drawing.Point(20, 14);
+			this.label13.Location = new System.Drawing.Point(9, 12);
 			this.label13.Name = "label13";
 			this.label13.Size = new System.Drawing.Size(172, 13);
 			this.label13.TabIndex = 0;
@@ -2205,8 +2192,6 @@ namespace BK7231Flasher
 			this.tabPagePageTool.PerformLayout();
 			this.tabPage3.ResumeLayout(false);
 			this.tabPage3.PerformLayout();
-			this.tabPage4.ResumeLayout(false);
-			this.tabPage4.PerformLayout();
 			this.tabPage2.ResumeLayout(false);
 			this.tabPage2.PerformLayout();
 			this.tabPage5.ResumeLayout(false);
@@ -2279,7 +2264,6 @@ namespace BK7231Flasher
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label labelState;
         private System.Windows.Forms.TabPage tabPage3;
-        private System.Windows.Forms.TabPage tabPage4;
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label label7;
