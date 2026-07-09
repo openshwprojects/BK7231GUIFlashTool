@@ -34,8 +34,8 @@ namespace BK7231Flasher
         }
 
         OperationUiTarget currentOperationUiTarget = OperationUiTarget.Flasher;
-        bool suppressReadRomPlatformEvents = false;
-        bool suppressReadRomTargetEvents = false;
+        bool bSuppressReadRomPlatformEvents = false;
+        bool bSuppressReadRomTargetEvents = false;
 
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
@@ -353,7 +353,7 @@ namespace BK7231Flasher
 
         void populateReadRomPlatformComboBox()
         {
-            suppressReadRomPlatformEvents = true;
+            bSuppressReadRomPlatformEvents = true;
             comboBoxReadRomChipType.Items.Clear();
             comboBoxReadRomChipType.Items.Add("");
             foreach(var chip in FlashPlatformCatalog.GetOrderedChipTypes()
@@ -362,7 +362,7 @@ namespace BK7231Flasher
                 comboBoxReadRomChipType.Items.Add(chip);
             }
             comboBoxReadRomChipType.SelectedIndex = 0;
-            suppressReadRomPlatformEvents = false;
+            bSuppressReadRomPlatformEvents = false;
         }
 
         BKType getSelectedChipType(ComboBox comboBox)
@@ -496,7 +496,7 @@ namespace BK7231Flasher
         void updateReadRomControlsForSelectedPlatform(bool logBootInstructions)
         {
             BKType selectedType = getSelectedChipType(comboBoxReadRomChipType);
-            suppressReadRomTargetEvents = true;
+            bSuppressReadRomTargetEvents = true;
 
             setReadRomTargetControl(radioButtonReadRomTargetEfuse, selectedType, RomReadKind.Efuse);
             setReadRomTargetControl(radioButtonReadRomTargetOtp, selectedType, RomReadKind.Otp);
@@ -525,7 +525,7 @@ namespace BK7231Flasher
                     radioButtonReadRomTargetRom.Checked = true;
             }
 
-            suppressReadRomTargetEvents = false;
+            bSuppressReadRomTargetEvents = false;
             updateReadRomBaudRates();
             updateReadRomRangeInfo();
             updateReadRomReadButtonState();
@@ -1630,7 +1630,7 @@ namespace BK7231Flasher
 
         private void comboBoxReadRomChipType_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (suppressReadRomPlatformEvents)
+            if (bSuppressReadRomPlatformEvents)
             {
                 return;
             }
@@ -1650,7 +1650,7 @@ namespace BK7231Flasher
 
         private void radioButtonReadRomTarget_CheckedChanged(object sender, EventArgs e)
         {
-            if (suppressReadRomTargetEvents)
+            if (bSuppressReadRomTargetEvents)
                 return;
             updateReadRomBaudRates();
             updateReadRomRangeInfo();
