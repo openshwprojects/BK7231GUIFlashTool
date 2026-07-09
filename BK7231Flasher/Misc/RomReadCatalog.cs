@@ -140,10 +140,7 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.BK7238, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             new RomReadTarget(BKType.BK7252N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
             new RomReadTarget(BKType.BK7252N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7231T, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7231T, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7231U, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7231U, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            // BK7231T/BK7231U do not expose ROM/eFuse reads over UART.
             // BK7236/BK7258 are omitted for now: they do not use the standard BK72xx
             // SCTRL eFuse path below, and their ROM/eFuse read flow still needs proving.
             new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),

@@ -1372,8 +1372,6 @@ namespace BK7231Flasher
                 case BKType.BK7231N:
                 case BKType.BK7238:
                 case BKType.BK7252N:
-                case BKType.BK7231T:
-                case BKType.BK7231U:
                     return true;
                 default:
                     return false;
