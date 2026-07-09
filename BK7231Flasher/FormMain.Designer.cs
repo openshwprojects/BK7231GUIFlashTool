@@ -49,11 +49,6 @@ namespace BK7231Flasher
 			this.buttonReadRomOpenBackupsDir = new System.Windows.Forms.Button();
 			this.buttonReadRomStop = new System.Windows.Forms.Button();
 			this.buttonReadRomRead = new System.Windows.Forms.Button();
-			this.groupBoxReadRomRange = new System.Windows.Forms.GroupBox();
-			this.labelReadRomRangeController = new System.Windows.Forms.Label();
-			this.labelReadRomRangeEnd = new System.Windows.Forms.Label();
-			this.labelReadRomRangeLength = new System.Windows.Forms.Label();
-			this.labelReadRomRangeStart = new System.Windows.Forms.Label();
 			this.groupBoxReadRomTargets = new System.Windows.Forms.GroupBox();
 			this.radioButtonReadRomTargetEfuse = new System.Windows.Forms.RadioButton();
 			this.radioButtonReadRomTargetOtp = new System.Windows.Forms.RadioButton();
@@ -226,7 +221,6 @@ namespace BK7231Flasher
 			this.tabControl1.SuspendLayout();
 			this.tabPage1.SuspendLayout();
 			this.tabPageReadRom.SuspendLayout();
-			this.groupBoxReadRomRange.SuspendLayout();
 			this.groupBoxReadRomTargets.SuspendLayout();
 			this.tabPagePageTool.SuspendLayout();
 			this.tabPage3.SuspendLayout();
@@ -332,6 +326,7 @@ namespace BK7231Flasher
 			// tabControl1
 			// 
 			this.tabControl1.Controls.Add(this.tabPage1);
+			this.tabControl1.Controls.Add(this.tabPageReadRom);
 			this.tabControl1.Controls.Add(this.tabPagePageTool);
 			this.tabControl1.Controls.Add(this.tabPage3);
 			this.tabControl1.Controls.Add(this.tabPage4);
@@ -339,12 +334,9 @@ namespace BK7231Flasher
 			this.tabControl1.Controls.Add(this.tabPage5);
 			this.tabControl1.Controls.Add(this.tabPage6);
 			this.tabControl1.Controls.Add(this.tabPage7);
-			this.tabControl1.Controls.Add(this.tabPage8);
 			this.tabControl1.Controls.Add(this.tabDecryption);
-			this.tabControl1.Controls.Add(this.tabPageReadRom);
 			this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.tabControl1.Location = new System.Drawing.Point(0, 0);
-			this.tabControl1.Multiline = true;
 			this.tabControl1.Name = "tabControl1";
 			this.tabControl1.SelectedIndex = 0;
 			this.tabControl1.Size = new System.Drawing.Size(915, 510);
@@ -408,7 +400,6 @@ namespace BK7231Flasher
 			this.tabPageReadRom.Controls.Add(this.buttonReadRomOpenBackupsDir);
 			this.tabPageReadRom.Controls.Add(this.buttonReadRomStop);
 			this.tabPageReadRom.Controls.Add(this.buttonReadRomRead);
-			this.tabPageReadRom.Controls.Add(this.groupBoxReadRomRange);
 			this.tabPageReadRom.Controls.Add(this.groupBoxReadRomTargets);
 			this.tabPageReadRom.Controls.Add(this.labelReadRomState);
 			this.tabPageReadRom.Controls.Add(this.labelReadRomBaud);
@@ -466,56 +457,6 @@ namespace BK7231Flasher
 			this.buttonReadRomRead.Text = "Read selected target";
 			this.buttonReadRomRead.UseVisualStyleBackColor = true;
 			this.buttonReadRomRead.Click += new System.EventHandler(this.buttonReadRomRead_Click);
-			//
-			// groupBoxReadRomRange
-			//
-			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeController);
-			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeEnd);
-			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeLength);
-			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeStart);
-			this.groupBoxReadRomRange.Location = new System.Drawing.Point(399, 6);
-			this.groupBoxReadRomRange.Name = "groupBoxReadRomRange";
-			this.groupBoxReadRomRange.Size = new System.Drawing.Size(420, 75);
-			this.groupBoxReadRomRange.TabIndex = 14;
-			this.groupBoxReadRomRange.TabStop = false;
-			this.groupBoxReadRomRange.Text = "Read details";
-			//
-			// labelReadRomRangeController
-			//
-			this.labelReadRomRangeController.AutoSize = true;
-			this.labelReadRomRangeController.Location = new System.Drawing.Point(6, 58);
-			this.labelReadRomRangeController.Name = "labelReadRomRangeController";
-			this.labelReadRomRangeController.Size = new System.Drawing.Size(34, 13);
-			this.labelReadRomRangeController.TabIndex = 3;
-			this.labelReadRomRangeController.Text = "Ctrl: -";
-			//
-			// labelReadRomRangeEnd
-			//
-			this.labelReadRomRangeEnd.AutoSize = true;
-			this.labelReadRomRangeEnd.Location = new System.Drawing.Point(6, 44);
-			this.labelReadRomRangeEnd.Name = "labelReadRomRangeEnd";
-			this.labelReadRomRangeEnd.Size = new System.Drawing.Size(58, 13);
-			this.labelReadRomRangeEnd.TabIndex = 2;
-			this.labelReadRomRangeEnd.Text = "Backend: -";
-			//
-			// labelReadRomRangeLength
-			//
-			this.labelReadRomRangeLength.AutoSize = true;
-			this.labelReadRomRangeLength.Location = new System.Drawing.Point(6, 30);
-			this.labelReadRomRangeLength.Name = "labelReadRomRangeLength";
-			this.labelReadRomRangeLength.Size = new System.Drawing.Size(48, 13);
-			this.labelReadRomRangeLength.TabIndex = 1;
-			this.labelReadRomRangeLength.Text = "Range: -";
-			//
-			// labelReadRomRangeStart
-			//
-			this.labelReadRomRangeStart.AutoSize = true;
-			this.labelReadRomRangeStart.Location = new System.Drawing.Point(6, 16);
-			this.labelReadRomRangeStart.Name = "labelReadRomRangeStart";
-			this.labelReadRomRangeStart.Size = new System.Drawing.Size(47, 13);
-			this.labelReadRomRangeStart.TabIndex = 0;
-			this.labelReadRomRangeStart.Text = "Space: -";
-			//
 			// groupBoxReadRomTargets
 			//
 			this.groupBoxReadRomTargets.Controls.Add(this.radioButtonReadRomTargetEfuse);
@@ -2258,8 +2199,6 @@ namespace BK7231Flasher
 			this.tabPage1.PerformLayout();
 			this.tabPageReadRom.ResumeLayout(false);
 			this.tabPageReadRom.PerformLayout();
-			this.groupBoxReadRomRange.ResumeLayout(false);
-			this.groupBoxReadRomRange.PerformLayout();
 			this.groupBoxReadRomTargets.ResumeLayout(false);
 			this.groupBoxReadRomTargets.PerformLayout();
 			this.tabPagePageTool.ResumeLayout(false);
@@ -2304,11 +2243,6 @@ namespace BK7231Flasher
         private System.Windows.Forms.Button buttonReadRomOpenBackupsDir;
         private System.Windows.Forms.Button buttonReadRomStop;
         private System.Windows.Forms.Button buttonReadRomRead;
-        private System.Windows.Forms.GroupBox groupBoxReadRomRange;
-        private System.Windows.Forms.Label labelReadRomRangeController;
-        private System.Windows.Forms.Label labelReadRomRangeEnd;
-        private System.Windows.Forms.Label labelReadRomRangeLength;
-        private System.Windows.Forms.Label labelReadRomRangeStart;
         private System.Windows.Forms.GroupBox groupBoxReadRomTargets;
         private System.Windows.Forms.RadioButton radioButtonReadRomTargetEfuse;
         private System.Windows.Forms.RadioButton radioButtonReadRomTargetOtp;
