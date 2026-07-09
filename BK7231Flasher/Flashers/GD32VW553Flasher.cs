@@ -20,10 +20,14 @@ namespace BK7231Flasher
 		static readonly byte NACK = 0x1F;
 		const int Gd32RomBase = 0x0BF40000;
 		const int Gd32RomSize = 0x00040000;
-		// Stub cmd 0x99 returns the RF eFuse map followed by the raw MCU EFUSE register block.
+		// GD32 tool describes MCU eFuse as 0x40022808 length 0x8C;
+		// stub cmd 0x99 returns that register window with an 8-byte prefix.
 		const int Gd32RfEfusePayloadSize = 0x3F;
+		const int Gd32McuEfuseRegisterPrefixSize = 0x08;
 		const int Gd32McuEfuseRegisterPayloadSize = 0x94;
-		const int Gd32EfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfuseRegisterPayloadSize;
+		const int Gd32McuEfusePayloadSize = Gd32McuEfuseRegisterPayloadSize - Gd32McuEfuseRegisterPrefixSize;
+		const int Gd32StubEfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfuseRegisterPayloadSize;
+		const int Gd32EfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfusePayloadSize;
 
 		private static byte[] AllowedCommands;
 
@@ -443,13 +447,39 @@ namespace BK7231Flasher
 				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + Gd32EfusePayloadSize + " bytes.");
 			}
 
+			logger.setProgress(0, expectedLength);
+			logger.setState("Reading " + targetKindName + "...", Color.Transparent);
 			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
-			return InternalReadEfusePayload(expectedLength, targetKindName);
+			byte[] stubEfuse;
+			try
+			{
+				if(!SetBaud(baudrate))
+				{
+					throw new IOException(chipType + " stub baud switch failed.");
+				}
+				stubEfuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, null, 2, Gd32StubEfusePayloadSize);
+			}
+			finally
+			{
+				SetBaud(115200);
+			}
+			if(stubEfuse == null)
+			{
+				throw new IOException(chipType + " eFuse command returned no data.");
+			}
+
+			byte[] result = new byte[expectedLength];
+			Array.Copy(stubEfuse, 0, result, 0, Gd32RfEfusePayloadSize);
+			Array.Copy(stubEfuse, Gd32RfEfusePayloadSize + Gd32McuEfuseRegisterPrefixSize, result,
+				Gd32RfEfusePayloadSize, Gd32McuEfusePayloadSize);
+			logger.setProgress(expectedLength, expectedLength);
+			logger.setState(targetKindName + " read success!", Color.Green);
+			return result;
 		}
 
 		internal override byte[] ReadMAC()
 		{
-			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: Gd32EfusePayloadSize);
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: Gd32StubEfusePayloadSize);
 			if(rf_efuse == null)
 				return null;
 			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[31], rf_efuse[33], rf_efuse[34] };
