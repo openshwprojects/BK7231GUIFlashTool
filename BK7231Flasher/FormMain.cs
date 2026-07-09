@@ -493,11 +493,6 @@ namespace BK7231Flasher
             refreshType(comboBoxChipType, comboBoxUART, comboBoxBaudRate);
         }
 
-        void refreshReadRomType()
-        {
-            refreshType(comboBoxReadRomChipType, comboBoxReadRomUART, comboBoxReadRomBaudRate);
-        }
-
         void updateReadRomControlsForSelectedPlatform(bool logBootInstructions)
         {
             BKType selectedType = getSelectedChipType(comboBoxReadRomChipType);
@@ -1253,12 +1248,6 @@ namespace BK7231Flasher
         }
         public void onReadResultQIOSaved(byte[] dat, string lastEncryptionKey, string fullPath)
         {
-            if (currentOperationUiTarget == OperationUiTarget.ReadRom)
-            {
-                addLog("ROM read saved to " + fullPath + Environment.NewLine, Color.Green);
-                return;
-            }
-
             if (checkBoxReadOBKConfig.Checked)
             {
                 addLog("Backup created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
@@ -1647,7 +1636,6 @@ namespace BK7231Flasher
             }
             applySerialControlState(comboBoxReadRomChipType, comboBoxReadRomUART, comboBoxReadRomBaudRate, worker == null);
             updateReadRomControlsForSelectedPlatform(tabControl1.SelectedTab == tabPageReadRom);
-            setSettingsKeyAndSave("ReadRomPlatform", comboBoxReadRomChipType.SelectedItem);
         }
 
         private void comboBoxReadRomUART_SelectedIndexChanged(object sender, EventArgs e)

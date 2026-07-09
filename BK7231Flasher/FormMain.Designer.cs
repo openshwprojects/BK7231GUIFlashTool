@@ -403,7 +403,7 @@ namespace BK7231Flasher
 			this.tabPage1.UseVisualStyleBackColor = true;
 			// 
 			// tabPageReadRom
-			// 
+			//
 			this.tabPageReadRom.Controls.Add(this.buttonReadRomClearLog);
 			this.tabPageReadRom.Controls.Add(this.buttonReadRomOpenBackupsDir);
 			this.tabPageReadRom.Controls.Add(this.buttonReadRomStop);
@@ -426,9 +426,9 @@ namespace BK7231Flasher
 			this.tabPageReadRom.TabIndex = 10;
 			this.tabPageReadRom.Text = "Read ROM";
 			this.tabPageReadRom.UseVisualStyleBackColor = true;
-			// 
+			//
 			// buttonReadRomClearLog
-			// 
+			//
 			this.buttonReadRomClearLog.Location = new System.Drawing.Point(832, 97);
 			this.buttonReadRomClearLog.Name = "buttonReadRomClearLog";
 			this.buttonReadRomClearLog.Size = new System.Drawing.Size(72, 23);
@@ -436,9 +436,9 @@ namespace BK7231Flasher
 			this.buttonReadRomClearLog.Text = "Clear log";
 			this.buttonReadRomClearLog.UseVisualStyleBackColor = true;
 			this.buttonReadRomClearLog.Click += new System.EventHandler(this.buttonReadRomClearLog_Click);
-			// 
+			//
 			// buttonReadRomOpenBackupsDir
-			// 
+			//
 			this.buttonReadRomOpenBackupsDir.Location = new System.Drawing.Point(293, 97);
 			this.buttonReadRomOpenBackupsDir.Name = "buttonReadRomOpenBackupsDir";
 			this.buttonReadRomOpenBackupsDir.Size = new System.Drawing.Size(127, 23);
@@ -446,9 +446,9 @@ namespace BK7231Flasher
 			this.buttonReadRomOpenBackupsDir.Text = "Open backups dir";
 			this.buttonReadRomOpenBackupsDir.UseVisualStyleBackColor = true;
 			this.buttonReadRomOpenBackupsDir.Click += new System.EventHandler(this.buttonOpenBackupsDir_Click);
-			// 
+			//
 			// buttonReadRomStop
-			// 
+			//
 			this.buttonReadRomStop.Location = new System.Drawing.Point(167, 97);
 			this.buttonReadRomStop.Name = "buttonReadRomStop";
 			this.buttonReadRomStop.Size = new System.Drawing.Size(120, 23);
@@ -456,9 +456,9 @@ namespace BK7231Flasher
 			this.buttonReadRomStop.Text = "Stop current operation";
 			this.buttonReadRomStop.UseVisualStyleBackColor = true;
 			this.buttonReadRomStop.Click += new System.EventHandler(this.buttonReadRomStop_Click);
-			// 
+			//
 			// buttonReadRomRead
-			// 
+			//
 			this.buttonReadRomRead.Location = new System.Drawing.Point(11, 97);
 			this.buttonReadRomRead.Name = "buttonReadRomRead";
 			this.buttonReadRomRead.Size = new System.Drawing.Size(150, 23);
@@ -466,9 +466,9 @@ namespace BK7231Flasher
 			this.buttonReadRomRead.Text = "Read selected target";
 			this.buttonReadRomRead.UseVisualStyleBackColor = true;
 			this.buttonReadRomRead.Click += new System.EventHandler(this.buttonReadRomRead_Click);
-			// 
+			//
 			// groupBoxReadRomRange
-			// 
+			//
 			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeController);
 			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeEnd);
 			this.groupBoxReadRomRange.Controls.Add(this.labelReadRomRangeLength);
@@ -479,45 +479,45 @@ namespace BK7231Flasher
 			this.groupBoxReadRomRange.TabIndex = 14;
 			this.groupBoxReadRomRange.TabStop = false;
 			this.groupBoxReadRomRange.Text = "Read details";
-			// 
+			//
 			// labelReadRomRangeController
-			// 
+			//
 			this.labelReadRomRangeController.AutoSize = true;
 			this.labelReadRomRangeController.Location = new System.Drawing.Point(6, 58);
 			this.labelReadRomRangeController.Name = "labelReadRomRangeController";
 			this.labelReadRomRangeController.Size = new System.Drawing.Size(34, 13);
 			this.labelReadRomRangeController.TabIndex = 3;
 			this.labelReadRomRangeController.Text = "Ctrl: -";
-			// 
+			//
 			// labelReadRomRangeEnd
-			// 
+			//
 			this.labelReadRomRangeEnd.AutoSize = true;
 			this.labelReadRomRangeEnd.Location = new System.Drawing.Point(6, 44);
 			this.labelReadRomRangeEnd.Name = "labelReadRomRangeEnd";
 			this.labelReadRomRangeEnd.Size = new System.Drawing.Size(58, 13);
 			this.labelReadRomRangeEnd.TabIndex = 2;
 			this.labelReadRomRangeEnd.Text = "Backend: -";
-			// 
+			//
 			// labelReadRomRangeLength
-			// 
+			//
 			this.labelReadRomRangeLength.AutoSize = true;
 			this.labelReadRomRangeLength.Location = new System.Drawing.Point(6, 30);
 			this.labelReadRomRangeLength.Name = "labelReadRomRangeLength";
 			this.labelReadRomRangeLength.Size = new System.Drawing.Size(48, 13);
 			this.labelReadRomRangeLength.TabIndex = 1;
 			this.labelReadRomRangeLength.Text = "Range: -";
-			// 
+			//
 			// labelReadRomRangeStart
-			// 
+			//
 			this.labelReadRomRangeStart.AutoSize = true;
 			this.labelReadRomRangeStart.Location = new System.Drawing.Point(6, 16);
 			this.labelReadRomRangeStart.Name = "labelReadRomRangeStart";
 			this.labelReadRomRangeStart.Size = new System.Drawing.Size(47, 13);
 			this.labelReadRomRangeStart.TabIndex = 0;
 			this.labelReadRomRangeStart.Text = "Space: -";
-			// 
+			//
 			// groupBoxReadRomTargets
-			// 
+			//
 			this.groupBoxReadRomTargets.Controls.Add(this.radioButtonReadRomTargetEfuse);
 			this.groupBoxReadRomTargets.Controls.Add(this.radioButtonReadRomTargetOtp);
 			this.groupBoxReadRomTargets.Controls.Add(this.radioButtonReadRomTargetRom);
@@ -527,9 +527,9 @@ namespace BK7231Flasher
 			this.groupBoxReadRomTargets.TabIndex = 12;
 			this.groupBoxReadRomTargets.TabStop = false;
 			this.groupBoxReadRomTargets.Text = "Read target";
-			// 
+			//
 			// radioButtonReadRomTargetEfuse
-			// 
+			//
 			this.radioButtonReadRomTargetEfuse.AutoSize = true;
 			this.radioButtonReadRomTargetEfuse.Location = new System.Drawing.Point(6, 16);
 			this.radioButtonReadRomTargetEfuse.Name = "radioButtonReadRomTargetEfuse";
@@ -539,9 +539,9 @@ namespace BK7231Flasher
 			this.radioButtonReadRomTargetEfuse.Text = "eFuse";
 			this.radioButtonReadRomTargetEfuse.UseVisualStyleBackColor = true;
 			this.radioButtonReadRomTargetEfuse.CheckedChanged += new System.EventHandler(this.radioButtonReadRomTarget_CheckedChanged);
-			// 
+			//
 			// radioButtonReadRomTargetOtp
-			// 
+			//
 			this.radioButtonReadRomTargetOtp.AutoSize = true;
 			this.radioButtonReadRomTargetOtp.Location = new System.Drawing.Point(6, 34);
 			this.radioButtonReadRomTargetOtp.Name = "radioButtonReadRomTargetOtp";
@@ -551,9 +551,9 @@ namespace BK7231Flasher
 			this.radioButtonReadRomTargetOtp.Text = "OTP";
 			this.radioButtonReadRomTargetOtp.UseVisualStyleBackColor = true;
 			this.radioButtonReadRomTargetOtp.CheckedChanged += new System.EventHandler(this.radioButtonReadRomTarget_CheckedChanged);
-			// 
+			//
 			// radioButtonReadRomTargetRom
-			// 
+			//
 			this.radioButtonReadRomTargetRom.AutoSize = true;
 			this.radioButtonReadRomTargetRom.Location = new System.Drawing.Point(6, 52);
 			this.radioButtonReadRomTargetRom.Name = "radioButtonReadRomTargetRom";
@@ -563,9 +563,9 @@ namespace BK7231Flasher
 			this.radioButtonReadRomTargetRom.Text = "ROM";
 			this.radioButtonReadRomTargetRom.UseVisualStyleBackColor = true;
 			this.radioButtonReadRomTargetRom.CheckedChanged += new System.EventHandler(this.radioButtonReadRomTarget_CheckedChanged);
-			// 
+			//
 			// labelReadRomState
-			// 
+			//
 			this.labelReadRomState.AutoSize = true;
 			this.labelReadRomState.Font = new System.Drawing.Font("Microsoft Sans Serif", 17F);
 			this.labelReadRomState.Location = new System.Drawing.Point(430, 91);
@@ -573,72 +573,72 @@ namespace BK7231Flasher
 			this.labelReadRomState.Size = new System.Drawing.Size(174, 29);
 			this.labelReadRomState.TabIndex = 8;
 			this.labelReadRomState.Text = "Doing nothing..";
-			// 
+			//
 			// labelReadRomBaud
-			// 
+			//
 			this.labelReadRomBaud.AutoSize = true;
 			this.labelReadRomBaud.Location = new System.Drawing.Point(8, 63);
 			this.labelReadRomBaud.Name = "labelReadRomBaud";
 			this.labelReadRomBaud.Size = new System.Drawing.Size(74, 13);
 			this.labelReadRomBaud.TabIndex = 7;
 			this.labelReadRomBaud.Text = "Set baud rate:";
-			// 
+			//
 			// comboBoxReadRomBaudRate
-			// 
+			//
 			this.comboBoxReadRomBaudRate.FormattingEnabled = true;
 			this.comboBoxReadRomBaudRate.Location = new System.Drawing.Point(108, 60);
 			this.comboBoxReadRomBaudRate.Name = "comboBoxReadRomBaudRate";
 			this.comboBoxReadRomBaudRate.Size = new System.Drawing.Size(133, 21);
 			this.comboBoxReadRomBaudRate.TabIndex = 6;
 			this.comboBoxReadRomBaudRate.SelectedIndexChanged += new System.EventHandler(this.comboBoxReadRomBaudRate_SelectedIndexChanged);
-			// 
+			//
 			// labelReadRomPlatform
-			// 
+			//
 			this.labelReadRomPlatform.AutoSize = true;
 			this.labelReadRomPlatform.Location = new System.Drawing.Point(8, 36);
 			this.labelReadRomPlatform.Name = "labelReadRomPlatform";
 			this.labelReadRomPlatform.Size = new System.Drawing.Size(86, 13);
 			this.labelReadRomPlatform.TabIndex = 5;
 			this.labelReadRomPlatform.Text = "Select chip type:";
-			// 
+			//
 			// comboBoxReadRomChipType
-			// 
+			//
 			this.comboBoxReadRomChipType.FormattingEnabled = true;
 			this.comboBoxReadRomChipType.Location = new System.Drawing.Point(108, 33);
 			this.comboBoxReadRomChipType.Name = "comboBoxReadRomChipType";
 			this.comboBoxReadRomChipType.Size = new System.Drawing.Size(133, 21);
 			this.comboBoxReadRomChipType.TabIndex = 4;
 			this.comboBoxReadRomChipType.SelectedIndexChanged += new System.EventHandler(this.comboBoxReadRomChipType_SelectedIndexChanged);
-			// 
+			//
 			// labelReadRomPort
-			// 
+			//
 			this.labelReadRomPort.AutoSize = true;
 			this.labelReadRomPort.Location = new System.Drawing.Point(8, 9);
 			this.labelReadRomPort.Name = "labelReadRomPort";
 			this.labelReadRomPort.Size = new System.Drawing.Size(94, 13);
 			this.labelReadRomPort.TabIndex = 3;
 			this.labelReadRomPort.Text = "Select UART port:";
-			// 
+			//
 			// comboBoxReadRomUART
-			// 
+			//
 			this.comboBoxReadRomUART.FormattingEnabled = true;
 			this.comboBoxReadRomUART.Location = new System.Drawing.Point(108, 6);
 			this.comboBoxReadRomUART.Name = "comboBoxReadRomUART";
 			this.comboBoxReadRomUART.Size = new System.Drawing.Size(133, 21);
 			this.comboBoxReadRomUART.TabIndex = 2;
 			this.comboBoxReadRomUART.SelectedIndexChanged += new System.EventHandler(this.comboBoxReadRomUART_SelectedIndexChanged);
-			// 
+			//
 			// progressBarReadRom
-			// 
+			//
 			this.progressBarReadRom.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.progressBarReadRom.Location = new System.Drawing.Point(6, 127);
 			this.progressBarReadRom.Name = "progressBarReadRom";
 			this.progressBarReadRom.Size = new System.Drawing.Size(898, 23);
 			this.progressBarReadRom.TabIndex = 1;
-			// 
+			//
 			// textBoxReadRomLog
-			// 
+			//
 			this.textBoxReadRomLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
@@ -647,7 +647,7 @@ namespace BK7231Flasher
 			this.textBoxReadRomLog.Size = new System.Drawing.Size(901, 325);
 			this.textBoxReadRomLog.TabIndex = 0;
 			this.textBoxReadRomLog.Text = "";
-			// 
+			//
 			// chkIgnoreCRCErr
 			// 
 			this.chkIgnoreCRCErr.AutoSize = true;

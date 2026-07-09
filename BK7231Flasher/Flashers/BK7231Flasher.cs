@@ -1468,8 +1468,17 @@ namespace BK7231Flasher
             {
                 throw new IOException(chipType + " eFuse control write failed at " + addr);
             }
+            Stopwatch waitTimer = Stopwatch.StartNew();
             do
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException("eFuse read cancelled by user.");
+                }
+                if (waitTimer.ElapsedMilliseconds > 1000)
+                {
+                    throw new TimeoutException(chipType + " eFuse read timed out at " + addr);
+                }
                 reg = ReadFlashRegInt(efuseCtrl);
             } while ((reg & 1) != 0);
             reg = ReadFlashRegInt(efuseOptr);
