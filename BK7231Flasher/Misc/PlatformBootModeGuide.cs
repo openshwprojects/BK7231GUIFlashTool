@@ -74,15 +74,14 @@ namespace BK7231Flasher
 
         static string GetGd32vw553Instructions()
         {
-            return "Connect the GD32VW553 USART0 bootloader port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
-                "- Adapter RX -> GD32VW553 USART0 TX (PB15)" + System.Environment.NewLine +
-                "- Adapter TX -> GD32VW553 USART0 RX (PA8)" + System.Environment.NewLine +
+            return "Connect the GD32VW553 UART flash download port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> GD32VW553 TX (PB15)" + System.Environment.NewLine +
+                "- Adapter TX -> GD32VW553 RX (PA8)" + System.Environment.NewLine +
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
                 "- PC8 / BOOT0 -> 3.3 V" + System.Environment.NewLine +
-                "- PB1 / BOOT1 -> GND" + System.Environment.NewLine +
-                "UART1 (PA4/PA5) and UART2 (PA6/PA7) are also ROM-bootloader UART options if those are the pins available on the target." + System.Environment.NewLine +
+                "- PB1 / BOOT1 -> GND if the target does not already hold BOOT1 low" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
-                "Start the read first. With BOOT0 held high and BOOT1 held low, reset the chip with NRST or power-cycle the 3.3 V supply.";
+                "Start the read first. With BOOT0 held high, reset the chip with RST/NRST or power-cycle the 3.3 V supply.";
         }
 
         static string GetRda5981Instructions()
