@@ -1200,7 +1200,7 @@ namespace BK7231Flasher
 			this.tabPage2.Name = "tabPage2";
 			this.tabPage2.Size = new System.Drawing.Size(907, 484);
 			this.tabPage2.TabIndex = 4;
-			this.tabPage2.Text = "Extract Config from Tuya binary";
+			this.tabPage2.Text = "Extract Config from Tuya Binary";
 			this.tabPage2.UseVisualStyleBackColor = true;
 			this.tabPage2.DragDrop += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragDrop);
 			this.tabPage2.DragEnter += new System.Windows.Forms.DragEventHandler(this.tabPage2_DragEnter);
@@ -1329,7 +1329,7 @@ namespace BK7231Flasher
 			this.tabPage5.Padding = new System.Windows.Forms.Padding(3);
 			this.tabPage5.Size = new System.Drawing.Size(907, 484);
 			this.tabPage5.TabIndex = 5;
-			this.tabPage5.Text = "Get CFG from OBK device on LAN";
+			this.tabPage5.Text = "Get CFG from OBK Device on LAN";
 			this.tabPage5.UseVisualStyleBackColor = true;
 			// 
 			// buttonIPSaveResultToFile
@@ -1715,7 +1715,7 @@ namespace BK7231Flasher
 			this.tabPage7.Padding = new System.Windows.Forms.Padding(3);
 			this.tabPage7.Size = new System.Drawing.Size(907, 484);
 			this.tabPage7.TabIndex = 7;
-			this.tabPage7.Text = "UART timeouts";
+			this.tabPage7.Text = "UART Timeouts";
 			this.tabPage7.UseVisualStyleBackColor = true;
 			// 
 			// label27
