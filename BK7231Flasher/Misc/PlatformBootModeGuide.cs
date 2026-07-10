@@ -57,7 +57,7 @@ namespace BK7231Flasher
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
                 "- " + bootPin + " -> GND" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
-                "With " + bootPin + " held low, unplug the USB-to-TTL adapter from the computer, plug it back in, then power on the 3.3 V supply.";
+                "With " + bootPin + " held low, unplug the USB-to-TTL adapter from the computer, plug it back in, then power on the 3.3v supply.";
         }
 
         static string GetRtl87x0cInstructions()
@@ -81,7 +81,7 @@ namespace BK7231Flasher
                 "- PC8 / BOOT0 -> 3.3 V" + System.Environment.NewLine +
                 "- PB1 / BOOT1 -> GND if the target does not already hold BOOT1 low" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
-                "Start the read first. With BOOT0 held high, reset the chip with RST/NRST or power-cycle the 3.3 V supply.";
+                "With BOOT0 held high, reset the chip with RST/NRST or power-cycle the 3.3 V supply. Once the target is in UART download mode, start the read.";
         }
 
         static string GetRda5981Instructions()
