@@ -527,6 +527,7 @@ namespace BK7231Flasher
 
             bSuppressReadRomTargetEvents = false;
             updateReadRomBaudRates();
+            updateReadRomRangeInfo();
             updateReadRomReadButtonState();
             if (logBootInstructions)
             {
@@ -583,6 +584,36 @@ namespace BK7231Flasher
             {
                 comboBoxReadRomBaudRate.SelectedIndex = 0;
             }
+        }
+
+        void updateReadRomRangeInfo()
+        {
+            RomReadTarget target = getSelectedReadRomTarget();
+            if (target == null || target.Address.HasValue == false || target.Length.HasValue == false)
+            {
+                labelReadRomRangeStart.Text = "Space: -";
+                labelReadRomRangeLength.Text = "Range: -";
+                labelReadRomRangeEnd.Text = "Backend: -";
+                labelReadRomRangeController.Text = "Ctrl: -";
+                return;
+            }
+
+            int start = target.Address.Value;
+            int length = target.Length.Value;
+            int end = start + length;
+            labelReadRomRangeStart.Text = "Space: " + formatReadRomDetailValue(target.AddressSpace);
+            labelReadRomRangeLength.Text = "Range: " + BaseFlasher.formatHex(start) + ".." + BaseFlasher.formatHex(end - 1) + " (" + BaseFlasher.formatHex(length) + ")";
+            labelReadRomRangeEnd.Text = "Backend: " + formatReadRomDetailValue(target.Backend);
+            labelReadRomRangeController.Text = "Ctrl: " + formatReadRomDetailValue(target.Controller);
+        }
+
+        string formatReadRomDetailValue(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "-";
+            }
+            return value;
         }
 
         void updateReadRomReadButtonState()
@@ -1622,6 +1653,7 @@ namespace BK7231Flasher
             if (bSuppressReadRomTargetEvents)
                 return;
             updateReadRomBaudRates();
+            updateReadRomRangeInfo();
             updateReadRomReadButtonState();
         }
 
