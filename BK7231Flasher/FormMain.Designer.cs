@@ -1145,12 +1145,12 @@ namespace BK7231Flasher
 			// linkLabel3
 			// 
 			this.linkLabel3.AutoSize = true;
-			this.linkLabel3.Location = new System.Drawing.Point(282, 36);
+			this.linkLabel3.Location = new System.Drawing.Point(230, 36);
 			this.linkLabel3.Name = "linkLabel3";
-			this.linkLabel3.Size = new System.Drawing.Size(318, 13);
+			this.linkLabel3.Size = new System.Drawing.Size(251, 13);
 			this.linkLabel3.TabIndex = 3;
 			this.linkLabel3.TabStop = true;
-			this.linkLabel3.Text = "https://www.elektroda.com/rtvforum/forum390.html?tylko_dzial=1";
+			this.linkLabel3.Text = "https://www.elektroda.com/rtvforum/forum390.html";
 			this.linkLabel3.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.genericLinkClicked);
 			// 
 			// label14
@@ -1158,9 +1158,9 @@ namespace BK7231Flasher
 			this.label14.AutoSize = true;
 			this.label14.Location = new System.Drawing.Point(9, 36);
 			this.label14.Name = "label14";
-			this.label14.Size = new System.Drawing.Size(256, 13);
+			this.label14.Size = new System.Drawing.Size(164, 13);
 			this.label14.TabIndex = 2;
-			this.label14.Text = "The preferred section for quick IoT questions is here:";
+			this.label14.Text = "Elektroda Smart Home IoT forum:";
 			// 
 			// linkLabel2
 			// 
