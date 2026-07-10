@@ -446,7 +446,7 @@ namespace BK7231Flasher
 			return false;
 		}
 
-		internal virtual byte[] ReadMAC()
+		internal override byte[] ReadMAC()
 		{
 			return ExecuteCommand(CMD_CUSTOM_GET_MAC, expectedReplyLen: 6);
 		}

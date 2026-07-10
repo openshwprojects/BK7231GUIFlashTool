@@ -275,6 +275,8 @@ namespace BK7231Flasher
             return sb.ToString();
         }
 
+        internal virtual byte[] ReadMAC() => null;
+
         internal static byte[] Decompress(byte[] data)
         {
             using MemoryStream decompressedStream = new MemoryStream();
