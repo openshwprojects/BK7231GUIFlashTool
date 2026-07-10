@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 
@@ -231,6 +232,11 @@ namespace BK7231Flasher
 				msg[5] = (byte)((startAmount >> 8) & 0xFF);
 				msg[6] = (byte)((startAmount >> 16) & 0xFF);
 				msg[7] = (byte)((startAmount >> 24) & 0xFF);
+				if(bUseCompressionIfPossible && chipType == BKType.RTL8710B)
+				{
+					byte comprLevel = 2; // 1 to 10
+					msg = msg.Append(comprLevel).ToArray();
+				}
 				var res = ExecuteCommand(bUseCompressionIfPossible == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_COMPRESSED, msg, 2, 0);
 				if(res == null)
 					return null;
