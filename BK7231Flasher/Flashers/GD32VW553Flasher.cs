@@ -366,7 +366,7 @@ namespace BK7231Flasher
 
 		internal override byte[] ReadMAC()
 		{
-			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 63);
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 64);
 			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[31], rf_efuse[33], rf_efuse[34] };
 		}
 	}

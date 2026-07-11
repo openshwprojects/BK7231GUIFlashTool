@@ -232,9 +232,18 @@ namespace BK7231Flasher
 				msg[5] = (byte)((startAmount >> 8) & 0xFF);
 				msg[6] = (byte)((startAmount >> 16) & 0xFF);
 				msg[7] = (byte)((startAmount >> 24) & 0xFF);
-				if(bUseCompressionIfPossible && chipType == BKType.RTL8710B)
+				if(bUseCompressionIfPossible)
 				{
-					byte comprLevel = 2; // 1 to 10
+					byte comprLevel = chipType switch
+					{
+						BKType.ECR6600 => 2,
+						BKType.GD32VW553 => 2,
+						BKType.RDA5981 => 5,
+						BKType.RTL8710B => 2,
+						BKType.RTL8721DA => 4,
+						BKType.RTL8720E => 5,
+						_ => 5,
+					};
 					msg = msg.Append(comprLevel).ToArray();
 				}
 				var res = ExecuteCommand(bUseCompressionIfPossible == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_COMPRESSED, msg, 2, 0);
@@ -417,7 +426,9 @@ namespace BK7231Flasher
 			if(flashID == null)
 				return null;
 			addLogLine($"Flash ID: 0x{flashID[0]:X2}{flashID[1]:X2}{flashID[2]:X2}");
-			if(flashID[2] < 0x11 || flashID[2] > 0x22)
+			if(flashID[2] > 0x31 && flashID[2] < 0x3C)
+				flashID[2] -= 0x20;
+			if(flashID[2] < 0x11 || flashID[2] > 0x1C)
 				throw new Exception("Flash ID incorrect!");
 			flashSizeMB = (1 << (flashID[2] - 0x11)) / 8;
 			addLogLine($"Flash size is {flashSizeMB}MB");
