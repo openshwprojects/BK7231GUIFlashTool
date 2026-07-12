@@ -124,9 +124,9 @@ namespace BK7231Flasher
         const string Gd32RomSpace = "ROM memory";
         const string Gd32RomBackend = "GD32VW553_Stub cmd 0x98";
         const string Gd32RomController = "raw CPU memory via XMODEM";
-        const string Gd32EfuseSpace = "eFuse payload";
-        const string Gd32EfuseBackend = "GD32VW553_Stub cmd 0x99";
-        const string Gd32EfuseController = "custom stub";
+        const string Gd32EfuseSpace = "combined output: RF 0x40 + MCU 0x8C";
+        const string Gd32EfuseBackend = "ROM READ, then GD32VW553_Stub cmd 0x99";
+        const string Gd32EfuseController = "MCU @ 0x40022808; RF via custom stub";
         const string Xr809RomSpace = "ROM memory";
         const string Xr809EfuseSpace = "eFuse raw image";
         const string Xr809Backend = "XRadio BROM/stub command";
