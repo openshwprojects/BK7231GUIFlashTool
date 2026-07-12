@@ -1002,7 +1002,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C/* || curType == BKType.RTL8710B*/
                     || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
                     || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
                     || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
@@ -1128,7 +1128,7 @@ namespace BK7231Flasher
                 }
             }
 
-            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C || curType == BKType.RTL8710B)
+            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C/* || curType == BKType.RTL8710B*/)
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
@@ -1199,7 +1199,7 @@ namespace BK7231Flasher
                 case BKType.BK7252:
                 case BKType.BK7252N:
                 case BKType.BK7258:
-                    if(s.StartsWith($"Open{curType}_QIO_") || s.StartsWith($"Open{curType}_UA_"))
+                    if(bIsBekenFirmwareForCurType(s))
                     {
                         return true;
                     }
@@ -1233,6 +1233,18 @@ namespace BK7231Flasher
                 return true;
             }*/
             return false;
+        }
+        bool bIsBekenFirmwareForCurType(string s)
+        {
+            string platformPrefix = $"Open{curType}_";
+            if (s.StartsWith(platformPrefix, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            string rest = s.Substring(platformPrefix.Length);
+            return rest.StartsWith("QIO_", StringComparison.OrdinalIgnoreCase)
+                || rest.StartsWith("UA_", StringComparison.OrdinalIgnoreCase)
+                || rest.IndexOf("_QIO_", StringComparison.OrdinalIgnoreCase) > 0
+                || rest.IndexOf("_UA_", StringComparison.OrdinalIgnoreCase) > 0;
         }
         public OBKConfig getConfig()
         {
@@ -1328,11 +1340,11 @@ namespace BK7231Flasher
                     addLog("If you are flashing via \"Backup and flash new\", then it will be moved automatically." + Environment.NewLine, Color.DarkOrange);
                 }
             }
-            else if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E || curType == BKType.GD32VW553)
+            else
             {
                 try
                 {
-                    mac = ((ECRBaseFlasher)flasher).ReadMAC() ?? null;
+                    mac = flasher.ReadMAC();
                 }
                 catch
                 {

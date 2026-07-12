@@ -1182,7 +1182,12 @@ namespace BK7231Flasher
 				RegisterWrite(0x10038000 + 0, (uint)addr);   // set read offset
 				RegisterWrite(0x10038000 + 4, (uint)amount); // set read length
 				RegisterWrite(0x10038000 + 8, 0); // set mode (0 - from FLASH_MMAP_BASE, 1 - from 0)
-				var stub = bUseCompressionIfPossible ? FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub_z") : FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub");
+				var stub = FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub");
+				if(bUseCompressionIfPossible)
+				{
+					stub = FLoaders.GetRawBinaryFromAssembly("Z2_XModem_Stub_z");
+					RegisterWrite(0x10038000 + 12, 6); // compression level
+				}
 				if(RamTransmit(stub, 0x10035000))
 				{
 					addLogLine(" OK!");
@@ -1496,7 +1501,7 @@ namespace BK7231Flasher
 		{
 			if(serial != null)
 			{
-				try { serial.Close(); } catch { }
+				try { if(serial.IsOpen) serial.Close(); } catch { }
 				try { serial.Dispose(); } catch { }
 				serial = null;
 			}

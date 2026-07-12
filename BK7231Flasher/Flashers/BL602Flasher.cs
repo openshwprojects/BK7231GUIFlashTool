@@ -1445,5 +1445,20 @@ namespace BK7231Flasher
             string fileName = MiscUtils.formatDateNowFileName("readResult_" + chipType, backupName, "bin");
             return saveReadResult(fileName);
         }
+
+        internal override byte[] ReadMAC()
+        {
+            var mac = executeCommand(0x42, null, 0, 0, true, 0.1f, 6, true) ?? null;
+            if(mac == null) return null;
+            mac = mac.Skip(2).Take(6).ToArray();
+            if(chipType == BKType.BL602)
+            {
+                return mac.Reverse().ToArray();
+            }
+            else
+            {
+                return mac;
+            }
+        }
     }
 }

@@ -93,7 +93,7 @@ namespace BK7231Flasher
         {
             if(!WriteCmd(new byte[] { CMD_XMD }))
                 return false;
-            return xm.Send(stream.ToArray(), (uint)offset) == size;
+            return xm.Send(stream.ToArray(), (uint)offset, chipType == BKType.RTL8710B) == size;
         }
 
         public override void Xm_PacketSent(int sentBytes, int total, int sequence, uint offset)
@@ -484,6 +484,7 @@ namespace BK7231Flasher
             {
                 try
                 {
+                    if(isCancelled) return false;
                     int val = serial.ReadByte();
 #if false
                     if (false)

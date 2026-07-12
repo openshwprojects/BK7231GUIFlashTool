@@ -282,7 +282,7 @@ namespace BK7231Flasher
         {
             if (string.IsNullOrEmpty(fileName))
                 return false;
-            if (bStartsWithAny(fileName, prefixes) == false)
+            if (bStartsWithAny(fileName, prefixes) == false && bIsVariantFirmwareForCurrentPlatform(fileName) == false)
                 return false;
 
             string lower = fileName.ToLowerInvariant();
@@ -312,6 +312,23 @@ namespace BK7231Flasher
                 return true;
 
             return false;
+        }
+        bool bIsVariantFirmwareForCurrentPlatform(string fileName)
+        {
+            string platformPrefix = "Open" + bkType + "_";
+            if (fileName.StartsWith(platformPrefix, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            string defaultPrefix = FormMain.getFirmwarePrefix(bkType);
+            if (defaultPrefix.StartsWith(platformPrefix, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            string mode = defaultPrefix.Substring(platformPrefix.Length).TrimEnd('_');
+            if (string.IsNullOrEmpty(mode))
+                return false;
+
+            string rest = fileName.Substring(platformPrefix.Length);
+            return rest.IndexOf("_" + mode + "_", StringComparison.OrdinalIgnoreCase) > 0;
         }
         bool bStartsWithAny(string fileName, List<string> prefixes)
         {

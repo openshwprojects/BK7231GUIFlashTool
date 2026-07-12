@@ -24,9 +24,8 @@ namespace BK7231Flasher
 		const int Gd32RfEfusePayloadSize = 0x3F;
 		const int Gd32McuEfuseAddress = 0x40022808;
 		const int Gd32McuEfusePayloadSize = 0x8C;
-		// Stub cmd 0x99 returns RF eFuse plus a sparse MCU register window; only RF is trusted here.
-		const int Gd32StubMcuEfuseRegisterPayloadSize = 0x94;
-		const int Gd32StubEfusePayloadSize = Gd32RfEfusePayloadSize + Gd32StubMcuEfuseRegisterPayloadSize;
+		// Stub cmd 0x99 returns the 0x3F-byte RF eFuse with one trailing byte.
+		const int Gd32StubEfusePayloadSize = 0x40;
 		const int Gd32EfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfusePayloadSize;
 
 		private static byte[] AllowedCommands;
@@ -520,7 +519,7 @@ namespace BK7231Flasher
 			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: Gd32StubEfusePayloadSize);
 			if(rf_efuse == null)
 				return null;
-			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[31], rf_efuse[33], rf_efuse[34] };
+			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[24], rf_efuse[25], rf_efuse[26] };
 		}
 	}
 }
