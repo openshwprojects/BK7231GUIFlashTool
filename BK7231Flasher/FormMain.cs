@@ -1002,7 +1002,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C
+                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C/* || curType == BKType.RTL8710B*/
                     || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
                     || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
                     || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
@@ -1128,7 +1128,7 @@ namespace BK7231Flasher
                 }
             }
 
-            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C)
+            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C/* || curType == BKType.RTL8710B*/)
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }

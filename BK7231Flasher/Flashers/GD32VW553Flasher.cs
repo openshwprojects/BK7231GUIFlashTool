@@ -12,6 +12,7 @@ namespace BK7231Flasher
 	{
 		static readonly byte GD32_GET = 0x00;
 		static readonly byte GD32_PID = 0x06;
+		//static readonly byte GD32_READ = 0x11;
 		static readonly byte GD32_JUMP = 0x21;
 		static readonly byte GD32_PROGRAM = 0x31;
 		//static readonly byte GD32_ERASE = 0x44;
@@ -184,24 +185,38 @@ namespace BK7231Flasher
 			return CheckAck(GD32_JUMP, "address");
 		}
 
-		protected override bool Sync()
-		{
-			if(SyncBootloader())
-			{
-				return UploadStub();
-			}
-			serial.BaudRate = 115200;
-			serial.Parity = Parity.None;
-			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
-			if(stubsync != null)
-			{
-				addLogLine("Stub is already uploaded!");
-				return true;
-			}
-			return false;
-		}
+		//private byte[] SendReadCommand(int addr, byte len)
+		//{
+		//	if(!AllowedCommands.Contains(GD32_READ))
+		//	{
+		//		addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
+		//		return null;
+		//	}
+		//
+		//	if(!SendCommand(GD32_READ)) return null;
+		//
+		//	var address = CreateAddressPacket(addr);
+		//
+		//	serial.Write(address, 0, address.Length);
+		//
+		//	if(!CheckAck(GD32_READ, "address")) return null;
+		//
+		//	serial.Write(new[] { len, (byte)~len }, 0, 2);
+		//
+		//	if(!CheckAck(GD32_READ, "length")) return null;
+		//
+		//	byte[] data = new byte[len];
+		//
+		//	int tries = 1000;
+		//	while(serial.BytesToRead < len && tries-- > 0)
+		//		Thread.Sleep(1);
+		//
+		//	serial.Read(data, 0, len);
+		//
+		//	return data;
+		//}
 
-		private bool SyncBootloader()
+		protected override bool Sync()
 		{
 			var timeout = serial.ReadTimeout;
 			serial.ReadTimeout = 100;
@@ -218,17 +233,8 @@ namespace BK7231Flasher
 			if(resp == 0x79 || resp == 0x1F)
 			{
 				AllowedCommands = SendGETCommand(out var bootVersion);
-				if(AllowedCommands == null)
-				{
-					return false;
-				}
 				addLogLine($"Bootloader version: 0x{bootVersion:X}");
-				var pidData = SendPIDCommand();
-				if(pidData == null || pidData.Length < 3)
-				{
-					return false;
-				}
-				var pid = Encoding.ASCII.GetString(pidData.Take(4).ToArray());
+				var pid = Encoding.ASCII.GetString(SendPIDCommand().Take(4).ToArray());
 				addLogLine($"Product ID: {pid}");
 				flashSizeMB = pid[2] switch
 				{
@@ -237,6 +243,14 @@ namespace BK7231Flasher
 					_ => throw new Exception("Unknown chip rev")
 				};
 				addLogLine($"Flash size is {flashSizeMB}MB");
+				return UploadStub();
+			}
+			serial.BaudRate = 115200;
+			serial.Parity = Parity.None;
+			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
+			if(stubsync != null)
+			{
+				addLogLine("Stub is already uploaded!");
 				return true;
 			}
 			return false;
@@ -420,9 +434,7 @@ namespace BK7231Flasher
 
 		internal override byte[] ReadMAC()
 		{
-			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: Gd32StubEfusePayloadSize);
-			if(rf_efuse == null)
-				return null;
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 64);
 			return new byte[] { rf_efuse[28], rf_efuse[29], rf_efuse[30], rf_efuse[24], rf_efuse[25], rf_efuse[26] };
 		}
 	}
