@@ -129,8 +129,10 @@ namespace BK7231Flasher
                 "- Adapter RX -> " + platformName + " TX0 (PB00)" + System.Environment.NewLine +
                 "- Adapter TX -> " + platformName + " RX0 (PB01)" + System.Environment.NewLine +
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
-                bootPinLines + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "First try starting the read with the target running normally. The flasher will send the software 'upgrade' command at 115200 baud before attempting sync. This only works when the existing firmware has its UART console enabled and supports that command." + System.Environment.NewLine +
+                "If software entry does not work, use the hardware boot straps:" + System.Environment.NewLine +
+                bootPinLines + System.Environment.NewLine +
                 bootModeAction;
         }
 
