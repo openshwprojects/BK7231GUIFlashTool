@@ -79,9 +79,8 @@ namespace BK7231Flasher
                 "- Adapter RX -> RTL8710B Log_TX (PA30)" + System.Environment.NewLine +
                 "- Adapter TX -> RTL8710B Log_RX (PA29)" + System.Environment.NewLine +
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
-                "- PA5 -> GND" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
-                "With PA5 held low, reset the chip or power-cycle the 3.3 V supply to enter UART download mode. Once the target is in download mode, start the read.";
+                "Temporarily disconnect the adapter RX from PA30 and hold PA30 low while resetting the chip or power-cycling the 3.3 V supply. Then release PA30, reconnect it to the adapter RX, and start the read.";
         }
 
         static string GetGd32vw553Instructions()
