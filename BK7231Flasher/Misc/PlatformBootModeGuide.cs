@@ -30,6 +30,7 @@ namespace BK7231Flasher
             { BKType.ESP32S3, "" },
             { BKType.ESP8266, "" },
             { BKType.GD32VW553, GetGd32vw553Instructions() },
+            { BKType.RTL8710B, GetRtl8710bInstructions() },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
             { BKType.TR6260, "" },
@@ -70,6 +71,17 @@ namespace BK7231Flasher
                 "- PA13 / GPIO13 (RXD) -> 3.3 V" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "With PA00 and PA13 pulled high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
+        }
+
+        static string GetRtl8710bInstructions()
+        {
+            return "Connect the RTL8710B log UART to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> RTL8710B Log_TX (PA30)" + System.Environment.NewLine +
+                "- Adapter TX -> RTL8710B Log_RX (PA29)" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                "- PA5 -> GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "With PA5 held low, reset the chip or power-cycle the 3.3 V supply to enter UART download mode. Once the target is in download mode, start the read.";
         }
 
         static string GetGd32vw553Instructions()

@@ -100,6 +100,12 @@ namespace BK7231Flasher
         const string Rtlz2Backend = "ROM console DB/EW";
         const string Rtlz2RomController = "DB direct memory";
         const string Rtlz2EfuseController = "SRAM helper @ 0x10037000";
+        const string Rtl8710bRomSpace = "ROM memory";
+        const string Rtl8710bEfuseSpace = "logical eFuse map";
+        const string Rtl8710bRomBackend = "RTL8710B_Stub cmd 0x98";
+        const string Rtl8710bEfuseBackend = "RTL8710B_Stub cmd 0x99";
+        const string Rtl8710bRomController = "raw CPU memory via XMODEM";
+        const string Rtl8710bEfuseController = "EFUSE_LogicalMap_Read";
         const string RdaRomSpace = "ROM memory";
         const string RdaRomBackend = "RDA5981_Stub cmd 0x98";
         const string RdaRomController = "raw CPU memory via XMODEM";
@@ -109,11 +115,9 @@ namespace BK7231Flasher
         const string Gd32RomSpace = "ROM memory";
         const string Gd32RomBackend = "GD32VW553_Stub cmd 0x98";
         const string Gd32RomController = "raw CPU memory via XMODEM";
-        const int Gd32RfEfuseSize = 0x3F;
-        const int Gd32McuEfuseSize = 0x8C;
-        const string Gd32EfuseSpace = "combined RF + MCU eFuse output";
-        const string Gd32EfuseBackend = "stub cmd 0x99 + ROM bootloader cmd 0x11";
-        const string Gd32EfuseController = "RF 0x3F + MCU 0x40022808..0x40022893";
+        const string Gd32EfuseSpace = "eFuse payload";
+        const string Gd32EfuseBackend = "GD32VW553_Stub cmd 0x99";
+        const string Gd32EfuseController = "custom stub";
         const string Xr809RomSpace = "ROM memory";
         const string Xr809EfuseSpace = "eFuse raw image";
         const string Xr809Backend = "XRadio BROM/stub command";
@@ -124,12 +128,6 @@ namespace BK7231Flasher
         const string XrBromBackend = "XRadio BROM command";
         const string XrRomController = "BROM cmd 0x08";
         const string XrEfuseController = "eFuse regs 0x40043C40/0x40043C60";
-
-        static readonly IReadOnlyList<RomReadOutputSlice> Gd32EfuseSlices = new List<RomReadOutputSlice>()
-        {
-            new RomReadOutputSlice("RF eFuse", "RF_EFUSE", 0x00, Gd32RfEfuseSize),
-            new RomReadOutputSlice("MCU eFuse", "MCU_EFUSE", Gd32RfEfuseSize, Gd32McuEfuseSize),
-        };
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
@@ -150,10 +148,12 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, true, Rtlz2RomSpace, Rtlz2Backend, Rtlz2RomController),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2Backend, Rtlz2EfuseController),
+            new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, Rtl8710bRomSpace, Rtl8710bRomBackend, Rtl8710bRomController),
+            new RomReadTarget(BKType.RTL8710B, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtl8710bEfuseSpace, Rtl8710bEfuseBackend, Rtl8710bEfuseController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
             new RomReadTarget(BKType.GD32VW553, RomReadKind.Rom, "ROM", 0x0BF40000, 0x40000, 921600, CommonSerialBauds, true, Gd32RomSpace, Gd32RomBackend, Gd32RomController),
-            new RomReadTarget(BKType.GD32VW553, RomReadKind.Efuse, "eFuse", 0x00000000, Gd32RfEfuseSize + Gd32McuEfuseSize, 921600, CommonSerialBauds, true, Gd32EfuseSpace, Gd32EfuseBackend, Gd32EfuseController, 0, null, Gd32EfuseSlices),
+            new RomReadTarget(BKType.GD32VW553, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 921600, CommonSerialBauds, true, Gd32EfuseSpace, Gd32EfuseBackend, Gd32EfuseController),
             new RomReadTarget(BKType.XR806, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
             new RomReadTarget(BKType.XR806, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
             new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 921600, XrSerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
