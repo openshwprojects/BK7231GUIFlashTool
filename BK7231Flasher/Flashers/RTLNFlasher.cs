@@ -125,10 +125,15 @@ namespace BK7231Flasher
 			}
 			else
 			{
+				if(chipType == BKType.RTL8710B)
+				{
+					serial.BaudRate = 1500000;
+				}
 				SetBaud(460800);
 				addLogLine("Sending RAM code...");
 				var stub = chipType switch
 				{
+					BKType.RTL8710B => FLoaders.GetBinaryFromAssembly("RTL8710B_Stub"),
 					BKType.RTL8721DA => FLoaders.GetBinaryFromAssembly("RTL8721DA_Stub"),
 					BKType.RTL8720E => FLoaders.GetBinaryFromAssembly("RTL8720E_Stub"),
 					_ => throw new Exception()
@@ -136,6 +141,7 @@ namespace BK7231Flasher
 				
 				var offset = chipType switch
 				{
+					BKType.RTL8710B => 0x10002000,
 					BKType.RTL8721DA => 0x3000A020,
 					BKType.RTL8720E => 0x3000A020,
 					_ => throw new Exception()
@@ -145,6 +151,7 @@ namespace BK7231Flasher
 				{
 					xm.PacketSent += Xm_RtlPacketSent;
 					xm.Variant = XMODEM.Variants.XModem1KChecksum;
+					if(chipType == BKType.RTL8710B) xm.DoNotWaitForEndOfFileAcknowledgement = true;
 					if(!WriteBlockMem(stub, offset, stub.Length))
 					{
 						addErrorLine("Error Write!");
@@ -298,7 +305,7 @@ namespace BK7231Flasher
 		{
 			if(!WriteCmd(new byte[] { 0x07 }))
 				return false;
-			return xm.Send(stream, (uint)offset) == size;
+			return xm.Send(stream, (uint)offset, chipType == BKType.RTL8710B) == size;
 		}
 
 		private bool WriteCmd(byte[] cmd, byte ack = 0x06)
@@ -343,7 +350,7 @@ namespace BK7231Flasher
 
 		internal override byte[] ReadMAC()
 		{
-			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 0x400);
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: chipType == BKType.RTL8710B ? 512 : 0x400);
 			if(rf_efuse == null) return null;
 			var mac = new byte[6];
 			Array.Copy(rf_efuse, 0x11A, mac, 0, 6);

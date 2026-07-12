@@ -1285,7 +1285,7 @@ namespace BK7231Flasher
         /// <returns>
         /// The number of data bytes successfully transmitted.
         /// </returns>
-        public int Send(byte[] dataToSend = null, uint offset = 0)
+        public int Send(byte[] dataToSend = null, uint offset = 0, bool instant = false)
         {
             // Initialize control variables
             _TerminationReason = TerminationReasonEnum.TransferStillActiveNotTerminated;
@@ -1328,7 +1328,7 @@ namespace BK7231Flasher
             Port.DataReceived += new SerialDataReceivedEventHandler(Port_DataReceived);
 
             // Wait here for file initiation byte to be received from Receiver
-            WaitForResponseFromReceiver.WaitOne();
+            if(!instant) WaitForResponseFromReceiver.WaitOne();
             WaitForResponseFromReceiver.Reset();
 
             if(dataToSend != null && Aborted == false)
@@ -1588,6 +1588,8 @@ namespace BK7231Flasher
 
         private bool EndOfFileAcknowledgementReceived = false;
 
+        public bool DoNotWaitForEndOfFileAcknowledgement = false;
+
         /// <summary>
         /// Informs the Receiver that the transmitted file is complete.
         /// Any pending packets are sent, followed by the end-of-file byte.
@@ -1613,6 +1615,7 @@ namespace BK7231Flasher
                 WaitForResponseFromReceiver.Reset();
                 Port.Write(new byte[] { EndOfFileByteToSend }, 0, 1);
                 numEndOfFileBytesSent += 1;
+                if(DoNotWaitForEndOfFileAcknowledgement) break;
                 WaitForResponseFromReceiver.WaitOne();
             }
 
