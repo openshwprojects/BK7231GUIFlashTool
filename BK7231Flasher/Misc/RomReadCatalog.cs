@@ -98,15 +98,16 @@ namespace BK7231Flasher
         const string BekenEfuseBackend = "register R/W";
         const string BekenSctrlEfuseController = "SCTRL 0x00800074/0x00800078";
         const string LnRomSpace = "ROM memory";
-        const string LnEfuseSpace = "eFuse shadow/current + CRC16";
-        const string LnFlashOtpSpace = "SPI flash OTP + CRC16";
+        const string LnEfuseSpace = "eFuse shadow/current (CRC16 trailer)";
+        const string LnFlashOtpSpace = "SPI flash OTP (CRC16 trailer)";
         const string LnRamcodeBackend = "custom RAMCODE command";
         const string LnRomController = "fdump with ROM flag";
         const string LnEfuseController = "efuse_dump";
         const string LnFlashOtpController = "otp_dump";
         const string Rtlz2RomSpace = "ROM memory";
         const string Rtlz2EfuseSpace = "physical eFuse bytes";
-        const string Rtlz2Backend = "ROM console DB/EW";
+        const string Rtlz2RomBackend = "ROM console DB";
+        const string Rtlz2EfuseBackend = "ROM console EW/DB";
         const string Rtlz2RomController = "DB direct memory";
         const string Rtlz2EfuseController = "SRAM helper @ 0x10037000";
         const string Rtl8710bRomSpace = "ROM memory";
@@ -155,8 +156,8 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.LN8825, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),
             new RomReadTarget(BKType.LN8825, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
             new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
-            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, true, Rtlz2RomSpace, Rtlz2Backend, Rtlz2RomController),
-            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2Backend, Rtlz2EfuseController),
+            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, true, Rtlz2RomSpace, Rtlz2RomBackend, Rtlz2RomController),
+            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2EfuseBackend, Rtlz2EfuseController),
             new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, Rtl8710bRomSpace, Rtl8710bRomBackend, Rtl8710bRomController),
             new RomReadTarget(BKType.RTL8710B, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtl8710bEfuseSpace, Rtl8710bEfuseBackend, Rtl8710bEfuseController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
