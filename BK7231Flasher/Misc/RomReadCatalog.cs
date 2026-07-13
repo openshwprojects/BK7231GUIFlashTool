@@ -110,12 +110,24 @@ namespace BK7231Flasher
         const string Rtlz2EfuseBackend = "ROM console EW/DB";
         const string Rtlz2RomController = "DB direct memory";
         const string Rtlz2EfuseController = "SRAM helper @ 0x10037000";
-        const string Rtl8710bRomSpace = "ROM memory";
+        const string RtlStubRomSpace = "ROM memory";
         const string Rtl8710bEfuseSpace = "logical eFuse map";
         const string Rtl8710bRomBackend = "RTL8710B_Stub cmd 0x98";
         const string Rtl8710bEfuseBackend = "RTL8710B_Stub cmd 0x99";
-        const string Rtl8710bRomController = "raw CPU memory via XMODEM";
+        const string RtlStubRomController = "raw CPU memory via XMODEM";
         const string Rtl8710bEfuseController = "EFUSE_LogicalMap_Read";
+        const string Rtl8721daRomBackend = "RTL8721DA_Stub cmd 0x98";
+        const string Rtl8721daEfuseBackend = "RTL8721DA_Stub cmd 0x99";
+        const string Rtl8720eRomBackend = "RTL8720E_Stub cmd 0x98";
+        const string Rtl8720eEfuseBackend = "RTL8720E_Stub cmd 0x99";
+        const string RtlAmebaEfuseSpace = "logical OTP map";
+        const string RtlAmebaEfuseController = "OTP_LogicalMap_Read";
+        const string EcrRomSpace = "ROM memory";
+        const string EcrRomBackend = "ECR6600_Stub_Custom cmd 0x98";
+        const string EcrRomController = "raw CPU memory via XMODEM";
+        const string EcrEfuseSpace = "eFuse raw image";
+        const string EcrEfuseBackend = "ECR6600_Stub_Custom cmd 0x99";
+        const string EcrEfuseController = "eFuse controller @ 0x0020F000";
         const string RdaRomSpace = "ROM memory";
         const string RdaRomBackend = "RDA5981_Stub cmd 0x98";
         const string RdaRomController = "raw CPU memory via XMODEM";
@@ -158,8 +170,14 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, true, Rtlz2RomSpace, Rtlz2RomBackend, Rtlz2RomController),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2EfuseBackend, Rtlz2EfuseController),
-            new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, Rtl8710bRomSpace, Rtl8710bRomBackend, Rtl8710bRomController),
+            new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8710bRomBackend, RtlStubRomController),
             new RomReadTarget(BKType.RTL8710B, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtl8710bEfuseSpace, Rtl8710bEfuseBackend, Rtl8710bEfuseController),
+            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8721daRomBackend, RtlStubRomController),
+            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, true, RtlAmebaEfuseSpace, Rtl8721daEfuseBackend, RtlAmebaEfuseController),
+            new RomReadTarget(BKType.RTL8720E, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8720eRomBackend, RtlStubRomController),
+            new RomReadTarget(BKType.RTL8720E, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, true, RtlAmebaEfuseSpace, Rtl8720eEfuseBackend, RtlAmebaEfuseController),
+            new RomReadTarget(BKType.ECR6600, RomReadKind.Rom, "ROM", 0x00000000, 0xC000, 115200, CommonSerialBauds, true, EcrRomSpace, EcrRomBackend, EcrRomController),
+            new RomReadTarget(BKType.ECR6600, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 115200, CommonSerialBauds, true, EcrEfuseSpace, EcrEfuseBackend, EcrEfuseController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
             new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
             new RomReadTarget(BKType.GD32VW553, RomReadKind.Rom, "ROM", 0x0BF40000, 0x40000, 921600, CommonSerialBauds, true, Gd32RomSpace, Gd32RomBackend, Gd32RomController),

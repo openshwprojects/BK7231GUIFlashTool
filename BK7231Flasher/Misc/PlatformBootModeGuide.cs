@@ -29,8 +29,11 @@ namespace BK7231Flasher
             { BKType.ESP32C61, "" },
             { BKType.ESP32S3, "" },
             { BKType.ESP8266, "" },
+            { BKType.ECR6600, GetEcr6600Instructions() },
             { BKType.GD32VW553, GetGd32vw553Instructions() },
             { BKType.RTL8710B, GetRtl8710bInstructions() },
+            { BKType.RTL8721DA, GetRtlUartDownloadInstructions("RTL8721DA", "PB4", "PB5") },
+            { BKType.RTL8720E, GetRtlUartDownloadInstructions("RTL8720E", "PA19", "PA20") },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
             { BKType.TR6260, "" },
@@ -81,6 +84,26 @@ namespace BK7231Flasher
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "Temporarily disconnect the adapter RX from PA30 and hold PA30 low while resetting the chip or power-cycling the 3.3 V supply. Then release PA30, reconnect it to the adapter RX, and start the read.";
+        }
+
+        static string GetRtlUartDownloadInstructions(string platformName, string logRxPin, string logTxPin)
+        {
+            return "Connect the " + platformName + " log UART to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> " + platformName + " Log_TX (" + logTxPin + " / UD_DIS)" + System.Environment.NewLine +
+                "- Adapter TX -> " + platformName + " Log_RX (" + logRxPin + ")" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "Temporarily disconnect the adapter RX from " + logTxPin + " and hold " + logTxPin + " / UD_DIS low while resetting the chip or power-cycling the 3.3 V supply. Then release " + logTxPin + ", reconnect it to the adapter RX, and start the read.";
+        }
+
+        static string GetEcr6600Instructions()
+        {
+            return "Connect the ECR6600 UART0 flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> ECR6600 TX0 (GPIO6)" + System.Environment.NewLine +
+                "- Adapter TX -> ECR6600 RX0 (GPIO5)" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "Start the read first. While the tool is trying to connect, reset the target by briefly pulling RST low, or power-cycle the 3.3 V supply. If linking does not start, try the reset or power-cycle again.";
         }
 
         static string GetGd32vw553Instructions()

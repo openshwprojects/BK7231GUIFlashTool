@@ -366,9 +366,12 @@ namespace BK7231Flasher
 					addError("No ROM reader target selected." + Environment.NewLine);
 					return null;
 				}
-				if(chipType != BKType.RTL8710B || target.Platform != BKType.RTL8710B)
+				bool bIsSupportedPlatform = chipType == BKType.RTL8710B ||
+					chipType == BKType.RTL8721DA ||
+					chipType == BKType.RTL8720E;
+				if(!bIsSupportedPlatform || target.Platform != chipType)
 				{
-					addError("RTL8710B read target is not supported by this flasher." + Environment.NewLine);
+					addError(chipType + " read target is not supported by this flasher." + Environment.NewLine);
 					return null;
 				}
 				if(doGenericSetup() == false)
@@ -383,11 +386,11 @@ namespace BK7231Flasher
 				switch(target.Kind)
 				{
 					case RomReadKind.Rom:
-						return InternalReadRawMemory(target.Address ?? 0, target.Length ?? 0x80000, targetKindName);
+						return InternalReadRawMemory(target.Address ?? 0, target.Length ?? (chipType == BKType.RTL8710B ? 0x80000 : 0x48000), targetKindName);
 					case RomReadKind.Efuse:
-						return InternalReadEfusePayload(target.Length ?? 0x200, targetKindName);
+						return InternalReadEfusePayload(target.Length ?? (chipType == BKType.RTL8710B ? 0x200 : 0x400), targetKindName);
 					default:
-						addError("Selected RTL8710B read target is not implemented." + Environment.NewLine);
+						addError("Selected " + chipType + " read target is not implemented." + Environment.NewLine);
 						return null;
 				}
 			}
