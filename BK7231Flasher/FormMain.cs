@@ -1756,7 +1756,9 @@ namespace BK7231Flasher
             Directory.CreateDirectory(backupsPath);
             if (target.OutputSlices.Count == 0)
             {
-                string targetName = target.Kind.ToString().ToUpperInvariant();
+                string targetName = string.IsNullOrEmpty(target.OutputFileNameTag)
+                    ? target.Kind.ToString().ToUpperInvariant()
+                    : target.OutputFileNameTag;
                 saveReadRomBytes(target, targetName, targetKindName, result);
                 return;
             }

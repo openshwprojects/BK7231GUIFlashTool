@@ -25,12 +25,14 @@ namespace BK7231Flasher
         public string AddressSpace { get; private set; }
         public string Backend { get; private set; }
         public string Controller { get; private set; }
+        public string OutputFileNameTag { get; private set; }
         public IReadOnlyList<RomReadOutputSlice> OutputSlices { get; private set; }
 
         public RomReadTarget(BKType platform, RomReadKind kind, string displayName,
             int? address, int? length, int defaultBaudRate, int[] allowedBaudRates, bool isImplemented,
             string addressSpace = null, string backend = null, string controller = null,
-            int readTrailerLength = 0, string readTrailerName = null, IReadOnlyList<RomReadOutputSlice> outputSlices = null)
+            int readTrailerLength = 0, string readTrailerName = null, IReadOnlyList<RomReadOutputSlice> outputSlices = null,
+            string outputFileNameTag = null)
         {
             Platform = platform;
             Kind = kind;
@@ -45,6 +47,7 @@ namespace BK7231Flasher
             AddressSpace = addressSpace ?? "";
             Backend = backend ?? "";
             Controller = controller ?? "";
+            OutputFileNameTag = outputFileNameTag ?? "";
             OutputSlices = outputSlices ?? new RomReadOutputSlice[0];
         }
 
@@ -120,6 +123,7 @@ namespace BK7231Flasher
         const string Rtl8721daEfuseBackend = "RTL8721DA_Stub cmd 0x99";
         const string Rtl8720eRomBackend = "RTL8720E_Stub cmd 0x98";
         const string Rtl8720eEfuseBackend = "RTL8720E_Stub cmd 0x99";
+        const string RtlKm4RomSpace = "KM4 ROM memory";
         const string RtlAmebaEfuseSpace = "logical OTP map";
         const string RtlAmebaEfuseController = "OTP_LogicalMap_Read";
         const string EcrRomSpace = "ROM memory";
@@ -172,9 +176,11 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2EfuseBackend, Rtlz2EfuseController),
             new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8710bRomBackend, RtlStubRomController),
             new RomReadTarget(BKType.RTL8710B, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtl8710bEfuseSpace, Rtl8710bEfuseBackend, Rtl8710bEfuseController),
-            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8721daRomBackend, RtlStubRomController),
+            // These stubs run on KM4. The secondary-core ROM has the same address range
+            // but is physically private to KM0 (RTL8721DA) or KR4 (RTL8720E).
+            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlKm4RomSpace, Rtl8721daRomBackend, RtlStubRomController, outputFileNameTag: "KM4_ROM"),
             new RomReadTarget(BKType.RTL8721DA, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, true, RtlAmebaEfuseSpace, Rtl8721daEfuseBackend, RtlAmebaEfuseController),
-            new RomReadTarget(BKType.RTL8720E, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8720eRomBackend, RtlStubRomController),
+            new RomReadTarget(BKType.RTL8720E, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlKm4RomSpace, Rtl8720eRomBackend, RtlStubRomController, outputFileNameTag: "KM4_ROM"),
             new RomReadTarget(BKType.RTL8720E, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, true, RtlAmebaEfuseSpace, Rtl8720eEfuseBackend, RtlAmebaEfuseController),
             new RomReadTarget(BKType.ECR6600, RomReadKind.Rom, "ROM", 0x00000000, 0xC000, 115200, CommonSerialBauds, true, EcrRomSpace, EcrRomBackend, EcrRomController),
             new RomReadTarget(BKType.ECR6600, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 115200, CommonSerialBauds, true, EcrEfuseSpace, EcrEfuseBackend, EcrEfuseController),
