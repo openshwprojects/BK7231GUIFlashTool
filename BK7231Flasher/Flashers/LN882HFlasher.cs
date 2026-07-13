@@ -459,10 +459,10 @@ namespace BK7231Flasher
                         return ReadLn882hRom(target.Address ?? 0, target.Length ?? LN882H_ROM_SIZE, targetKindName);
                     case RomReadKind.Otp:
                         return ReadLn882hFixedDump("otp_dump", target.Length ?? LN882H_FLASH_OTP_PAYLOAD_SIZE,
-                            target.ReadTrailerLength, target.ReadTrailerName, "flash OTP", targetKindName);
+                            target.ReadTrailerLength, target.ReadTrailerName, "flash OTP", targetKindName, true);
                     case RomReadKind.Efuse:
                         return ReadLn882hFixedDump("efuse_dump", target.Length ?? LN882H_EFUSE_PAYLOAD_SIZE,
-                            target.ReadTrailerLength, target.ReadTrailerName, "eFuse", targetKindName);
+                            target.ReadTrailerLength, target.ReadTrailerName, "eFuse", targetKindName, false);
                     default:
                         addError("Selected LN882x ROM reader target is not implemented." + Environment.NewLine);
                         return null;
@@ -486,7 +486,8 @@ namespace BK7231Flasher
             return ReadLn882hXmodemDump($"fdump 0x{offset:X} 0x{length:X} 1", offset, length, "Reading " + targetKindName + "...", targetKindName);
         }
 
-        byte[] ReadLn882hFixedDump(string command, int payloadLength, int trailerLength, string trailerName, string label, string targetKindName)
+        byte[] ReadLn882hFixedDump(string command, int payloadLength, int trailerLength, string trailerName, string label,
+            string targetKindName, bool bIsCrcBigEndian)
         {
             if(payloadLength <= 0 || trailerLength < 0)
             {
@@ -502,8 +503,17 @@ namespace BK7231Flasher
             logger.setProgress(wireLength, wireLength);
             if(trailerLength == LN882H_FIXED_DUMP_CRC_SIZE)
             {
+                ushort returnedCrc = bIsCrcBigEndian
+                    ? (ushort)((result[payloadLength] << 8) | result[payloadLength + 1])
+                    : (ushort)(result[payloadLength] | (result[payloadLength + 1] << 8));
+                ushort calculatedCrc = CRC16.Compute(CRC16Type.XMODEM, result, 0, payloadLength);
+                if(returnedCrc != calculatedCrc)
+                {
+                    throw new IOException((string.IsNullOrEmpty(trailerName) ? "Trailer" : trailerName) +
+                        " mismatch: returned " + formatHex(returnedCrc) + ", calculated " + formatHex(calculatedCrc) + ".");
+                }
                 addLogLine("Returned " + (string.IsNullOrEmpty(trailerName) ? "trailer" : trailerName) + ": " +
-                    formatHex((ushort)(result[payloadLength] | (result[payloadLength + 1] << 8))));
+                    formatHex(returnedCrc) + " (valid)");
             }
             else if(trailerLength > 0)
             {

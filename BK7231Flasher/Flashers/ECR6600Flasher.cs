@@ -10,7 +10,7 @@ namespace BK7231Flasher
 	public class ECR6600Flasher : ECRBaseFlasher, IRomReadFlasher
 	{
 		const int EcrRomBase = 0x00000000;
-		const int EcrRomSize = 0x0000C000;
+		const int EcrRomSize = 0x00010000;
 		const int EcrEfuseSize = 0x80;
 
 		//static readonly byte CMD_SYN = 0x00;
