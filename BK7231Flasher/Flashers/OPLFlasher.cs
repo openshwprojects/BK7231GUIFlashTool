@@ -28,7 +28,6 @@ namespace BK7231Flasher
 				serial.DiscardOutBuffer();
 				serial.ReadTimeout = 1000;
 				xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF);
-				if(bUseCompressionIfPossible) bUseCompressionIfPossible = false;
 			}
 			catch(Exception ex)
 			{
@@ -39,11 +38,54 @@ namespace BK7231Flasher
 			return true;
 		}
 
+		private bool UploadAndJump(int addr, byte[] data)
+		{
+			serial.DiscardInBuffer();
+			var offset = 0;
+			while(offset < data.Length)
+			{
+				var len = Math.Min(16, data.Length - offset);
+				var record = BuildS3Record(addr + offset, data, offset, len);
+				serial.Write(record, 0, record.Length);
+				if(!WaitForString("x", 100))
+				{
+					addErrorLine("First stub upload failed!");
+					return false;
+				}
+				offset += len;
+				logger.setProgress(offset, data.Length);
+			}
+
+			var s7 = BuildS7Record(addr);
+			serial.Write(s7, 0, s7.Length);
+			serial.Write("\r");
+
+			if(!WaitForString("Jump(j)", 1000))
+			{
+				addErrorLine("First stub final check failed!");
+				return false;
+			}
+
+			addLogLine("Jumping...");
+
+			serial.Write(new byte[] { (byte)'j' }, 0, 1);
+			Thread.Sleep(2);
+			var rest = serial.ReadExisting();
+			if(rest.Contains("Continue"))
+			{
+				addErrorLine("Jump failed!");
+				return false;
+			}
+			return true;
+		}
+
 		private bool UploadStub()
 		{
-			var loadAddress = 0x00440000;
+			serial.BaudRate = 115200;
 			var stub = FLoaders.GetBinaryFromAssembly("OPL1000A2_Stub");
-			var offset = 0;
+			var stage1 = FLoaders.GetRawBinaryFromAssembly("OPL1000A2_Stub_stage1");
+			var baudRate = baudrate > 1419000 ? 921600 : baudrate;
+			MiscUtils.WriteU32LE(stage1, 8, (uint)baudRate);
 
 			serial.DiscardInBuffer();
 			logger.setState("Syncing", Color.Transparent);
@@ -57,40 +99,24 @@ namespace BK7231Flasher
 				return false;
 
 			addLogLine();
-			addLogLine("Base ROM synced, uploading stub.");
+			addLogLine("Base ROM synced, uploading stage 1 stub.");
 			logger.setState("Uploading", Color.Transparent);
-
-			while(offset < stub.Length)
+			if(!UploadAndJump(0x00440000, stage1))
 			{
-				var len = Math.Min(16, stub.Length - offset);
-				var record = BuildS3Record(loadAddress + offset, stub, offset, len);
-				serial.Write(record, 0, record.Length);
-				if(!WaitForString("x", 100))
-				{
-					addErrorLine("Stub upload failed!");
-					return false;
-				}
-				offset += len;
-				logger.setProgress(offset, stub.Length);
-			}
-
-			var s7 = BuildS7Record(loadAddress);
-			serial.Write(s7, 0, s7.Length);
-			serial.Write("\r");
-
-			if(!WaitForString("Jump(j)", 1000))
-			{
-				addErrorLine("Stub final check failed!");
 				return false;
 			}
-
-			addLogLine("Jumping...");
-
-			serial.Write(new byte[] { (byte)'j' }, 0, 1);
-
+			addLogLine("Uploading stage 2 stub.");
+			serial.BaudRate = baudRate;
+			var sent = xm.Send(stub, instant: true);
+			if(sent != stub.Length)
+			{
+				addErrorLine("Second stub upload failed!");
+			}
+			addLogLine("Done.");
 			if(isCancelled)
 				return false;
-			Thread.Sleep(20);
+
+			Thread.Sleep(10);
 			serial.BaudRate = 115200;
 			serial.DiscardInBuffer();
 			var flashID = ReadFlashId(false);
@@ -122,6 +148,8 @@ namespace BK7231Flasher
 					{
 						int b = serial.ReadByte();
 						sb.Append((char)b);
+						if(sb.ToString().Contains("nvalid"))
+							return false;
 						if(sb.ToString().EndsWith(target))
 							return true;
 					}
