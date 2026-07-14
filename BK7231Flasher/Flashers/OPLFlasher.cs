@@ -28,6 +28,7 @@ namespace BK7231Flasher
 				serial.DiscardOutBuffer();
 				serial.ReadTimeout = 1000;
 				xm = new XMODEM(serial, XMODEM.Variants.XModem1K, 0xFF);
+				if(bUseCompressionIfPossible) bUseCompressionIfPossible = false;
 			}
 			catch(Exception ex)
 			{
@@ -45,6 +46,7 @@ namespace BK7231Flasher
 			var offset = 0;
 
 			serial.DiscardInBuffer();
+			logger.setState("Syncing", Color.Transparent);
 
 			if(!WaitForString("<CHECK>", 5000))
 				return false;
@@ -56,6 +58,7 @@ namespace BK7231Flasher
 
 			addLogLine();
 			addLogLine("Base ROM synced, uploading stub.");
+			logger.setState("Uploading", Color.Transparent);
 
 			while(offset < stub.Length)
 			{
@@ -68,6 +71,7 @@ namespace BK7231Flasher
 					return false;
 				}
 				offset += len;
+				logger.setProgress(offset, stub.Length);
 			}
 
 			var s7 = BuildS7Record(loadAddress);
@@ -98,6 +102,7 @@ namespace BK7231Flasher
 			else
 			{
 				addErrorLine("Stub sync failed!");
+				logger.setState("Stub sync failed!", Color.Red);
 			}
 			return false;
 		}
