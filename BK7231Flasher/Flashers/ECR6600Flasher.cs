@@ -7,8 +7,12 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class ECR6600Flasher : ECRBaseFlasher
+	public class ECR6600Flasher : ECRBaseFlasher, IRomReadFlasher
 	{
+		const int EcrRomBase = 0x00000000;
+		const int EcrRomSize = 0x00010000;
+		const int EcrEfuseSize = 0x80;
+
 		//static readonly byte CMD_SYN = 0x00;
 		static readonly byte CMD_RAM_DOWNLOAD = 0x01;
 		//static readonly byte CMD_FLASH_DOWNLOAD = 0x02;
@@ -268,6 +272,78 @@ namespace BK7231Flasher
 					}
 				}
 			}
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				if(Sync() == false)
+				{
+					logger.setState("Sync failed!", Color.Red);
+					return null;
+				}
+
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return ReadEcrRom(target.Address ?? EcrRomBase, target.Length ?? EcrRomSize, targetKindName);
+					case RomReadKind.Efuse:
+						return ReadEcrEfuse(target.Length ?? EcrEfuseSize, targetKindName);
+					default:
+						addError("Selected ECR6600 read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try { closePort(); } catch { }
+			}
+		}
+
+		byte[] ReadEcrRom(int offset, int length, string targetKindName)
+		{
+			if(offset < EcrRomBase || length <= 0 || offset > EcrRomBase + EcrRomSize - length)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
+			}
+
+			return InternalReadRawMemory(offset, length, targetKindName);
+		}
+
+		byte[] ReadEcrEfuse(int expectedLength, string targetKindName)
+		{
+			if(expectedLength != EcrEfuseSize)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + EcrEfuseSize + " bytes.");
+			}
+
+			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
+			return InternalReadEfusePayload(expectedLength, targetKindName);
 		}
 	}
 }

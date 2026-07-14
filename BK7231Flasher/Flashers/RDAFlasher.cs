@@ -7,8 +7,12 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class RDAFlasher : ECRBaseFlasher
+	public class RDAFlasher : ECRBaseFlasher, IRomReadFlasher
 	{
+		const int RdaRomBase = 0x00000000;
+		const int RdaRomSize = 0x00010000;
+		const int RdaEfuseRawSize = 0x20;
+
 		public RDAFlasher(CancellationToken ct) : base(ct)
 		{
 		}
@@ -215,6 +219,78 @@ namespace BK7231Flasher
 					}
 				}
 			}
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				if(Sync() == false)
+				{
+					logger.setState("Sync failed!", Color.Red);
+					return null;
+				}
+
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return ReadRdaRom(target.Address ?? RdaRomBase, target.Length ?? RdaRomSize, targetKindName);
+					case RomReadKind.Efuse:
+						return ReadRdaEfuse(target.Length ?? RdaEfuseRawSize, targetKindName);
+					default:
+						addError("Selected RDA5981 read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try { closePort(); } catch { }
+			}
+		}
+
+		byte[] ReadRdaRom(int offset, int length, string targetKindName)
+		{
+			if(offset < RdaRomBase || length <= 0 || offset > RdaRomBase + RdaRomSize - length)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
+			}
+
+			return InternalReadRawMemory(offset, length, targetKindName);
+		}
+
+		byte[] ReadRdaEfuse(int expectedLength, string targetKindName)
+		{
+			if(expectedLength != RdaEfuseRawSize)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + RdaEfuseRawSize + " bytes.");
+			}
+
+			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
+			return InternalReadEfusePayload(expectedLength, targetKindName);
 		}
 
 

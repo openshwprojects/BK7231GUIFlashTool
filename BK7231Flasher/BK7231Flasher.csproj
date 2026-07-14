@@ -78,6 +78,8 @@
     <Compile Include="Flashers\WMFlasher.cs" />
     <Compile Include="Flashers\ECR6600Flasher.cs" />
     <Compile Include="Flashers\BaseFlasher.cs" />
+    <Compile Include="Flashers\FlasherFactory.cs" />
+    <Compile Include="Flashers\IRomReadFlasher.cs" />
     <Compile Include="Flashers\BKChipIdentity.cs" />
     <Compile Include="Helpers\BitUtils.cs" />
     <Compile Include="Flashers\BK7231Flasher.cs" />
@@ -89,6 +91,9 @@
     <Compile Include="Utils\CH341DEV.cs" />
     <Compile Include="Helpers\Colors.cs" />
     <Compile Include="Misc\ConfigBase.cs" />
+    <Compile Include="Misc\FlashPlatformCatalog.cs" />
+    <Compile Include="Misc\PlatformBootModeGuide.cs" />
+    <Compile Include="Misc\RomReadCatalog.cs" />
     <Compile Include="Utils\CRC.cs" />
     <Compile Include="Utils\EasyFlash.cs" />
     <Compile Include="Helpers\FLoaders.cs" />

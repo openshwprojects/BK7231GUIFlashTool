@@ -416,7 +416,6 @@ namespace BK7231Flasher
             {
                 case BKType.RTL8720D:
                 case BKType.RTL87X0C:
-                case BKType.RTL8710B:
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
                 case BKType.ESP32:
@@ -612,6 +611,7 @@ namespace BK7231Flasher
             switch (chipType)
             {
                 case BKType.RTL8710B:
+                    return new RTLNFlasher(ct);
                 case BKType.RTL8720D:
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
