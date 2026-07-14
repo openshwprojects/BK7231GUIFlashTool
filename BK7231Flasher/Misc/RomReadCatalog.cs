@@ -21,7 +21,6 @@ namespace BK7231Flasher
         public string ReadTrailerName { get; private set; }
         public int DefaultBaudRate { get; private set; }
         public int[] AllowedBaudRates { get; private set; }
-        public bool IsImplemented { get; private set; }
         public string AddressSpace { get; private set; }
         public string Backend { get; private set; }
         public string Controller { get; private set; }
@@ -29,7 +28,7 @@ namespace BK7231Flasher
         public IReadOnlyList<RomReadOutputSlice> OutputSlices { get; private set; }
 
         public RomReadTarget(BKType platform, RomReadKind kind, string displayName,
-            int? address, int? length, int defaultBaudRate, int[] allowedBaudRates, bool isImplemented,
+            int? address, int? length, int defaultBaudRate, int[] allowedBaudRates,
             string addressSpace = null, string backend = null, string controller = null,
             int readTrailerLength = 0, string readTrailerName = null, IReadOnlyList<RomReadOutputSlice> outputSlices = null,
             string outputFileNameTag = null)
@@ -43,7 +42,6 @@ namespace BK7231Flasher
             ReadTrailerName = readTrailerName ?? "";
             DefaultBaudRate = defaultBaudRate;
             AllowedBaudRates = allowedBaudRates ?? new int[0];
-            IsImplemented = isImplemented;
             AddressSpace = addressSpace ?? "";
             Backend = backend ?? "";
             Controller = controller ?? "";
@@ -157,48 +155,50 @@ namespace BK7231Flasher
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
-            new RomReadTarget(BKType.BK7231N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7231N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7238, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7238, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7252N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7252N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, true, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            new RomReadTarget(BKType.BK7231M, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7231M, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            new RomReadTarget(BKType.BK7231N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7231N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            new RomReadTarget(BKType.BK7238, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7238, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            new RomReadTarget(BKType.BK7252N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7252N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             // BK7231T/BK7231U do not expose ROM/eFuse reads over UART.
             // BK7236/BK7258 are omitted for now: they do not use the standard BK72xx
             // SCTRL eFuse path below, and their ROM/eFuse read flow still needs proving.
-            new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),
-            new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
-            new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
-            new RomReadTarget(BKType.LN8825, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, true, LnRomSpace, LnRamcodeBackend, LnRomController),
-            new RomReadTarget(BKType.LN8825, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, true, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
-            new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, true, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
-            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, true, Rtlz2RomSpace, Rtlz2RomBackend, Rtlz2RomController),
-            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtlz2EfuseSpace, Rtlz2EfuseBackend, Rtlz2EfuseController),
-            new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, RtlStubRomSpace, Rtl8710bRomBackend, RtlStubRomController),
-            new RomReadTarget(BKType.RTL8710B, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, true, Rtl8710bEfuseSpace, Rtl8710bEfuseBackend, Rtl8710bEfuseController),
+            new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, LnRomSpace, LnRamcodeBackend, LnRomController),
+            new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
+            new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
+            new RomReadTarget(BKType.LN8825, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, LnRomSpace, LnRamcodeBackend, LnRomController),
+            new RomReadTarget(BKType.LN8825, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
+            new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
+            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, Rtlz2RomSpace, Rtlz2RomBackend, Rtlz2RomController),
+            new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, Rtlz2EfuseSpace, Rtlz2EfuseBackend, Rtlz2EfuseController),
+            new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, RtlStubRomSpace, Rtl8710bRomBackend, RtlStubRomController),
+            new RomReadTarget(BKType.RTL8710B, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, Rtl8710bEfuseSpace, Rtl8710bEfuseBackend, Rtl8710bEfuseController),
             // These stubs run on KM4. The KM0 (RTL8721DA) and KR4 (RTL8720E)
             // ROMs are physically private to their respective secondary cores.
-            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, true, RtlKm4RomSpace, Rtl8721daRomBackend, RtlStubRomController, outputFileNameTag: "KM4_ROM"),
-            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, true, RtlAmebaEfuseSpace, Rtl8721daEfuseBackend, RtlAmebaEfuseController),
-            new RomReadTarget(BKType.RTL8720E, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, true, RtlKm4RomSpace, Rtl8720eRomBackend, RtlStubRomController, outputFileNameTag: "KM4_ROM"),
-            new RomReadTarget(BKType.RTL8720E, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, true, RtlAmebaEfuseSpace, Rtl8720eEfuseBackend, RtlAmebaEfuseController),
-            new RomReadTarget(BKType.ECR6600, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 115200, CommonSerialBauds, true, EcrRomSpace, EcrRomBackend, EcrRomController),
-            new RomReadTarget(BKType.ECR6600, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 115200, CommonSerialBauds, true, EcrEfuseSpace, EcrEfuseBackend, EcrEfuseController),
-            new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, true, RdaRomSpace, RdaRomBackend, RdaRomController),
-            new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, true, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
-            new RomReadTarget(BKType.GD32VW553, RomReadKind.Rom, "ROM", 0x0BF40000, 0x40000, 921600, CommonSerialBauds, true, Gd32RomSpace, Gd32RomBackend, Gd32RomController),
-            new RomReadTarget(BKType.GD32VW553, RomReadKind.Efuse, "eFuse", 0x00000000, Gd32RfEfuseSize + Gd32McuEfuseSize, 921600, CommonSerialBauds, true, Gd32EfuseSpace, Gd32EfuseBackend, Gd32EfuseController, 0, null, Gd32EfuseSlices),
-            new RomReadTarget(BKType.XR806, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
-            new RomReadTarget(BKType.XR806, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
-            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 921600, XrSerialBauds, true, Xr809RomSpace, Xr809Backend, Xr809RomController),
-            new RomReadTarget(BKType.XR809, RomReadKind.Efuse, "eFuse", 0x00000000, 0x100, 921600, XrSerialBauds, true, Xr809EfuseSpace, Xr809Backend, Xr809EfuseController),
-            new RomReadTarget(BKType.XR872, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, true, XrRomSpace, XrBromBackend, XrRomController),
-            new RomReadTarget(BKType.XR872, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, true, XrEfuseSpace, XrBromBackend, XrEfuseController),
+            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, RtlKm4RomSpace, Rtl8721daRomBackend, RtlStubRomController, outputFileNameTag: "KM4_ROM"),
+            new RomReadTarget(BKType.RTL8721DA, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, RtlAmebaEfuseSpace, Rtl8721daEfuseBackend, RtlAmebaEfuseController),
+            new RomReadTarget(BKType.RTL8720E, RomReadKind.Rom, "ROM", 0x00000000, 0x48000, 115200, CommonSerialBauds, RtlKm4RomSpace, Rtl8720eRomBackend, RtlStubRomController, outputFileNameTag: "KM4_ROM"),
+            new RomReadTarget(BKType.RTL8720E, RomReadKind.Efuse, "eFuse", 0x00000000, 0x400, 115200, CommonSerialBauds, RtlAmebaEfuseSpace, Rtl8720eEfuseBackend, RtlAmebaEfuseController),
+            new RomReadTarget(BKType.ECR6600, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 115200, CommonSerialBauds, EcrRomSpace, EcrRomBackend, EcrRomController),
+            new RomReadTarget(BKType.ECR6600, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 115200, CommonSerialBauds, EcrEfuseSpace, EcrEfuseBackend, EcrEfuseController),
+            new RomReadTarget(BKType.RDA5981, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 921600, CommonSerialBauds, RdaRomSpace, RdaRomBackend, RdaRomController),
+            new RomReadTarget(BKType.RDA5981, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 921600, CommonSerialBauds, RdaEfuseSpace, RdaEfuseBackend, RdaEfuseController),
+            new RomReadTarget(BKType.GD32VW553, RomReadKind.Rom, "ROM", 0x0BF40000, 0x40000, 921600, CommonSerialBauds, Gd32RomSpace, Gd32RomBackend, Gd32RomController),
+            new RomReadTarget(BKType.GD32VW553, RomReadKind.Efuse, "eFuse", 0x00000000, Gd32RfEfuseSize + Gd32McuEfuseSize, 921600, CommonSerialBauds, Gd32EfuseSpace, Gd32EfuseBackend, Gd32EfuseController, 0, null, Gd32EfuseSlices),
+            new RomReadTarget(BKType.XR806, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, XrRomSpace, XrBromBackend, XrRomController),
+            new RomReadTarget(BKType.XR806, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, XrEfuseSpace, XrBromBackend, XrEfuseController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 921600, XrSerialBauds, Xr809RomSpace, Xr809Backend, Xr809RomController),
+            new RomReadTarget(BKType.XR809, RomReadKind.Efuse, "eFuse", 0x00000000, 0x100, 921600, XrSerialBauds, Xr809EfuseSpace, Xr809Backend, Xr809EfuseController),
+            new RomReadTarget(BKType.XR872, RomReadKind.Rom, "ROM", 0x00000000, 0x28000, 921600, XrSerialBauds, XrRomSpace, XrBromBackend, XrRomController),
+            new RomReadTarget(BKType.XR872, RomReadKind.Efuse, "eFuse", 0x00000000, 0x80, 921600, XrSerialBauds, XrEfuseSpace, XrBromBackend, XrEfuseController),
         };
 
         public static IEnumerable<BKType> GetSupportedPlatforms()
         {
-            return Targets.Where(target => target.IsImplemented).Select(target => target.Platform).Distinct();
+            return Targets.Select(target => target.Platform).Distinct();
         }
 
         public static IEnumerable<RomReadTarget> GetTargets(BKType platform)

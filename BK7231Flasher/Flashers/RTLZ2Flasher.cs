@@ -1293,11 +1293,6 @@ namespace BK7231Flasher
 					addError("No ROM reader target selected." + Environment.NewLine);
 					return null;
 				}
-				if(chipType != BKType.RTL87X0C || target.Platform != BKType.RTL87X0C)
-				{
-					addError("RTL87X0C ROM reader target is not supported by this flasher." + Environment.NewLine);
-					return null;
-				}
 				if(doGenericSetup() == false)
 				{
 					return null;

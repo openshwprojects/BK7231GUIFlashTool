@@ -538,7 +538,7 @@ namespace BK7231Flasher
         void setReadRomTargetControl(RadioButton radioButton, BKType selectedType, RomReadKind kind)
         {
             RomReadTarget target = RomReadCatalog.GetTarget(selectedType, kind);
-            radioButton.Enabled = target != null && target.IsImplemented;
+            radioButton.Enabled = target != null;
         }
 
         RomReadKind? getSelectedReadRomKind()
@@ -619,7 +619,7 @@ namespace BK7231Flasher
         void updateReadRomReadButtonState()
         {
             RomReadTarget target = getSelectedReadRomTarget();
-            buttonReadRomRead.Enabled = worker == null && target != null && target.IsImplemented;
+            buttonReadRomRead.Enabled = worker == null && target != null;
         }
 
         void logReadRomBootInstructions(BKType selectedType)
@@ -1675,11 +1675,6 @@ namespace BK7231Flasher
             if (target == null)
             {
                 MessageBox.Show("No ROM/OTP/eFuse read target is available for this platform yet.");
-                return;
-            }
-            if (target.IsImplemented == false)
-            {
-                MessageBox.Show("Reading this target is not implemented yet.");
                 return;
             }
             if (doReadRomOperationPreparations() == false)

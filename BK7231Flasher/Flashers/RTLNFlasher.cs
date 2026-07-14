@@ -366,14 +366,6 @@ namespace BK7231Flasher
 					addError("No ROM reader target selected." + Environment.NewLine);
 					return null;
 				}
-				bool bIsSupportedPlatform = chipType == BKType.RTL8710B ||
-					chipType == BKType.RTL8721DA ||
-					chipType == BKType.RTL8720E;
-				if(!bIsSupportedPlatform || target.Platform != chipType)
-				{
-					addError(chipType + " read target is not supported by this flasher." + Environment.NewLine);
-					return null;
-				}
 				if(doGenericSetup() == false)
 					return null;
 				if(Sync() == false)

@@ -388,11 +388,6 @@ namespace BK7231Flasher
 					addError("No ROM reader target selected." + Environment.NewLine);
 					return null;
 				}
-				if(chipType != BKType.GD32VW553 || target.Platform != BKType.GD32VW553)
-				{
-					addError("GD32VW553 ROM reader target is not supported by this flasher." + Environment.NewLine);
-					return null;
-				}
 				if(doGenericSetup() == false)
 				{
 					return null;

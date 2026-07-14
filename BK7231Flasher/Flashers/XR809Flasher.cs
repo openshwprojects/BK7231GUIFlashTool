@@ -887,11 +887,6 @@ namespace BK7231Flasher
                     addError("No ROM reader target selected." + Environment.NewLine);
                     return null;
                 }
-                if (chipType != BKType.XR809 || target.Platform != BKType.XR809)
-                {
-                    addError("XR809 ROM reader target is not supported by this flasher." + Environment.NewLine);
-                    return null;
-                }
                 if (!DoGenericSetup()) return null;
                 if (!EnsureConnectedAndIdentified()) return null;
 

@@ -282,11 +282,6 @@ namespace BK7231Flasher
             }
         }
 
-        bool IsRomReadPlatform()
-        {
-            return chipType == BKType.XR806 || chipType == BKType.XR872;
-        }
-
         public byte[] ReadRomTarget(RomReadTarget target)
         {
             try
@@ -294,11 +289,6 @@ namespace BK7231Flasher
                 if (target == null)
                 {
                     addError("No ROM reader target selected." + Environment.NewLine);
-                    return null;
-                }
-                if (!IsRomReadPlatform() || target.Platform != chipType)
-                {
-                    addError(chipType + " ROM reader target is not supported by this flasher." + Environment.NewLine);
                     return null;
                 }
                 if (!DoGenericSetup()) return null;

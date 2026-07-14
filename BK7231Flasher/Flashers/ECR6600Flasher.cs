@@ -283,11 +283,6 @@ namespace BK7231Flasher
 					addError("No ROM reader target selected." + Environment.NewLine);
 					return null;
 				}
-				if(chipType != BKType.ECR6600 || target.Platform != BKType.ECR6600)
-				{
-					addError("ECR6600 read target is not supported by this flasher." + Environment.NewLine);
-					return null;
-				}
 				if(doGenericSetup() == false)
 				{
 					return null;

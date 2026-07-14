@@ -438,11 +438,6 @@ namespace BK7231Flasher
                     addError("No ROM reader target selected." + Environment.NewLine);
                     return null;
                 }
-                if((chipType != BKType.LN882H && chipType != BKType.LN8825) || target.Platform != chipType)
-                {
-                    addError("LN882x ROM reader target is not supported by this flasher." + Environment.NewLine);
-                    return null;
-                }
                 if(doGenericSetup() == false)
                 {
                     return null;

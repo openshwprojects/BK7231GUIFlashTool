@@ -6,7 +6,7 @@ namespace BK7231Flasher
     {
         static readonly IReadOnlyDictionary<BKType, string> Instructions = new Dictionary<BKType, string>()
         {
-            { BKType.BK7231M, "" },
+            { BKType.BK7231M, GetBekenUart1Instructions("BK7231M") },
             { BKType.BK7231N, GetBekenUart1Instructions("BK7231N") },
             { BKType.BK7231T, GetBekenUart1Instructions("BK7231T") },
             { BKType.BK7231U, GetBekenUart1Instructions("BK7231U") },

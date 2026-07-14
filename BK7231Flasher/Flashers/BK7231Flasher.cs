@@ -1342,11 +1342,6 @@ namespace BK7231Flasher
                 addError("No ROM reader target selected." + Environment.NewLine);
                 return null;
             }
-            if (chipType != target.Platform || IsBekenSpecialMemoryPlatform(target.Platform) == false)
-            {
-                addError("ROM reader target is not supported by this flasher." + Environment.NewLine);
-                return null;
-            }
             if (doGenericSetup() == false)
             {
                 return null;
@@ -1362,19 +1357,6 @@ namespace BK7231Flasher
                 default:
                     addError("Selected read target is not implemented." + Environment.NewLine);
                     return null;
-            }
-        }
-
-        static bool IsBekenSpecialMemoryPlatform(BKType platform)
-        {
-            switch (platform)
-            {
-                case BKType.BK7231N:
-                case BKType.BK7238:
-                case BKType.BK7252N:
-                    return true;
-                default:
-                    return false;
             }
         }
 
