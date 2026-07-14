@@ -27,49 +27,16 @@ namespace BK7231Flasher
         FormCustom formCustom;
         CancellationTokenSource cts;
 
-        public Dictionary<BKType, string> Chips = new Dictionary<BKType, string>()
+        enum OperationUiTarget
         {
-            { BKType.BK7231M,    "BK7231M" },
-            { BKType.BK7231N,    "BK7231N (T2, T34)" },
-            { BKType.BK7231T,    "BK7231T" },
-            { BKType.BK7231U,    "BK7231U" },
-            { BKType.BK7236,     "BK7236 (T3)" },
-            { BKType.BK7238,     "BK7238 (T1)" },
-            { BKType.BK7252,     "BK7252" },
-            { BKType.BK7252N,    "BK7252N (T4)" },
-            { BKType.BK7258,     "BK7258 (T5)" },
-            { BKType.BekenSPI,   "Beken SPI CH341" },
-            { BKType.BL602,      "BL602" },
-            { BKType.BL616,      "BL616" },
-            { BKType.BL702,      "BL702" },
-            { BKType.ECR6600,    "ECR6600" },
-            { BKType.ESP32,      "ESP32" },
-            { BKType.ESP32S2,    "ESP32-S2" },
-            { BKType.ESP32C2,    "ESP32-C2" },
-            { BKType.ESP32C3,    "ESP32-C3" },
-            { BKType.ESP32C5,    "ESP32-C5" },
-            { BKType.ESP32C6,    "ESP32-C6" },
-            { BKType.ESP32C61,   "ESP32-C61" },
-            { BKType.ESP32S3,    "ESP32-S3" },
-            { BKType.ESP8266,    "ESP8266" },
-            { BKType.GD32VW553,  "GD32VW553" },
-            { BKType.GenericSPI, "Generic SPI CH341" },
-            { BKType.LN882H,     "LN882H" },
-            { BKType.LN8825,     "LN8825" },
-            { BKType.OPL1000A2,  "OPL1000A2" },
-            { BKType.RDA5981,    "RDA5981" },
-            { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
-            { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
-            { BKType.RTL8721DA,  "RTL8721DA (AmebaDplus)" },
-            { BKType.RTL8720E,   "RTL8720E (AmebaLite)" },
-            { BKType.RTL87X0C,   "RTL87X0C (AmebaZ2)" },
-            { BKType.TR6260,     "TR6260" },
-            { BKType.W600,       "W600 (write)" },
-            { BKType.W800,       "W800" },
-            { BKType.XR806,      "XR806" },
-            { BKType.XR809,      "XR809" },
-            { BKType.XR872,      "XR872 (XF16)" },
-        };
+            Flasher,
+            ReadRom,
+        }
+
+        OperationUiTarget currentOperationUiTarget = OperationUiTarget.Flasher;
+        bool bSuppressReadRomPlatformEvents = false;
+        bool bSuppressReadRomTargetEvents = false;
+
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
 
@@ -130,23 +97,35 @@ namespace BK7231Flasher
                 }
             }
 
-            string prevPort = "";
-            if(comboBoxUART.SelectedIndex != -1)
-            {
-                prevPort = comboBoxUART.SelectedItem.ToString();
-            }
+            string prevPort = getComboBoxSelectedText(comboBoxUART);
+            string prevReadRomPort = getComboBoxSelectedText(comboBoxReadRomUART);
             allPorts = newPorts;
-            comboBoxUART.Items.Clear();
-            int newIndex = allPorts.Length - 1;
-            for(int i = 0; i <  allPorts.Length; i++)
+            setPortComboBoxItems(comboBoxUART, allPorts, prevPort);
+            setPortComboBoxItems(comboBoxReadRomUART, allPorts, prevReadRomPort);
+        }
+
+        string getComboBoxSelectedText(ComboBox comboBox)
+        {
+            if(comboBox.SelectedIndex != -1)
             {
-                if (prevPort == allPorts[i])
+                return comboBox.SelectedItem.ToString();
+            }
+            return "";
+        }
+
+        void setPortComboBoxItems(ComboBox comboBox, string[] ports, string previousPort)
+        {
+            comboBox.Items.Clear();
+            int newIndex = ports.Length - 1;
+            for(int i = 0; i < ports.Length; i++)
+            {
+                if (previousPort == ports[i])
                     newIndex = i;
-                comboBoxUART.Items.Add(allPorts[i]);
+                comboBox.Items.Add(ports[i]);
             }
             if(newIndex != -1)
             {
-                comboBoxUART.SelectedIndex = newIndex;
+                comboBox.SelectedIndex = newIndex;
             }
         }
         void scanForCOMPorts()
@@ -234,20 +213,20 @@ namespace BK7231Flasher
             comboBoxChipType.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxUART.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxReadRomChipType.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxReadRomUART.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxReadRomBaudRate.DropDownStyle = ComboBoxStyle.DropDownList;
 
-            foreach(var chip in Chips.OrderBy(k => k.Value, StringComparer.OrdinalIgnoreCase))
-            {
-                comboBoxChipType.Items.Add(new ChipType(chip.Key, chip.Value));
-            }
-
-            comboBoxChipType.SelectedIndex = comboBoxChipType.Items
-                .Cast<ChipType>().ToList().FindIndex(x => x.Type == BKType.BK7231N);
+            populatePlatformComboBox(comboBoxChipType, BKType.BK7231N);
+            populateReadRomPlatformComboBox();
             foreach(var baud in BaudRates)
             {
                 comboBoxBaudRate.Items.Add(baud);
+                comboBoxReadRomBaudRate.Items.Add(baud);
             }
 
             comboBoxBaudRate.SelectedIndex = 0;
+            comboBoxReadRomBaudRate.SelectedIndex = 0;
 
             try
             {
@@ -306,6 +285,15 @@ namespace BK7231Flasher
             {
                 setComboBoxValueByContent(comboBoxUART, settings.FindKeyValue("Port"));
             }
+            if (settings.HasKey("ReadRomBaudRate"))
+            {
+                setComboBoxValueByContent(comboBoxReadRomBaudRate, settings.FindKeyValue("ReadRomBaudRate"));
+            }
+            if (settings.HasKey("ReadRomPort"))
+            {
+                setComboBoxValueByContent(comboBoxReadRomUART, settings.FindKeyValue("ReadRomPort"));
+            }
+            updateReadRomControlsForSelectedPlatform(false);
             if (settings.HasKey("bAdvanced"))
             {
                checkBoxShowAdvanced.Checked = settings.FindKeyValueBool("bAdvanced");
@@ -351,6 +339,40 @@ namespace BK7231Flasher
                 comboBox.SelectedIndex = index;
             }
         }
+
+        void populatePlatformComboBox(ComboBox comboBox, BKType defaultType)
+        {
+            comboBox.Items.Clear();
+            foreach(var chip in FlashPlatformCatalog.GetOrderedChipTypes())
+            {
+                comboBox.Items.Add(chip);
+            }
+            comboBox.SelectedIndex = comboBox.Items
+                .Cast<ChipType>().ToList().FindIndex(x => x.Type == defaultType);
+        }
+
+        void populateReadRomPlatformComboBox()
+        {
+            bSuppressReadRomPlatformEvents = true;
+            comboBoxReadRomChipType.Items.Clear();
+            comboBoxReadRomChipType.Items.Add("");
+            foreach(var chip in FlashPlatformCatalog.GetOrderedChipTypes()
+                .Where(chip => RomReadCatalog.GetSupportedPlatforms().Contains(chip.Type)))
+            {
+                comboBoxReadRomChipType.Items.Add(chip);
+            }
+            comboBoxReadRomChipType.SelectedIndex = 0;
+            bSuppressReadRomPlatformEvents = false;
+        }
+
+        BKType getSelectedChipType(ComboBox comboBox)
+        {
+            if(comboBox.SelectedItem is ChipType chip)
+            {
+                return chip.Type;
+            }
+            return BKType.Invalid;
+        }
         void setSettingsKeyAndSave(string key, object value)
         {
             if (value == null)
@@ -375,10 +397,15 @@ namespace BK7231Flasher
         }
         int getBaudRateFromGUI()
         {
+            return getBaudRateFromGUI(comboBoxBaudRate);
+        }
+
+        int getBaudRateFromGUI(ComboBox comboBox)
+        {
             int r = 0;
             try
             {
-                r = int.Parse(comboBoxBaudRate.Text);
+                r = int.Parse(comboBox.Text);
             }
             catch(Exception ex)
             {
@@ -386,28 +413,55 @@ namespace BK7231Flasher
             }
             return r;
         }
+        ProgressBar getActiveProgressBar()
+        {
+            return currentOperationUiTarget == OperationUiTarget.ReadRom ? progressBarReadRom : progressBar1;
+        }
+
+        Label getActiveStateLabel()
+        {
+            return currentOperationUiTarget == OperationUiTarget.ReadRom ? labelReadRomState : labelState;
+        }
+
+        RichTextBox getActiveLogTextBox()
+        {
+            return currentOperationUiTarget == OperationUiTarget.ReadRom ? textBoxReadRomLog : textBoxLog;
+        }
+
         public void setProgress(int cur, int max)
         {
             if (cur > max)
                 cur = max;
-            Singleton.textBoxLog.BeginInvoke((MethodInvoker)delegate {
+            ProgressBar activeProgressBar = getActiveProgressBar();
+            activeProgressBar.BeginInvoke((MethodInvoker)delegate {
                 // Running on the UI thread
-                progressBar1.Maximum = max;
-                progressBar1.Value = cur;
+                activeProgressBar.Maximum = max;
+                activeProgressBar.Value = cur;
             });
         }
         public void setState(string s, Color col)
         {
-            Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
-                Singleton.labelState.Text = s;
-                Singleton.labelState.BackColor = col;
+            Label activeStateLabel = getActiveStateLabel();
+            activeStateLabel.Invoke((MethodInvoker)delegate {
+                activeStateLabel.Text = s;
+                activeStateLabel.BackColor = col;
             });
         }
         public void addLog(string s, Color col)
         {
-            Singleton.textBoxLog.Invoke((MethodInvoker)delegate {
+            addLogToTextBox(getActiveLogTextBox(), s, col);
+        }
+
+        void addReadRomLog(string s, Color col)
+        {
+            addLogToTextBox(textBoxReadRomLog, s, col);
+        }
+
+        void addLogToTextBox(RichTextBox logTextBox, string s, Color col)
+        {
+            logTextBox.Invoke((MethodInvoker)delegate {
                 // Running on the UI thread
-                RichTextUtil.AppendText(Singleton.textBoxLog, s, col);
+                RichTextUtil.AppendText(logTextBox, s, col);
             });
         }
         //public void setButtonReadLabel(string s)
@@ -420,9 +474,14 @@ namespace BK7231Flasher
         Task worker;
         string getSelectedSerialName()
         {
-            if (comboBoxUART.SelectedIndex != -1)
+            return getSelectedSerialName(comboBoxUART);
+        }
+
+        string getSelectedSerialName(ComboBox comboBox)
+        {
+            if (comboBox.SelectedIndex != -1)
             {
-                return comboBoxUART.SelectedItem.ToString();
+                return comboBox.SelectedItem.ToString();
             }
             return "";
         }
@@ -431,28 +490,172 @@ namespace BK7231Flasher
         BKType curType;
         void refreshType()
         {
-            curType = ((ChipType)comboBoxChipType.SelectedItem).Type;
-            if(curType == BKType.BekenSPI || curType == BKType.GenericSPI)
+            refreshType(comboBoxChipType, comboBoxUART, comboBoxBaudRate);
+        }
+
+        void updateReadRomControlsForSelectedPlatform(bool logBootInstructions)
+        {
+            BKType selectedType = getSelectedChipType(comboBoxReadRomChipType);
+            bSuppressReadRomTargetEvents = true;
+
+            setReadRomTargetControl(radioButtonReadRomTargetEfuse, selectedType, RomReadKind.Efuse);
+            setReadRomTargetControl(radioButtonReadRomTargetOtp, selectedType, RomReadKind.Otp);
+            setReadRomTargetControl(radioButtonReadRomTargetRom, selectedType, RomReadKind.Rom);
+
+            if (radioButtonReadRomTargetRom.Checked && !radioButtonReadRomTargetRom.Enabled)
+                radioButtonReadRomTargetRom.Checked = false;
+            if (radioButtonReadRomTargetOtp.Checked && !radioButtonReadRomTargetOtp.Enabled)
+                radioButtonReadRomTargetOtp.Checked = false;
+            if (radioButtonReadRomTargetEfuse.Checked && !radioButtonReadRomTargetEfuse.Enabled)
+                radioButtonReadRomTargetEfuse.Checked = false;
+
+            if (!radioButtonReadRomTargetRom.Enabled && !radioButtonReadRomTargetOtp.Enabled && !radioButtonReadRomTargetEfuse.Enabled)
             {
-                comboBoxUART.Enabled = false;
-                comboBoxBaudRate.Enabled = false;
+                radioButtonReadRomTargetRom.Checked = false;
+                radioButtonReadRomTargetOtp.Checked = false;
+                radioButtonReadRomTargetEfuse.Checked = false;
             }
-            else
+            else if (!radioButtonReadRomTargetRom.Checked && !radioButtonReadRomTargetOtp.Checked && !radioButtonReadRomTargetEfuse.Checked)
             {
-                comboBoxUART.Enabled = true;
-                comboBoxBaudRate.Enabled = true;
+                if (radioButtonReadRomTargetEfuse.Enabled)
+                    radioButtonReadRomTargetEfuse.Checked = true;
+                else if (radioButtonReadRomTargetOtp.Enabled)
+                    radioButtonReadRomTargetOtp.Checked = true;
+                else
+                    radioButtonReadRomTargetRom.Checked = true;
             }
+
+            bSuppressReadRomTargetEvents = false;
+            updateReadRomBaudRates();
+            updateReadRomRangeInfo();
+            updateReadRomReadButtonState();
+            if (logBootInstructions)
+            {
+                logReadRomBootInstructions(selectedType);
+            }
+        }
+
+        void setReadRomTargetControl(RadioButton radioButton, BKType selectedType, RomReadKind kind)
+        {
+            RomReadTarget target = RomReadCatalog.GetTarget(selectedType, kind);
+            radioButton.Enabled = target != null;
+        }
+
+        RomReadKind? getSelectedReadRomKind()
+        {
+            if (radioButtonReadRomTargetRom.Checked)
+                return RomReadKind.Rom;
+            if (radioButtonReadRomTargetOtp.Checked)
+                return RomReadKind.Otp;
+            if (radioButtonReadRomTargetEfuse.Checked)
+                return RomReadKind.Efuse;
+            return null;
+        }
+
+        RomReadTarget getSelectedReadRomTarget()
+        {
+            RomReadKind? kind = getSelectedReadRomKind();
+            if (!kind.HasValue)
+                return null;
+            return RomReadCatalog.GetTarget(getSelectedChipType(comboBoxReadRomChipType), kind.Value);
+        }
+
+        void updateReadRomBaudRates()
+        {
+            RomReadTarget target = getSelectedReadRomTarget();
+            object previousBaud = comboBoxReadRomBaudRate.SelectedItem;
+            comboBoxReadRomBaudRate.Items.Clear();
+
+            int[] baudRates = target != null && target.AllowedBaudRates.Length > 0 ? target.AllowedBaudRates : BaudRates;
+            foreach (var baud in baudRates)
+            {
+                comboBoxReadRomBaudRate.Items.Add(baud);
+            }
+
+            if (previousBaud != null && comboBoxReadRomBaudRate.Items.Contains(previousBaud))
+            {
+                comboBoxReadRomBaudRate.SelectedItem = previousBaud;
+            }
+            else if (target != null && comboBoxReadRomBaudRate.Items.Contains(target.DefaultBaudRate))
+            {
+                comboBoxReadRomBaudRate.SelectedItem = target.DefaultBaudRate;
+            }
+            else if (comboBoxReadRomBaudRate.Items.Count > 0)
+            {
+                comboBoxReadRomBaudRate.SelectedIndex = 0;
+            }
+        }
+
+        void updateReadRomRangeInfo()
+        {
+            RomReadTarget target = getSelectedReadRomTarget();
+            if (target == null || target.Address.HasValue == false || target.Length.HasValue == false)
+            {
+                labelReadRomRangeStart.Text = "Space: -";
+                labelReadRomRangeLength.Text = "Range: -";
+                labelReadRomRangeEnd.Text = "Backend: -";
+                labelReadRomRangeController.Text = "Ctrl: -";
+                return;
+            }
+
+            int start = target.Address.Value;
+            int length = target.Length.Value;
+            int end = start + length;
+            labelReadRomRangeStart.Text = "Space: " + formatReadRomDetailValue(target.AddressSpace);
+            labelReadRomRangeLength.Text = "Range: " + BaseFlasher.formatHex(start) + ".." + BaseFlasher.formatHex(end - 1) + " (" + BaseFlasher.formatHex(length) + ")";
+            labelReadRomRangeEnd.Text = "Backend: " + formatReadRomDetailValue(target.Backend);
+            labelReadRomRangeController.Text = "Ctrl: " + formatReadRomDetailValue(target.Controller);
+        }
+
+        string formatReadRomDetailValue(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "-";
+            }
+            return value;
+        }
+
+        void updateReadRomReadButtonState()
+        {
+            RomReadTarget target = getSelectedReadRomTarget();
+            buttonReadRomRead.Enabled = worker == null && target != null;
+        }
+
+        void logReadRomBootInstructions(BKType selectedType)
+        {
+            if (selectedType == BKType.Invalid)
+            {
+                return;
+            }
+            string platformName = FlashPlatformCatalog.GetDisplayName(selectedType);
+            addReadRomLog(Environment.NewLine + "ROM reader setup for " + platformName + ":" + Environment.NewLine, Color.DarkSlateGray);
+            addReadRomLog(PlatformBootModeGuide.GetInstructions(selectedType) + Environment.NewLine, Color.DarkSlateGray);
+        }
+
+        void refreshType(ComboBox chipTypeComboBox, ComboBox uartComboBox, ComboBox baudRateComboBox)
+        {
+            curType = getSelectedChipType(chipTypeComboBox);
+            applySerialControlState(chipTypeComboBox, uartComboBox, baudRateComboBox, true);
+        }
+
+        void applySerialControlState(ComboBox chipTypeComboBox, ComboBox uartComboBox, ComboBox baudRateComboBox, bool operationControlsEnabled)
+        {
+            BKType selectedType = getSelectedChipType(chipTypeComboBox);
+            bool usesSerialPort = selectedType != BKType.Invalid && FlashPlatformCatalog.UsesSerialPort(selectedType);
+            uartComboBox.Enabled = operationControlsEnabled && usesSerialPort;
+            baudRateComboBox.Enabled = operationControlsEnabled && usesSerialPort;
         }
         bool interruptIfRequired()
         {
             if (worker != null)
             {
-                var res = MessageBox.Show("Do you want to interrupt flashing?", "Stop?", MessageBoxButtons.YesNo);
+                var res = MessageBox.Show("Do you want to interrupt the current operation?", "Stop?", MessageBoxButtons.YesNo);
                 if (res == DialogResult.Yes)
                 {
                     if(worker != null)
                     {
-                        try { cts?.Cancel(); } catch { }
+                        cts?.Cancel();
                         //worker.Abort();
                     }
                     worker = null;
@@ -466,20 +669,30 @@ namespace BK7231Flasher
         }
         bool doGenericOperationPreparations()
         {
+            return doGenericOperationPreparations(comboBoxChipType, comboBoxUART, comboBoxBaudRate);
+        }
+
+        bool doReadRomOperationPreparations()
+        {
+            return doGenericOperationPreparations(comboBoxReadRomChipType, comboBoxReadRomUART, comboBoxReadRomBaudRate);
+        }
+
+        bool doGenericOperationPreparations(ComboBox chipTypeComboBox, ComboBox uartComboBox, ComboBox baudRateComboBox)
+        {
             if (interruptIfRequired() == false)
             {
                 return false;
             }
-            refreshType();
-            chosenBaudRate = getBaudRateFromGUI();
+            refreshType(chipTypeComboBox, uartComboBox, baudRateComboBox);
+            chosenBaudRate = getBaudRateFromGUI(baudRateComboBox);
             if (chosenBaudRate <= 0)
             {
                 MessageBox.Show("Please enter a correct number for a baud rate.");
                 return false;
             }
-            if(comboBoxUART.Enabled)
+            if(uartComboBox.Enabled)
             {
-                serialName = getSelectedSerialName();
+                serialName = getSelectedSerialName(uartComboBox);
                 if (serialName.Length <= 0)
                 {
                     MessageBox.Show("Please choose a correct serial port or connect one if not present.");
@@ -521,77 +734,7 @@ namespace BK7231Flasher
         
         void createFlasher()
         {
-            switch(curType)
-            {
-                case BKType.RTL8720D:
-                    flasher = new RTLFlasher(cts.Token);
-                    break;
-                case BKType.RTL87X0C:
-                    flasher = new RTLZ2Flasher(cts.Token);
-                    break;
-                case BKType.LN882H:
-                case BKType.LN8825:
-                    flasher = new LN882HFlasher(cts.Token);
-                    break;
-                case BKType.BL602:
-                case BKType.BL702:
-                case BKType.BL616:
-                    flasher = new BL602Flasher(cts.Token);
-                    break;
-                case BKType.BekenSPI:
-                    flasher = new SPIFlasher_Beken(cts.Token);
-                    break;
-                case BKType.GenericSPI:
-                    flasher = new SPIFlasher(cts.Token);
-                    break;
-                case BKType.ECR6600:
-                    flasher = new ECR6600Flasher(cts.Token);
-                    break;
-                case BKType.W600:
-                case BKType.W800:
-                    flasher = new WMFlasher(cts.Token);
-                    break;
-                case BKType.RDA5981:
-                    flasher = new RDAFlasher(cts.Token);
-                    break;
-                case BKType.XR806:
-                    flasher = new XR806Flasher(cts.Token);
-                    break;
-                case BKType.XR809:
-                    flasher = new XR809Flasher(cts.Token);
-                    break;
-                case BKType.XR872:
-                    flasher = new XR872Flasher(cts.Token);
-                    break;                    
-                case BKType.TR6260:
-                    flasher = new TR6260Flasher(cts.Token);
-                    break;
-                case BKType.ESP32:
-                case BKType.ESP32S2:
-                case BKType.ESP32C2:
-                case BKType.ESP32C5:
-                case BKType.ESP32C6:
-                case BKType.ESP32C61:
-                case BKType.ESP32S3:
-                case BKType.ESP32C3:
-                case BKType.ESP8266:
-                    flasher = new ESPFlasher(cts.Token);
-                    break;
-                case BKType.GD32VW553:
-                    flasher = new GD32VW553Flasher(cts.Token);
-                    break;
-                case BKType.RTL8710B:
-                case BKType.RTL8721DA:
-                case BKType.RTL8720E:
-                    flasher = new RTLNFlasher(cts.Token);
-                    break;
-                case BKType.OPL1000A2:
-                    flasher = new OPLFlasher(cts.Token);
-                    break;
-                default:
-                    flasher = new BK7231Flasher(cts.Token);
-                    break;
-            }
+            flasher = FlasherFactory.Create(curType, cts.Token);
             flasher.setBasic(this, serialName, curType, chosenBaudRate);
             flasher.setReadReplyStyle(cfg_readReplyStyle);
             flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
@@ -1457,7 +1600,7 @@ namespace BK7231Flasher
         }
         void setButtonStates(bool b)
         {
-            Singleton.buttonRead.Invoke((MethodInvoker)delegate {
+            Singleton.tabControl1.Invoke((MethodInvoker)delegate {
                 // Running on the UI thread
                 buttonRead.Enabled = b;
                 buttonTestReadWrite.Enabled = b;
@@ -1470,6 +1613,11 @@ namespace BK7231Flasher
                 buttonCustomOperation.Enabled = b;
                 buttonEraseAll.Enabled = b;
                 buttonStop.Enabled = !b;
+                buttonReadRomStop.Enabled = !b;
+                comboBoxReadRomChipType.Enabled = b;
+                groupBoxReadRomTargets.Enabled = b;
+                applySerialControlState(comboBoxReadRomChipType, comboBoxReadRomUART, comboBoxReadRomBaudRate, b);
+                updateReadRomReadButtonState();
             });
         }
         private void buttonStop_Click(object sender, EventArgs e)
@@ -1490,6 +1638,156 @@ namespace BK7231Flasher
         private void comboBoxBaudRate_SelectedIndexChanged(object sender, EventArgs e)
         {
             setSettingsKeyAndSave("BaudRate", comboBoxBaudRate.SelectedItem);
+        }
+
+        private void comboBoxReadRomChipType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (bSuppressReadRomPlatformEvents)
+            {
+                return;
+            }
+            applySerialControlState(comboBoxReadRomChipType, comboBoxReadRomUART, comboBoxReadRomBaudRate, worker == null);
+            updateReadRomControlsForSelectedPlatform(tabControl1.SelectedTab == tabPageReadRom);
+        }
+
+        private void comboBoxReadRomUART_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("ReadRomPort", comboBoxReadRomUART.SelectedItem);
+        }
+
+        private void comboBoxReadRomBaudRate_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            setSettingsKeyAndSave("ReadRomBaudRate", comboBoxReadRomBaudRate.SelectedItem);
+        }
+
+        private void radioButtonReadRomTarget_CheckedChanged(object sender, EventArgs e)
+        {
+            if (bSuppressReadRomTargetEvents)
+                return;
+            updateReadRomBaudRates();
+            updateReadRomRangeInfo();
+            updateReadRomReadButtonState();
+        }
+
+        private void buttonReadRomRead_Click(object sender, EventArgs e)
+        {
+            RomReadTarget target = getSelectedReadRomTarget();
+            if (target == null)
+            {
+                MessageBox.Show("No ROM/OTP/eFuse read target is available for this platform yet.");
+                return;
+            }
+            if (doReadRomOperationPreparations() == false)
+            {
+                return;
+            }
+            if (promptForBackupName() == false)
+            {
+                return;
+            }
+            startWorkerThread(readRomThread, target, OperationUiTarget.ReadRom);
+        }
+
+        void readRomThread(object oParm)
+        {
+            RomReadTarget target = oParm as RomReadTarget;
+            if (target == null)
+            {
+                setState("No read target selected.", Color.Red);
+                worker = null;
+                currentOperationUiTarget = OperationUiTarget.Flasher;
+                setButtonStates(true);
+                return;
+            }
+
+            try
+            {
+                string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+                setState("Reading " + targetKindName + "...", Color.Transparent);
+                addLog(Environment.NewLine + "Selected read target: " + target.DisplayName + Environment.NewLine, Color.Black);
+                addLog("Platform: " + FlashPlatformCatalog.GetDisplayName(target.Platform) + Environment.NewLine, Color.Black);
+                addLog("Baud rate: " + chosenBaudRate + Environment.NewLine, Color.Black);
+                addLog("Address: " + (target.Address.HasValue ? BaseFlasher.formatHex(target.Address.Value) : "not catalogued yet") + Environment.NewLine, Color.Black);
+                addLog("Length: " + (target.Length.HasValue ? BaseFlasher.formatHex(target.Length.Value) : "not catalogued yet") + Environment.NewLine, Color.Black);
+
+                clearUp();
+                createFlasher();
+                IRomReadFlasher romFlasher = flasher as IRomReadFlasher;
+                if (romFlasher == null)
+                {
+                    addLog("Selected platform does not implement this read target." + Environment.NewLine, Color.Red);
+                    setState(targetKindName + " read unsupported.", Color.Red);
+                    return;
+                }
+
+                byte[] result = romFlasher.ReadRomTarget(target);
+                if (result == null)
+                {
+                    addLog(targetKindName + " read failed or was cancelled." + Environment.NewLine, Color.Red);
+                    setState(targetKindName + " read failed.", Color.Red);
+                    return;
+                }
+
+                saveReadRomResult(target, targetKindName, result);
+                setState(targetKindName + " read success!", Color.Green);
+            }
+            catch (Exception ex)
+            {
+                string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+                addLog(targetKindName + " read error: " + ex.Message + Environment.NewLine, Color.Red);
+                setState(targetKindName + " read failed.", Color.Red);
+            }
+            finally
+            {
+                worker = null;
+                currentOperationUiTarget = OperationUiTarget.Flasher;
+                clearUp();
+                setButtonStates(true);
+            }
+        }
+
+        void saveReadRomResult(RomReadTarget target, string targetKindName, byte[] result)
+        {
+            Directory.CreateDirectory(backupsPath);
+            if (target.OutputSlices.Count == 0)
+            {
+                string targetName = string.IsNullOrEmpty(target.OutputFileNameTag)
+                    ? target.Kind.ToString().ToUpperInvariant()
+                    : target.OutputFileNameTag;
+                saveReadRomBytes(target, targetName, targetKindName, result);
+                return;
+            }
+
+            foreach (RomReadOutputSlice slice in target.OutputSlices)
+            {
+                if (slice.Offset < 0 || slice.Length <= 0 || slice.Offset + slice.Length > result.Length)
+                {
+                    throw new InvalidOperationException(target.DisplayName + " output slice " + slice.DisplayName + " is outside the returned payload.");
+                }
+
+                byte[] sliceBytes = new byte[slice.Length];
+                Array.Copy(result, slice.Offset, sliceBytes, 0, slice.Length);
+                string fileNameTag = string.IsNullOrEmpty(slice.FileNameTag) ? target.Kind.ToString().ToUpperInvariant() : slice.FileNameTag;
+                saveReadRomBytes(target, fileNameTag, targetKindName + " " + slice.DisplayName, sliceBytes);
+            }
+        }
+
+        void saveReadRomBytes(RomReadTarget target, string fileNameTag, string logName, byte[] data)
+        {
+            string fileName = MiscUtils.formatDateNowFileName("readResult_" + target.Platform + "_" + fileNameTag, lastBackupNameEnteredByUser, "bin");
+            string fullPath = Path.Combine(backupsPath, fileName);
+            File.WriteAllBytes(fullPath, data);
+            addLog(logName + " read saved " + data.Length + " bytes to " + fullPath + Environment.NewLine, Color.Green);
+        }
+
+        private void buttonReadRomStop_Click(object sender, EventArgs e)
+        {
+            interruptIfRequired();
+        }
+
+        private void buttonReadRomClearLog_Click(object sender, EventArgs e)
+        {
+            textBoxReadRomLog.Text = "";
         }
 
         private void checkBoxShowAdvanced_CheckedChanged(object sender, EventArgs e)
@@ -1676,6 +1974,12 @@ namespace BK7231Flasher
         
         void startWorkerThread(Action<object> ts, object customArg)
         {
+            startWorkerThread(ts, customArg, OperationUiTarget.Flasher);
+        }
+
+        void startWorkerThread(Action<object> ts, object customArg, OperationUiTarget uiTarget)
+        {
+            currentOperationUiTarget = uiTarget;
             cts?.Dispose();
             cts = new CancellationTokenSource();
             setButtonStates(false);
@@ -1684,6 +1988,12 @@ namespace BK7231Flasher
         }
         void startWorkerThread(Action ts)
         {
+            startWorkerThread(ts, OperationUiTarget.Flasher);
+        }
+
+        void startWorkerThread(Action ts, OperationUiTarget uiTarget)
+        {
+            currentOperationUiTarget = uiTarget;
             cts?.Dispose();
             cts = new CancellationTokenSource();
             setButtonStates(false);

@@ -304,6 +304,110 @@ namespace BK7231Flasher
 			}
 		}
 
+		protected byte[] InternalReadRawMemory(int addr, int length, string targetKindName)
+		{
+			if(length <= 0)
+			{
+				addErrorLine($"Read length cannot be zero!");
+				return null;
+			}
+			int received = 0;
+			int currentOffset = addr;
+			void Xm_PacketReceived(XMODEM sender, byte[] packet, bool endOfFileDetected)
+			{
+				if((received % 0x1000) == 0)
+				{
+					addLog($"0x{currentOffset:X}... ");
+				}
+				currentOffset += packet.Length;
+				received += packet.Length;
+				logger.setProgress(Math.Min(received, length), length);
+			}
+			try
+			{
+				if(!SetBaud(baudrate))
+					return null;
+				logger.setProgress(0, length);
+				logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+				addLogLine("Requesting " + chipType + " " + targetKindName + " raw memory dump: address " + formatHex(addr) + ", length " + formatHex(length) + ".");
+				var msg = new byte[8];
+				msg[0] = (byte)(addr & 0xFF);
+				msg[1] = (byte)((addr >> 8) & 0xFF);
+				msg[2] = (byte)((addr >> 16) & 0xFF);
+				msg[3] = (byte)((addr >> 24) & 0xFF);
+				msg[4] = (byte)(length & 0xFF);
+				msg[5] = (byte)((length >> 8) & 0xFF);
+				msg[6] = (byte)((length >> 16) & 0xFF);
+				msg[7] = (byte)((length >> 24) & 0xFF);
+				var res = ExecuteCommand(CMD_CUSTOM_XMODEM_READ_RAW, msg, 2, 0);
+				if(res == null)
+				{
+					throw new IOException(chipType + " " + targetKindName + " raw read command was not accepted.");
+				}
+				using(MemoryStream stream = new MemoryStream())
+				{
+					xm.PacketReceived += Xm_PacketReceived;
+					try
+					{
+						var recv = xm.Receive(stream);
+						if(recv != XMODEM.TerminationReasonEnum.EndOfFile)
+						{
+							throw new IOException(chipType + " " + targetKindName + " dump failed with " + recv + ".");
+						}
+					}
+					finally
+					{
+						addLog(Environment.NewLine);
+						xm.PacketReceived -= Xm_PacketReceived;
+					}
+					if(stream.Length < length)
+					{
+						throw new IOException("Read " + stream.Length + " bytes, but expected " + length + ".");
+					}
+					byte[] ret = stream.ToArray();
+					if(ret.Length != length)
+					{
+						Array.Resize(ref ret, length);
+					}
+					logger.setProgress(length, length);
+					logger.setState(targetKindName + " read success!", Color.Green);
+					addLogLine("Read complete!");
+					return ret;
+				}
+			}
+			finally
+			{
+				SetBaud(115200);
+			}
+		}
+
+		protected byte[] InternalReadEfusePayload(int expectedLength, string targetKindName)
+		{
+			if(expectedLength <= 0)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", "eFuse read length must be greater than zero.");
+			}
+			try
+			{
+				if(!SetBaud(baudrate))
+					return null;
+				logger.setProgress(0, expectedLength);
+				logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+				byte[] result = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, null, 2, expectedLength);
+				if(result == null)
+				{
+					throw new IOException(chipType + " " + targetKindName + " command returned no data.");
+				}
+				logger.setProgress(expectedLength, expectedLength);
+				logger.setState(targetKindName + " read success!", Color.Green);
+				return result;
+			}
+			finally
+			{
+				SetBaud(115200);
+			}
+		}
+
 		protected bool InternalWrite(int addr, byte[] data, int len = -1)
 		{
 			try

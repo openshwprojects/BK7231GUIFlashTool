@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class RTLNFlasher : ECRBaseFlasher
+	public class RTLNFlasher : ECRBaseFlasher, IRomReadFlasher
 	{
 		byte[] flashID;
 		static readonly byte CMD_KV_GET = 0x93;
@@ -355,6 +355,55 @@ namespace BK7231Flasher
 			var mac = new byte[6];
 			Array.Copy(rf_efuse, 0x11A, mac, 0, 6);
 			return mac;
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+					return null;
+				if(Sync() == false)
+				{
+					logger.setState("Sync failed!", Color.Red);
+					return null;
+				}
+
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return InternalReadRawMemory(target.Address ?? 0, target.Length ?? (chipType == BKType.RTL8720E ? 0x48000 : 0x80000), targetKindName);
+					case RomReadKind.Efuse:
+						return InternalReadEfusePayload(target.Length ?? (chipType == BKType.RTL8710B ? 0x200 : 0x400), targetKindName);
+					default:
+						addError("Selected " + chipType + " read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try { closePort(); } catch { }
+			}
 		}
 	}
 }

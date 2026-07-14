@@ -8,7 +8,7 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-    public class BK7231Flasher : BaseFlasher
+    public class BK7231Flasher : BaseFlasher, IRomReadFlasher
     {
         public static Random rand = new Random(Guid.NewGuid().GetHashCode());
 
@@ -20,6 +20,9 @@ namespace BK7231Flasher
         const int BK7252_MAX_FLASH_SIZE = 0x400000;
         const int READ_RESPONSE_HEADER_SIZE = 15;
         const int BK7252_READ_ATTEMPTS = 20;
+        const int BEKEN_EFUSE_SIZE = 0x20;
+        const int SCTRL_EFUSE_CTRL = 0x00800074;
+        const int SCTRL_EFUSE_OPTR = 0x00800078;
         public static int SECTOR_SIZE = 0x1000;
         public static int BLOCK_SIZE = 0x10000;
         public static int SECTORS_PER_BLOCK = BLOCK_SIZE / SECTOR_SIZE;
@@ -1317,10 +1320,136 @@ namespace BK7231Flasher
             addSuccess("Write success!");
             return true;
         }
+        public byte[] ReadRomTarget(RomReadTarget target)
+        {
+            try
+            {
+                return ReadRomTargetInternal(target);
+            }
+            catch (Exception ex)
+            {
+                string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+                addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+                logger.setState(targetKindName + " read failed.", Color.Red);
+                return null;
+            }
+        }
+
+        byte[] ReadRomTargetInternal(RomReadTarget target)
+        {
+            if (target == null)
+            {
+                addError("No ROM reader target selected." + Environment.NewLine);
+                return null;
+            }
+            if (doGenericSetup() == false)
+            {
+                return null;
+            }
+            int offset = target.Address ?? 0;
+            int length = target.Length ?? 0;
+            switch (target.Kind)
+            {
+                case RomReadKind.Rom:
+                    return ReadBekenRom(offset, length);
+                case RomReadKind.Efuse:
+                    return ReadBekenEfuse(offset, length);
+                default:
+                    addError("Selected read target is not implemented." + Environment.NewLine);
+                    return null;
+            }
+        }
+
+        byte[] ReadBekenRom(int offset, int length)
+        {
+            if ((offset % 4) != 0 || (length % 4) != 0)
+            {
+                throw new InvalidOperationException(chipType + " ROM reads must be 4-byte aligned.");
+            }
+            if (offset < 0 || length <= 0 || offset > int.MaxValue - length)
+            {
+                throw new InvalidOperationException(chipType + " ROM read range is out of bounds.");
+            }
+            logger.setState("Reading ROM...", Color.Transparent);
+            logger.setProgress(0, length);
+            addLog("Reading " + chipType + " ROM from " + formatHex(offset) + ", length " + formatHex(length) + Environment.NewLine);
+            byte[] result = new byte[length];
+            for (int ofs = 0; ofs < length; ofs += 4)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    logger.setState("ROM read cancelled.", Color.Yellow);
+                    return null;
+                }
+                byte[] word = ReadFlashReg(offset + ofs);
+                if (word == null || word.Length < 4)
+                {
+                    throw new IOException(chipType + " ROM read failed at " + formatHex(offset + ofs));
+                }
+                Buffer.BlockCopy(word, 0, result, ofs, 4);
+                logger.setProgress(ofs + 4, length);
+            }
+            logger.setState("ROM read success!", Color.Green);
+            return result;
+        }
+
+        byte[] ReadBekenEfuse(int offset, int length)
+        {
+            if (offset < 0 || length <= 0 || offset + length > BEKEN_EFUSE_SIZE)
+            {
+                throw new InvalidOperationException(chipType + " eFuse read range is out of bounds.");
+            }
+            logger.setState("Reading eFuse...", Color.Transparent);
+            logger.setProgress(0, length);
+            addLog("Reading " + chipType + " eFuse from " + formatHex(offset) + ", length " + formatHex(length) + Environment.NewLine);
+            byte[] result = new byte[length];
+            int efuseCtrl = SCTRL_EFUSE_CTRL;
+            int efuseOptr = SCTRL_EFUSE_OPTR;
+            for (int ofs = 0; ofs < length; ofs++)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    logger.setState("eFuse read cancelled.", Color.Yellow);
+                    return null;
+                }
+                result[ofs] = ReadBekenEfuseByte(efuseCtrl, efuseOptr, offset + ofs);
+                logger.setProgress(ofs + 1, length);
+            }
+            logger.setState("eFuse read success!", Color.Green);
+            return result;
+        }
+
+        byte ReadBekenEfuseByte(int efuseCtrl, int efuseOptr, int addr)
+        {
+            int reg = ReadFlashRegInt(efuseCtrl);
+            reg = (reg & ~0x1F02) | (addr << 8) | 1;
+            if (WriteFlashReg(efuseCtrl, reg) == false)
+            {
+                throw new IOException(chipType + " eFuse control write failed at " + addr);
+            }
+            Stopwatch waitTimer = Stopwatch.StartNew();
+            do
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException("eFuse read cancelled by user.");
+                }
+                if (waitTimer.ElapsedMilliseconds > 1000)
+                {
+                    throw new TimeoutException(chipType + " eFuse read timed out at " + addr);
+                }
+                reg = ReadFlashRegInt(efuseCtrl);
+            } while ((reg & 1) != 0);
+            reg = ReadFlashRegInt(efuseOptr);
+            if ((reg & 0x100) == 0)
+            {
+                throw new IOException(chipType + " eFuse data " + addr + " invalid: " + formatHex(reg));
+            }
+            return (byte)(reg & 0xff);
+        }
+
         string readEncryptionKey(out uint[] coeffs)
         {
-            int SCTRL_EFUSE_CTRL = 0x00800074;
-            int SCTRL_EFUSE_OPTR = 0x00800078;
             byte[] efuse = new byte[16];
             for (int addr = 0; addr < 16; addr++)
             {

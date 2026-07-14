@@ -8,16 +8,22 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class GD32VW553Flasher : ECRBaseFlasher
+	public class GD32VW553Flasher : ECRBaseFlasher, IRomReadFlasher
 	{
 		static readonly byte GD32_GET = 0x00;
 		static readonly byte GD32_PID = 0x06;
-		//static readonly byte GD32_READ = 0x11;
+		static readonly byte GD32_READ = 0x11;
 		static readonly byte GD32_JUMP = 0x21;
 		static readonly byte GD32_PROGRAM = 0x31;
 		//static readonly byte GD32_ERASE = 0x44;
 		static readonly byte ACK = 0x79;
 		static readonly byte NACK = 0x1F;
+		const int Gd32RomBase = 0x0BF40000;
+		const int Gd32RomSize = 0x00040000;
+		const int Gd32RfEfusePayloadSize = 0x40;
+		const int Gd32McuEfuseAddress = 0x40022808;
+		const int Gd32McuEfusePayloadSize = 0x8C;
+		const int Gd32EfusePayloadSize = Gd32RfEfusePayloadSize + Gd32McuEfusePayloadSize;
 
 		private static byte[] AllowedCommands;
 
@@ -182,38 +188,55 @@ namespace BK7231Flasher
 			return CheckAck(GD32_JUMP, "address");
 		}
 
-		//private byte[] SendReadCommand(int addr, byte len)
-		//{
-		//	if(!AllowedCommands.Contains(GD32_READ))
-		//	{
-		//		addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
-		//		return null;
-		//	}
-		//
-		//	if(!SendCommand(GD32_READ)) return null;
-		//
-		//	var address = CreateAddressPacket(addr);
-		//
-		//	serial.Write(address, 0, address.Length);
-		//
-		//	if(!CheckAck(GD32_READ, "address")) return null;
-		//
-		//	serial.Write(new[] { len, (byte)~len }, 0, 2);
-		//
-		//	if(!CheckAck(GD32_READ, "length")) return null;
-		//
-		//	byte[] data = new byte[len];
-		//
-		//	int tries = 1000;
-		//	while(serial.BytesToRead < len && tries-- > 0)
-		//		Thread.Sleep(1);
-		//
-		//	serial.Read(data, 0, len);
-		//
-		//	return data;
-		//}
+		private byte[] SendReadCommand(int addr, int length)
+		{
+			if(length <= 0 || length > 256)
+			{
+				throw new ArgumentOutOfRangeException("length", "GD32 bootloader read length must be 1..256 bytes.");
+			}
+			if(!AllowedCommands.Contains(GD32_READ))
+			{
+				addErrorLine($"Command 0x{GD32_READ:X} is not allowed!");
+				return null;
+			}
+
+			if(!SendCommand(GD32_READ)) return null;
+
+			var address = CreateAddressPacket(addr);
+			serial.Write(address, 0, address.Length);
+			if(!CheckAck(GD32_READ, "address")) return null;
+
+			byte count = (byte)(length - 1);
+			serial.Write(new[] { count, (byte)~count }, 0, 2);
+			if(!CheckAck(GD32_READ, "length")) return null;
+
+			byte[] data = new byte[length];
+			int read = 0;
+			while(read < length)
+			{
+				read += serial.Read(data, read, length - read);
+			}
+			return data;
+		}
 
 		protected override bool Sync()
+		{
+			if(SyncBootloader())
+			{
+				return UploadStub();
+			}
+			serial.BaudRate = 115200;
+			serial.Parity = Parity.None;
+			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
+			if(stubsync != null)
+			{
+				addLogLine("Stub is already uploaded!");
+				return true;
+			}
+			return false;
+		}
+
+		private bool SyncBootloader()
 		{
 			var timeout = serial.ReadTimeout;
 			serial.ReadTimeout = 100;
@@ -240,14 +263,6 @@ namespace BK7231Flasher
 					_ => throw new Exception("Unknown chip rev")
 				};
 				addLogLine($"Flash size is {flashSizeMB}MB");
-				return UploadStub();
-			}
-			serial.BaudRate = 115200;
-			serial.Parity = Parity.None;
-			var stubsync = ExecuteCommand(CMD_SYN, Encoding.ASCII.GetBytes("cnys"), 0.2f, 0, isErrorExpected: false);
-			if(stubsync != null)
-			{
-				addLogLine("Stub is already uploaded!");
 				return true;
 			}
 			return false;
@@ -362,6 +377,120 @@ namespace BK7231Flasher
 					}
 				}
 			}
+		}
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(target == null)
+				{
+					addError("No ROM reader target selected." + Environment.NewLine);
+					return null;
+				}
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						if(Sync() == false)
+						{
+							logger.setState("Sync failed!", Color.Red);
+							return null;
+						}
+						return ReadGd32Rom(target.Address ?? Gd32RomBase, target.Length ?? Gd32RomSize, targetKindName);
+					case RomReadKind.Efuse:
+						if(SyncBootloader() == false)
+						{
+							addError("GD32VW553 eFuse read needs ROM bootloader sync. Reset the target into UART download mode and retry." + Environment.NewLine);
+							logger.setState("Sync failed!", Color.Red);
+							return null;
+						}
+						return ReadGd32Efuse(target.Length ?? Gd32EfusePayloadSize, targetKindName);
+					default:
+						addError("Selected GD32VW553 read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try { closePort(); } catch { }
+			}
+		}
+
+		byte[] ReadGd32Rom(int offset, int length, string targetKindName)
+		{
+			if(offset < Gd32RomBase || length <= 0 || offset > Gd32RomBase + Gd32RomSize - length)
+			{
+				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
+			}
+
+			return InternalReadRawMemory(offset, length, targetKindName);
+		}
+
+		byte[] ReadGd32Efuse(int expectedLength, string targetKindName)
+		{
+			if(expectedLength != Gd32EfusePayloadSize)
+			{
+				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + Gd32EfusePayloadSize + " bytes.");
+			}
+
+			logger.setProgress(0, expectedLength);
+			logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+			addLogLine("Reading " + chipType + " MCU eFuse via ROM bootloader READ at " + formatHex(Gd32McuEfuseAddress) + ".");
+			byte[] mcuEfuse = SendReadCommand(Gd32McuEfuseAddress, Gd32McuEfusePayloadSize);
+			if(mcuEfuse == null || mcuEfuse.Length != Gd32McuEfusePayloadSize)
+			{
+				throw new IOException(chipType + " ROM bootloader returned no MCU eFuse data.");
+			}
+			logger.setProgress(Gd32McuEfusePayloadSize, expectedLength);
+
+			if(!UploadStub())
+			{
+				throw new IOException(chipType + " stub upload failed.");
+			}
+			addLogLine("Reading " + chipType + " RF eFuse via custom stub command 0x99.");
+			byte[] rfEfuse;
+			try
+			{
+				if(!SetBaud(baudrate))
+				{
+					throw new IOException(chipType + " stub baud switch failed.");
+				}
+				rfEfuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, null, 2, Gd32RfEfusePayloadSize);
+			}
+			finally
+			{
+				SetBaud(115200);
+			}
+			if(rfEfuse == null || rfEfuse.Length != Gd32RfEfusePayloadSize)
+			{
+				throw new IOException(chipType + " stub returned no RF eFuse data.");
+			}
+
+			byte[] result = new byte[expectedLength];
+			Array.Copy(rfEfuse, 0, result, 0, Gd32RfEfusePayloadSize);
+			Array.Copy(mcuEfuse, 0, result, Gd32RfEfusePayloadSize, Gd32McuEfusePayloadSize);
+			logger.setProgress(expectedLength, expectedLength);
+			logger.setState(targetKindName + " read success!", Color.Green);
+			return result;
 		}
 
 		internal override byte[] ReadMAC()

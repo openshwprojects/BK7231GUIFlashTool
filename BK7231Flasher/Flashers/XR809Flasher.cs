@@ -6,12 +6,15 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-    public class XR809Flasher : XRBaseFlasher
+    public class XR809Flasher : XRBaseFlasher, IRomReadFlasher
     {
         const int  XR_STUB_LOAD_ADDR    = 0x00010000;
         const int  XR_STUB_ENTRY_ADDR   = 0x00010101;
 
         // Opcodes
+        const byte OP_READ32           = 0x04;
+        const byte OP_WRITE32          = 0x05;
+        const byte OP_READ_MEMORY      = 0x08;
         const byte OP_WRITE_MEMORY     = 0x09;
         const byte OP_CHANGE_BAUD      = 0x10;
         const byte OP_SET_PC           = 0x13;
@@ -26,6 +29,23 @@ namespace BK7231Flasher
 
         const byte XR_ERASE_MODE_4K    = 0x01;
         const byte XR_ERASE_MODE_64K   = 0x03;
+        const int  XR809_ROM_BASE      = 0x00000000;
+        const int  XR809_ROM_SIZE      = 0x00004000;
+        const int  XR809_ROM_READ_CHUNK_SIZE = 0x1000;
+        const int  XR809_EFUSE_BYTES   = 0x100;
+        const int  XR809_EFUSE_WORDS   = XR809_EFUSE_BYTES / 4;
+        const int  XR809_EFUSE_POLL_TIMEOUT_MS = 250;
+        const int  XR809_EFUSE_CTRL          = 0x40043C40;
+        const int  XR809_EFUSE_READ_VALUE    = 0x40043C60;
+        const int  XR809_EFUSE_TIMING_CTRL   = 0x40043C90;
+        const uint XR809_EFUSE_CLK_GATE_EN   = 0x10000000;
+        const uint XR809_EFUSE_INDEX_MASK    = 0x00FF0000;
+        const uint XR809_EFUSE_LOCK_MASK     = 0x0000FF00;
+        const uint XR809_EFUSE_UNLOCK        = 0x0000AC00;
+        const uint XR809_EFUSE_HW_BUSY       = 0x00000004;
+        const uint XR809_EFUSE_READ_START    = 0x00000002;
+        const uint XR809_EFUSE_PROG_START    = 0x00000001;
+        const uint XR809_EFUSE_TIMING_24_26M = 0x63321190;
         // XR809 transport bauds accepted by the ROM/stub path.
         public static readonly int[] SupportedBaudRates =
         {
@@ -224,6 +244,37 @@ namespace BK7231Flasher
             return BuildBromPacket(opcode, pre, wire, BROM_HOST_PAYLOAD);
         }
 
+        byte[] BuildRead32Packet(int address)
+        {
+            var pre  = new byte[4];
+            var wire = new byte[4];
+            WriteLe32(pre, 0, (uint)address);
+            WriteBe32(wire, 0, (uint)address);
+            return BuildBromPacket(OP_READ32, pre, wire, BROM_HOST_PAYLOAD);
+        }
+
+        byte[] BuildWrite32Packet(int address, uint value)
+        {
+            var pre  = new byte[8];
+            var wire = new byte[8];
+            WriteLe32(pre, 0, (uint)address);
+            WriteBe32(wire, 0, (uint)address);
+            WriteLe32(pre, 4, value);
+            WriteLe32(wire, 4, value);
+            return BuildBromPacket(OP_WRITE32, pre, wire, BROM_HOST_PAYLOAD);
+        }
+
+        byte[] BuildReadMemoryPacket(int address, int length)
+        {
+            var pre  = new byte[8];
+            var wire = new byte[8];
+            WriteLe32(pre, 0, (uint)address);
+            WriteBe32(wire, 0, (uint)address);
+            WriteLe32(pre, 4, (uint)length);
+            WriteBe32(wire, 4, (uint)length);
+            return BuildBromPacket(OP_READ_MEMORY, pre, wire, BROM_HOST_PAYLOAD);
+        }
+
         // Write packet: 23 bytes total, 10-byte payload (sectorIndex BE, sectorCount BE, dataChecksum BE).
         byte[] BuildWritePacket(int sectorIndex, int sectorCount, ushort dataChecksum, byte opcode)
         {
@@ -293,6 +344,30 @@ namespace BK7231Flasher
             wire[2] = (byte)((address >>  8) & 0xFF);
             wire[3] = (byte)( address        & 0xFF);
             return BuildBromPacket(OP_SET_PC, pre, wire, BROM_HOST_PAYLOAD);
+        }
+
+        static void WriteLe32(byte[] data, int offset, uint value)
+        {
+            data[offset + 0] = (byte)(value & 0xFF);
+            data[offset + 1] = (byte)((value >> 8) & 0xFF);
+            data[offset + 2] = (byte)((value >> 16) & 0xFF);
+            data[offset + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        static void WriteBe32(byte[] data, int offset, uint value)
+        {
+            data[offset + 0] = (byte)((value >> 24) & 0xFF);
+            data[offset + 1] = (byte)((value >> 16) & 0xFF);
+            data[offset + 2] = (byte)((value >> 8) & 0xFF);
+            data[offset + 3] = (byte)(value & 0xFF);
+        }
+
+        static uint ReadLe32(byte[] data, int offset)
+        {
+            return (uint)(data[offset + 0] |
+                (data[offset + 1] << 8) |
+                (data[offset + 2] << 16) |
+                (data[offset + 3] << 24));
         }
 
         // ChangeBaud packet: 4-byte payload = (baud | 0x03000000) BE.
@@ -801,6 +876,227 @@ namespace BK7231Flasher
             if (lastEx != null)
                 throw new IOException($"Write failed at sector {sectorIndex} after {XR_WRITE_RETRY_COUNT} attempts.", lastEx);
             return false;
+        }
+
+        public byte[] ReadRomTarget(RomReadTarget target)
+        {
+            try
+            {
+                if (target == null)
+                {
+                    addError("No ROM reader target selected." + Environment.NewLine);
+                    return null;
+                }
+                if (!DoGenericSetup()) return null;
+                if (!EnsureConnectedAndIdentified()) return null;
+
+                string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+                switch (target.Kind)
+                {
+                    case RomReadKind.Rom:
+                        return ReadXr809Rom(target.Address ?? XR809_ROM_BASE, target.Length ?? XR809_ROM_SIZE, targetKindName);
+                    case RomReadKind.Efuse:
+                        return ReadXr809Efuse(target.Length ?? XR809_EFUSE_BYTES, targetKindName);
+                    default:
+                        addError("Selected XR809 read target is not implemented." + Environment.NewLine);
+                        return null;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+                addLogLine(targetKindName + " read cancelled by user.");
+                logger.setState("Cancelled", Color.DarkGray);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+                addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+                logger.setState(targetKindName + " read failed.", Color.Red);
+                return null;
+            }
+            finally
+            {
+                try { closePort(); } catch { }
+            }
+        }
+
+        byte[] ReadXr809Rom(int offset, int length, string targetKindName)
+        {
+            if (offset < XR809_ROM_BASE || length <= 0 || offset > XR809_ROM_BASE + XR809_ROM_SIZE - length)
+            {
+                throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
+            }
+
+            logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+            logger.setProgress(0, length);
+            addLogLine("Reading " + chipType + " " + targetKindName + " via PhoenixMC memory read from " +
+                formatHex(offset) + ", length " + formatHex(length) + ".");
+
+            ProbeXr809RomVectors();
+
+            byte[] result = new byte[length];
+            int copied = 0;
+            while (copied < length)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int chunkAddress = offset + copied;
+                int chunkLength = Math.Min(XR809_ROM_READ_CHUNK_SIZE, length - copied);
+                addLog("0x" + chunkAddress.ToString("X6") + "... ");
+                byte[] chunk = ReadXr809MemoryBlock(chunkAddress, chunkLength);
+                Buffer.BlockCopy(chunk, 0, result, copied, chunkLength);
+                copied += chunkLength;
+                logger.setProgress(copied, length);
+            }
+
+            addLog(Environment.NewLine);
+            logger.setState(targetKindName + " read success!", Color.Green);
+            return result;
+        }
+
+        void ProbeXr809RomVectors()
+        {
+            uint sp = ReadXr809Memory32(0x00000000);
+            uint reset = ReadXr809Memory32(0x00000004);
+            uint nmi = ReadXr809Memory32(0x00000008);
+            addLogLine($"XR809 ROM vector probe: SP=0x{sp:X8}, Reset=0x{reset:X8}, NMI=0x{nmi:X8}");
+
+            bool blank = sp == 0 && reset == 0 && nmi == 0;
+            bool erased = sp == 0xFFFFFFFF && reset == 0xFFFFFFFF && nmi == 0xFFFFFFFF;
+            if (blank || erased)
+            {
+                throw new IOException("XR809 low ROM not readable through current stub state (vector probe returned blank data).");
+            }
+            if ((reset & 1) == 0)
+            {
+                addWarningLine("XR809 ROM vector reset address does not have the Thumb bit set; continuing with the dump attempt.");
+            }
+        }
+
+        byte[] ReadXr809Efuse(int expectedLength, string targetKindName)
+        {
+            if (expectedLength != XR809_EFUSE_BYTES)
+            {
+                throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + XR809_EFUSE_BYTES + " bytes.");
+            }
+
+            logger.setState("Reading " + targetKindName + "...", Color.Transparent);
+            logger.setProgress(0, expectedLength);
+            addLogLine("Reading " + chipType + " eFuse via PhoenixMC read32/write32 commands.");
+            addLogLine("Configuring XR809 eFuse read timing.");
+            WriteXr809Memory32(XR809_EFUSE_TIMING_CTRL, XR809_EFUSE_TIMING_24_26M);
+
+            byte[] result = new byte[expectedLength];
+            for (int word = 0; word < XR809_EFUSE_WORDS; word++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                uint value = ReadXr809EfuseWord(word);
+                int offset = word * 4;
+                WriteLe32(result, offset, value);
+                logger.setProgress(offset + 4, expectedLength);
+            }
+
+            logger.setState(targetKindName + " read success!", Color.Green);
+            return result;
+        }
+
+        byte[] ReadXr809MemoryBlock(int address, int length)
+        {
+            if (length <= 0 || length > XR809_ROM_READ_CHUNK_SIZE)
+            {
+                throw new ArgumentOutOfRangeException("length", "XR809 memory read chunk length is invalid.");
+            }
+
+            BROMResponse resp = ExecuteRawPacket(
+                BuildReadMemoryPacket(address, length),
+                headerTimeoutMs:  GetReadTimeoutMs(),
+                payloadTimeoutMs: GetReadTimeoutMs(),
+                sleepBeforeRead:  true);
+            if (resp.IsError)
+            {
+                throw new IOException("XR809 memory read command failed at " + formatHex(address) + ".");
+            }
+            if (resp.Payload == null || resp.Payload.Length != length)
+            {
+                throw new IOException("XR809 memory read returned " + (resp.Payload == null ? 0 : resp.Payload.Length) +
+                    " bytes, expected " + length + ".");
+            }
+            return resp.Payload;
+        }
+
+        uint ReadXr809Memory32(int address)
+        {
+            BROMResponse resp = ExecuteRawPacket(
+                BuildRead32Packet(address),
+                headerTimeoutMs: 1500,
+                payloadTimeoutMs: 1000);
+            if (resp.IsError)
+            {
+                throw new IOException("XR809 read32 command failed at " + formatHex(address) + ".");
+            }
+            if (resp.Payload == null || resp.Payload.Length < 4)
+            {
+                throw new IOException("XR809 read32 returned " + (resp.Payload == null ? 0 : resp.Payload.Length) + " byte(s).");
+            }
+            return ReadLe32(resp.Payload, 0);
+        }
+
+        void WriteXr809Memory32(int address, uint value)
+        {
+            BROMResponse resp = ExecuteRawPacket(
+                BuildWrite32Packet(address, value),
+                headerTimeoutMs: 1500,
+                payloadTimeoutMs: 1000);
+            if (resp.IsError)
+            {
+                throw new IOException("XR809 write32 command failed at " + formatHex(address) + ".");
+            }
+        }
+
+        uint ReadXr809EfuseWord(int word)
+        {
+            int byteIndex = word * 4;
+            uint controlBase = ReadXr809Memory32(XR809_EFUSE_CTRL);
+            controlBase |= XR809_EFUSE_CLK_GATE_EN;
+            controlBase &= ~(XR809_EFUSE_INDEX_MASK | XR809_EFUSE_LOCK_MASK | XR809_EFUSE_READ_START | XR809_EFUSE_PROG_START);
+
+            uint readControl = controlBase |
+                (((uint)byteIndex << 16) & XR809_EFUSE_INDEX_MASK) |
+                XR809_EFUSE_UNLOCK |
+                XR809_EFUSE_READ_START;
+
+            try
+            {
+                WriteXr809Memory32(XR809_EFUSE_CTRL, controlBase);
+                // Keep PROG_START clear; this path only asks the controller to latch one eFuse word.
+                WriteXr809Memory32(XR809_EFUSE_CTRL, readControl);
+
+                DateTime deadline = DateTime.UtcNow.AddMilliseconds(XR809_EFUSE_POLL_TIMEOUT_MS);
+                while (DateTime.UtcNow < deadline)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    uint status = ReadXr809Memory32(XR809_EFUSE_CTRL);
+                    if ((status & (XR809_EFUSE_READ_START | XR809_EFUSE_HW_BUSY)) == 0)
+                    {
+                        return ReadXr809Memory32(XR809_EFUSE_READ_VALUE);
+                    }
+                    Thread.Sleep(1);
+                }
+                throw new TimeoutException("Timed out waiting for XR809 eFuse word " + word + ".");
+            }
+            finally
+            {
+                try
+                {
+                    uint idleControl = controlBase & ~(XR809_EFUSE_CLK_GATE_EN | XR809_EFUSE_INDEX_MASK |
+                        XR809_EFUSE_LOCK_MASK | XR809_EFUSE_READ_START | XR809_EFUSE_PROG_START);
+                    WriteXr809Memory32(XR809_EFUSE_CTRL, idleControl);
+                }
+                catch
+                {
+                }
+            }
         }
 
         // =====================================================================
