@@ -59,6 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Flashers\ECRBaseFlasher.cs" />
+    <Compile Include="Flashers\OPLFlasher.cs" />
     <Compile Include="Flashers\RTLNFlasher.cs" />
     <Compile Include="Flashers\GD32VW553Flasher.cs" />
     <Compile Include="Misc\BL602FlashList.cs" />
@@ -237,6 +238,7 @@
     <EmbeddedResource Include="Floaders\Z2_XModem_Stub.bin" />
     <EmbeddedResource Include="Floaders\Z2_XModem_Stub_z.bin" />
     <EmbeddedResource Include="Floaders\RTL8710B_Stub.bin" />
+    <EmbeddedResource Include="Floaders\OPL1000A2_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

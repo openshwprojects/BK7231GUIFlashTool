@@ -56,6 +56,7 @@ namespace BK7231Flasher
             { BKType.GenericSPI, "Generic SPI CH341" },
             { BKType.LN882H,     "LN882H" },
             { BKType.LN8825,     "LN8825" },
+            { BKType.OPL1000A2,  "OPL1000A2" },
             { BKType.RDA5981,    "RDA5981" },
             { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
@@ -451,7 +452,7 @@ namespace BK7231Flasher
                 {
                     if(worker != null)
                     {
-                        cts?.Cancel();
+                        try { cts?.Cancel(); } catch { }
                         //worker.Abort();
                     }
                     worker = null;
@@ -583,6 +584,9 @@ namespace BK7231Flasher
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
                     flasher = new RTLNFlasher(cts.Token);
+                    break;
+                case BKType.OPL1000A2:
+                    flasher = new OPLFlasher(cts.Token);
                     break;
                 default:
                     flasher = new BK7231Flasher(cts.Token);

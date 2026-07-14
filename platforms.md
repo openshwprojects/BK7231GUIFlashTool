@@ -13,7 +13,7 @@
 | BL602 | Bouffalo Lab | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ⚠️⁴ |
 | BL616/BL618 | Bouffalo Lab | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ⚠️⁴ |
 | BL702 | Bouffalo Lab | ✅ | ✅ | ➖ | ➖ | ✅ | ⚠️⁶ | ➖ | ➖ | ⚠️⁴ |
-| ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ➖ | ➖ | ✅ |
+| ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ➖ | ❌ | ✅ | ❌ | ➖ | ➖ | ✅ |
 | ESP8266<br>ESP8285 | Espressif | ✅ | ✅ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ✅ |
 | ECR6600 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | TR6260 | ESWIN / Transa | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ℹ️ |
@@ -22,9 +22,10 @@
 | LN882H | Lightning Semi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | LN8825 | Lightning Semi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RDA5981 | RDA Micro | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ℹ️ |
-| RTL8710B (AmebaZ) | Realtek | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ✅ |
+| OPL1000A2 | Opulinks | ✅ | ✅ | ❌ | ❌ | ✅ | ➖ | ➖ | ➖ | ✅ |
+| RTL8710B (AmebaZ) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8720DN (AmebaD) | Realtek | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ✅ |
-| RTL87X0C (AmebaZ2) | Realtek | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ➖ | ➖ | ✅ |
+| RTL87X0C (AmebaZ2) | Realtek | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8721DA (AmebaDp) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8720E (AmebaLite) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | W600 (write only) | WinnerMicro | ❌⁵ | ✅⁵ | ➖ | ➖ | ✅ | ⚠️⁵ | ➖ | ➖ | ❌ |
