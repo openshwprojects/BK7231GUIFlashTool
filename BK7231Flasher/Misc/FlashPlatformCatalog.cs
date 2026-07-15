@@ -36,6 +36,7 @@ namespace BK7231Flasher
             { BKType.LN882H,     "LN882H" },
             { BKType.LN8825,     "LN8825" },
             { BKType.RDA5981,    "RDA5981" },
+            { BKType.OPL1000A2,  "OPL1000A2" },
             { BKType.RTL8710B,   "RTL8710B (AmebaZ)" },
             { BKType.RTL8720D,   "RTL8720DN (AmebaD)" },
             { BKType.RTL8721DA,  "RTL8721DA (AmebaDplus)" },

@@ -9,7 +9,7 @@ using System.Threading;
 
 namespace BK7231Flasher
 {
-	public class OPLFlasher : ECRBaseFlasher
+	public class OPLFlasher : ECRBaseFlasher, IRomReadFlasher
 	{
 		public OPLFlasher(CancellationToken ct) : base(ct)
 		{
@@ -324,6 +324,55 @@ namespace BK7231Flasher
 		internal override byte[] ReadMAC()
 		{
 			return null;
+		}
+
+
+		public byte[] ReadRomTarget(RomReadTarget target)
+		{
+			try
+			{
+				if(doGenericSetup() == false)
+				{
+					return null;
+				}
+				if(Sync() == false)
+				{
+					logger.setState("Sync failed!", Color.Red);
+					return null;
+				}
+				string targetKindName = RomReadCatalog.GetKindDisplayName(target.Kind);
+				switch(target.Kind)
+				{
+					case RomReadKind.Rom:
+						return InternalReadRawMemory(target.Address.Value, target.Length.Value, targetKindName);
+					case RomReadKind.Efuse:
+						addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
+						return InternalReadEfusePayload(target.Length.Value, targetKindName);
+					default:
+						addError("Selected GD32VW553 read target is not implemented." + Environment.NewLine);
+						return null;
+				}
+			}
+			catch(OperationCanceledException)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addLogLine(targetKindName + " read cancelled by user.");
+				logger.setState("Cancelled", Color.DarkGray);
+				return null;
+			}
+			catch(Exception ex)
+			{
+				string targetKindName = target == null ? "Selected target" : RomReadCatalog.GetKindDisplayName(target.Kind);
+				addError(targetKindName + " read failed: " + ex.Message + Environment.NewLine);
+				logger.setState(targetKindName + " read failed.", Color.Red);
+				return null;
+			}
+			finally
+			{
+				try
+				{ closePort(); }
+				catch { }
+			}
 		}
 	}
 }

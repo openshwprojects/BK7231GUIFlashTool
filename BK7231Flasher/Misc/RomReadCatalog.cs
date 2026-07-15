@@ -83,21 +83,15 @@ namespace BK7231Flasher
     {
         static readonly int[] CommonSerialBauds = new int[] { 9600, 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000 };
         static readonly int[] XrSerialBauds = new int[] { 9600, 115200, 921600, 1000000, 1500000, 3000000 };
-        const int Gd32RfEfuseSize = 0x40;
-        const int Gd32McuEfuseSize = 0x8C;
-
-        static readonly IReadOnlyList<RomReadOutputSlice> Gd32EfuseSlices = new List<RomReadOutputSlice>()
-        {
-            new RomReadOutputSlice("RF eFuse", "RF_EFUSE", 0x00, Gd32RfEfuseSize),
-            new RomReadOutputSlice("MCU eFuse", "MCU_EFUSE", Gd32RfEfuseSize, Gd32McuEfuseSize),
-        };
-
+        #region Beken
         const string BekenRomSpace = "ROM memory";
         const string BekenRomBackend = "register read";
         const string BekenRomController = "direct";
         const string BekenEfuseSpace = "eFuse byte index";
         const string BekenEfuseBackend = "register R/W";
         const string BekenSctrlEfuseController = "SCTRL 0x00800074/0x00800078";
+        #endregion
+        #region LN882x
         const string LnRomSpace = "ROM memory";
         const string LnEfuseSpace = "eFuse shadow/current (CRC16 trailer)";
         const string LnFlashOtpSpace = "SPI flash OTP (CRC16 trailer)";
@@ -105,12 +99,16 @@ namespace BK7231Flasher
         const string LnRomController = "fdump with ROM flag";
         const string LnEfuseController = "efuse_dump";
         const string LnFlashOtpController = "otp_dump";
+        #endregion
+        #region RTL87x0C
         const string Rtlz2RomSpace = "ROM memory";
         const string Rtlz2EfuseSpace = "physical eFuse bytes";
         const string Rtlz2RomBackend = "ROM console DB";
         const string Rtlz2EfuseBackend = "ROM console EW/DB";
         const string Rtlz2RomController = "DB direct memory";
         const string Rtlz2EfuseController = "SRAM helper @ 0x10037000";
+        #endregion
+        #region RTL87xx
         const string RtlStubRomSpace = "ROM memory";
         const string Rtl8710bEfuseSpace = "logical eFuse map";
         const string Rtl8710bRomBackend = "RTL8710B_Stub cmd 0x98";
@@ -124,24 +122,40 @@ namespace BK7231Flasher
         const string RtlKm4RomSpace = "KM4 ROM memory";
         const string RtlAmebaEfuseSpace = "logical OTP map";
         const string RtlAmebaEfuseController = "OTP_LogicalMap_Read";
+        #endregion
+        #region ECR6600
         const string EcrRomSpace = "ROM memory";
         const string EcrRomBackend = "ECR6600_Stub_Custom cmd 0x98";
         const string EcrRomController = "raw CPU memory via XMODEM";
         const string EcrEfuseSpace = "eFuse raw image";
         const string EcrEfuseBackend = "ECR6600_Stub_Custom cmd 0x99";
         const string EcrEfuseController = "eFuse controller @ 0x0020F000";
+        #endregion
+        #region RDA5981
         const string RdaRomSpace = "ROM memory";
         const string RdaRomBackend = "RDA5981_Stub cmd 0x98";
         const string RdaRomController = "raw CPU memory via XMODEM";
         const string RdaEfuseSpace = "eFuse pages 0..15";
         const string RdaEfuseBackend = "RDA5981_Stub cmd 0x99";
         const string RdaEfuseController = "RF SPI @ 0x4001301C";
+        #endregion
+        #region GD32
         const string Gd32RomSpace = "ROM memory";
         const string Gd32RomBackend = "GD32VW553_Stub cmd 0x98";
         const string Gd32RomController = "raw CPU memory via XMODEM";
         const string Gd32EfuseSpace = "combined output: RF 0x40 + MCU 0x8C";
         const string Gd32EfuseBackend = "ROM READ, then GD32VW553_Stub cmd 0x99";
         const string Gd32EfuseController = "MCU @ 0x40022808; RF via custom stub";
+        const int Gd32RfEfuseSize = 0x40;
+        const int Gd32McuEfuseSize = 0x8C;
+
+        static readonly IReadOnlyList<RomReadOutputSlice> Gd32EfuseSlices = new List<RomReadOutputSlice>()
+        {
+            new RomReadOutputSlice("RF eFuse", "RF_EFUSE", 0x00, Gd32RfEfuseSize),
+            new RomReadOutputSlice("MCU eFuse", "MCU_EFUSE", Gd32RfEfuseSize, Gd32McuEfuseSize),
+        };
+        #endregion
+        #region XR8xx
         const string Xr809RomSpace = "ROM memory";
         const string Xr809EfuseSpace = "eFuse raw image";
         const string Xr809Backend = "XRadio BROM/stub command";
@@ -152,6 +166,15 @@ namespace BK7231Flasher
         const string XrBromBackend = "XRadio BROM command";
         const string XrRomController = "BROM cmd 0x08";
         const string XrEfuseController = "eFuse regs 0x40043C40/0x40043C60";
+        #endregion
+        #region OPL1000A2
+        const string OplRomSpace = "ROM memory";
+        const string OplRomBackend = "OPL1000A2_Stub cmd 0x98";
+        const string OplRomController = "raw CPU memory via XMODEM";
+        const string OplEfuseSpace = "OTP data";
+        const string OplEfuseBackend = "OPL1000A2_Stub cmd 0x99";
+        const string OplEfuseController = "Hal_Sys_OtpRead";
+        #endregion
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
@@ -172,6 +195,8 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.LN8825, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, LnRomSpace, LnRamcodeBackend, LnRomController),
             new RomReadTarget(BKType.LN8825, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
             new RomReadTarget(BKType.LN8825, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
+            new RomReadTarget(BKType.OPL1000A2, RomReadKind.Rom, "ROM", 0x00000000, 0xC0000, 115200, CommonSerialBauds, OplRomSpace, OplRomBackend, OplRomController, outputFileNameTag: "M3_ROM"),
+            new RomReadTarget(BKType.OPL1000A2, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, OplEfuseSpace, OplEfuseBackend, OplEfuseController),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Rom, "ROM", 0x00000000, 0x60000, 115200, CommonSerialBauds, Rtlz2RomSpace, Rtlz2RomBackend, Rtlz2RomController),
             new RomReadTarget(BKType.RTL87X0C, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, Rtlz2EfuseSpace, Rtlz2EfuseBackend, Rtlz2EfuseController),
             new RomReadTarget(BKType.RTL8710B, RomReadKind.Rom, "ROM", 0x00000000, 0x80000, 115200, CommonSerialBauds, RtlStubRomSpace, Rtl8710bRomBackend, RtlStubRomController),
@@ -211,19 +236,12 @@ namespace BK7231Flasher
             return Targets.FirstOrDefault(target => target.Platform == platform && target.Kind == kind);
         }
 
-        public static string GetKindDisplayName(RomReadKind kind)
+        public static string GetKindDisplayName(RomReadKind kind) => kind switch
         {
-            switch (kind)
-            {
-                case RomReadKind.Efuse:
-                    return "eFuse";
-                case RomReadKind.Otp:
-                    return "OTP";
-                case RomReadKind.Rom:
-                    return "ROM";
-                default:
-                    return "Selected target";
-            }
-        }
+            RomReadKind.Efuse => "eFuse",
+            RomReadKind.Otp => "OTP",
+            RomReadKind.Rom => "ROM",
+            _ => "Selected target",
+        };
     }
 }
