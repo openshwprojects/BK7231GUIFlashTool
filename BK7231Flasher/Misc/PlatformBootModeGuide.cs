@@ -31,6 +31,7 @@ namespace BK7231Flasher
             { BKType.ESP8266, "" },
             { BKType.ECR6600, GetEcr6600Instructions() },
             { BKType.GD32VW553, GetGd32vw553Instructions() },
+            { BKType.OPL1000A2, GetOplInstructions() },
             { BKType.RTL8710B, GetRtl8710bInstructions() },
             { BKType.RTL8721DA, GetRtlUartDownloadInstructions("RTL8721DA", "PB4", "PB5") },
             { BKType.RTL8720E, GetRtlUartDownloadInstructions("RTL8720E", "PA19", "PA20") },
@@ -157,6 +158,16 @@ namespace BK7231Flasher
                 "If software entry does not work, use the hardware boot straps:" + System.Environment.NewLine +
                 bootPinLines + System.Environment.NewLine +
                 bootModeAction;
+        }
+
+        static string GetOplInstructions()
+        {
+            return "Connect the OPL1000 UART flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> OPL1000 DBG TX (GPIO0)" + System.Environment.NewLine +
+                "- Adapter TX -> OPL1000 DBG RX (GPIO1)" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "Start the read first. While the tool is trying to connect, reset or power-cycle the device.";
         }
 
         static string GetPowerAndGroundInstructions()

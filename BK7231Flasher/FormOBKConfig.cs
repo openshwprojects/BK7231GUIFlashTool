@@ -292,20 +292,21 @@ namespace BK7231Flasher
                     case var name when name.Contains("BK7252N"):    type = BKType.BK7252N;    break;
                     case var name when name.Contains("BK7252"):     type = BKType.BK7252;     break;
                     case var name when name.Contains("BK7258"):     type = BKType.BK7258;     break;
+                    case var name when name.Contains("BL602"):      type = BKType.BL602;      break;
+                    case var name when name.Contains("BL616"):      type = BKType.BL602;      break;
+                    case var name when name.Contains("BL702"):      type = BKType.BL702;      break;
+                    case var name when name.Contains("ECR6600"):    type = BKType.ECR6600;    break;
+                    case var name when name.Contains("GD32VW553"):  type = BKType.GD32VW553;  break;
+                    case var name when name.Contains("OPL1000"):    type = BKType.OPL1000A2;  break;
+                    case var name when name.Contains("LN882H"):     type = BKType.LN882H;     break;
+                    case var name when name.Contains("LN8825"):     type = BKType.LN8825;     break;
+                    case var name when name.Contains("RDA5981"):    type = BKType.RDA5981;    break;
                     case var name when name.Contains("RTL8710B"):   type = BKType.RTL8710B;   break;
                     case var name when name.Contains("RTL87X0C"):   type = BKType.RTL87X0C;   break;
                     case var name when name.Contains("RTL8720D"):   type = BKType.RTL8720D;   break;
                     case var name when name.Contains("RTL8721DA"):  type = BKType.RTL8721DA;  break;
                     case var name when name.Contains("RTL8720E"):   type = BKType.RTL8720E;   break;
-                    case var name when name.Contains("LN882H"):     type = BKType.LN882H;     break;
-                    case var name when name.Contains("LN8825"):     type = BKType.LN8825;     break;
-                    case var name when name.Contains("BL602"):      type = BKType.BL602;      break;
-                    case var name when name.Contains("BL616"):      type = BKType.BL602;      break;
-                    case var name when name.Contains("BL702"):      type = BKType.BL702;      break;
-                    case var name when name.Contains("ECR6600"):    type = BKType.ECR6600;    break;
                     case var name when name.Contains("TR6260"):     type = BKType.TR6260;     break;
-                    case var name when name.Contains("GD32VW553"):  type = BKType.GD32VW553;  break;
-                    case var name when name.Contains("RDA5981"):    type = BKType.RDA5981;    break;
                     case var name when name.Contains("W600"):       type = BKType.W600;       break;
                     case var name when name.Contains("W800"):       type = BKType.W800;       break;
                     case var name when name.Contains("XR806"):      type = BKType.XR806;      break;
@@ -470,6 +471,8 @@ namespace BK7231Flasher
                 case BKType.XR809:
                 case BKType.XR872:
                     return "oxr";
+                case BKType.OPL1000A2:
+                    return "opl1000s";
             }
         }
         void generateNamesForMAC(byte [] mac, BKType curType)
