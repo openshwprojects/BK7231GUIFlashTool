@@ -323,7 +323,12 @@ namespace BK7231Flasher
 
 		internal override byte[] ReadMAC()
 		{
-			return null;
+			var rf_efuse = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, expectedReplyLen: 512);
+			if(rf_efuse == null)
+				return null;
+			var mac = new byte[6];
+			Array.Copy(rf_efuse, 0x100, mac, 0, 6);
+			return mac;
 		}
 
 
