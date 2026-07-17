@@ -14,7 +14,7 @@ namespace BK7231Flasher
             { BKType.BK7238, GetBekenUart1Instructions("BK7238") },
             { BKType.BK7252, "" },
             { BKType.BK7252N, GetBekenUart1Instructions("BK7252N") },
-            { BKType.BK7258, "" },
+            { BKType.BK7258, GetBekenUartInstructions("BK7258", "download UART", "DL_UART_TX", "DL_UART_RX") },
             { BKType.BL602, "" },
             { BKType.BL702, "" },
             { BKType.BL616, "" },
@@ -46,9 +46,14 @@ namespace BK7231Flasher
 
         static string GetBekenUart1Instructions(string platformName)
         {
-            return "Connect the " + platformName + " UART1 flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
-                "- Adapter RX -> " + platformName + " TX1 (GPIO11 / P11)" + System.Environment.NewLine +
-                "- Adapter TX -> " + platformName + " RX1 (GPIO10 / P10)" + System.Environment.NewLine +
+            return GetBekenUartInstructions(platformName, "UART1", "TX1", "RX1");
+        }
+
+        static string GetBekenUartInstructions(string platformName, string portName, string txName, string rxName)
+        {
+            return "Connect the " + platformName + " " + portName + " flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> " + platformName + " " + txName + " (GPIO11 / P11)" + System.Environment.NewLine +
+                "- Adapter TX -> " + platformName + " " + rxName + " (GPIO10 / P10)" + System.Environment.NewLine +
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "Start the read first. While the tool is trying to connect, reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply. If linking does not start, try the reset/power-cycle again.";

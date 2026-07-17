@@ -87,6 +87,7 @@ namespace BK7231Flasher
         const string BekenRomSpace = "ROM memory";
         const string BekenRomBackend = "register read";
         const string BekenRomController = "direct";
+        const string Bk7258RomSpace = "non-secure ROM alias";
         const string BekenEfuseSpace = "eFuse byte index";
         const string BekenEfuseBackend = "register R/W";
         const string BekenSctrlEfuseController = "SCTRL 0x00800074/0x00800078";
@@ -187,8 +188,10 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.BK7252N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
             new RomReadTarget(BKType.BK7252N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             // BK7231T/BK7231U do not expose ROM/eFuse reads over UART.
-            // BK7236/BK7258 are omitted for now: they do not use the standard BK72xx
-            // SCTRL eFuse path below, and their ROM/eFuse read flow still needs proving.
+            // BK7258 download mode filters the secure ROM alias at 0x06000000.
+            // The non-secure alias at 0x16000000 maps to the same physical ROM.
+            new RomReadTarget(BKType.BK7258, RomReadKind.Rom, "ROM", 0x16000000, 0x10000, 115200, CommonSerialBauds, Bk7258RomSpace, BekenRomBackend, BekenRomController),
+            // BK7236 remains omitted until its ROM/eFuse path is separately proved.
             new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, LnRomSpace, LnRamcodeBackend, LnRomController),
             new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
             new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),

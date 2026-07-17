@@ -960,7 +960,7 @@ namespace BK7231Flasher
                 {
                     return false;
                 }
-                if (chipType != BKType.BK7238 && chipType != BKType.BK7252N)
+                if (chipType != BKType.BK7238 && chipType != BKType.BK7252N && chipType != BKType.BK7258)
                 {
                     addLog("Going to read encryption key..." + Environment.NewLine);
                     string key = readEncryptionKey(out var coeffs);
@@ -1388,6 +1388,11 @@ namespace BK7231Flasher
                 }
                 Buffer.BlockCopy(word, 0, result, ofs, 4);
                 logger.setProgress(ofs + 4, length);
+            }
+            if (chipType == BKType.BK7258
+                && (result.All(value => value == 0) || result.All(value => value == 0xFF)))
+            {
+                throw new IOException("BK7258 ROM read from " + formatHex(offset) + " returned only blank bytes.");
             }
             logger.setState("ROM read success!", Color.Green);
             return result;
