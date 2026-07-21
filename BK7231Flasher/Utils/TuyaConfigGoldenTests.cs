@@ -49,6 +49,10 @@ namespace BK7231Flasher
             int fixtureResult = RunFixtures(fixturesDirectory, true);
             if(fixtureResult != 0)
                 return fixtureResult;
+
+            int lineEndingResult = VerifyLineEndingInvariance(fixturesDirectory);
+            if(lineEndingResult != 0)
+                return lineEndingResult;
             return VerifyHarnessMutations(fixturesDirectory);
         }
 
@@ -110,19 +114,19 @@ namespace BK7231Flasher
 
         static int VerifyHarnessMutations(string fixturesDirectory)
         {
-            string sourceManifest = Directory.EnumerateFiles(fixturesDirectory, ManifestName, SearchOption.AllDirectories)
-                .FirstOrDefault(path =>
-                {
-                    var item = JsonSerializer.Deserialize<GoldenCase>(File.ReadAllText(path));
-                    return item.ExtractionKind == "Vault" && (item.CredentialIndicators?.Length ?? 0) > 0;
-                }) ?? Directory.EnumerateFiles(fixturesDirectory, ManifestName, SearchOption.AllDirectories).First();
-            string sourceDirectory = Path.GetDirectoryName(sourceManifest);
+            string sourceDirectory = GetRepresentativeFixtureDirectory(fixturesDirectory);
 
             var mutations = new List<HarnessMutation>
             {
-                TextMutation("truncated enhanced JSON", ExpectedJsonName, value => RemoveLastCharacter(value)),
+                TextMutation("truncated LF enhanced JSON", ExpectedJsonName,
+                    value => RemoveLastContentCharacter(ConvertLineEndings(value, "\n"))),
+                TextMutation("truncated CRLF enhanced JSON", ExpectedJsonName,
+                    value => RemoveLastContentCharacter(ConvertLineEndings(value, "\r\n"))),
                 TextMutation("appended enhanced JSON", ExpectedJsonName, value => value + "intentional mutation"),
-                TextMutation("truncated human-readable output", ExpectedHumanName, value => RemoveLastCharacter(value)),
+                TextMutation("truncated LF human-readable output", ExpectedHumanName,
+                    value => RemoveLastContentCharacter(ConvertLineEndings(value, "\n"))),
+                TextMutation("truncated CRLF human-readable output", ExpectedHumanName,
+                    value => RemoveLastContentCharacter(ConvertLineEndings(value, "\r\n"))),
                 TextMutation("appended human-readable output", ExpectedHumanName, value => value + "intentional mutation"),
                 ManifestMutation("wrong input hash", item => item.InputSha256 = new string('0', 64)),
                 ManifestMutation("wrong extraction kind", item => item.ExtractionKind += "-mutation"),
@@ -154,9 +158,7 @@ namespace BK7231Flasher
                 string temporaryCase = Path.Combine(temporaryRoot, "case");
                 try
                 {
-                    Directory.CreateDirectory(temporaryCase);
-                    foreach(string sourceFile in Directory.EnumerateFiles(sourceDirectory))
-                        File.Copy(sourceFile, Path.Combine(temporaryCase, Path.GetFileName(sourceFile)));
+                    CopyFixtureFiles(sourceDirectory, temporaryCase);
 
                     mutation.Apply(temporaryCase);
                     if(RunFixtures(temporaryRoot, false) == 0)
@@ -179,6 +181,65 @@ namespace BK7231Flasher
 
             Console.WriteLine($"Golden harness mutation tests: {mutations.Count - missed} detected, {missed} missed.");
             return missed == 0 ? 0 : 1;
+        }
+
+        static int VerifyLineEndingInvariance(string fixturesDirectory)
+        {
+            string sourceDirectory = GetRepresentativeFixtureDirectory(fixturesDirectory);
+            var representations = new[]
+            {
+                new { Name = "LF", Newline = "\n" },
+                new { Name = "CRLF", Newline = "\r\n" }
+            };
+            int failed = 0;
+
+            foreach(var representation in representations)
+            {
+                string temporaryRoot = Path.Combine(Path.GetTempPath(), "tuya-golden-eol-" + Guid.NewGuid().ToString("N"));
+                string temporaryCase = Path.Combine(temporaryRoot, "case");
+                try
+                {
+                    CopyFixtureFiles(sourceDirectory, temporaryCase);
+                    foreach(string fileName in new[] { ExpectedJsonName, ExpectedHumanName })
+                    {
+                        string path = Path.Combine(temporaryCase, fileName);
+                        File.WriteAllText(path, ConvertLineEndings(File.ReadAllText(path), representation.Newline),
+                            new UTF8Encoding(false));
+                    }
+
+                    if(RunFixtures(temporaryRoot, false) != 0)
+                    {
+                        failed++;
+                        Console.Error.WriteLine($"LINE ENDING FAILURE: valid {representation.Name} fixture was rejected.");
+                    }
+                }
+                finally
+                {
+                    if(Directory.Exists(temporaryRoot))
+                        Directory.Delete(temporaryRoot, true);
+                }
+            }
+
+            Console.WriteLine($"Golden line-ending tests: {representations.Length - failed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
+
+        static string GetRepresentativeFixtureDirectory(string fixturesDirectory)
+        {
+            string sourceManifest = Directory.EnumerateFiles(fixturesDirectory, ManifestName, SearchOption.AllDirectories)
+                .FirstOrDefault(path =>
+                {
+                    var item = JsonSerializer.Deserialize<GoldenCase>(File.ReadAllText(path));
+                    return item.ExtractionKind == "Vault" && (item.CredentialIndicators?.Length ?? 0) > 0;
+                }) ?? Directory.EnumerateFiles(fixturesDirectory, ManifestName, SearchOption.AllDirectories).First();
+            return Path.GetDirectoryName(sourceManifest);
+        }
+
+        static void CopyFixtureFiles(string sourceDirectory, string targetDirectory)
+        {
+            Directory.CreateDirectory(targetDirectory);
+            foreach(string sourceFile in Directory.EnumerateFiles(sourceDirectory))
+                File.Copy(sourceFile, Path.Combine(targetDirectory, Path.GetFileName(sourceFile)));
         }
 
         static HarnessMutation TextMutation(string name, string fileName, Func<string, string> mutate)
@@ -209,9 +270,21 @@ namespace BK7231Flasher
             };
         }
 
-        static string RemoveLastCharacter(string value)
+        static string RemoveLastContentCharacter(string value)
         {
-            return string.IsNullOrEmpty(value) ? "intentional mutation" : value.Substring(0, value.Length - 1);
+            if(string.IsNullOrEmpty(value))
+                return "intentional mutation";
+
+            int index = value.Length - 1;
+            while(index >= 0 && (value[index] == '\r' || value[index] == '\n'))
+                index--;
+
+            return index < 0 ? value + "intentional mutation" : value.Remove(index, 1);
+        }
+
+        static string ConvertLineEndings(string value, string newline)
+        {
+            return NormalizeNewlines(value).Replace("\n", newline);
         }
 
         static void MutateInputPayload(string path)
