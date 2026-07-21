@@ -1,0 +1,3 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+And the Tuya section starts at an UNCOMMON POSITION 4169728 (0x3FA000)

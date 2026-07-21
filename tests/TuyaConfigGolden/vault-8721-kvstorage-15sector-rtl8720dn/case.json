@@ -1,0 +1,22 @@
+{
+  "Name": "vault-8721-kvstorage-15sector-rtl8720dn",
+  "SourceFileName": "Tuya_EZAIOT_T9W_R9BW_2.0_Thermostat_(T\u7CFB\u5217\u7684\u4F4E\u529F\u8017\u4EA7\u54C1_schemaID-000004x70e)_eaacu1av8nz9qdva_2.0.11.bin",
+  "SourceSha256": "83b9094ecd7e75ae82e6cc0318eb7eae654fe2b1368a3cdf1c3e60d02a839c3c",
+  "InputSha256": "f1a208c8c46d17a69b2d0bd639025a3cde3f8a6341fe4563f2facab7d1d462cd",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8721\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 3989504,
+  "ArenaOffset": 3993600,
+  "DecryptedLength": 61440,
+  "SectorCount": 15,
+  "EntryCount": 17,
+  "LargestValueLength": 2906,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": [
+    "$.ap_info (unparsed JSON)",
+    "json-not-parseable"
+  ]
+}

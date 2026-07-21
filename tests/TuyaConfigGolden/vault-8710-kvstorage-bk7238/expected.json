@@ -1,0 +1,382 @@
+{
+  "gw_wsm": {
+    "nc_tp": 9,
+    "ssid": "YW1j",
+    "passwd": "b3VsODA4OTMwMmV1",
+    "md": 3,
+    "wfb64": 1,
+    "stat": 2,
+    "token": "jb3h7B40",
+    "region": "EU",
+    "reg_key": "_Or1",
+    "dns_prio": 0,
+    "is_psk30_cfg": true
+  },
+  "gw_ai": {
+    "key": "WM|17^JJAjh\u0060jek=",
+    "lckey": "'b=7\u0060)a=_v$^.N&}",
+    "h_url": "http://a1-eu.lifeaiot.com/d.json",
+    "h_ip": "18.153.224.52",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3-eu.lifeaiot.com/d.json",
+    "hs_psk_ip": "18.198.62.99",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m1-eu.lifeaiot.com:1883",
+    "mq_ip": "18.156.58.194",
+    "ai_sp": null,
+    "ai_sp_ip": null,
+    "mq_psk": "m3-eu.lifeaiot.com:8883",
+    "mq_psk_ip": "52.59.99.195",
+    "lp_url": "baal.tuyaeu.com:443",
+    "lp_ip": "3.124.173.10",
+    "time_z": "+10:00",
+    "s_time_z": "[[1791043200,1806768000],[1822492800,1838217600]]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 1025
+  },
+  "measure_rslt": "01",
+  "ap_info_v2": "IAUAAGFtYwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEzt+4/s6AUGYWEwYzQxYWE5NmY1MjZjZTEzODMzYzk5Y2M4ZGYyODExYTA0MTIwMzQ0YzIxNGYwNTE5YzJkYWJhMDY4ZTE0NwBvdWw4MDg5MzAyZXUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACFCWQAERQAAN7///+pAQADYW1jAQiChIuWJDBIbAMBBioBADIEDBIYYDAUAQAAD6wEAQAAD6wEAQAAD6wCDAALBQEAHQAAQgIAAEYFMAAAAAAtGu8RF////wAAAAAAAAAAAAAAAAAAAAAAAAAAPRYGCAAAAAAAAAAAAAAAAAAAAAAAAAAASg4UAAoALAHIABQABQAZAH8IBQAIAAAAAEDdngBQ8gQQSgABEBBEAAECEDsAAQMQRwAQ1utv4zV+ozt7eHzKkpNXchAhABVBU1VTVGVLIENvbXB1dGVyIEluYy4QIwAcV2ktRmkgUHJvdGVjdGVkIFNldHVwIFJvdXRlchAkAAAQQgARNGM6ZWQ6ZmI6OGY6ZWM6ZTgQVAAIAAYAUPIEAAEQEQAAEAgAAgEEEDwAAQMQSQAGADcqAAEg3TH4MuQBAQECAQADFAl6yZ8NAWDCwnwywnLKOyVp5v4YBwRp5v4YEgTo7AAAEwEBFQEA3R4AkEwEGL8MsmmCD+r/AADq/wAAwAUABgAAAMMCAALdCQAQGAIBAJwAAN0YAFDyAgEBhAADpAAAJ6QAAEJDXgBiMi8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABOxR/wkMjTssxAzSw8dC/5Q==",
+  "temp_energy": "",
+  "gw_bi": {
+    "uuid": "fcb8e672bc02f361",
+    "psk_key": "zZ9Cr9TFkPX5AbDv9Im2IDAZaZ4XlMD5o2Pc4",
+    "auth_key": "xRqcPAuAiy4Njkrw3LeOxjEKazPqOjbR",
+    "ap_ssid": "GRID",
+    "ap_passwd": null,
+    "country_code": "CN",
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false,
+    "fac_pin": "74xo1nolwa6xkjeu",
+    "psk30_key": "W4M41heDtnfawYCAQQ8OQHpkPSW+x4tkc30wGvtB9AU=",
+    "pin": null
+  },
+  "user_param_key": {
+    "reset_t": 3,
+    "netled1_pin": 8,
+    "rl1_lv": 1,
+    "bt1_pin": 24,
+    "chip_type": 3,
+    "lose_vol": 0,
+    "over_vol": 0,
+    "module": "T1-2S-NL",
+    "net_trig": 2,
+    "ch_cddpid1": 9,
+    "jv": "1.0.2",
+    "netled1_lv": 1,
+    "netled_reuse": 1,
+    "ch1_stat": 2,
+    "ble_pair_time": 30,
+    "ffc_select": 0,
+    "ch_num": 1,
+    "ele_fun_en": 1,
+    "over_cur": 0,
+    "rl1_pin": 26,
+    "vol_def": 0,
+    "ch_dpid1": 1,
+    "bt1_lv": 0,
+    "crc": 49
+  },
+  "gw_di": {
+    "abi": 0,
+    "id": "bfa18dbcc6bece59bbnhhn",
+    "swv": "1.0.2",
+    "bv": "40.00",
+    "pv": "2.3",
+    "lpv": "3.5",
+    "pk": "keykmm3rjyqy5r8p",
+    "firmk": "keykmm3rjyqy5r8p",
+    "cadv": "1.0.5",
+    "cdv": "1.0.0",
+    "dev_swv": "1.0.2",
+    "s_id": "e1mtsiag",
+    "dtp": 0,
+    "sync": 0,
+    "attr_num": 1,
+    "mst_tp_0": 9,
+    "mst_ver_0": "1.0.2",
+    "mst_md5_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_md5_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_md5_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null,
+    "mst_md5_3": null,
+    "mst_tp_4": 0,
+    "mst_ver_4": null,
+    "mst_md5_4": null,
+    "mst_tp_5": 0,
+    "mst_ver_5": null,
+    "mst_md5_5": null,
+    "mst_tp_6": 0,
+    "mst_ver_6": null,
+    "mst_md5_6": null,
+    "mst_tp_7": 0,
+    "mst_ver_7": null,
+    "mst_md5_7": null,
+    "mst_tp_8": 0,
+    "mst_ver_8": null,
+    "mst_md5_8": null,
+    "mst_tp_9": 0,
+    "mst_ver_9": null,
+    "mst_md5_9": null
+  },
+  "em_sys_env": "T1",
+  "wf_start_md": 4,
+  "rcs.active": "010100000201000103080045552d50524f440004120068332d65752e696f742d646e732e636f6d",
+  "RLY_STAT": "01",
+  "last_reset_info_new": {
+    "region": "EU",
+    "type": 2
+  },
+  "timer_full_key": {
+    "tm_full": 0
+  },
+  "kv.meta.report": {
+    "metas": {
+      "btScyChannel": "{"enable":0,"version":"1.0"}",
+      "timerCapability": 1,
+      "supportLocalKeyChange": true,
+      "secureVersion": "1.0.0"
+    }
+  },
+  "mf_test_close": true,
+  "tls_ca_cnt": 0,
+  "timer_arr": {
+    "lastFetchTime": 0,
+    "cnt": 3,
+    "arr": [
+      {
+        "last_time": 0,
+        "modify_time": 1775032723,
+        "hour": 13,
+        "min": 45,
+        "loop": 1,
+        "y": 127,
+        "m": 0,
+        "d": 0,
+        "dps": "{"1":false}",
+        "id": "770095675"
+      },
+      {
+        "last_time": 0,
+        "modify_time": 1775032696,
+        "hour": 9,
+        "min": 21,
+        "loop": 1,
+        "y": 62,
+        "m": 0,
+        "d": 0,
+        "dps": "{"1":true}",
+        "id": "770121046"
+      },
+      {
+        "last_time": 0,
+        "modify_time": 1775032709,
+        "hour": 9,
+        "min": 11,
+        "loop": 1,
+        "y": 65,
+        "m": 0,
+        "d": 0,
+        "dps": "{"1":true}",
+        "id": "770121047"
+      }
+    ]
+  },
+  "day_energy": "",
+  "measure_coe": "860800008a01000058030000b514",
+  "kv.ccode.avtive": "AU",
+  "e1mtsiag": [
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 1,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 9,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 50000,
+        "scale": 3,
+        "step": 100,
+        "type": "value"
+      },
+      "id": 17,
+      "trigger": "direct",
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 30000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 18,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 80000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 19,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 5000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 20,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 5,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 21,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 22,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 23,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 24,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 25,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bitmap",
+        "maxlen": 6
+      },
+      "id": 26,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "off",
+          "on",
+          "memory"
+        ],
+        "type": "enum"
+      },
+      "id": 38,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "relay",
+          "pos",
+          "none",
+          "on"
+        ],
+        "type": "enum"
+      },
+      "id": 40,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 42,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 43,
+      "type": "obj"
+    }
+  ]
+}

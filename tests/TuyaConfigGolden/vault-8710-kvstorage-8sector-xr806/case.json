@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-kvstorage-8sector-xr806",
+  "SourceFileName": "Tuya_BEOK_BOT-W506-W_(schemaID-e1mtetuo)_key5nkpphq7huej7_if6pqia2gbtvqa6l_ro2kyynmf6vb1l9u_TuyaMCU_WXU_1.1.9.bin",
+  "SourceSha256": "4ef1f5818c1ffec2a2c99495c070de3bb2b368347bdcd238e245eba317b417bf",
+  "InputSha256": "d5bb944276c92124171afd64c6ff31dacc8d6cd3c0c04504a68686b8ed249ea8",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 2052096,
+  "ArenaOffset": 2056192,
+  "DecryptedLength": 32768,
+  "SectorCount": 8,
+  "EntryCount": 7,
+  "LargestValueLength": 683,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

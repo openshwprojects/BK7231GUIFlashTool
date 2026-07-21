@@ -1,0 +1,18 @@
+{
+  "Name": "vault-8710-legacy-bk7231n",
+  "SourceFileName": "Tuya_T2-U_Dev_Board_AliExpress-divadiow.bin",
+  "SourceSha256": "a52f29ff1aa11c95e810ef5bb3d76c323ddab8e2e917d86f89bdcba2b79d7517",
+  "InputSha256": "db64ab2f15c543d5bc5081a5b97b5b4dfc02f01839a2651abae25c364f6e2b92",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "LegacyKV",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2023424,
+  "ArenaOffset": 2027520,
+  "DecryptedLength": 69632,
+  "SectorCount": 17,
+  "EntryCount": 5,
+  "LargestValueLength": 244,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

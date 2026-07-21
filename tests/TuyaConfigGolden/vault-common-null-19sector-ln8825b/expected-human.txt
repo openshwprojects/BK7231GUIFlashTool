@@ -1,0 +1,3 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+And the Tuya section starts at 1994752 (0x1E7000), which is a default LN8825B offset.

@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-kvstorage-19sector-rtl8710bn",
+  "SourceFileName": "Tuya_Arlec_DCF4002WHA_Fan_(schemaID-0000002t1b)_keym5sjxrqcryptn_1wadkk3gy2dgjuis_WR4_2.1.3.bin",
+  "SourceSha256": "106e54eb30910d9ff88ef7ff98340b314f39ab0d4072ae5946858b7e64ffa81c",
+  "InputSha256": "b673778dd5791f744b474275d659818a430fcfc389dfba337ee102c8516669ca",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2011136,
+  "ArenaOffset": 2015232,
+  "DecryptedLength": 77824,
+  "SectorCount": 19,
+  "EntryCount": 4,
+  "LargestValueLength": 411,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

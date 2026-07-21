@@ -1,0 +1,18 @@
+{
+  "ty_ws_part": 1,
+  "ty_ws_mod": "ty_ws_part",
+  "last_used": 2,
+  "scma_part": 2,
+  "scma_mod": "scma_part",
+  "ESP.ty_ws_mod.wf_nw_rec_key": {
+    "ssid": null,
+    "passwd": null,
+    "wk_mode": 1,
+    "mode": 0,
+    "type": 0,
+    "source": 0,
+    "path": 0,
+    "time": 0,
+    "random": 0
+  }
+}

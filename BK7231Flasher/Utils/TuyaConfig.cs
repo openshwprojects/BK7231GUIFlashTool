@@ -14,6 +14,26 @@ namespace BK7231Flasher
 {
     public class TuyaConfig
     {
+        public sealed class ExtractionDiagnostics
+        {
+            public string ExtractionKind { get; internal set; } = "";
+            public string VaultKeyVariant { get; internal set; } = "";
+            public string ParserKind { get; internal set; } = "";
+            public uint PageMagic { get; internal set; }
+            public int DeviceKeyOffset { get; internal set; } = -1;
+            public int ArenaOffset { get; internal set; } = -1;
+            public int ArenaFlashLength { get; internal set; }
+            public int DecryptedLength { get; internal set; }
+            public int SectorCount { get; internal set; }
+            public int EntryCount { get; internal set; }
+            public int LargestValueLength { get; internal set; }
+            public bool HasDuplicateBlockIds { get; internal set; }
+            public int BadCrcCount { get; internal set; }
+        }
+
+        public ExtractionDiagnostics LastExtractionDiagnostics { get; private set; } = new ExtractionDiagnostics();
+        public bool WriteDebugArtifacts { get; set; } = true;
+
         // thanks to kmnh & Kuba bk7231 tools for figuring out this format
         static readonly string KEY_MASTER = "qwertyuiopasdfgh";
         static readonly int SECTOR_SIZE = 4096;
@@ -548,6 +568,51 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             return ParseVault();
         }
 
+        public ExtractionDiagnostics AnalyzeExtractionDiagnostics()
+        {
+            var diagnostics = LastExtractionDiagnostics;
+            diagnostics.DecryptedLength = vaultDecryptedRaw?.Length ?? 0;
+            diagnostics.SectorCount = diagnostics.DecryptedLength / SECTOR_SIZE;
+
+            List<KvEntry> entries;
+            if(LooksLikePsmBlob(vaultDecryptedRaw))
+            {
+                diagnostics.ParserKind = "PSM";
+                entries = ParseVaultPsm();
+            }
+            else
+            {
+                var indexed = ParseVaultKvStorage();
+                if(LooksLikeKvStorageResult(indexed))
+                {
+                    diagnostics.ParserKind = "KVStorage";
+                    entries = indexed;
+
+                    var seenBlockIds = new HashSet<ushort>();
+                    for(int ofs = 0; ofs + SECTOR_SIZE <= diagnostics.DecryptedLength; ofs += SECTOR_SIZE)
+                    {
+                        uint magic = ReadU32LE(vaultDecryptedRaw, ofs);
+                        if(magic != MAGIC_NEXT_BLOCK && magic != MAGIC_FIRST_BLOCK_OS3 && magic != MAGIC_FIRST_BLOCK)
+                            continue;
+
+                        ushort blockId = ReadU16LE(vaultDecryptedRaw, ofs + 8);
+                        if(!seenBlockIds.Add(blockId))
+                            diagnostics.HasDuplicateBlockIds = true;
+                    }
+                }
+                else
+                {
+                    diagnostics.ParserKind = "LegacyKV";
+                    entries = ParseVault();
+                }
+
+            }
+
+            diagnostics.EntryCount = entries.Count;
+            diagnostics.LargestValueLength = entries.Count == 0 ? 0 : entries.Max(x => x.Value?.Length ?? 0);
+            return diagnostics;
+        }
+
         static bool LooksLikeKvStorageResult(List<KvEntry> entries)
         {
             if (entries == null || entries.Count < 3)
@@ -909,6 +974,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
         public bool fromBytes(byte[] data)
         {
+            LastExtractionDiagnostics = new ExtractionDiagnostics();
             descryptedRaw = null;
             vaultDecryptedRaw = null;
             bVaultMagicHeaderNotFound = false;
@@ -935,7 +1001,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             finally
             {
-                if(descryptedRaw != null)
+                if(descryptedRaw != null && WriteDebugArtifacts)
                 {
                     string debugName = "lastRawDecryptedStrings.bin";
                     FormMain.Singleton?.addLog("Saving debug Tuya decryption data to " + debugName + Environment.NewLine, System.Drawing.Color.DarkSlateGray);
@@ -990,6 +1056,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             int crcBadCount = 0;
             int bestKeyOffset = -1;
             int bestDistanceFromKey = int.MaxValue;
+            int bestArenaOffset = -1;
+            string bestKeyVariant = "";
+            uint bestPageMagic = 0;
 
             void ScanCandidates()
             {
@@ -1024,6 +1093,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                                         bestCount = pages.Count;
                                         bestDistanceFromKey = distanceFromKey;
                                         bestKeyOffset = devKeyCandidate.Offset;
+                                        bestArenaOffset = pages.Min(x => x.FlashOffset);
+                                        bestKeyVariant = GetVaultKeyVariantName(baseKey);
+                                        bestPageMagic = magic;
                                         bestPages = pages;
                                     }
                                 }
@@ -1114,6 +1186,13 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
             descryptedRaw = ms.ToArray();
             vaultDecryptedRaw = descryptedRaw;
+            LastExtractionDiagnostics.ExtractionKind = "Vault";
+            LastExtractionDiagnostics.VaultKeyVariant = bestKeyVariant;
+            LastExtractionDiagnostics.PageMagic = bestPageMagic;
+            LastExtractionDiagnostics.DeviceKeyOffset = bestKeyOffset;
+            LastExtractionDiagnostics.ArenaOffset = bestArenaOffset;
+            LastExtractionDiagnostics.ArenaFlashLength = bestPages.Max(x => x.FlashOffset) - bestArenaOffset + SECTOR_SIZE;
+            LastExtractionDiagnostics.BadCrcCount = crcBadCount;
             return true;
         }
 
@@ -1133,6 +1212,17 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             }
             for(int i = 0; i < 16; i++) vaultKey[i] = (byte)((baseKey[i] + deviceKey[i]) & 0xFF);
             return vaultKey;
+        }
+
+        static string GetVaultKeyVariantName(byte[] keyPart)
+        {
+            if(object.ReferenceEquals(keyPart, KEY_PART_1)) return "8710+common";
+            if(object.ReferenceEquals(keyPart, KEY_NULL)) return "common-null";
+            if(object.ReferenceEquals(keyPart, KEY_PART_1_D)) return "8721+common";
+            if(object.ReferenceEquals(keyPart, KEY_PART_2)) return "common-only";
+            if(object.ReferenceEquals(keyPart, KEY_PART_1_AM)) return "8711+common";
+            if(object.ReferenceEquals(keyPart, KEY_PART_1_RDA)) return "RDA5+common";
+            return "unknown";
         }
 
         List<DeviceKeyCandidate> FindDeviceKeys(byte[] flash)
@@ -1189,6 +1279,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             if(TryLocatePsm(vaultData, null, out magicPosition, out descryptedRaw))
             {
                 vaultDecryptedRaw = descryptedRaw;
+                LastExtractionDiagnostics.ExtractionKind = "PlaintextPSM";
+                LastExtractionDiagnostics.ArenaOffset = magicPosition;
+                LastExtractionDiagnostics.ArenaFlashLength = descryptedRaw.Length;
                 FormMain.Singleton?.addLog(
                     $"Found plaintext PSM at 0x{magicPosition:X}" + Environment.NewLine,
                     System.Drawing.Color.DarkSlateGray);
@@ -1202,6 +1295,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                 return false;
 
             vaultDecryptedRaw = descryptedRaw;
+            LastExtractionDiagnostics.ExtractionKind = "AesPSM";
+            LastExtractionDiagnostics.ArenaOffset = magicPosition;
+            LastExtractionDiagnostics.ArenaFlashLength = descryptedRaw.Length;
 
             FormMain.Singleton?.addLog(
                 $"Found AES PSM at 0x{magicPosition:X}" + Environment.NewLine,

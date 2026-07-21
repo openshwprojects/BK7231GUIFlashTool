@@ -1,0 +1,18 @@
+{
+  "Name": "vault-8721-kvstorage-rtl8721csm",
+  "SourceFileName": "Tuya_Maginon_WT-2G_ZB_TRV_(schemaID- fty1s0)_keym557nqw3p8p7m_jqhfckegicggcmxg_WBRG1_1.7.2-maxrower.bin",
+  "SourceSha256": "e7d6464a80e3da4bb7da2b7d60ab57615e231b0058858cde69a6e02be94d0c82",
+  "InputSha256": "0fcabf93070b759fe166c55c45ada5af26ea9394a55e444ca501cb09ae1e4b82",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8721\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 8220672,
+  "ArenaOffset": 8224768,
+  "DecryptedLength": 163840,
+  "SectorCount": 40,
+  "EntryCount": 19,
+  "LargestValueLength": 387,
+  "HasDuplicateBlockIds": true,
+  "CredentialIndicators": []
+}
