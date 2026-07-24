@@ -21,9 +21,9 @@ namespace BK7231Flasher
         JsonObject info;
         JsonObject status;
         JsonObject statusSTS;
-        bool bGetInfoFailed;
+        volatile bool bGetInfoFailed;
         bool bTasmota;
-        bool bGetInfoSuccess = false;
+        volatile bool bGetInfoSuccess = false;
         int powerCount;
         int webRequestTimeOut = 3000;
         string userName, password;
@@ -454,7 +454,6 @@ namespace BK7231Flasher
                 {
                     jsonText = jsonText.Substring(0, lastBraceIndex + 1);
                 }
-                File.WriteAllText("lastHTTPJSONtext.txt", jsonText);
                 // RTL8710B returns 0. for %f printf
                 jsonText = jsonText.Replace("0.,", "0.0,");
                 jsonText = jsonText.Replace("0.}", "0.0}");
@@ -572,7 +571,7 @@ namespace BK7231Flasher
                 }
                 if (getSDK().ToLower() == "obk")
                 {
-                    this.bTasmota = true;
+                    this.bTasmota = false;
                     for (int att = 0; att < 4; att++)
                     {
                         JsonObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);

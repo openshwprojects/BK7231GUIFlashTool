@@ -35,31 +35,27 @@ namespace BK7231Flasher
                 scan.requestStop();
                 return;
             }
-            IPAddress tmp;
-            if(IPAddress.TryParse(textBoxStartIP.Text, out tmp) == false)
+            uint startAddress;
+            uint endAddress;
+            string rangeError;
+            if (OBKScanner.tryParseRange(textBoxStartIP.Text, textBoxEndIP.Text,
+                out startAddress, out endAddress, out rangeError) == false)
             {
-                MessageBox.Show("Invalid start IP");
-                return;
-            }
-            if (IPAddress.TryParse(textBoxEndIP.Text, out tmp) == false)
-            {
-                MessageBox.Show("Invalid end IP");
+                MessageBox.Show(rangeError);
                 return;
             }
             int retriesCount;
-            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false)
+            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false
+                || retriesCount < 1 || retriesCount > OBKScanner.MAX_LOOPS)
             {
-                MessageBox.Show("Invalid retries count");
+                MessageBox.Show("Loops must be between 1 and " + OBKScanner.MAX_LOOPS + ".");
                 return;
             }
-            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false)
+            int workersCount;
+            if (int.TryParse(textBoxScannerThreads.Text, out workersCount) == false
+                || workersCount < 1 || workersCount > OBKScanner.MAX_WORKERS)
             {
-                MessageBox.Show("Invalid retries count");
-                return;
-            }
-            if(retriesCount < 1)
-            {
-                MessageBox.Show("It makes no sense to have less than 1 loops.");
+                MessageBox.Show("Threads must be between 1 and " + OBKScanner.MAX_WORKERS + ".");
                 return;
             }
 
@@ -70,7 +66,7 @@ namespace BK7231Flasher
             scan.setOnFinished(onScannerFinished);
             scan.setOnProgress(onScannerProgress);
             scan.setLoopsCount(retriesCount);
-            setMaxWorkersCountFromGUI();
+            scan.setMaxWorkers(workersCount);
             scan.startScan();
             buttonStartScan.Text = "Stop";
         }
@@ -152,7 +148,8 @@ namespace BK7231Flasher
             if (scan != null)
             {
                 int cnt;
-                if (int.TryParse(textBoxScannerThreads.Text, out cnt))
+                if (int.TryParse(textBoxScannerThreads.Text, out cnt)
+                    && cnt >= 1 && cnt <= OBKScanner.MAX_WORKERS)
                 {
                     scan.setMaxWorkers(cnt);
                 }

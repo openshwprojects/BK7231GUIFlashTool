@@ -2014,9 +2014,17 @@ namespace BK7231Flasher
         {
             if (e.Button == MouseButtons.Right)
             {
-                ListViewItem selectedItem = listView1.FocusedItem;
+                ListViewItem selectedItem = listView1.GetItemAt(e.X, e.Y);
+                OBKDeviceAPI dev = selectedItem?.Tag as OBKDeviceAPI;
+                if (selectedItem == null || dev == null)
+                {
+                    return;
+                }
+                selectedItem.Selected = true;
+                selectedItem.Focused = true;
 
                 ContextMenuStrip contextMenu = new ContextMenuStrip();
+                contextMenu.Closed += (s, args) => contextMenu.Dispose();
 
                 ToolStripMenuItem openPageMenuItem = new ToolStripMenuItem("Open page");
                 openPageMenuItem.Click += (s, args) =>
@@ -2043,7 +2051,6 @@ namespace BK7231Flasher
                 };
                 contextMenu.Items.Add(rebootMenuItem);
 
-                OBKDeviceAPI dev = selectedItem.Tag as OBKDeviceAPI;
                 for (int i = 0; i < dev.getPowerSlotsCount(); i++)
                 {
                     int slotIndex = i+1; 

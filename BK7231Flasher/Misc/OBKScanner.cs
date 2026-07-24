@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -11,13 +12,17 @@ namespace BK7231Flasher
 
     public class OBKScanner
     {
+        internal const int MAX_WORKERS = 128;
+        internal const int MAX_LOOPS = 20;
+        internal const ulong MAX_ADDRESSES = 65536;
+
         int maxWorkers = 8;
 
 
         int loopsCount = 2;
         string startIP, endIP;
         Thread thread;
-        bool bWantStop;
+        volatile bool bWantStop;
         List<OBKDeviceAPI> workers = new List<OBKDeviceAPI>();
         OBKScannerFoundDevice onDeviceFound;
         OBKScannerFinished onScanFinished;
@@ -48,6 +53,10 @@ namespace BK7231Flasher
         }
         public void setMaxWorkers(int max)
         {
+            if (max < 1 || max > MAX_WORKERS)
+            {
+                throw new ArgumentOutOfRangeException(nameof(max));
+            }
             this.maxWorkers = max;
         }
         public void startScan()
@@ -58,6 +67,10 @@ namespace BK7231Flasher
 
         internal void setLoopsCount(int nct)
         {
+            if (nct < 1 || nct > MAX_LOOPS)
+            {
+                throw new ArgumentOutOfRangeException(nameof(nct));
+            }
             this.loopsCount = nct;
         }
 
@@ -79,23 +92,23 @@ namespace BK7231Flasher
         }
         void scanThread()
         {
-            IPAddress startAddress = IPAddress.Parse(startIP);
-            IPAddress endAddress = IPAddress.Parse(endIP);
+            uint start;
+            uint end;
+            string rangeError;
+            if (tryParseRange(startIP, endIP, out start, out end, out rangeError) == false)
+            {
+                callOnProgress(0, 0, rangeError);
+                onScanFinished?.Invoke(true);
+                return;
+            }
 
-            byte[] startBytes = startAddress.GetAddressBytes();
-            byte[] endBytes = endAddress.GetAddressBytes();
-
-            Array.Reverse(startBytes);
-            Array.Reverse(endBytes);
-            uint start = BitConverter.ToUInt32(startBytes, 0);
-            uint end = BitConverter.ToUInt32(endBytes, 0);
-            int total = (((int)end - (int)start)+1) * loopsCount;
+            int total = (int)(((ulong)end - start + 1) * (ulong)loopsCount);
             int done = 0;
             callOnProgress(done, total,"Starting scan...");
-            for(int loop = 0; loop < loopsCount; loop++)
+            for(int loop = 0; loop < loopsCount && bWantStop == false; loop++)
             {
                 uint current = start;
-                while (current <= end)
+                while (true)
                 {
                     if (bWantStop)
                     {
@@ -135,13 +148,100 @@ namespace BK7231Flasher
                     worker.setAdr(ip.ToString());
                     worker.setWebRequestTimeOut(scannerTimeOutMS);
                     worker.sendGetInfo(null);
-                    current++;
                     done++;
                     callOnProgress(done, total, "Checked "+nextIPstr+"...");
+                    if (current == end)
+                    {
+                        break;
+                    }
+                    current++;
                 }
             }
-            callOnProgress(total, total, "All done.");
-            onScanFinished(bWantStop);
+            if (bWantStop == false)
+            {
+                drainWorkers();
+            }
+            else
+            {
+                processCompletedWorkers();
+            }
+            callOnProgress(done, total, bWantStop ? "Stopped." : "All done.");
+            onScanFinished?.Invoke(bWantStop);
+        }
+
+        internal static bool tryParseRange(string startText, string endText,
+            out uint start, out uint end, out string error)
+        {
+            start = 0;
+            end = 0;
+            error = null;
+            IPAddress address;
+            if (IPAddress.TryParse(startText?.Trim(), out address) == false
+                || address.AddressFamily != AddressFamily.InterNetwork)
+            {
+                error = "Invalid start IPv4 address.";
+                return false;
+            }
+            start = ipv4ToUInt32(address);
+            if (IPAddress.TryParse(endText?.Trim(), out address) == false
+                || address.AddressFamily != AddressFamily.InterNetwork)
+            {
+                error = "Invalid end IPv4 address.";
+                return false;
+            }
+            end = ipv4ToUInt32(address);
+            if (end < start)
+            {
+                error = "End IP must not be before start IP.";
+                return false;
+            }
+            ulong addressCount = (ulong)end - start + 1;
+            if (addressCount > MAX_ADDRESSES)
+            {
+                error = "IP range is too large. The maximum is " + MAX_ADDRESSES + " addresses.";
+                return false;
+            }
+            return true;
+        }
+
+        private static uint ipv4ToUInt32(IPAddress address)
+        {
+            byte[] bytes = address.GetAddressBytes();
+            return ((uint)bytes[0] << 24)
+                | ((uint)bytes[1] << 16)
+                | ((uint)bytes[2] << 8)
+                | bytes[3];
+        }
+
+        private void drainWorkers()
+        {
+            while (bWantStop == false && processCompletedWorkers())
+            {
+                Thread.Sleep(50);
+            }
+        }
+
+        private bool processCompletedWorkers()
+        {
+            bool hasPendingWorkers = false;
+            for (int i = workers.Count - 1; i >= 0; i--)
+            {
+                OBKDeviceAPI worker = workers[i];
+                if (worker.hasBasicInfoReceived())
+                {
+                    processFoundDevice(worker);
+                    workers.RemoveAt(i);
+                }
+                else if (worker.getInfoFailed())
+                {
+                    workers.RemoveAt(i);
+                }
+                else
+                {
+                    hasPendingWorkers = true;
+                }
+            }
+            return hasPendingWorkers;
         }
 
         private OBKDeviceAPI getWorker()
