@@ -1,4 +1,4 @@
-name: Build and Release BK7231GUIFlashTool
+name: Build and Release
 
 on:
   push:
@@ -17,6 +17,7 @@ on:
 
 jobs:
   version:
+    name: Determine Build Version
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,6 +106,7 @@ jobs:
           Write-Output "Non-release build version: $buildVersion"
 
   build:
+    name: Build Windows Application
     needs: version
     runs-on: windows-latest
     env:
@@ -144,6 +146,7 @@ jobs:
           dir BK7231Flasher/BuildOutput/Release
 
   release:
+    name: Publish GitHub Release
     needs: [version, build]
     runs-on: windows-latest
     permissions:
