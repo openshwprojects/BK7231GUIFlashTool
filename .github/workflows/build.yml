@@ -8,12 +8,107 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish the calculated release when running on main
+        required: true
+        default: false
+        type: boolean
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      new_release: ${{ steps.version.outputs.new_release }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Seed semantic version from legacy release tags
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $mergedTags = git tag --merged HEAD
+          $releaseTags = foreach ($tag in $mergedTags) {
+            if ($tag -match '^v(?<build>\d+)$') {
+              [PSCustomObject]@{
+                Tag = $tag
+                Version = [version]"1.1.$($Matches.build)"
+              }
+            }
+            elseif ($tag -match '^(?<version>\d+\.\d+\.\d+)$') {
+              [PSCustomObject]@{
+                Tag = $tag
+                Version = [version]$Matches.version
+              }
+            }
+          }
+
+          $latestReleaseTag = $releaseTags |
+            Sort-Object Version -Descending |
+            Select-Object -First 1
+
+          if (-not $latestReleaseTag) {
+            throw "No numeric release tag was found."
+          }
+
+          $baseline = $latestReleaseTag.Version.ToString()
+          if (-not (git tag --list $baseline)) {
+            git tag $baseline $latestReleaseTag.Tag
+          }
+
+          Write-Output "Semantic release baseline: $baseline from $($latestReleaseTag.Tag)."
+
+      - name: Calculate next release version
+        id: semantic
+        if: github.event_name != 'pull_request'
+        uses: cycjimmy/semantic-release-action@v5
+        with:
+          dry_run: true
+          semantic_version: 21
+          branches: |
+            [
+              "${{ github.ref_name }}"
+            ]
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@7
+            @semantic-release/exec@6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Select build version
+        id: version
+        shell: pwsh
+        env:
+          NEXT_VERSION: ${{ env.NEXT_RELEASE_VERSION }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if ($env:NEXT_VERSION) {
+            "version=$env:NEXT_VERSION" >> $env:GITHUB_OUTPUT
+            "new_release=true" >> $env:GITHUB_OUTPUT
+            Write-Output "Next release version: $env:NEXT_VERSION"
+            exit 0
+          }
+
+          $safeRef = $env:REF_NAME -replace '[^A-Za-z0-9._-]', '-'
+          $shortSha = $env:COMMIT_SHA.Substring(0, 12)
+          $buildVersion = "$safeRef-$shortSha"
+          "version=$buildVersion" >> $env:GITHUB_OUTPUT
+          "new_release=false" >> $env:GITHUB_OUTPUT
+          Write-Output "Non-release build version: $buildVersion"
+
   build:
+    needs: version
     runs-on: windows-latest
     env:
-      FLASHERVERSION: ${{ github.run_number }}
+      FLASHERVERSION: ${{ needs.version.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -49,9 +144,11 @@ jobs:
           dir BK7231Flasher/BuildOutput/Release
 
   release:
-    needs: build
+    needs: [version, build]
     runs-on: windows-latest
-    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    if: needs.version.outputs.new_release == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish_release == true)
 
     steps:
       - name: Checkout repository
@@ -84,17 +181,17 @@ jobs:
       - name: Create ZIP File
         run: |
           mkdir release
-          powershell Compress-Archive -Path "BuildOutput/Release/*" -DestinationPath "release/BK7231GUIFlashTool-build-${{ github.run_number }}.zip"
+          powershell Compress-Archive -Path "BuildOutput/Release/*" -DestinationPath "release/BK7231GUIFlashTool-build-${{ needs.version.outputs.version }}.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.run_number }}
-          name: BK7231GUIFlashTool build ${{ github.run_number }}
+          tag_name: ${{ needs.version.outputs.version }}
+          name: BK7231GUIFlashTool build ${{ needs.version.outputs.version }}
           body: |
             Automated release for BK7231GUIFlashTool.
             Includes the latest .exe, .dll files, and loaders directory.
           generate_release_notes: true
           draft: false
           prerelease: false
-          files: release/BK7231GUIFlashTool-build-${{ github.run_number }}.zip
+          files: release/BK7231GUIFlashTool-build-${{ needs.version.outputs.version }}.zip
