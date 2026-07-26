@@ -2010,6 +2010,18 @@ namespace BK7231Flasher
             setMaxWorkersCountFromGUI();
         }
 
+        private static bool sendRebootIfConfirmed(
+            OBKDeviceAPI device,
+            DialogResult confirmation)
+        {
+            if (device == null || confirmation != DialogResult.Yes)
+            {
+                return false;
+            }
+            device.sendCmnd("reboot", null);
+            return true;
+        }
+
         private void listView1_MouseClick(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
@@ -2046,8 +2058,13 @@ namespace BK7231Flasher
                 ToolStripMenuItem rebootMenuItem = new ToolStripMenuItem("Reboot");
                 rebootMenuItem.Click += (s, args) =>
                 {
-                    OBKDeviceAPI devo = selectedItem.Tag as OBKDeviceAPI;
-                    devo.sendCmnd("reboot",null);
+                    DialogResult confirmation = MessageBox.Show(
+                        "Reboot device at " + dev.getAdr() + "?",
+                        "Confirm reboot",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button2);
+                    sendRebootIfConfirmed(dev, confirmation);
                 };
                 contextMenu.Items.Add(rebootMenuItem);
 
