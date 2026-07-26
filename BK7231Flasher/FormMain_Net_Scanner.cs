@@ -28,6 +28,11 @@ namespace BK7231Flasher
                 scan.requestStop();
             }
         }
+        private void clearScannerResults()
+        {
+            founds.Clear();
+            listView1.Items.Clear();
+        }
         private void startOrStopScannerThread()
         {
             if (scan != null)
@@ -60,6 +65,7 @@ namespace BK7231Flasher
                 return;
             }
 
+            clearScannerResults();
             scan = new OBKScanner(textBoxStartIP.Text, textBoxEndIP.Text);
             scan.setUser(textBoxIPScannerUser.Text);
             scan.setPassword(textBoxIPScannerPass.Text);

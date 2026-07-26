@@ -1628,10 +1628,10 @@ namespace BK7231Flasher
 			this.label24.AutoSize = true;
 			this.label24.Location = new System.Drawing.Point(8, 12);
 			this.label24.Name = "label24";
-			this.label24.Size = new System.Drawing.Size(474, 13);
+			this.label24.Size = new System.Drawing.Size(712, 13);
 			this.label24.TabIndex = 8;
-			this.label24.Text = "Scan for OpenBeken and Tasmota devices. Extra attempts retry only addresses that " +
-    "did not respond.";
+			this.label24.Text = "Scan for OpenBeken and Tasmota devices. Starting a scan clears previous results; " +
+    "extra attempts retry only addresses that did not respond.";
 			// 
 			// listView1
 			// 
