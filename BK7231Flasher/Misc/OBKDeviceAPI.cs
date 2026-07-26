@@ -187,6 +187,9 @@ namespace BK7231Flasher
                 string fullRequestText = "http://" + adr + path;
                 WebRequest request = WebRequest.Create(fullRequestText);
                 request.Timeout = webRequestTimeOut;
+                HttpWebRequest httpRequest = request as HttpWebRequest;
+                if (httpRequest != null)
+                    httpRequest.ReadWriteTimeout = webRequestTimeOut;
                 if (!ToggleAllowUnsafeHeaderParsing(true))
                 {
                     // Couldn't set flag. Log the fact, throw an exception or whatever.
@@ -597,6 +600,23 @@ namespace BK7231Flasher
                 cb(this);
             }
         }
+        private void ThreadSendGetInfoSafe(object ocb)
+        {
+            try
+            {
+                ThreadSendGetInfo(ocb);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to get device info: " + ex.Message);
+                if (bGetInfoSuccess == false && bGetInfoFailed == false)
+                {
+                    bGetInfoFailed = true;
+                    ProcessJSONReply cb = ocb as ProcessJSONReply;
+                    cb?.Invoke(this);
+                }
+            }
+        }
         public void ThreadSendGetFlashChunk(object obj)
         {
             GetFlashChunkArguments arg = obj as GetFlashChunkArguments;
@@ -645,7 +665,7 @@ namespace BK7231Flasher
         }
         public void sendGetInfo(ProcessJSONReply cb)
         {
-            startThread(ThreadSendGetInfo, cb);
+            startThread(ThreadSendGetInfoSafe, cb);
         }
         public void sendGetFlashChunk(ProcessBytesReply cb, ProcessProgress cb_progress, int adr, int size)
         {
