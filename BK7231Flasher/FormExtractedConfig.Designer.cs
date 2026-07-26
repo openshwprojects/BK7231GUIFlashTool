@@ -54,6 +54,7 @@
             this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(17, 66);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
+            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(317, 356);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
