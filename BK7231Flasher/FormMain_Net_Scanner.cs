@@ -45,11 +45,11 @@ namespace BK7231Flasher
                 MessageBox.Show(rangeError);
                 return;
             }
-            int retriesCount;
-            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false
-                || retriesCount < 1 || retriesCount > OBKScanner.MAX_LOOPS)
+            int attemptsCount;
+            if (int.TryParse(textBoxBoxScannerRetries.Text, out attemptsCount) == false
+                || attemptsCount < 1 || attemptsCount > OBKScanner.MAX_ATTEMPTS)
             {
-                MessageBox.Show("Loops must be between 1 and " + OBKScanner.MAX_LOOPS + ".");
+                MessageBox.Show("Attempts must be between 1 and " + OBKScanner.MAX_ATTEMPTS + ".");
                 return;
             }
             int workersCount;
@@ -66,7 +66,7 @@ namespace BK7231Flasher
             scan.setOnDeviceFound(onScannerFound);
             scan.setOnFinished(onScannerFinished);
             scan.setOnProgress(onScannerProgress);
-            scan.setLoopsCount(retriesCount);
+            scan.setAttemptsCount(attemptsCount);
             scan.setMaxWorkers(workersCount);
             scan.startScan();
             buttonStartScan.Text = "Stop";

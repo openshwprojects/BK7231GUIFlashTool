@@ -13,13 +13,13 @@ namespace BK7231Flasher
     public class OBKScanner
     {
         internal const int MAX_WORKERS = 128;
-        internal const int MAX_LOOPS = 20;
+        internal const int MAX_ATTEMPTS = 20;
         internal const ulong MAX_ADDRESSES = 65536;
 
         int maxWorkers = 8;
 
 
-        int loopsCount = 2;
+        int attemptsCount = 1;
         string startIP, endIP;
         Thread thread;
         volatile bool bWantStop;
@@ -65,13 +65,13 @@ namespace BK7231Flasher
             thread.Start();
         }
 
-        internal void setLoopsCount(int nct)
+        internal void setAttemptsCount(int count)
         {
-            if (nct < 1 || nct > MAX_LOOPS)
+            if (count < 1 || count > MAX_ATTEMPTS)
             {
-                throw new ArgumentOutOfRangeException(nameof(nct));
+                throw new ArgumentOutOfRangeException(nameof(count));
             }
-            this.loopsCount = nct;
+            this.attemptsCount = count;
         }
 
         internal void setUser(string text)
@@ -102,68 +102,73 @@ namespace BK7231Flasher
                 return;
             }
 
-            int total = (int)(((ulong)end - start + 1) * (ulong)loopsCount);
+            List<string> addressesToCheck = new List<string>();
+            uint current = start;
+            while (true)
+            {
+                addressesToCheck.Add(uint32ToIPv4(current));
+                if (current == end)
+                {
+                    break;
+                }
+                current++;
+            }
+
+            int total = addressesToCheck.Count;
             int done = 0;
             callOnProgress(done, total,"Starting scan...");
-            for(int loop = 0; loop < loopsCount && bWantStop == false; loop++)
+            for (int attempt = 0;
+                attempt < attemptsCount && addressesToCheck.Count > 0 && bWantStop == false;
+                attempt++)
             {
-                uint current = start;
-                while (true)
+                List<string> retryAddresses =
+                    attempt + 1 < attemptsCount ? new List<string>() : null;
+                foreach (string nextIPstr in addressesToCheck)
                 {
                     if (bWantStop)
                     {
                         break;
                     }
-                    OBKDeviceAPI worker = getWorker();
-                    if (worker == null)
+                    OBKDeviceAPI worker;
+                    while ((worker = getWorker(retryAddresses)) == null && bWantStop == false)
                     {
                         Thread.Sleep(100);
-                        continue;
+                    }
+                    if (bWantStop)
+                    {
+                        break;
                     }
                     Thread.Sleep(50);
-                    int scannerTimeOutMS;
-                    if(loopsCount <= 1)
-                    {
-                        scannerTimeOutMS = 5000;
-                    }
-                    else
-                    {
-                        if(loop == 0)
-                        {
-                            scannerTimeOutMS = 2000;
-                        }
-                        else
-                        {
-                            scannerTimeOutMS = 5000 + 500 * loop;
-                        }
-                    }
-                    byte[] bytes = BitConverter.GetBytes(current);
-                    Array.Reverse(bytes);
-                    IPAddress ip = new IPAddress(bytes);
-                    string nextIPstr = ip.ToString();
+                    int scannerTimeOutMS =
+                        attempt == 0 ? 2000 : 5000 + 500 * (attempt - 1);
                     Console.WriteLine("Will try to check " + nextIPstr);
                     worker.clear();
                     worker.setPassword(password);
                     worker.setUser(userName);
-                    worker.setAdr(ip.ToString());
+                    worker.setAdr(nextIPstr);
                     worker.setWebRequestTimeOut(scannerTimeOutMS);
                     worker.sendGetInfo(null);
                     done++;
-                    callOnProgress(done, total, "Checked "+nextIPstr+"...");
-                    if (current == end)
-                    {
-                        break;
-                    }
-                    current++;
+                    callOnProgress(done, total, "Checked " + nextIPstr + "...");
                 }
-            }
-            if (bWantStop == false)
-            {
-                drainWorkers();
-            }
-            else
-            {
-                processCompletedWorkers();
+                if (bWantStop == false)
+                {
+                    drainWorkers(retryAddresses);
+                }
+                else
+                {
+                    processCompletedWorkers(null);
+                }
+                if (retryAddresses != null)
+                {
+                    addressesToCheck = retryAddresses;
+                    if (retryAddresses.Count > 0 && bWantStop == false)
+                    {
+                        total += retryAddresses.Count;
+                        callOnProgress(done, total,
+                            "Retrying " + retryAddresses.Count + " address(es)...");
+                    }
+                }
             }
             callOnProgress(done, total, bWantStop ? "Stopped." : "All done.");
             onScanFinished?.Invoke(bWantStop);
@@ -213,15 +218,23 @@ namespace BK7231Flasher
                 | bytes[3];
         }
 
-        private void drainWorkers()
+        private static string uint32ToIPv4(uint address)
         {
-            while (bWantStop == false && processCompletedWorkers())
+            return ((address >> 24) & 0xFF) + "."
+                + ((address >> 16) & 0xFF) + "."
+                + ((address >> 8) & 0xFF) + "."
+                + (address & 0xFF);
+        }
+
+        private void drainWorkers(List<string> retryAddresses)
+        {
+            while (bWantStop == false && processCompletedWorkers(retryAddresses))
             {
                 Thread.Sleep(50);
             }
         }
 
-        private bool processCompletedWorkers()
+        private bool processCompletedWorkers(List<string> retryAddresses)
         {
             bool hasPendingWorkers = false;
             for (int i = workers.Count - 1; i >= 0; i--)
@@ -234,6 +247,7 @@ namespace BK7231Flasher
                 }
                 else if (worker.getInfoFailed())
                 {
+                    retryAddresses?.Add(worker.getAdr());
                     workers.RemoveAt(i);
                 }
                 else
@@ -244,7 +258,7 @@ namespace BK7231Flasher
             return hasPendingWorkers;
         }
 
-        private OBKDeviceAPI getWorker()
+        private OBKDeviceAPI getWorker(List<string> retryAddresses)
         {
             for(int i = 0; i < workers.Count; i++)
             {
@@ -257,6 +271,7 @@ namespace BK7231Flasher
                 }
                 if (d.getInfoFailed())
                 {
+                    retryAddresses?.Add(d.getAdr());
                     return d;
                 }
             }

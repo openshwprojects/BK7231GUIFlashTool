@@ -1572,16 +1572,16 @@ namespace BK7231Flasher
 			this.textBoxBoxScannerRetries.Name = "textBoxBoxScannerRetries";
 			this.textBoxBoxScannerRetries.Size = new System.Drawing.Size(44, 20);
 			this.textBoxBoxScannerRetries.TabIndex = 15;
-			this.textBoxBoxScannerRetries.Text = "5";
+			this.textBoxBoxScannerRetries.Text = "1";
 			// 
 			// label28
 			// 
 			this.label28.AutoSize = true;
-			this.label28.Location = new System.Drawing.Point(563, 45);
+			this.label28.Location = new System.Drawing.Point(548, 45);
 			this.label28.Name = "label28";
-			this.label28.Size = new System.Drawing.Size(39, 13);
+			this.label28.Size = new System.Drawing.Size(54, 13);
 			this.label28.TabIndex = 14;
-			this.label28.Text = "Loops:";
+			this.label28.Text = "Attempts:";
 			// 
 			// label29
 			// 
@@ -1628,10 +1628,10 @@ namespace BK7231Flasher
 			this.label24.AutoSize = true;
 			this.label24.Location = new System.Drawing.Point(8, 12);
 			this.label24.Name = "label24";
-			this.label24.Size = new System.Drawing.Size(747, 13);
+			this.label24.Size = new System.Drawing.Size(474, 13);
 			this.label24.TabIndex = 8;
-			this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. Scanner will first " +
-    "do a quick, unprecise loop and then some slower, more precise checks.\r\n";
+			this.label24.Text = "Scan for OpenBeken and Tasmota devices. Extra attempts retry only addresses that " +
+    "did not respond.";
 			// 
 			// listView1
 			// 
