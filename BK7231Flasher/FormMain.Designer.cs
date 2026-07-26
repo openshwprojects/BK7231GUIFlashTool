@@ -1568,16 +1568,16 @@ namespace BK7231Flasher
 			// 
 			// textBoxBoxScannerRetries
 			// 
-			this.textBoxBoxScannerRetries.Location = new System.Drawing.Point(612, 42);
+			this.textBoxBoxScannerRetries.Location = new System.Drawing.Point(623, 42);
 			this.textBoxBoxScannerRetries.Name = "textBoxBoxScannerRetries";
-			this.textBoxBoxScannerRetries.Size = new System.Drawing.Size(44, 20);
+			this.textBoxBoxScannerRetries.Size = new System.Drawing.Size(33, 20);
 			this.textBoxBoxScannerRetries.TabIndex = 15;
 			this.textBoxBoxScannerRetries.Text = "1";
 			// 
 			// label28
 			// 
 			this.label28.AutoSize = true;
-			this.label28.Location = new System.Drawing.Point(548, 45);
+			this.label28.Location = new System.Drawing.Point(563, 45);
 			this.label28.Name = "label28";
 			this.label28.Size = new System.Drawing.Size(54, 13);
 			this.label28.TabIndex = 14;
