@@ -576,7 +576,7 @@ namespace BK7231Flasher
                     {
                         JsonObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
                         this.info = jsonObject;
-                        if (this.info == null)
+                        if (this.info != null)
                         {
                             break;
                         }
