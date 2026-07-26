@@ -14,6 +14,7 @@ namespace BK7231Flasher
             public string DisplayText { get; set; }
             public string StartIp { get; set; }
             public string EndIp { get; set; }
+            public int SortOrder { get; set; }
         }
 
         OBKScanner scan;
@@ -180,7 +181,7 @@ namespace BK7231Flasher
 
             if (subnets.Count == 0)
             {
-                MessageBox.Show("No local IPv4 subnets were detected on active network interfaces.");
+                MessageBox.Show("No supported Ethernet or Wi-Fi IPv4 subnets were detected.");
                 return;
             }
 
@@ -213,13 +214,14 @@ namespace BK7231Flasher
             textBoxEndIP.Text = subnet.EndIp;
         }
 
-        private List<ScannerSubnetChoice> getLocalScannerSubnets()
+        private static List<ScannerSubnetChoice> getLocalScannerSubnets()
         {
-            Dictionary<string, ScannerSubnetChoice> result = new Dictionary<string, ScannerSubnetChoice>();
+            List<ScannerSubnetChoice> result = new List<ScannerSubnetChoice>();
+            HashSet<string> seen = new HashSet<string>();
 
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                if (isScannerInterfaceType(nic.NetworkInterfaceType) == false)
                 {
                     continue;
                 }
@@ -256,24 +258,108 @@ namespace BK7231Flasher
                         continue;
                     }
 
-                    string subnetBase = bytes[0] + "." + bytes[1] + "." + bytes[2];
-                    if (result.ContainsKey(subnetBase))
+                    IPAddress mask = uni.IPv4Mask;
+                    if (mask == null)
                     {
                         continue;
                     }
 
-                    result[subnetBase] = new ScannerSubnetChoice
+                    uint addressValue = scannerIPv4ToUInt32(address);
+                    uint maskValue = scannerIPv4ToUInt32(mask);
+                    int prefixLength = getPrefixLength(maskValue);
+                    if (prefixLength < 0)
                     {
-                        StartIp = subnetBase + ".0",
-                        EndIp = subnetBase + ".255",
-                        DisplayText = subnetBase + ".0/24 (" + nic.Name + ", local " + address + ")",
-                    };
+                        continue;
+                    }
+
+                    uint network = addressValue & maskValue;
+                    uint broadcast = network | ~maskValue;
+                    if (broadcast - network <= 1)
+                    {
+                        continue;
+                    }
+
+                    uint firstHost = network + 1;
+                    uint lastHost = broadcast - 1;
+                    ulong addressCount = (ulong)lastHost - firstHost + 1;
+                    if (addressCount > OBKScanner.MAX_ADDRESSES)
+                    {
+                        continue;
+                    }
+
+                    string key = nic.Id + "|" + network + "|" + maskValue;
+                    if (seen.Add(key) == false)
+                    {
+                        continue;
+                    }
+
+                    string startIp = scannerUInt32ToIPv4(firstHost);
+                    string endIp = scannerUInt32ToIPv4(lastHost);
+                    bool wired = nic.NetworkInterfaceType != NetworkInterfaceType.Wireless80211;
+                    result.Add(new ScannerSubnetChoice
+                    {
+                        StartIp = startIp,
+                        EndIp = endIp,
+                        SortOrder = wired ? 0 : 1,
+                        DisplayText = nic.Name + " (" + nic.NetworkInterfaceType + ", local " + address
+                            + ", /" + prefixLength + "): " + startIp + " - " + endIp,
+                    });
                 }
             }
 
-            return result.Values
-                .OrderBy(s => s.StartIp, StringComparer.Ordinal)
+            return result
+                .OrderBy(s => s.SortOrder)
+                .ThenBy(s => s.DisplayText, StringComparer.Ordinal)
                 .ToList();
+        }
+
+        private static bool isScannerInterfaceType(NetworkInterfaceType type)
+        {
+            return type == NetworkInterfaceType.Ethernet
+                || type == NetworkInterfaceType.FastEthernetFx
+                || type == NetworkInterfaceType.FastEthernetT
+                || type == NetworkInterfaceType.GigabitEthernet
+                || type == NetworkInterfaceType.Wireless80211;
+        }
+
+        private static uint scannerIPv4ToUInt32(IPAddress address)
+        {
+            byte[] bytes = address.GetAddressBytes();
+            return ((uint)bytes[0] << 24)
+                | ((uint)bytes[1] << 16)
+                | ((uint)bytes[2] << 8)
+                | bytes[3];
+        }
+
+        private static string scannerUInt32ToIPv4(uint address)
+        {
+            return ((address >> 24) & 0xFF) + "."
+                + ((address >> 16) & 0xFF) + "."
+                + ((address >> 8) & 0xFF) + "."
+                + (address & 0xFF);
+        }
+
+        private static int getPrefixLength(uint mask)
+        {
+            int prefixLength = 0;
+            bool foundZero = false;
+            for (int bit = 31; bit >= 0; bit--)
+            {
+                bool isSet = (mask & (1u << bit)) != 0;
+                if (isSet)
+                {
+                    if (foundZero)
+                    {
+                        return -1;
+                    }
+                    prefixLength++;
+                }
+                else
+                {
+                    foundZero = true;
+                }
+            }
+            return prefixLength;
         }
     }
 }

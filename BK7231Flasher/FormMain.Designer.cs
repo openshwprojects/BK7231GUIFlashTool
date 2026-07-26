@@ -1691,7 +1691,7 @@ namespace BK7231Flasher
 			this.buttonPickSubnet.Name = "buttonPickSubnet";
 			this.buttonPickSubnet.Size = new System.Drawing.Size(84, 23);
 			this.buttonPickSubnet.TabIndex = 21;
-			this.buttonPickSubnet.Text = "Subnet";
+			this.buttonPickSubnet.Text = "Local NIC...";
 			this.buttonPickSubnet.UseVisualStyleBackColor = true;
 			this.buttonPickSubnet.Click += new System.EventHandler(this.buttonPickSubnet_Click);
 			// 
@@ -1729,7 +1729,7 @@ namespace BK7231Flasher
 			this.textBoxEndIP.Name = "textBoxEndIP";
 			this.textBoxEndIP.Size = new System.Drawing.Size(169, 20);
 			this.textBoxEndIP.TabIndex = 3;
-			this.textBoxEndIP.Text = "192.168.0.255";
+			this.textBoxEndIP.Text = "192.168.0.254";
 			this.textBoxEndIP.TextChanged += new System.EventHandler(this.textBoxEndIP_TextChanged);
 			// 
 			// label22
@@ -1747,7 +1747,7 @@ namespace BK7231Flasher
 			this.textBoxStartIP.Name = "textBoxStartIP";
 			this.textBoxStartIP.Size = new System.Drawing.Size(169, 20);
 			this.textBoxStartIP.TabIndex = 1;
-			this.textBoxStartIP.Text = "192.168.0.150";
+			this.textBoxStartIP.Text = "192.168.0.1";
 			this.textBoxStartIP.TextChanged += new System.EventHandler(this.textBoxStartIP_TextChanged);
 			// 
 			// label21
