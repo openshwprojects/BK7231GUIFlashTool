@@ -638,6 +638,7 @@ namespace BK7231Flasher
                     arg.cb_progress(ofs - adr, end - adr);
                 }
                 string hexString = string.Format("/api/flash/{0:X}-{1:X}", ofs, nowLen);
+                bool chunkComplete = false;
                 for(int tr = 0; tr < maxAttempts; tr++)
                 {
                     //byte [] flash = sendGetInternal("/api/flash/1e3000-2000");
@@ -648,7 +649,13 @@ namespace BK7231Flasher
                         continue;
                     }
                     bw.Write(flash, 0, nowLen);
+                    chunkComplete = true;
                     break;
+                }
+                if (chunkComplete == false)
+                {
+                    arg.cb?.Invoke(null, 0);
+                    return;
                 }
             }
             if (arg.cb != null)
