@@ -2173,7 +2173,7 @@ namespace BK7231Flasher
         }
         private void onMassBackupFinish(int totalErrors, int totalRetries)
         {
-            onMassBackupProgress("Ready! "+totalErrors+" errors, " + totalRetries + " retries.");
+            onMassBackupProgress("Complete. Errors: " + totalErrors + "; retries: " + totalRetries + ".");
             Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {
                 buttonStartMassBackup.Enabled = true;
             });
@@ -2181,7 +2181,7 @@ namespace BK7231Flasher
         private void onMassBackupProgress(string txt)
         {
             Singleton.labelMassBackupProgress.Invoke((MethodInvoker)delegate {
-                labelMassBackupProgress.Text = txt;
+                labelMassBackupProgress.Text = "Status: " + txt;
             });
         }
 

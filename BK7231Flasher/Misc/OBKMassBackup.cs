@@ -25,7 +25,7 @@ namespace BK7231Flasher
     public delegate void MassBackupFinished(int totalErrors, int totalRetries);
     class OBKMassBackup
     {
-        public static string DEFAULT_BASE_DIR = "massNetworkBackups";
+        public static string DEFAULT_BASE_DIR = Path.Combine("backups", "massNetworkBackups");
         private const int COMMAND_WAIT_TIMEOUT_MS = 10000;
         private const int FLASH_WAIT_TIMEOUT_MS = 60000;
 
@@ -221,8 +221,11 @@ namespace BK7231Flasher
                 }
                 if (expectedLength <= 0)
                 {
-                    stat_totalErrors++;
-                    faileds++;
+                    downloadTarget = mode == 0
+                        ? DownloadTarget.OBKConfig
+                        : DownloadTarget.TuyaConfig;
+                    onProgress?.Invoke("Skipping " + downloadTarget + " for " + deviceDirName
+                        + ": this backup is not supported for " + dev.getChipSet() + ".");
                     continue;
                 }
                 for (int attempt = 0; attempt < 8; attempt++)

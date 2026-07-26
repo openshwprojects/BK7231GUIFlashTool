@@ -150,33 +150,25 @@ namespace BK7231Flasher
         internal BKType getBKType()
         {
             string cs = getChipSet();
-            switch(cs)
+            if (Enum.TryParse(cs, true, out BKType type)
+                && type != BKType.Detect
+                && type != BKType.Invalid)
             {
-                case "BK7231T":
-                    return BKType.BK7231T;
-                case "BK7231U":
-                    return BKType.BK7231U;
-                case "BK7231N":
-                    return BKType.BK7231N;
-                case "BK7236":
-                    return BKType.BK7236;
-                case "BK7238":
-                    return BKType.BK7238;
-                case "BK7252":
-                    return BKType.BK7252;
-                case "BK7252N":
-                    return BKType.BK7252N;
-                case "BK7258":
-                    return BKType.BK7258;
-                case "RTL8720D":
-                    return BKType.RTL8720D;
-                case "LN882H":
-                    return BKType.LN882H;
-                case "BL602":
-                    return BKType.BL602;
-                default:
-                    return BKType.Invalid;
+                return type;
             }
+
+            string platformType = TuyaModules.getTypeForPlatformName(cs);
+            if (platformType == nameof(BKType.Invalid))
+            {
+                platformType = TuyaModules.getTypeForPlatformName(cs.ToLowerInvariant());
+            }
+            if (Enum.TryParse(platformType, true, out type)
+                && type != BKType.Detect
+                && type != BKType.Invalid)
+            {
+                return type;
+            }
+            return BKType.Invalid;
         }
 
         private byte []sendGetInternal(string path)

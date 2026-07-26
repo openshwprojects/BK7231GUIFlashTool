@@ -75,7 +75,7 @@ namespace BK7231Flasher
             scan.setAttemptsCount(attemptsCount);
             scan.setMaxWorkers(workersCount);
             scan.startScan();
-            buttonStartScan.Text = "Stop";
+            buttonStartScan.Text = "Stop scan";
         }
 
         private void onScannerProgress(int done, int total, string comment)
@@ -88,7 +88,7 @@ namespace BK7231Flasher
                 });
                 return;
             }
-            labelScanState.Text = "Scan progress: " + done + "/" + total + " requests sent. "+comment;
+            labelScanState.Text = "Scan status: " + done + "/" + total + " requests sent. " + comment;
         }
 
         private void onScannerFinished(bool bInterrupted)
@@ -102,7 +102,7 @@ namespace BK7231Flasher
                 return;
             }
             scan = null;
-            buttonStartScan.Text = "Start";
+            buttonStartScan.Text = "Start scan";
         }
 
         private void onScannerFound(OBKDeviceAPI api)
@@ -136,6 +136,7 @@ namespace BK7231Flasher
                 listView1.Items.Add(new ListViewItem());
             }
             updateItem(exi, listView1.Items[exi.getUserIndex()]);
+            resizeScannerBuildColumn();
         }
 
         private OBKDeviceAPI findDeviceForIP(string s)
@@ -161,6 +162,23 @@ namespace BK7231Flasher
                     scan.setMaxWorkers(cnt);
                 }
             }
+        }
+        private void listView1_Resize(object sender, EventArgs e)
+        {
+            resizeScannerBuildColumn();
+        }
+        private void resizeScannerBuildColumn()
+        {
+            int fixedWidth = columnID.Width + columnHeader1.Width + columnHeader2.Width
+                + columnHeader3.Width + columnHeader4.Width;
+            int availableWidth = listView1.ClientSize.Width - fixedWidth - 2;
+            if (listView1.Items.Count > 0
+                && listView1.Items[listView1.Items.Count - 1].Bounds.Bottom
+                    > listView1.ClientSize.Height)
+            {
+                availableWidth -= SystemInformation.VerticalScrollBarWidth;
+            }
+            columnHeader5.Width = Math.Max(100, availableWidth);
         }
         void updateItem(OBKDeviceAPI dev, ListViewItem it)
         {
@@ -307,8 +325,8 @@ namespace BK7231Flasher
                         StartIp = startIp,
                         EndIp = endIp,
                         SortOrder = wired ? 0 : 1,
-                        DisplayText = nic.Name + " (" + nic.NetworkInterfaceType + ", local " + address
-                            + ", /" + prefixLength + "): " + startIp + " - " + endIp,
+                        DisplayText = nic.Name + " — " + address + "/" + prefixLength
+                            + " (scan " + startIp + "–" + endIp + ")",
                     });
                 }
             }
