@@ -191,6 +191,10 @@ namespace BK7231Flasher
             }
 
             settings = MySettings.CreateAndLoad("settings.cfg");
+            if (settings.RemoveKey("ScannerPass"))
+            {
+                settings.Save("settings.cfg");
+            }
             List<string> recentIPs = settings.getRecentIPs();
             for(int i = recentIPs.Count-1; i >= 0; i--)
             {
@@ -301,10 +305,6 @@ namespace BK7231Flasher
             if (settings.HasKey("bAllowBackupRestore"))
             {
                 checkBoxAllowBackup.Checked = settings.FindKeyValueBool("bAllowBackupRestore");
-            }
-            if (settings.HasKey("ScannerPass"))
-            {
-                textBoxIPScannerPass.Text = settings.FindKeyValue("ScannerPass","admin");
             }
             if (settings.HasKey("ScannerUser"))
             {
@@ -2188,11 +2188,6 @@ namespace BK7231Flasher
         private void textBoxIPScannerUser_TextChanged(object sender, EventArgs e)
         {
             setSettingsKeyAndSave("ScannerUser", textBoxIPScannerUser.Text);
-        }
-
-        private void textBoxIPScannerPass_TextChanged(object sender, EventArgs e)
-        {
-            setSettingsKeyAndSave("ScannerPass", textBoxIPScannerPass.Text);
         }
 
         private void textBoxStartIP_TextChanged(object sender, EventArgs e)

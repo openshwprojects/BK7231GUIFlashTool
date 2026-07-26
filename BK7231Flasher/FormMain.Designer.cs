@@ -1538,7 +1538,7 @@ namespace BK7231Flasher
 			this.textBoxIPScannerPass.Name = "textBoxIPScannerPass";
 			this.textBoxIPScannerPass.Size = new System.Drawing.Size(151, 20);
 			this.textBoxIPScannerPass.TabIndex = 19;
-			this.textBoxIPScannerPass.TextChanged += new System.EventHandler(this.textBoxIPScannerPass_TextChanged);
+			this.textBoxIPScannerPass.UseSystemPasswordChar = true;
 			// 
 			// label31
 			// 
