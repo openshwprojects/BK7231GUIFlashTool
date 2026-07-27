@@ -113,6 +113,8 @@
             this.Controls.Add(this.label3);
             this.Controls.Add(this.textBoxCh1);
             this.Controls.Add(this.textBoxCh0);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
             this.Name = "FormCustom";
             this.Text = "FormCustom";
             this.Load += new System.EventHandler(this.FormCustom_Load);
