@@ -1524,11 +1524,11 @@ namespace BK7231Flasher
 			// buttonIPScannerOpenDir
 			// 
 			this.buttonIPScannerOpenDir.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-			this.buttonIPScannerOpenDir.Location = new System.Drawing.Point(14, 442);
+			this.buttonIPScannerOpenDir.Location = new System.Drawing.Point(176, 412);
 			this.buttonIPScannerOpenDir.Name = "buttonIPScannerOpenDir";
 			this.buttonIPScannerOpenDir.Size = new System.Drawing.Size(156, 23);
 			this.buttonIPScannerOpenDir.TabIndex = 20;
-			this.buttonIPScannerOpenDir.Text = "Open backups dir";
+			this.buttonIPScannerOpenDir.Text = "Open backup folder";
 			this.buttonIPScannerOpenDir.UseVisualStyleBackColor = true;
 			this.buttonIPScannerOpenDir.Click += new System.EventHandler(this.buttonIPScannerOpenDir_Click);
 			// 
@@ -1538,7 +1538,7 @@ namespace BK7231Flasher
 			this.textBoxIPScannerPass.Name = "textBoxIPScannerPass";
 			this.textBoxIPScannerPass.Size = new System.Drawing.Size(151, 20);
 			this.textBoxIPScannerPass.TabIndex = 19;
-			this.textBoxIPScannerPass.TextChanged += new System.EventHandler(this.textBoxIPScannerPass_TextChanged);
+			this.textBoxIPScannerPass.UseSystemPasswordChar = true;
 			// 
 			// label31
 			// 
@@ -1562,26 +1562,26 @@ namespace BK7231Flasher
 			this.label30.AutoSize = true;
 			this.label30.Location = new System.Drawing.Point(11, 73);
 			this.label30.Name = "label30";
-			this.label30.Size = new System.Drawing.Size(60, 13);
+			this.label30.Size = new System.Drawing.Size(58, 13);
 			this.label30.TabIndex = 16;
-			this.label30.Text = "UserName:";
+			this.label30.Text = "Username:";
 			// 
 			// textBoxBoxScannerRetries
 			// 
-			this.textBoxBoxScannerRetries.Location = new System.Drawing.Point(612, 42);
+			this.textBoxBoxScannerRetries.Location = new System.Drawing.Point(623, 70);
 			this.textBoxBoxScannerRetries.Name = "textBoxBoxScannerRetries";
-			this.textBoxBoxScannerRetries.Size = new System.Drawing.Size(44, 20);
+			this.textBoxBoxScannerRetries.Size = new System.Drawing.Size(33, 20);
 			this.textBoxBoxScannerRetries.TabIndex = 15;
-			this.textBoxBoxScannerRetries.Text = "5";
+			this.textBoxBoxScannerRetries.Text = "1";
 			// 
 			// label28
 			// 
 			this.label28.AutoSize = true;
-			this.label28.Location = new System.Drawing.Point(563, 45);
+			this.label28.Location = new System.Drawing.Point(563, 73);
 			this.label28.Name = "label28";
-			this.label28.Size = new System.Drawing.Size(39, 13);
+			this.label28.Size = new System.Drawing.Size(54, 13);
 			this.label28.TabIndex = 14;
-			this.label28.Text = "Loops:";
+			this.label28.Text = "Attempts:";
 			// 
 			// label29
 			// 
@@ -1589,19 +1589,19 @@ namespace BK7231Flasher
 			this.label29.AutoSize = true;
 			this.label29.Location = new System.Drawing.Point(12, 396);
 			this.label29.Name = "label29";
-			this.label29.Size = new System.Drawing.Size(353, 13);
+			this.label29.Size = new System.Drawing.Size(425, 13);
 			this.label29.TabIndex = 13;
-			this.label29.Text = "Here you can automatically download CFG backup for all devices from list";
+			this.label29.Text = "Configuration backups: Save configuration data for all detected devices.";
 			// 
 			// labelMassBackupProgress
 			// 
 			this.labelMassBackupProgress.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
 			this.labelMassBackupProgress.AutoSize = true;
-			this.labelMassBackupProgress.Location = new System.Drawing.Point(176, 412);
+			this.labelMassBackupProgress.Location = new System.Drawing.Point(340, 417);
 			this.labelMassBackupProgress.Name = "labelMassBackupProgress";
-			this.labelMassBackupProgress.Size = new System.Drawing.Size(76, 13);
+			this.labelMassBackupProgress.Size = new System.Drawing.Size(59, 13);
 			this.labelMassBackupProgress.TabIndex = 11;
-			this.labelMassBackupProgress.Text = "Doing nothing.";
+			this.labelMassBackupProgress.Text = "Status: Idle";
 			// 
 			// buttonStartMassBackup
 			// 
@@ -1610,7 +1610,7 @@ namespace BK7231Flasher
 			this.buttonStartMassBackup.Name = "buttonStartMassBackup";
 			this.buttonStartMassBackup.Size = new System.Drawing.Size(156, 23);
 			this.buttonStartMassBackup.TabIndex = 10;
-			this.buttonStartMassBackup.Text = "Start mass CFG backup";
+			this.buttonStartMassBackup.Text = "Back up configurations";
 			this.buttonStartMassBackup.UseVisualStyleBackColor = true;
 			this.buttonStartMassBackup.Click += new System.EventHandler(this.buttonStartMassBackup_Click);
 			// 
@@ -1619,19 +1619,20 @@ namespace BK7231Flasher
 			this.labelScanState.AutoSize = true;
 			this.labelScanState.Location = new System.Drawing.Point(12, 101);
 			this.labelScanState.Name = "labelScanState";
-			this.labelScanState.Size = new System.Drawing.Size(61, 13);
+			this.labelScanState.Size = new System.Drawing.Size(87, 13);
 			this.labelScanState.TabIndex = 9;
-			this.labelScanState.Text = "Scan state:";
+			this.labelScanState.Text = "Scan status: Idle";
 			// 
 			// label24
 			// 
 			this.label24.AutoSize = true;
-			this.label24.Location = new System.Drawing.Point(8, 12);
+			this.label24.Location = new System.Drawing.Point(8, 6);
 			this.label24.Name = "label24";
-			this.label24.Size = new System.Drawing.Size(747, 13);
+			this.label24.Size = new System.Drawing.Size(638, 26);
 			this.label24.TabIndex = 8;
-			this.label24.Text = "Here you can scan your LAN for OpenBeken and Tasmota devices. Scanner will first " +
-    "do a quick, unprecise loop and then some slower, more precise checks.\r\n";
+			this.label24.Text = "Discover OpenBeken and Tasmota devices on your local network.\r\nStarting a new sc" +
+    "an clears the current results. Additional attempts retry addresses that did not" +
+    " respond.";
 			// 
 			// listView1
 			// 
@@ -1647,67 +1648,68 @@ namespace BK7231Flasher
             this.columnHeader5});
 			this.listView1.FullRowSelect = true;
 			this.listView1.HideSelection = false;
-			this.listView1.Location = new System.Drawing.Point(11, 117);
+			this.listView1.Location = new System.Drawing.Point(11, 121);
 			this.listView1.Name = "listView1";
-			this.listView1.Size = new System.Drawing.Size(656, 272);
+			this.listView1.Size = new System.Drawing.Size(880, 268);
 			this.listView1.TabIndex = 7;
 			this.listView1.UseCompatibleStateImageBehavior = false;
 			this.listView1.View = System.Windows.Forms.View.Details;
 			this.listView1.MouseClick += new System.Windows.Forms.MouseEventHandler(this.listView1_MouseClick);
+			this.listView1.Resize += new System.EventHandler(this.listView1_Resize);
 			// 
 			// columnID
 			// 
-			this.columnID.Text = "Idx";
+			this.columnID.Text = "#";
 			this.columnID.Width = 36;
 			// 
 			// columnHeader1
 			// 
 			this.columnHeader1.Text = "IP";
-			this.columnHeader1.Width = 100;
+			this.columnHeader1.Width = 110;
 			// 
 			// columnHeader2
 			// 
-			this.columnHeader2.Text = "Short Name";
-			this.columnHeader2.Width = 120;
+			this.columnHeader2.Text = "Device name";
+			this.columnHeader2.Width = 200;
 			// 
 			// columnHeader3
 			// 
 			this.columnHeader3.Text = "Chipset";
-			this.columnHeader3.Width = 78;
+			this.columnHeader3.Width = 90;
 			// 
 			// columnHeader4
 			// 
 			this.columnHeader4.Text = "MAC";
-			this.columnHeader4.Width = 111;
+			this.columnHeader4.Width = 125;
 			// 
 			// columnHeader5
 			// 
 			this.columnHeader5.Text = "Build";
-			this.columnHeader5.Width = 122;
+			this.columnHeader5.Width = 313;
 			// 
 			// buttonPickSubnet
 			// 
-			this.buttonPickSubnet.Location = new System.Drawing.Point(807, 40);
+			this.buttonPickSubnet.Location = new System.Drawing.Point(458, 40);
 			this.buttonPickSubnet.Name = "buttonPickSubnet";
-			this.buttonPickSubnet.Size = new System.Drawing.Size(84, 23);
+			this.buttonPickSubnet.Size = new System.Drawing.Size(117, 23);
 			this.buttonPickSubnet.TabIndex = 21;
-			this.buttonPickSubnet.Text = "Subnet";
+			this.buttonPickSubnet.Text = "Select subnet...";
 			this.buttonPickSubnet.UseVisualStyleBackColor = true;
 			this.buttonPickSubnet.Click += new System.EventHandler(this.buttonPickSubnet_Click);
 			// 
 			// buttonStartScan
 			// 
-			this.buttonStartScan.Location = new System.Drawing.Point(662, 40);
+			this.buttonStartScan.Location = new System.Drawing.Point(752, 70);
 			this.buttonStartScan.Name = "buttonStartScan";
 			this.buttonStartScan.Size = new System.Drawing.Size(139, 23);
 			this.buttonStartScan.TabIndex = 6;
-			this.buttonStartScan.Text = "Start";
+			this.buttonStartScan.Text = "Start scan";
 			this.buttonStartScan.UseVisualStyleBackColor = true;
 			this.buttonStartScan.Click += new System.EventHandler(this.buttonStartScan_Click);
 			// 
 			// textBoxScannerThreads
 			// 
-			this.textBoxScannerThreads.Location = new System.Drawing.Point(513, 42);
+			this.textBoxScannerThreads.Location = new System.Drawing.Point(513, 70);
 			this.textBoxScannerThreads.Name = "textBoxScannerThreads";
 			this.textBoxScannerThreads.Size = new System.Drawing.Size(44, 20);
 			this.textBoxScannerThreads.TabIndex = 5;
@@ -1717,7 +1719,7 @@ namespace BK7231Flasher
 			// label23
 			// 
 			this.label23.AutoSize = true;
-			this.label23.Location = new System.Drawing.Point(458, 45);
+			this.label23.Location = new System.Drawing.Point(458, 73);
 			this.label23.Name = "label23";
 			this.label23.Size = new System.Drawing.Size(49, 13);
 			this.label23.TabIndex = 4;
@@ -1729,7 +1731,7 @@ namespace BK7231Flasher
 			this.textBoxEndIP.Name = "textBoxEndIP";
 			this.textBoxEndIP.Size = new System.Drawing.Size(169, 20);
 			this.textBoxEndIP.TabIndex = 3;
-			this.textBoxEndIP.Text = "192.168.0.255";
+			this.textBoxEndIP.Text = "192.168.0.254";
 			this.textBoxEndIP.TextChanged += new System.EventHandler(this.textBoxEndIP_TextChanged);
 			// 
 			// label22
@@ -1747,7 +1749,7 @@ namespace BK7231Flasher
 			this.textBoxStartIP.Name = "textBoxStartIP";
 			this.textBoxStartIP.Size = new System.Drawing.Size(169, 20);
 			this.textBoxStartIP.TabIndex = 1;
-			this.textBoxStartIP.Text = "192.168.0.150";
+			this.textBoxStartIP.Text = "192.168.0.1";
 			this.textBoxStartIP.TextChanged += new System.EventHandler(this.textBoxStartIP_TextChanged);
 			// 
 			// label21

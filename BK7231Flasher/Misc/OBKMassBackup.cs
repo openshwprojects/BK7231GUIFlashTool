@@ -25,7 +25,9 @@ namespace BK7231Flasher
     public delegate void MassBackupFinished(int totalErrors, int totalRetries);
     class OBKMassBackup
     {
-        public static string DEFAULT_BASE_DIR = "massNetworkBackups";
+        public static string DEFAULT_BASE_DIR = Path.Combine("backups", "massNetworkBackups");
+        private const int COMMAND_WAIT_TIMEOUT_MS = 10000;
+        private const int FLASH_WAIT_TIMEOUT_MS = 60000;
 
         List<OBKDeviceAPI> devices = new List<OBKDeviceAPI>();
         Thread thread;
@@ -34,6 +36,8 @@ namespace BK7231Flasher
         string deviceDirName = "";
         MassBackupProgressUpdate onProgress;
         MassBackupFinished onFinished;
+        readonly ManualResetEventSlim downloadCompleted = new ManualResetEventSlim(false);
+        int activeDownloadGeneration;
 
         public void setOnProgress(MassBackupProgressUpdate cb)
         {
@@ -52,18 +56,38 @@ namespace BK7231Flasher
             thread = new Thread(workerThread);
             thread.Start();
         }
+        int beginDownload()
+        {
+            int generation = Interlocked.Increment(ref activeDownloadGeneration);
+            downloadCompleted.Reset();
+            downloadState = DownloadState.Pending;
+            return generation;
+        }
+        bool waitForDownload(int generation, int timeoutMS)
+        {
+            if (downloadCompleted.Wait(timeoutMS))
+            {
+                return downloadState == DownloadState.Ok;
+            }
+            if (Interlocked.CompareExchange(
+                ref activeDownloadGeneration, generation + 1, generation) == generation)
+            {
+                downloadState = DownloadState.Error;
+                onProgress?.Invoke("Timed out downloading " + downloadTarget
+                    + " for " + deviceDirName + ".");
+            }
+            return false;
+        }
         void processDeviceTASCommand(int index, string cmd, DownloadTarget dt)
         {
             OBKDeviceAPI dev = devices[index];
             downloadTarget = dt;
             for (int at = 0; at < 5; at++)
             {
-                downloadState = DownloadState.Pending;
-                dev.sendCmnd(cmd, onTasReplyTemplate);
-                while (downloadState == DownloadState.Pending)
-                {
-                    Thread.Sleep(100);
-                }
+                int generation = beginDownload();
+                dev.sendCmnd(cmd, (self, reply, replyText) =>
+                    onTasReplyTemplate(generation, self, reply, replyText));
+                waitForDownload(generation, COMMAND_WAIT_TIMEOUT_MS);
                 if (downloadState == DownloadState.Ok)
                 {
                     break;
@@ -82,40 +106,94 @@ namespace BK7231Flasher
             processDeviceTASCommand(index, "Status 0", DownloadTarget.TasmotaStatus0);
             processDeviceTASCommand(index, "Status 1", DownloadTarget.TasmotaStatus1);
         }
-        private void onTasReplyTemplate(OBKDeviceAPI self, JsonObject reply, string replyText)
+        private void onTasReplyTemplate(
+            int generation,
+            OBKDeviceAPI self,
+            JsonObject reply,
+            string replyText)
         {
-            if (reply != null)
+            if (generation != Volatile.Read(ref activeDownloadGeneration))
             {
-                downloadState = DownloadState.Ok;
-                string fileName = deviceDirName + "_" + downloadTarget.ToString() + ".txt";
-                File.WriteAllText(Path.Combine(deviceDirectory, fileName), replyText);
+                return;
             }
-            else
+            try
+            {
+                if (reply != null)
+                {
+                    string fileName = deviceDirName + "_" + downloadTarget.ToString() + ".txt";
+                    File.WriteAllText(Path.Combine(deviceDirectory, fileName), replyText);
+                    downloadState = DownloadState.Ok;
+                }
+                else
+                {
+                    downloadState = DownloadState.Error;
+                }
+            }
+            catch (Exception ex)
             {
                 downloadState = DownloadState.Error;
+                Console.WriteLine("Failed to save " + downloadTarget + ": " + ex.Message);
+            }
+            finally
+            {
+                if (generation == Volatile.Read(ref activeDownloadGeneration))
+                {
+                    downloadCompleted.Set();
+                }
             }
         }
         int stat_totalErrors;
         int stat_totalRetriesDone;
         DownloadState downloadState;
         DownloadTarget downloadTarget;
-        private void onGenericDownloadReady(byte[] data, int dataLen)
+        private void onGenericDownloadReady(
+            int generation,
+            int expectedLength,
+            byte[] data,
+            int dataLen)
         {
-            if(data == null || dataLen == 0)
+            if (generation != Volatile.Read(ref activeDownloadGeneration))
+            {
+                return;
+            }
+            try
+            {
+                if (data == null
+                    || dataLen != expectedLength
+                    || data.Length != expectedLength)
+                {
+                    downloadState = DownloadState.Error;
+                    Console.WriteLine("Device: " + deviceDirName + ", mode "
+                        + downloadTarget + ", incomplete download!");
+                }
+                else
+                {
+                    string fileName = deviceDirName + "_" + downloadTarget.ToString() + ".bin";
+                    Console.WriteLine("Device: " + deviceDirName + ", mode "
+                        + downloadTarget + ", saving result to file...");
+                    File.WriteAllBytes(Path.Combine(deviceDirectory,fileName), data);
+                    downloadState = DownloadState.Ok;
+                }
+            }
+            catch (Exception ex)
             {
                 downloadState = DownloadState.Error;
-                Console.WriteLine("Device: " + deviceDirName + ", mode " + downloadTarget + ", error!");
+                Console.WriteLine("Failed to save " + downloadTarget + ": " + ex.Message);
             }
-            else
+            finally
             {
-                downloadState = DownloadState.Ok;
-                string fileName = deviceDirName + "_" + downloadTarget.ToString() + ".bin";
-                Console.WriteLine("Device: " + deviceDirName + ", mode " + downloadTarget + ", saving result to file...");
-                File.WriteAllBytes(Path.Combine(deviceDirectory,fileName), data);
+                if (generation == Volatile.Read(ref activeDownloadGeneration))
+                {
+                    downloadCompleted.Set();
+                }
             }
         }
-        private void onGenericProgress(int done, int total)
+        private void onGenericProgress(int generation, int done, int total)
         {
+            if (generation != Volatile.Read(ref activeDownloadGeneration))
+            {
+                return;
+            }
             string stat = "Downloading " + downloadTarget.ToString() + " for " + deviceDirName
                 + " progress " + done + "/" + total;
             stat += ", total fatal download errors so far: " + stat_totalErrors + ", retries " + stat_totalRetriesDone;
@@ -131,23 +209,46 @@ namespace BK7231Flasher
             OBKDeviceAPI dev = devices[index];
             for (int mode = 0; mode < 2; mode++)
             {
+                int expectedLength;
+                if (mode == 0)
+                {
+                    OBKFlashLayout.getConfigLocation(dev.getBKType(), out int sectors);
+                    expectedLength = sectors * BK7231Flasher.SECTOR_SIZE;
+                }
+                else
+                {
+                    expectedLength = TuyaConfig.getMagicSize(dev.getBKType());
+                }
+                if (expectedLength <= 0)
+                {
+                    downloadTarget = mode == 0
+                        ? DownloadTarget.OBKConfig
+                        : DownloadTarget.TuyaConfig;
+                    onProgress?.Invoke("Skipping " + downloadTarget + " for " + deviceDirName
+                        + ": this backup is not supported for " + dev.getChipSet() + ".");
+                    continue;
+                }
                 for (int attempt = 0; attempt < 8; attempt++)
                 {
-                    downloadState = DownloadState.Pending;
+                    downloadTarget = mode == 0
+                        ? DownloadTarget.OBKConfig
+                        : DownloadTarget.TuyaConfig;
+                    int generation = beginDownload();
                     if(mode == 0)
                     {
-                        downloadTarget = DownloadTarget.OBKConfig;
-                        dev.sendGetFlashChunk_OBKConfig(onGenericDownloadReady, onGenericProgress);
+                        dev.sendGetFlashChunk_OBKConfig(
+                            (data, dataLen) => onGenericDownloadReady(
+                                generation, expectedLength, data, dataLen),
+                            (done, total) => onGenericProgress(generation, done, total));
                     }
                     else
                     {
-                        downloadTarget = DownloadTarget.TuyaConfig;
-                        dev.sendGetFlashChunk_TuyaCFGFromOBKDevice(onGenericDownloadReady, onGenericProgress);
+                        dev.sendGetFlashChunk_TuyaCFGFromOBKDevice(
+                            (data, dataLen) => onGenericDownloadReady(
+                                generation, expectedLength, data, dataLen),
+                            (done, total) => onGenericProgress(generation, done, total));
                     }
-                    while (downloadState == DownloadState.Pending)
-                    {
-                        Thread.Sleep(100);
-                    }
+                    waitForDownload(generation, FLASH_WAIT_TIMEOUT_MS);
                     if (downloadState == DownloadState.Ok)
                     {
                         break;

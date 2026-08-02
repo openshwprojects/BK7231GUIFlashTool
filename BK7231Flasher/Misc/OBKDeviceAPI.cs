@@ -21,9 +21,9 @@ namespace BK7231Flasher
         JsonObject info;
         JsonObject status;
         JsonObject statusSTS;
-        bool bGetInfoFailed;
+        volatile bool bGetInfoFailed;
         bool bTasmota;
-        bool bGetInfoSuccess = false;
+        volatile bool bGetInfoSuccess = false;
         int powerCount;
         int webRequestTimeOut = 3000;
         string userName, password;
@@ -150,33 +150,25 @@ namespace BK7231Flasher
         internal BKType getBKType()
         {
             string cs = getChipSet();
-            switch(cs)
+            if (Enum.TryParse(cs, true, out BKType type)
+                && type != BKType.Detect
+                && type != BKType.Invalid)
             {
-                case "BK7231T":
-                    return BKType.BK7231T;
-                case "BK7231U":
-                    return BKType.BK7231U;
-                case "BK7231N":
-                    return BKType.BK7231N;
-                case "BK7236":
-                    return BKType.BK7236;
-                case "BK7238":
-                    return BKType.BK7238;
-                case "BK7252":
-                    return BKType.BK7252;
-                case "BK7252N":
-                    return BKType.BK7252N;
-                case "BK7258":
-                    return BKType.BK7258;
-                case "RTL8720D":
-                    return BKType.RTL8720D;
-                case "LN882H":
-                    return BKType.LN882H;
-                case "BL602":
-                    return BKType.BL602;
-                default:
-                    return BKType.Invalid;
+                return type;
             }
+
+            string platformType = TuyaModules.getTypeForPlatformName(cs);
+            if (platformType == nameof(BKType.Invalid))
+            {
+                platformType = TuyaModules.getTypeForPlatformName(cs.ToLowerInvariant());
+            }
+            if (Enum.TryParse(platformType, true, out type)
+                && type != BKType.Detect
+                && type != BKType.Invalid)
+            {
+                return type;
+            }
+            return BKType.Invalid;
         }
 
         private byte []sendGetInternal(string path)
@@ -187,6 +179,9 @@ namespace BK7231Flasher
                 string fullRequestText = "http://" + adr + path;
                 WebRequest request = WebRequest.Create(fullRequestText);
                 request.Timeout = webRequestTimeOut;
+                HttpWebRequest httpRequest = request as HttpWebRequest;
+                if (httpRequest != null)
+                    httpRequest.ReadWriteTimeout = webRequestTimeOut;
                 if (!ToggleAllowUnsafeHeaderParsing(true))
                 {
                     // Couldn't set flag. Log the fact, throw an exception or whatever.
@@ -454,7 +449,6 @@ namespace BK7231Flasher
                 {
                     jsonText = jsonText.Substring(0, lastBraceIndex + 1);
                 }
-                File.WriteAllText("lastHTTPJSONtext.txt", jsonText);
                 // RTL8710B returns 0. for %f printf
                 jsonText = jsonText.Replace("0.,", "0.0,");
                 jsonText = jsonText.Replace("0.}", "0.0}");
@@ -572,12 +566,12 @@ namespace BK7231Flasher
                 }
                 if (getSDK().ToLower() == "obk")
                 {
-                    this.bTasmota = true;
+                    this.bTasmota = false;
                     for (int att = 0; att < 4; att++)
                     {
                         JsonObject jsonObject = sendGenericJSONGet("/api/info", out jsonText);
                         this.info = jsonObject;
-                        if (this.info == null)
+                        if (this.info != null)
                         {
                             break;
                         }
@@ -596,6 +590,23 @@ namespace BK7231Flasher
             if (cb != null)
             {
                 cb(this);
+            }
+        }
+        private void ThreadSendGetInfoSafe(object ocb)
+        {
+            try
+            {
+                ThreadSendGetInfo(ocb);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to get device info: " + ex.Message);
+                if (bGetInfoSuccess == false && bGetInfoFailed == false)
+                {
+                    bGetInfoFailed = true;
+                    ProcessJSONReply cb = ocb as ProcessJSONReply;
+                    cb?.Invoke(this);
+                }
             }
         }
         public void ThreadSendGetFlashChunk(object obj)
@@ -619,6 +630,7 @@ namespace BK7231Flasher
                     arg.cb_progress(ofs - adr, end - adr);
                 }
                 string hexString = string.Format("/api/flash/{0:X}-{1:X}", ofs, nowLen);
+                bool chunkComplete = false;
                 for(int tr = 0; tr < maxAttempts; tr++)
                 {
                     //byte [] flash = sendGetInternal("/api/flash/1e3000-2000");
@@ -629,7 +641,13 @@ namespace BK7231Flasher
                         continue;
                     }
                     bw.Write(flash, 0, nowLen);
+                    chunkComplete = true;
                     break;
+                }
+                if (chunkComplete == false)
+                {
+                    arg.cb?.Invoke(null, 0);
+                    return;
                 }
             }
             if (arg.cb != null)
@@ -646,7 +664,7 @@ namespace BK7231Flasher
         }
         public void sendGetInfo(ProcessJSONReply cb)
         {
-            startThread(ThreadSendGetInfo, cb);
+            startThread(ThreadSendGetInfoSafe, cb);
         }
         public void sendGetFlashChunk(ProcessBytesReply cb, ProcessProgress cb_progress, int adr, int size)
         {

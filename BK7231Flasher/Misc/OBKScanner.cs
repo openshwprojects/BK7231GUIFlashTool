@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -11,13 +12,17 @@ namespace BK7231Flasher
 
     public class OBKScanner
     {
+        internal const int MAX_WORKERS = 128;
+        internal const int MAX_ATTEMPTS = 20;
+        internal const ulong MAX_ADDRESSES = 65536;
+
         int maxWorkers = 8;
 
 
-        int loopsCount = 2;
+        int attemptsCount = 1;
         string startIP, endIP;
         Thread thread;
-        bool bWantStop;
+        volatile bool bWantStop;
         List<OBKDeviceAPI> workers = new List<OBKDeviceAPI>();
         OBKScannerFoundDevice onDeviceFound;
         OBKScannerFinished onScanFinished;
@@ -48,6 +53,10 @@ namespace BK7231Flasher
         }
         public void setMaxWorkers(int max)
         {
+            if (max < 1 || max > MAX_WORKERS)
+            {
+                throw new ArgumentOutOfRangeException(nameof(max));
+            }
             this.maxWorkers = max;
         }
         public void startScan()
@@ -56,9 +65,13 @@ namespace BK7231Flasher
             thread.Start();
         }
 
-        internal void setLoopsCount(int nct)
+        internal void setAttemptsCount(int count)
         {
-            this.loopsCount = nct;
+            if (count < 1 || count > MAX_ATTEMPTS)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+            this.attemptsCount = count;
         }
 
         internal void setUser(string text)
@@ -79,72 +92,173 @@ namespace BK7231Flasher
         }
         void scanThread()
         {
-            IPAddress startAddress = IPAddress.Parse(startIP);
-            IPAddress endAddress = IPAddress.Parse(endIP);
+            uint start;
+            uint end;
+            string rangeError;
+            if (tryParseRange(startIP, endIP, out start, out end, out rangeError) == false)
+            {
+                callOnProgress(0, 0, rangeError);
+                onScanFinished?.Invoke(true);
+                return;
+            }
 
-            byte[] startBytes = startAddress.GetAddressBytes();
-            byte[] endBytes = endAddress.GetAddressBytes();
+            List<string> addressesToCheck = new List<string>();
+            uint current = start;
+            while (true)
+            {
+                addressesToCheck.Add(uint32ToIPv4(current));
+                if (current == end)
+                {
+                    break;
+                }
+                current++;
+            }
 
-            Array.Reverse(startBytes);
-            Array.Reverse(endBytes);
-            uint start = BitConverter.ToUInt32(startBytes, 0);
-            uint end = BitConverter.ToUInt32(endBytes, 0);
-            int total = (((int)end - (int)start)+1) * loopsCount;
+            int total = addressesToCheck.Count;
             int done = 0;
             callOnProgress(done, total,"Starting scan...");
-            for(int loop = 0; loop < loopsCount; loop++)
+            for (int attempt = 0;
+                attempt < attemptsCount && addressesToCheck.Count > 0 && bWantStop == false;
+                attempt++)
             {
-                uint current = start;
-                while (current <= end)
+                List<string> retryAddresses =
+                    attempt + 1 < attemptsCount ? new List<string>() : null;
+                foreach (string nextIPstr in addressesToCheck)
                 {
                     if (bWantStop)
                     {
                         break;
                     }
-                    OBKDeviceAPI worker = getWorker();
-                    if (worker == null)
+                    OBKDeviceAPI worker;
+                    while ((worker = getWorker(retryAddresses)) == null && bWantStop == false)
                     {
                         Thread.Sleep(100);
-                        continue;
+                    }
+                    if (bWantStop)
+                    {
+                        break;
                     }
                     Thread.Sleep(50);
-                    int scannerTimeOutMS;
-                    if(loopsCount <= 1)
-                    {
-                        scannerTimeOutMS = 5000;
-                    }
-                    else
-                    {
-                        if(loop == 0)
-                        {
-                            scannerTimeOutMS = 2000;
-                        }
-                        else
-                        {
-                            scannerTimeOutMS = 5000 + 500 * loop;
-                        }
-                    }
-                    byte[] bytes = BitConverter.GetBytes(current);
-                    Array.Reverse(bytes);
-                    IPAddress ip = new IPAddress(bytes);
-                    string nextIPstr = ip.ToString();
+                    int scannerTimeOutMS =
+                        attempt == 0 ? 2000 : 5000 + 500 * (attempt - 1);
                     Console.WriteLine("Will try to check " + nextIPstr);
                     worker.clear();
                     worker.setPassword(password);
                     worker.setUser(userName);
-                    worker.setAdr(ip.ToString());
+                    worker.setAdr(nextIPstr);
                     worker.setWebRequestTimeOut(scannerTimeOutMS);
                     worker.sendGetInfo(null);
-                    current++;
                     done++;
-                    callOnProgress(done, total, "Checked "+nextIPstr+"...");
+                    callOnProgress(done, total, "Checked " + nextIPstr + "...");
+                }
+                if (bWantStop == false)
+                {
+                    drainWorkers(retryAddresses);
+                }
+                else
+                {
+                    processCompletedWorkers(null);
+                }
+                if (retryAddresses != null)
+                {
+                    addressesToCheck = retryAddresses;
+                    if (retryAddresses.Count > 0 && bWantStop == false)
+                    {
+                        total += retryAddresses.Count;
+                        callOnProgress(done, total,
+                            "Retrying " + retryAddresses.Count + " address(es)...");
+                    }
                 }
             }
-            callOnProgress(total, total, "All done.");
-            onScanFinished(bWantStop);
+            callOnProgress(done, total, bWantStop ? "Stopped." : "All done.");
+            onScanFinished?.Invoke(bWantStop);
         }
 
-        private OBKDeviceAPI getWorker()
+        internal static bool tryParseRange(string startText, string endText,
+            out uint start, out uint end, out string error)
+        {
+            start = 0;
+            end = 0;
+            error = null;
+            IPAddress address;
+            if (IPAddress.TryParse(startText?.Trim(), out address) == false
+                || address.AddressFamily != AddressFamily.InterNetwork)
+            {
+                error = "Invalid start IPv4 address.";
+                return false;
+            }
+            start = ipv4ToUInt32(address);
+            if (IPAddress.TryParse(endText?.Trim(), out address) == false
+                || address.AddressFamily != AddressFamily.InterNetwork)
+            {
+                error = "Invalid end IPv4 address.";
+                return false;
+            }
+            end = ipv4ToUInt32(address);
+            if (end < start)
+            {
+                error = "End IP must not be before start IP.";
+                return false;
+            }
+            ulong addressCount = (ulong)end - start + 1;
+            if (addressCount > MAX_ADDRESSES)
+            {
+                error = "IP range is too large. The maximum is " + MAX_ADDRESSES + " addresses.";
+                return false;
+            }
+            return true;
+        }
+
+        private static uint ipv4ToUInt32(IPAddress address)
+        {
+            byte[] bytes = address.GetAddressBytes();
+            return ((uint)bytes[0] << 24)
+                | ((uint)bytes[1] << 16)
+                | ((uint)bytes[2] << 8)
+                | bytes[3];
+        }
+
+        private static string uint32ToIPv4(uint address)
+        {
+            return ((address >> 24) & 0xFF) + "."
+                + ((address >> 16) & 0xFF) + "."
+                + ((address >> 8) & 0xFF) + "."
+                + (address & 0xFF);
+        }
+
+        private void drainWorkers(List<string> retryAddresses)
+        {
+            while (bWantStop == false && processCompletedWorkers(retryAddresses))
+            {
+                Thread.Sleep(50);
+            }
+        }
+
+        private bool processCompletedWorkers(List<string> retryAddresses)
+        {
+            bool hasPendingWorkers = false;
+            for (int i = workers.Count - 1; i >= 0; i--)
+            {
+                OBKDeviceAPI worker = workers[i];
+                if (worker.hasBasicInfoReceived())
+                {
+                    processFoundDevice(worker);
+                    workers.RemoveAt(i);
+                }
+                else if (worker.getInfoFailed())
+                {
+                    retryAddresses?.Add(worker.getAdr());
+                    workers.RemoveAt(i);
+                }
+                else
+                {
+                    hasPendingWorkers = true;
+                }
+            }
+            return hasPendingWorkers;
+        }
+
+        private OBKDeviceAPI getWorker(List<string> retryAddresses)
         {
             for(int i = 0; i < workers.Count; i++)
             {
@@ -157,6 +271,7 @@ namespace BK7231Flasher
                 }
                 if (d.getInfoFailed())
                 {
+                    retryAddresses?.Add(d.getAdr());
                     return d;
                 }
             }

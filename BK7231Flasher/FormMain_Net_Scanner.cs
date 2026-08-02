@@ -14,6 +14,7 @@ namespace BK7231Flasher
             public string DisplayText { get; set; }
             public string StartIp { get; set; }
             public string EndIp { get; set; }
+            public int SortOrder { get; set; }
         }
 
         OBKScanner scan;
@@ -27,6 +28,11 @@ namespace BK7231Flasher
                 scan.requestStop();
             }
         }
+        private void clearScannerResults()
+        {
+            founds.Clear();
+            listView1.Items.Clear();
+        }
         private void startOrStopScannerThread()
         {
             if (scan != null)
@@ -35,44 +41,41 @@ namespace BK7231Flasher
                 scan.requestStop();
                 return;
             }
-            IPAddress tmp;
-            if(IPAddress.TryParse(textBoxStartIP.Text, out tmp) == false)
+            uint startAddress;
+            uint endAddress;
+            string rangeError;
+            if (OBKScanner.tryParseRange(textBoxStartIP.Text, textBoxEndIP.Text,
+                out startAddress, out endAddress, out rangeError) == false)
             {
-                MessageBox.Show("Invalid start IP");
+                MessageBox.Show(rangeError);
                 return;
             }
-            if (IPAddress.TryParse(textBoxEndIP.Text, out tmp) == false)
+            int attemptsCount;
+            if (int.TryParse(textBoxBoxScannerRetries.Text, out attemptsCount) == false
+                || attemptsCount < 1 || attemptsCount > OBKScanner.MAX_ATTEMPTS)
             {
-                MessageBox.Show("Invalid end IP");
+                MessageBox.Show("Attempts must be between 1 and " + OBKScanner.MAX_ATTEMPTS + ".");
                 return;
             }
-            int retriesCount;
-            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false)
+            int workersCount;
+            if (int.TryParse(textBoxScannerThreads.Text, out workersCount) == false
+                || workersCount < 1 || workersCount > OBKScanner.MAX_WORKERS)
             {
-                MessageBox.Show("Invalid retries count");
-                return;
-            }
-            if (int.TryParse(textBoxBoxScannerRetries.Text, out retriesCount) == false)
-            {
-                MessageBox.Show("Invalid retries count");
-                return;
-            }
-            if(retriesCount < 1)
-            {
-                MessageBox.Show("It makes no sense to have less than 1 loops.");
+                MessageBox.Show("Threads must be between 1 and " + OBKScanner.MAX_WORKERS + ".");
                 return;
             }
 
+            clearScannerResults();
             scan = new OBKScanner(textBoxStartIP.Text, textBoxEndIP.Text);
             scan.setUser(textBoxIPScannerUser.Text);
             scan.setPassword(textBoxIPScannerPass.Text);
             scan.setOnDeviceFound(onScannerFound);
             scan.setOnFinished(onScannerFinished);
             scan.setOnProgress(onScannerProgress);
-            scan.setLoopsCount(retriesCount);
-            setMaxWorkersCountFromGUI();
+            scan.setAttemptsCount(attemptsCount);
+            scan.setMaxWorkers(workersCount);
             scan.startScan();
-            buttonStartScan.Text = "Stop";
+            buttonStartScan.Text = "Stop scan";
         }
 
         private void onScannerProgress(int done, int total, string comment)
@@ -85,7 +88,7 @@ namespace BK7231Flasher
                 });
                 return;
             }
-            labelScanState.Text = "Scan progress: " + done + "/" + total + " requests sent. "+comment;
+            labelScanState.Text = "Scan status: " + done + "/" + total + " requests sent. " + comment;
         }
 
         private void onScannerFinished(bool bInterrupted)
@@ -99,7 +102,7 @@ namespace BK7231Flasher
                 return;
             }
             scan = null;
-            buttonStartScan.Text = "Start";
+            buttonStartScan.Text = "Start scan";
         }
 
         private void onScannerFound(OBKDeviceAPI api)
@@ -133,6 +136,7 @@ namespace BK7231Flasher
                 listView1.Items.Add(new ListViewItem());
             }
             updateItem(exi, listView1.Items[exi.getUserIndex()]);
+            resizeScannerBuildColumn();
         }
 
         private OBKDeviceAPI findDeviceForIP(string s)
@@ -152,11 +156,29 @@ namespace BK7231Flasher
             if (scan != null)
             {
                 int cnt;
-                if (int.TryParse(textBoxScannerThreads.Text, out cnt))
+                if (int.TryParse(textBoxScannerThreads.Text, out cnt)
+                    && cnt >= 1 && cnt <= OBKScanner.MAX_WORKERS)
                 {
                     scan.setMaxWorkers(cnt);
                 }
             }
+        }
+        private void listView1_Resize(object sender, EventArgs e)
+        {
+            resizeScannerBuildColumn();
+        }
+        private void resizeScannerBuildColumn()
+        {
+            int fixedWidth = columnID.Width + columnHeader1.Width + columnHeader2.Width
+                + columnHeader3.Width + columnHeader4.Width;
+            int availableWidth = listView1.ClientSize.Width - fixedWidth - 2;
+            if (listView1.Items.Count > 0
+                && listView1.Items[listView1.Items.Count - 1].Bounds.Bottom
+                    > listView1.ClientSize.Height)
+            {
+                availableWidth -= SystemInformation.VerticalScrollBarWidth;
+            }
+            columnHeader5.Width = Math.Max(100, availableWidth);
         }
         void updateItem(OBKDeviceAPI dev, ListViewItem it)
         {
@@ -183,7 +205,7 @@ namespace BK7231Flasher
 
             if (subnets.Count == 0)
             {
-                MessageBox.Show("No local IPv4 subnets were detected on active network interfaces.");
+                MessageBox.Show("No supported Ethernet or Wi-Fi IPv4 subnets were detected.");
                 return;
             }
 
@@ -216,13 +238,14 @@ namespace BK7231Flasher
             textBoxEndIP.Text = subnet.EndIp;
         }
 
-        private List<ScannerSubnetChoice> getLocalScannerSubnets()
+        private static List<ScannerSubnetChoice> getLocalScannerSubnets()
         {
-            Dictionary<string, ScannerSubnetChoice> result = new Dictionary<string, ScannerSubnetChoice>();
+            List<ScannerSubnetChoice> result = new List<ScannerSubnetChoice>();
+            HashSet<string> seen = new HashSet<string>();
 
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                if (isScannerInterfaceType(nic.NetworkInterfaceType) == false)
                 {
                     continue;
                 }
@@ -259,24 +282,108 @@ namespace BK7231Flasher
                         continue;
                     }
 
-                    string subnetBase = bytes[0] + "." + bytes[1] + "." + bytes[2];
-                    if (result.ContainsKey(subnetBase))
+                    IPAddress mask = uni.IPv4Mask;
+                    if (mask == null)
                     {
                         continue;
                     }
 
-                    result[subnetBase] = new ScannerSubnetChoice
+                    uint addressValue = scannerIPv4ToUInt32(address);
+                    uint maskValue = scannerIPv4ToUInt32(mask);
+                    int prefixLength = getPrefixLength(maskValue);
+                    if (prefixLength < 0)
                     {
-                        StartIp = subnetBase + ".0",
-                        EndIp = subnetBase + ".255",
-                        DisplayText = subnetBase + ".0/24 (" + nic.Name + ", local " + address + ")",
-                    };
+                        continue;
+                    }
+
+                    uint network = addressValue & maskValue;
+                    uint broadcast = network | ~maskValue;
+                    if (broadcast - network <= 1)
+                    {
+                        continue;
+                    }
+
+                    uint firstHost = network + 1;
+                    uint lastHost = broadcast - 1;
+                    ulong addressCount = (ulong)lastHost - firstHost + 1;
+                    if (addressCount > OBKScanner.MAX_ADDRESSES)
+                    {
+                        continue;
+                    }
+
+                    string key = nic.Id + "|" + network + "|" + maskValue;
+                    if (seen.Add(key) == false)
+                    {
+                        continue;
+                    }
+
+                    string startIp = scannerUInt32ToIPv4(firstHost);
+                    string endIp = scannerUInt32ToIPv4(lastHost);
+                    bool wired = nic.NetworkInterfaceType != NetworkInterfaceType.Wireless80211;
+                    result.Add(new ScannerSubnetChoice
+                    {
+                        StartIp = startIp,
+                        EndIp = endIp,
+                        SortOrder = wired ? 0 : 1,
+                        DisplayText = nic.Name + " — " + address + "/" + prefixLength
+                            + " (scan " + startIp + "–" + endIp + ")",
+                    });
                 }
             }
 
-            return result.Values
-                .OrderBy(s => s.StartIp, StringComparer.Ordinal)
+            return result
+                .OrderBy(s => s.SortOrder)
+                .ThenBy(s => s.DisplayText, StringComparer.Ordinal)
                 .ToList();
+        }
+
+        private static bool isScannerInterfaceType(NetworkInterfaceType type)
+        {
+            return type == NetworkInterfaceType.Ethernet
+                || type == NetworkInterfaceType.FastEthernetFx
+                || type == NetworkInterfaceType.FastEthernetT
+                || type == NetworkInterfaceType.GigabitEthernet
+                || type == NetworkInterfaceType.Wireless80211;
+        }
+
+        private static uint scannerIPv4ToUInt32(IPAddress address)
+        {
+            byte[] bytes = address.GetAddressBytes();
+            return ((uint)bytes[0] << 24)
+                | ((uint)bytes[1] << 16)
+                | ((uint)bytes[2] << 8)
+                | bytes[3];
+        }
+
+        private static string scannerUInt32ToIPv4(uint address)
+        {
+            return ((address >> 24) & 0xFF) + "."
+                + ((address >> 16) & 0xFF) + "."
+                + ((address >> 8) & 0xFF) + "."
+                + (address & 0xFF);
+        }
+
+        private static int getPrefixLength(uint mask)
+        {
+            int prefixLength = 0;
+            bool foundZero = false;
+            for (int bit = 31; bit >= 0; bit--)
+            {
+                bool isSet = (mask & (1u << bit)) != 0;
+                if (isSet)
+                {
+                    if (foundZero)
+                    {
+                        return -1;
+                    }
+                    prefixLength++;
+                }
+                else
+                {
+                    foundZero = true;
+                }
+            }
+            return prefixLength;
         }
     }
 }

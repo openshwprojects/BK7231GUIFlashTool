@@ -68,6 +68,8 @@ namespace BK7231Flasher
 
         public bool HasKey(string key) => SettingsList.ContainsKey(key);
 
+        public bool RemoveKey(string key) => SettingsList.Remove(key);
+
         public static MySettings CreateAndLoad(string fileName)
         {
             MySettings settings = new MySettings();
