@@ -44,25 +44,26 @@
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
             this.label1.Location = new System.Drawing.Point(13, 13);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(796, 24);
+            this.label1.Size = new System.Drawing.Size(388, 24);
             this.label1.TabIndex = 0;
-            this.label1.Text = "We\'ve tried to extract device Template/GPIO config from the device flash for you," +
-    " here is result:";
+            this.label1.Text = "Extracted Tuya Template/GPIO configuration:";
             // 
             // textBoxTuyaCFGJSON
             // 
             this.textBoxTuyaCFGJSON.Location = new System.Drawing.Point(17, 66);
             this.textBoxTuyaCFGJSON.Multiline = true;
             this.textBoxTuyaCFGJSON.Name = "textBoxTuyaCFGJSON";
-            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(317, 356);
+            this.textBoxTuyaCFGJSON.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBoxTuyaCFGJSON.Size = new System.Drawing.Size(420, 356);
             this.textBoxTuyaCFGJSON.TabIndex = 1;
             // 
             // textBoxTuyaCFGText
             // 
-            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(340, 66);
+            this.textBoxTuyaCFGText.Location = new System.Drawing.Point(445, 66);
             this.textBoxTuyaCFGText.Multiline = true;
             this.textBoxTuyaCFGText.Name = "textBoxTuyaCFGText";
-            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(317, 356);
+            this.textBoxTuyaCFGText.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBoxTuyaCFGText.Size = new System.Drawing.Size(360, 356);
             this.textBoxTuyaCFGText.TabIndex = 2;
             // 
             // label2
@@ -77,7 +78,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(337, 50);
+            this.label3.Location = new System.Drawing.Point(442, 50);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(85, 13);
             this.label3.TabIndex = 4;
@@ -98,9 +99,9 @@
             this.labelMac.AutoSize = true;
             this.labelMac.Location = new System.Drawing.Point(17, 438);
             this.labelMac.Name = "labelMac";
-            this.labelMac.Size = new System.Drawing.Size(200, 13);
+            this.labelMac.Size = new System.Drawing.Size(182, 13);
             this.labelMac.TabIndex = 6;
-            this.labelMac.Text = "It also seems that device MAC is [TODO]";
+            this.labelMac.Text = "MAC address could not be extracted.";
             // 
             // labelKey
             // 
@@ -124,6 +125,8 @@
             this.Controls.Add(this.textBoxTuyaCFGText);
             this.Controls.Add(this.textBoxTuyaCFGJSON);
             this.Controls.Add(this.label1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
             this.Name = "FormExtractedConfig";
             this.Text = "Tuya Config Quick Viewer - see original Tuya user_param_key device configuration";
             this.Load += new System.EventHandler(this.FormExtractedConfig_Load);

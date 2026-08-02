@@ -89,6 +89,8 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.richTextBoxLog);
             this.Controls.Add(this.progressBar1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
             this.Name = "FormDownloader";
             this.Text = "Automatic Firmware Downloader - downloads latest firmware binary from Github";
             this.Load += new System.EventHandler(this.FormDownloader_Load);

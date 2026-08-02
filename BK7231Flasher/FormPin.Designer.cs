@@ -130,6 +130,8 @@
             this.Controls.Add(this.textBoxCh1);
             this.Controls.Add(this.textBoxCh0);
             this.Controls.Add(this.comboBoxRole);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
             this.Name = "FormPin";
             this.Text = "FormPin";
             this.Load += new System.EventHandler(this.FormPin_Load);
