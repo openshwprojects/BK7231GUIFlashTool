@@ -238,6 +238,7 @@ namespace BK7231Flasher
 					{
 						BKType.ECR6600 => 2,
 						BKType.GD32VW553 => 2,
+						BKType.OPL1000A2 => 1,
 						BKType.RDA5981 => 5,
 						BKType.RTL8710B => 2,
 						BKType.RTL8721DA => 4,

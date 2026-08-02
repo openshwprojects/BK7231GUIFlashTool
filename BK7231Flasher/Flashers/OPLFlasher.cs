@@ -273,7 +273,50 @@ namespace BK7231Flasher
 				{
 					if(cfg != null)
 					{
-						addErrorLine("OBK config write is not supported");
+						var offset = OBKFlashLayout.getConfigLocation(chipType, out sectors);
+						var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
+
+						cfg.saveConfig(chipType);
+						var cfgData = cfg.getData();
+						byte[] efdata;
+						if(cfg.efdata != null)
+						{
+							try
+							{
+								efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+							}
+							catch(Exception ex)
+							{
+								addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+								addLog(ex.Message + Environment.NewLine);
+								efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+							}
+						}
+						else
+						{
+							efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+						}
+						if(efdata == null)
+						{
+							addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+							return;
+						}
+						addLog("Now will also write OBK config..." + Environment.NewLine);
+						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
+						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
+						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
+						bool bOk = InternalWrite(offset, efdata, areaSize);
+						if(bOk == false)
+						{
+							logger.setState("Writing error!", Color.Red);
+							addError("Writing OBK config data to chip failed." + Environment.NewLine);
+							return;
+						}
+						logger.setState("OBK config write success!", Color.Green);
+					}
+					else
+					{
+						addLog("NOTE: the OBK config writing is disabled, so not writing anything extra." + Environment.NewLine);
 					}
 				}
 			}
@@ -354,7 +397,7 @@ namespace BK7231Flasher
 						addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
 						return InternalReadEfusePayload(target.Length.Value, targetKindName);
 					default:
-						addError("Selected GD32VW553 read target is not implemented." + Environment.NewLine);
+						addError("Selected OPL1000A2 read target is not implemented." + Environment.NewLine);
 						return null;
 				}
 			}

@@ -106,6 +106,7 @@ namespace BK7231Flasher
             }
             switch(type)
             {
+                case BKType.OPL1000A2:
                 case BKType.RTL8710B:
                 case BKType.RTL87X0C:
                 case BKType.RTL8720D:
@@ -584,6 +585,7 @@ namespace BK7231Flasher
             int useLen = getLenForVersion(version);
             switch(type)
             {
+                case BKType.OPL1000A2:
                 case BKType.RTL8720D:
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
@@ -629,6 +631,7 @@ namespace BK7231Flasher
             int realLen = getLenForVersion(version);
             switch(type)
             {
+                case BKType.OPL1000A2:
                 case BKType.RTL8720D:
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:

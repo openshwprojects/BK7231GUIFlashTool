@@ -53,7 +53,7 @@ namespace BK7231Flasher
 			{
 				serial.BaudRate = 921600;
 				int attempts = 0;
-				int addr = 0x10007d;
+				int addr = 0x100001;
 				while(attempts++ < 500)
 				{
 					addLog($"Sync attempt {attempts}/500 ");
@@ -74,7 +74,7 @@ namespace BK7231Flasher
 						if(t.Contains("Boot >"))
 						{
 							logger.addLog("... OK!" + Environment.NewLine, Color.Green);
-							var ramcode = FLoaders.GetRawBinaryFromAssembly("RDA5981_Stub");
+							var ramcode = FLoaders.GetBinaryFromAssembly("RDA5981_Stub");
 							addLogLine("Uploading stub...");
 							serial.Write($"loadb 00100000 {ramcode.Length:X}\r");
 							Thread.Sleep(1);
@@ -293,7 +293,6 @@ namespace BK7231Flasher
 			return InternalReadEfusePayload(expectedLength, targetKindName);
 		}
 
-
 		protected override bool CheckHash(int addr, int len, byte[] data)
 		{
 			var cmd = new byte[8];
@@ -326,5 +325,7 @@ namespace BK7231Flasher
 			addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
 			return true;
 		}
+
+		internal override byte[] ReadMAC() => null;
 	}
 }
