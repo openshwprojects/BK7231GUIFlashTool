@@ -1294,7 +1294,9 @@ namespace BK7231Flasher
                     TuyaConfig tc = new TuyaConfig();
                     if (tc.fromBytes(dat) == false)
                     {
-                        if (tc.extractKeys() == false)
+                        bool classicExtractFailed = tc.extractKeys();
+                        bool hasEnhancedFallback = classicExtractFailed && tc.hasEnhancedExtractionData();
+                        if (!classicExtractFailed || hasEnhancedFallback)
                         {
                             Singleton.buttonRead.Invoke((MethodInvoker)delegate {
                                 // Running on the UI thread

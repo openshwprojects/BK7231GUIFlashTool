@@ -251,7 +251,7 @@ namespace BK7231Flasher
         }
         internal void loadFromTuyaConfig(TuyaConfig tc)
         {
-            tc.getKeysHumanReadable(cfg);
+            tc.getKeysHumanReadableEnhanced(cfg);
             refreshAll();
         }
         bool tryToImportTuyaSettings(string fname)
@@ -259,9 +259,11 @@ namespace BK7231Flasher
             TuyaConfig tc = new TuyaConfig();
             if (!tc.fromFile(fname))
             {
-                if (!tc.extractKeys())
+                bool classicExtractFailed = tc.extractKeys();
+                bool hasEnhancedFallback = classicExtractFailed && tc.hasEnhancedExtractionData();
+                if (!classicExtractFailed || hasEnhancedFallback)
                 {
-                    tc.getKeysHumanReadable(cfg);
+                    tc.getKeysHumanReadableEnhanced(cfg);
                     refreshAll();
                     return false;
                 }
