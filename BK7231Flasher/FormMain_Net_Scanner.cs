@@ -19,6 +19,7 @@ namespace BK7231Flasher
 
         OBKScanner scan;
         List<OBKDeviceAPI> founds = new List<OBKDeviceAPI>();
+        ContextMenuStrip scannerDeviceMenu;
         ContextMenuStrip scannerSubnetMenu;
 
         private void killScanner()

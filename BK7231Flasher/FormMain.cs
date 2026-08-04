@@ -2035,8 +2035,9 @@ namespace BK7231Flasher
                 selectedItem.Selected = true;
                 selectedItem.Focused = true;
 
-                ContextMenuStrip contextMenu = new ContextMenuStrip();
-                contextMenu.Closed += (s, args) => contextMenu.Dispose();
+                scannerDeviceMenu?.Dispose();
+                scannerDeviceMenu = new ContextMenuStrip(components);
+                ContextMenuStrip contextMenu = scannerDeviceMenu;
 
                 ToolStripMenuItem openPageMenuItem = new ToolStripMenuItem("Open page");
                 openPageMenuItem.Click += (s, args) =>
