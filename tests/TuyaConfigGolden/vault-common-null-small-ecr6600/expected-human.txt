@@ -1,0 +1,15 @@
+Device configuration, as extracted from Tuya: 
+- Button (channel 1) on P0
+- LED (channel 1) on P21
+- Bridge Relay On (channel 1) on P14
+- Bridge Relay On (channel 2) on P22
+- Bridge Relay On (channel 3) on P24
+- LED (channel 3) on P20
+- LED (channel 2) on P16
+- Bridge Relay Off (channel 2) on P23
+- Bridge Relay Off (channel 1) on P15
+- Button (channel 3) on P17
+- Button (channel 2) on P2
+- Bridge Relay Off (channel 3) on P25
+No module information found.
+And the Tuya section starts at 1921024 (0x1D5000), which is a default RTL8720C and ECR6600 offset.

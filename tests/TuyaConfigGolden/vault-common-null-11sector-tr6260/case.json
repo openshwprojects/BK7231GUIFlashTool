@@ -1,0 +1,19 @@
+{
+  "Name": "vault-common-null-11sector-tr6260",
+  "SourceFileName": "Tuya_LED_Strip_SXY_RGB01_(schemaID-000002ng0a)_keynm7cmmpw3fmtj_wbjuvryz8t5qwsvp_ycvyxzhohnwpzwzo_1.0.4.bin",
+  "SourceSha256": "3a253b101f264c4ca56beb4f4516eecf53abd29881ac2a313d736c0a5e699954",
+  "InputSha256": "94ca656a425bb2a308691784d34c1dde4ee8031796f2356b2bbded28e4aba5f7",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 860160,
+  "ArenaOffset": 864256,
+  "DecryptedLength": 45056,
+  "SectorCount": 11,
+  "EntryCount": 4,
+  "LargestValueLength": 411,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

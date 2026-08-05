@@ -1,0 +1,22 @@
+{
+  "Name": "vault-8710-kvstorage-16sector-bk7231t",
+  "SourceFileName": "Tuya_BIM8774_Socket_16A_3500W_(BOMSOC8774_schemaID-0000032ccw)_keym9qkuywghyrvs_jug4i7aunvvjfhq7_WB2S_1.3.5.bin",
+  "SourceSha256": "8d0829ba136b83447a593f39a8ae4ff4d7c33114f12a855e66e8ac325556a575",
+  "InputSha256": "762036350568a3a6c50350cce4f78756e807554f59036578b28ec3422a7babc3",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2023424,
+  "ArenaOffset": 2027520,
+  "DecryptedLength": 65536,
+  "SectorCount": 16,
+  "EntryCount": 12,
+  "LargestValueLength": 1408,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": [
+    "$.gw_wsm.passwd",
+    "$.gw_wsm.ssid"
+  ]
+}

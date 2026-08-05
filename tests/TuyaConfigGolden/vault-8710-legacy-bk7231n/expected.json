@@ -1,0 +1,27 @@
+{
+  "gw_bi": {
+    "uuid": "c25e3f6aca9e780e",
+    "psk_key": "4USIsu83FgMU92GrAPIGFZVxuDSQlWbWdSgQq",
+    "auth_key": "Lmqbepeqpg934yVSWKyWt5sLukHmU4Lg",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": null,
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false,
+    "fac_pin": null
+  },
+  "gw_wsm": {
+    "nc_tp": 0,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "random": 0,
+    "wfb64": 1,
+    "stat": 0,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 0
+  }
+}

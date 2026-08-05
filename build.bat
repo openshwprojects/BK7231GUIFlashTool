@@ -20,6 +20,12 @@ echo [INFO] Target: Release (Any CPU)
 %MSBUILD_PATH% BK7231Flasher.sln /p:Configuration=Release /p:Platform="Any CPU" /p:FLASHERVERSION=%FLASHERVERSION% /t:Restore;Build
 
 if %ERRORLEVEL% equ 0 (
+    echo [INFO] Running Tuya config golden self-tests...
+    start "" /wait "BK7231Flasher\bin\Release\BK7231Flasher.exe" tuyaconfig-selftest "tests\TuyaConfigGolden"
+    if errorlevel 1 (
+        echo [ERROR] Tuya config golden self-tests failed.
+        exit /b 1
+    )
     echo.
     echo [SUCCESS] Build completed successfully!
     echo [INFO] Executable path: BK7231Flasher\bin\Release\BK7231Flasher.exe

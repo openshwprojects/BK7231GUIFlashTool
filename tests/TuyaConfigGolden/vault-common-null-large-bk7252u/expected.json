@@ -1,0 +1,234 @@
+{
+  "gw_bi": {
+    "uuid": "a8925d12d72aad39",
+    "psk_key": "mbVQkug3z502iCDVtkNkj8XOxawMc6jYmT1hI",
+    "auth_key": "qvilcBjlyr1hCs3sVCh5PgARuK4R2Ia8",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": null,
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false,
+    "fac_pin": "u0kmecmr7j8roazz"
+  },
+  "gw_di": {
+    "abi": 0,
+    "id": "6ce09fc625957bc144qrf7",
+    "swv": "1.0.4",
+    "bv": "40.00",
+    "pv": "2.2",
+    "lpv": "3.3",
+    "pk": "keyph8vwhadwsx3a",
+    "firmk": "keyph8vwhadwsx3a",
+    "cadv": "1.0.4",
+    "cdv": "1.0.0",
+    "dev_swv": "1.0.4",
+    "s_id": "000003uanz",
+    "dtp": 0,
+    "sync": 0,
+    "attr_num": 1,
+    "mst_tp_0": 9,
+    "mst_ver_0": "1.0.4",
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null
+  },
+  "gw_wsm": {
+    "nc_tp": 2,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "random": 0,
+    "wfb64": 1,
+    "stat": 1,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 0
+  },
+  "wf_start_md": 0,
+  "gw_ai": {
+    "key": "TC@U{-JJ2jn!BlAb",
+    "lckey": "rGB*KWoc0UJJ[NB~",
+    "h_url": "http://a.tuyacn.com/d.json",
+    "h_ip": "47.100.118.152",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3.tuyacn.com/d.json",
+    "hs_psk_ip": "8.153.105.238",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m2.tuyacn.com:1883",
+    "mq_ip": "47.103.41.29",
+    "ai_sp": null,
+    "ai_sp_ip": null,
+    "mq_psk": "m2.tuyacn.com:8886",
+    "mq_psk_ip": "47.103.41.29",
+    "lp_url": "baal.tuyacn.com:443",
+    "lp_ip": "101.132.62.80",
+    "time_z": "+08:00",
+    "s_time_z": "[]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 1,
+    "psk21_key": null
+  },
+  "tls_ca_cnt": 0,
+  "is_stride": 0,
+  "000003uanz": [
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 101,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 105,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "1",
+          "2"
+        ],
+        "type": "enum"
+      },
+      "id": 108,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 109,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 1,
+        "max": 5,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 110,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 111,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": -20000,
+        "max": 200000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 117,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 100,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 145,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "range": [
+          "0",
+          "1"
+        ],
+        "type": "enum"
+      },
+      "id": 146,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 10,
+        "max": 50,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 147,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 150,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 162,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "id": 212,
+      "type": "raw"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 231,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 235,
+      "type": "obj"
+    }
+  ],
+  "p2p_pwd": "",
+  "em_sys_env": "BK7252",
+  "p2p_auth_info": "",
+  "p2p_type": "",
+  "timer_arr": {
+    "lastFetchTime": 0,
+    "cnt": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "Name": "vault-8710-kvstorage-large-arena-rtl8710bx",
+  "SourceFileName": "Tuya_Generic_EU_Plug_(schemaID-e1kt0gdk)_keydnqmh87c8ajv4_d182tgb7if9myzx9_WR2E_1.1.6.bin",
+  "SourceSha256": "a2eec60e496f453d52440f14c34fc2f79b65c8c04ac54ccf7b12208e9f87c2b2",
+  "InputSha256": "61e51b1324dec41c696bd5b6a6e556a02fa0634e2e6e48879f34b2e23cb5e8a7",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2011136,
+  "ArenaOffset": 2015232,
+  "DecryptedLength": 81920,
+  "SectorCount": 20,
+  "EntryCount": 8,
+  "LargestValueLength": 556,
+  "HasDuplicateBlockIds": true,
+  "CredentialIndicators": []
+}

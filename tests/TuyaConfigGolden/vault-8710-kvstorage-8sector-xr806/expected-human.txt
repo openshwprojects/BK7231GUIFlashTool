@@ -1,0 +1,4 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is 9600
+No module information found.
+And the Tuya section starts at 2052096 (0x1F5000), which is a default T1/XR806 and some T34/BK7231N offset.

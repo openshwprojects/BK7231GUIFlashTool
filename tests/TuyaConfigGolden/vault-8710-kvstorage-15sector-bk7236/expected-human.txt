@@ -1,0 +1,3 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+And the Tuya section starts at 3997696 (0x3D0000), which is a default T3/BK7236 offset.

@@ -28,6 +28,12 @@ jobs:
       - name: Build the project
         run: msbuild BK7231Flasher/BK7231Flasher.csproj /p:Configuration=Release /p:OutDir=BuildOutput\Release\
 
+      - name: Run Tuya config golden self-tests
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "BK7231Flasher\BuildOutput\Release\BK7231Flasher.exe" -ArgumentList @("tuyaconfig-selftest", "tests\TuyaConfigGolden") -Wait -PassThru -NoNewWindow
+          exit $process.ExitCode
+
       - name: Debug Build Output
         run: |
           echo "Checking output directory..."

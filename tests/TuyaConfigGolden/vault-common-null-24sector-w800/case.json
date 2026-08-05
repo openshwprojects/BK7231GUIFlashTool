@@ -1,0 +1,21 @@
+{
+  "Name": "vault-common-null-24sector-w800",
+  "SourceFileName": "Tuya_XM-HE201_PresencePIR_(schemaID-000004i2bp)_keye53544hxnfevg_4ops1avp7zdwhyqu_HLK-B36_1.1.3.bin",
+  "SourceSha256": "8b5645f34e9c52aa33f16d817b1864596a4f60c8cc5b0a1c2c9a9f4243755250",
+  "InputSha256": "dc304b19555c10c5aaf29ded0ebc859606c2b0b1f2f7be6d851903f9ae5e293d",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 1933312,
+  "ArenaOffset": 1835008,
+  "DecryptedLength": 98304,
+  "SectorCount": 24,
+  "EntryCount": 14,
+  "LargestValueLength": 1024,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": [
+    "$.ap_info_v2 (encoded network record)"
+  ]
+}

@@ -1,0 +1,7 @@
+Device configuration, as extracted from Tuya: 
+- WiFi LED on P8
+- Button (channel 1) on P24
+- Relay (channel 1) on P26
+Device seems to be using T1-2S-NL module, which is using BK7238.
+Device internal platform - T1, equals BK7238.
+And the Tuya section starts at 2052096 (0x1F5000), which is a default T1/XR806 and some T34/BK7231N offset.

@@ -1,0 +1,10 @@
+Device configuration, as extracted from Tuya: 
+- BL0937 SEL on P8
+- Button (channel 1) on P10
+- BL0937 VI (CF1) on P7
+- WiFi LED on P26
+- BL0937 ELE (CF) on P6
+- Relay (channel 1) on P24
+Device seems to be using WB2S module, which is using BK7231T.
+Device internal platform - BK7231S_2M.
+And the Tuya section starts, as usual, at 2023424 (0x1EE000)

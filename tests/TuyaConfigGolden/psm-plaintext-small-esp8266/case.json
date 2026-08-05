@@ -1,0 +1,18 @@
+{
+  "Name": "psm-plaintext-small-esp8266",
+  "SourceFileName": "Tuya_Teekar_UIW001-1_Dimmer_(schemaID-0000000yir)_vdLB09s3DgZ0s5Gk_HYLE2S_1.0.1.bin",
+  "SourceSha256": "6725e7ee45f0817adf608b2302a9ddb6cf15bcd9e6936678421147bcc03b8996",
+  "InputSha256": "45c30d6464b01dcd5431f58132311b9bf777a2af88392f3e7cb5c46bf99574d1",
+  "ExtractionKind": "PlaintextPSM",
+  "VaultKeyVariant": "",
+  "ParserKind": "PSM",
+  "PageMagic": "",
+  "DeviceKeyOffset": -1,
+  "ArenaOffset": 503808,
+  "DecryptedLength": 16384,
+  "SectorCount": 4,
+  "EntryCount": 19,
+  "LargestValueLength": 165,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

@@ -1,0 +1,29 @@
+{
+  "tuya_seed": "b73c13e38ec8f4799b0d8b0108fa2dbdeee99a2b248afbf5ab554f8ab32cd5abf10f6220eb89c0ba691417cb6b40b1f0734150c7227fe6f43c29ed6e7bd885d9",
+  "gw_bi": {
+    "uuid": "ad86430574cf3363",
+    "psk_key": null,
+    "auth_key": "GK514bhpDbBoU6TskQjsf0kTYR6lx9F1",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": "CN",
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false,
+    "fac_pin": null,
+    "psk30_key": "eWgZ2BtIWIvSFkf93KbxbIEOBixITT0Ix3zUAwLjrWU="
+  },
+  "gw_wsm": {
+    "nc_tp": 0,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "wfb64": 1,
+    "stat": 0,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 0,
+    "is_psk30_cfg": false
+  }
+}

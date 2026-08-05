@@ -1,0 +1,18 @@
+{
+  "Name": "vault-8710-legacy-rtl8720cf",
+  "SourceFileName": "Tuya_Align_Della_MiniSplit_AC_keynuxqpvy4cag75_tjm2zvjuphafcncn_TuyaMCU_WBR1_1.0.12..bin",
+  "SourceSha256": "f3072d82816c127ae7f459afa5aa205b193f8fb48c3691a7bb9c71400f791a76",
+  "InputSha256": "98d0f946b5d2d180a154e17331468da9eb0250a4dd7f5aa2ea61582a79f6b235",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "LegacyKV",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 1933312,
+  "ArenaOffset": 1937408,
+  "DecryptedLength": 49152,
+  "SectorCount": 12,
+  "EntryCount": 4,
+  "LargestValueLength": 282,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

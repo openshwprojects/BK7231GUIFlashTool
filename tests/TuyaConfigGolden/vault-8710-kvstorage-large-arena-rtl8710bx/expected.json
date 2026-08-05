@@ -1,0 +1,180 @@
+{
+  "gw_bi": {
+    "uuid": "9be454edf6b572e0",
+    "psk_key": "bcHFTxkuIY59ldlKeJeofKfeQwjWT85Mm0NZu",
+    "auth_key": "8fsW6GCXPVYmdM0fn1gDbV2pXrB4QFCy",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": "CN",
+    "prod_test": false,
+    "fac_pin": "d182tgb7if9myzx9"
+  },
+  "coe_save_key": {
+    "Kp": 14656,
+    "Kv": 540,
+    "Ki": 27432,
+    "Ke": 1424
+  },
+  "gw_di": {
+    "abi": 0,
+    "id": null,
+    "swv": "1.1.6",
+    "bv": "40.00",
+    "pv": "2.2",
+    "lpv": "3.3",
+    "pk": "keydnqmh87c8ajv4",
+    "firmk": "keydnqmh87c8ajv4",
+    "cadv": "1.0.3",
+    "cdv": "1.0.0",
+    "dev_swv": "1.1.6",
+    "s_id": null,
+    "dtp": 0,
+    "sync": 0,
+    "attr_num": 0,
+    "mst_tp_0": 0,
+    "mst_ver_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null
+  },
+  "gw_wsm": {
+    "nc_tp": 1,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "random": 0,
+    "wfb64": 1,
+    "stat": 0,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 0
+  },
+  "prod_rslt_key": {
+    "prod_rslt": 1
+  },
+  "gw_ai": {
+    "key": null,
+    "lckey": null,
+    "h_url": null,
+    "h_ip": null,
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": null,
+    "hs_psk_ip": null,
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": null,
+    "mq_ip": null,
+    "ai_sp": null,
+    "ai_sp_ip": null,
+    "mq_psk": null,
+    "mq_psk_ip": null,
+    "time_z": null,
+    "s_time_z": null,
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 0,
+    "psk21_key": null
+  },
+  "user_param_key": {
+    "sw": {
+      "dltj": {
+        "ct": {
+          "value": false
+        },
+        "v_ref": {
+          "value": 0
+        },
+        "p_ref": {
+          "value": 0
+        },
+        "ov_cr": {
+          "value": 17000
+        },
+        "e_ref": {
+          "value": 0
+        },
+        "ivcpin": {
+          "pin": {
+            "value": 15
+          },
+          "lv": {
+            "value": true
+          }
+        },
+        "ivpin": {
+          "pin": {
+            "value": 12
+          }
+        },
+        "ri": {
+          "value": 1
+        },
+        "v_def": {
+          "value": 220
+        },
+        "i_ref": {
+          "value": 0
+        },
+        "epin": {
+          "pin": {
+            "value": 5
+          }
+        }
+      },
+      "ch": [
+        {
+          "bt": {
+            "pin": {
+              "value": 18
+            },
+            "lv": {
+              "value": false
+            }
+          },
+          "df": {
+            "value": false
+          },
+          "rl": {
+            "pin": {
+              "value": 19
+            },
+            "lv": {
+              "value": true
+            }
+          }
+        }
+      ],
+      "net": {
+        "netn": {
+          "value": true
+        },
+        "owm": {
+          "value": false
+        },
+        "rsthold": {
+          "value": 3
+        },
+        "wfst": {
+          "pin": {
+            "value": 14
+          },
+          "lv": {
+            "value": false
+          }
+        },
+        "nety": {
+          "value": false
+        }
+      }
+    }
+  },
+  "tem_ele_save_key": {
+    "tem_ele": 200
+  }
+}

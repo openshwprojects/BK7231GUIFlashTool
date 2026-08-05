@@ -32,6 +32,9 @@ namespace BK7231Flasher
             CustomWrite,
             Test,
             TuyaConfig,
+            TuyaConfigInventory,
+            TuyaConfigSelfTest,
+            TuyaConfigCreateFixture,
             Help
         }
 
@@ -99,6 +102,11 @@ namespace BK7231Flasher
             bool legacyMode = false;
             string tuyaInputFile = null;
             string tuyaOutputFile = null;
+            string tuyaInventoryDirectory = null;
+            string tuyaInventoryOutputFile = null;
+            string tuyaFixturesDirectory = null;
+            string tuyaFixtureSourceFile = null;
+            string tuyaFixtureOutputDirectory = null;
 
             // Parse arguments (esptool-style + legacy aliases)
             for (int i = 0; i < args.Length; i++)
@@ -137,6 +145,25 @@ namespace BK7231Flasher
                             tuyaInputFile = args[++i];
                         if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
                             tuyaOutputFile = args[++i];
+                        break;
+                    case "tuyaconfig-inventory": // inventory Tuya extraction formats in a dump corpus
+                        operation = CliOperation.TuyaConfigInventory;
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            tuyaInventoryDirectory = args[++i];
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            tuyaInventoryOutputFile = args[++i];
+                        break;
+                    case "tuyaconfig-selftest": // compare committed fixtures with golden output
+                        operation = CliOperation.TuyaConfigSelfTest;
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            tuyaFixturesDirectory = args[++i];
+                        break;
+                    case "tuyaconfig-create-fixture": // create a reduced golden fixture from a full dump
+                        operation = CliOperation.TuyaConfigCreateFixture;
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            tuyaFixtureSourceFile = args[++i];
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            tuyaFixtureOutputDirectory = args[++i];
                         break;
 
                     // --- Options (esptool-style double-dash + legacy) ---
@@ -201,6 +228,44 @@ namespace BK7231Flasher
                 }
                 int tuyaExitCode = DoTuyaConfig(tuyaInputFile, tuyaOutputFile);
                 Environment.Exit(tuyaExitCode);
+                return;
+            }
+
+            if (operation == CliOperation.TuyaConfigInventory)
+            {
+                if (string.IsNullOrEmpty(tuyaInventoryDirectory) || string.IsNullOrEmpty(tuyaInventoryOutputFile))
+                {
+                    Console.Error.WriteLine("Error: tuyaconfig-inventory requires two arguments: <dump-directory> <output.json>");
+                    Console.Error.WriteLine("Usage: BK7231Flasher.exe tuyaconfig-inventory <dump-directory> <output.json>");
+                    Environment.Exit(1);
+                    return;
+                }
+                int inventoryExitCode = TuyaConfigCorpusInventory.Run(tuyaInventoryDirectory, tuyaInventoryOutputFile);
+                Environment.Exit(inventoryExitCode);
+                return;
+            }
+
+            if (operation == CliOperation.TuyaConfigSelfTest)
+            {
+                if (string.IsNullOrEmpty(tuyaFixturesDirectory))
+                {
+                    Console.Error.WriteLine("Error: tuyaconfig-selftest requires one argument: <fixtures-directory>");
+                    Environment.Exit(1);
+                    return;
+                }
+                Environment.Exit(TuyaConfigGoldenTests.Run(tuyaFixturesDirectory));
+                return;
+            }
+
+            if (operation == CliOperation.TuyaConfigCreateFixture)
+            {
+                if (string.IsNullOrEmpty(tuyaFixtureSourceFile) || string.IsNullOrEmpty(tuyaFixtureOutputDirectory))
+                {
+                    Console.Error.WriteLine("Error: tuyaconfig-create-fixture requires two arguments: <source.bin> <case-directory>");
+                    Environment.Exit(1);
+                    return;
+                }
+                Environment.Exit(TuyaConfigGoldenTests.CreateFixture(tuyaFixtureSourceFile, tuyaFixtureOutputDirectory));
                 return;
             }
 
@@ -682,6 +747,9 @@ namespace BK7231Flasher
             Console.WriteLine("  fwrite <file.bin>      Full flash write (write entire firmware)");
             Console.WriteLine("  test                   Write/read/verify test (requires --addr and --size)");
             Console.WriteLine("  tuyaconfig <in> <out>  Extract Tuya config JSON from binary dump (offline)");
+            Console.WriteLine("  tuyaconfig-inventory <dir> <out>  Inventory Tuya extraction formats (offline)");
+            Console.WriteLine("  tuyaconfig-selftest <dir>  Run Tuya config golden fixtures (offline)");
+            Console.WriteLine("  tuyaconfig-create-fixture <in> <dir>  Create a reduced golden fixture (offline)");
             Console.WriteLine();
             Console.WriteLine("Required Options:");
             Console.WriteLine("  --port, -p <COM3>      Serial port (not needed for SPI chips)");

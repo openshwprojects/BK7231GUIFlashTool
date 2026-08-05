@@ -1,0 +1,368 @@
+{
+  "gw_bi": {
+    "uuid": "abf1c3384666e564",
+    "psk_key": "2WmAG8Y8xvM3ApSmK1Upq4LIw3zNY6YvreV34",
+    "auth_key": "5hP5r903BzFp4Uly1iEodfNbq8fHEYwm",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": "CN",
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false
+  },
+  "uart_adapt_params": {
+    "uart_baud": 9600,
+    "uart_databit": 3,
+    "uart_parity": 0,
+    "uart_stopbits": 1
+  },
+  "gw_wsm": {
+    "nc_tp": 2,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "random": 0,
+    "wfb64": 1,
+    "stat": 1,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 2
+  },
+  "tls_ca_cnt": 0,
+  "gw_di": {
+    "abi": 0,
+    "id": "bfdab4aa7d254842d7k3cj",
+    "swv": "2.1.6",
+    "bv": "40.00",
+    "pv": "2.2",
+    "lpv": "3.3",
+    "pk": "4dl9hkne",
+    "firmk": "keyjkajwawthq4f5",
+    "cadv": "1.0.2",
+    "cdv": "1.0.0",
+    "dev_swv": "1.0.0",
+    "s_id": "0000005oxq",
+    "dtp": 1,
+    "sync": 0,
+    "attr_num": 0,
+    "mst_tp_0": 0,
+    "mst_ver_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null,
+    "dminfo_name": null,
+    "dminfo_code": null,
+    "dminfo_report_code": null,
+    "dminfo_sn": null
+  },
+  "gw_ai": {
+    "key": "bbb4e8686ac6f0df",
+    "lckey": "a7e1ffee2f17f1ad",
+    "h_url": "http://a.tuyaeu.com/d.json",
+    "h_ip": "35.158.200.238",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3.tuyaeu.com/d.json",
+    "hs_psk_ip": "18.195.249.137",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m2.tuyaeu.com:1883",
+    "mq_ip": "3.65.95.68",
+    "ai_sp": null,
+    "mq_psk": "m2.tuyaeu.com:8886",
+    "mq_psk_ip": "3.65.95.68",
+    "time_z": "+04:00",
+    "s_time_z": "[]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 1025
+  },
+  "is_stride": 0,
+  "0000005oxq": [
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 1
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "manual",
+          "program",
+          "holiday"
+        ],
+        "type": "enum"
+      },
+      "id": 2,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "range": [
+          "start",
+          "stop"
+        ],
+        "type": "enum"
+      },
+      "id": 3,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 5,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 9,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 12,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "in",
+          "out",
+          "in_out"
+        ],
+        "type": "enum"
+      },
+      "id": 18,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "c",
+          "f"
+        ],
+        "type": "enum"
+      },
+      "id": 19,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 5,
+        "max": 50,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 22,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 41,
+        "max": 99,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 23,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 1,
+        "max": 30,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 32,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": -199,
+        "max": 950,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 33,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": -9,
+        "max": 9,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 35,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": -40,
+        "max": 2030,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 37,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "5_2",
+          "6_1",
+          "7"
+        ],
+        "type": "enum"
+      },
+      "id": 39,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "id": 42,
+      "type": "raw"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bitmap",
+        "maxlen": 6
+      },
+      "id": 45,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": -199,
+        "max": 950,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 101,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": -40,
+        "max": 2030,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 102,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": -9,
+        "max": 9,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 103,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 1,
+        "max": 9,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 104,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "no_power",
+          "power"
+        ],
+        "type": "enum"
+      },
+      "id": 105,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 5,
+        "max": 65,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 106,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 41,
+        "max": 149,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 107,
+      "type": "obj"
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "type": "bool"
+      },
+      "id": 108,
+      "type": "obj"
+    }
+  ],
+  "em_sys_env": "",
+  "mf_test_close": true,
+  "timer_arr": {
+    "lastFetchTime": 0,
+    "cnt": 0
+  }
+}

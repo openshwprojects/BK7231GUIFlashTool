@@ -1,0 +1,3 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+And the Tuya section starts at 860160 (0xD2000), which is a default TR6260 offset.

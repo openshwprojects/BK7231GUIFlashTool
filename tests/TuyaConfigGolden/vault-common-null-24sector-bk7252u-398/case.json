@@ -1,0 +1,19 @@
+{
+  "Name": "vault-common-null-24sector-bk7252u-398",
+  "SourceFileName": "Tuya_A9_Cam_SC-10024_V1.0.0_(VGA\u5361\u7247\u673A-schemaID-000003uanz)_keyph8vwhadwsx3a_u0kmecmr7j8roazz_NEO_SPI_1.0.4.bin",
+  "SourceSha256": "11d19b3b1328523b480c5f325905cfb038925b51b395f9ce423f90effa1230a4",
+  "InputSha256": "bc95d1fd877a88b5c7ac94f243779f31b54e15e2b5ac166abbc25125fa5e94a0",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 3764224,
+  "ArenaOffset": 3768320,
+  "DecryptedLength": 98304,
+  "SectorCount": 24,
+  "EntryCount": 13,
+  "LargestValueLength": 1129,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

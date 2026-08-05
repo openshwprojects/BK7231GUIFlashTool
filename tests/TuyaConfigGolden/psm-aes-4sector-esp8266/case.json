@@ -1,0 +1,19 @@
+{
+  "Name": "psm-aes-4sector-esp8266",
+  "SourceFileName": "Tuya_gosund_strip_or_smth_nous-04-10-2022_y3kqwgqyq7bvkyhh_1.1.1.bin",
+  "SourceSha256": "9e0bd5036fb024540317e16c69f721ddb1ae1873922128213650a9bdbec53e74",
+  "InputSha256": "ddae66c77c7ff6e3607ee1a0076c29d27446293521402e54713220f4aee456ed",
+  "ExtractionKind": "AesPSM",
+  "VaultKeyVariant": "",
+  "ParserKind": "PSM",
+  "PageMagic": "",
+  "DeviceKeyOffset": -1,
+  "ArenaOffset": 503808,
+  "DecryptedLength": 16384,
+  "SectorCount": 4,
+  "EntryCount": 17,
+  "LargestValueLength": 1262,
+  "HasDuplicateBlockIds": false,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

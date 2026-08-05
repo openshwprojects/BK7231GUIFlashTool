@@ -1,0 +1,5 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+Baud keyword found, this device may be TuyaMCU or BL0942. Baud value is 9600
+No module information found.
+Device internal platform - bk7231n, equals BK7231N.
+And the Tuya section starts, as usual, at 2023424 (0x1EE000)

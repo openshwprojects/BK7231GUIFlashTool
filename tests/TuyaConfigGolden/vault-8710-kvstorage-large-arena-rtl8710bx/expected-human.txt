@@ -1,0 +1,9 @@
+Device configuration, as extracted from Tuya: 
+- BL0937 SEL on P15
+- BL0937 VI (CF1) on P12
+- BL0937 ELE (CF) on P5
+- Button (channel 0) on P18
+- Relay (channel 0) on P19
+- WiFi LED on P14
+No module information found.
+And the Tuya section starts at 2011136 (0x1EB000), which is a default RTL8710B/XR809/BK7231Q/RDA5981 offset.

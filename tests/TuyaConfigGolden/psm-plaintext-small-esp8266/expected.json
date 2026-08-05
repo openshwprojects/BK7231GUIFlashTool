@@ -1,0 +1,78 @@
+{
+  "ty_ws_part": 1,
+  "ty_ws_mod": "ty_ws_part",
+  "scma_part": 2,
+  "scma_mod": "scma_part",
+  "last_used": 3,
+  "device_part": 3,
+  "device_mod": "device_part",
+  "ESP.ty_ws_mod.dev_ap_ssid_key": {
+    "ap_ssid": "SmartLife",
+    "ap_pwd": null
+  },
+  "ESP.ty_ws_mod.gw_sumer_table_key": [],
+  "ESP.ty_ws_mod.gw_active_key": {
+    "token": null,
+    "key": null,
+    "local_key": null,
+    "http_url": null,
+    "mq_url": null,
+    "mq_url_bak": null,
+    "timeZone": null,
+    "region": null,
+    "reg_key": null,
+    "wxappid": null,
+    "uid_acl": null
+  },
+  "ESP.ty_ws_mod.timer_posix_key": {
+    "lastFetchTime": 0,
+    "count": 0,
+    "whole": true
+  },
+  "ESP.ty_ws_mod.dev_if_rec_key": {
+    "id": "1150640668c63aebc53b",
+    "sw_ver": "1.0.1",
+    "schema_id": null,
+    "etag": null,
+    "product_key": "vdLB09s3DgZ0s5Gk",
+    "ability": 0,
+    "bind": false,
+    "sync": false
+  },
+  "ESP.ty_ws_mod.wf_nw_rec_key": {
+    "ssid": null,
+    "passwd": null,
+    "wk_mode": 1,
+    "mode": 0,
+    "type": 0,
+    "source": 0,
+    "path": 0,
+    "time": 0,
+    "random": 0
+  },
+  "ESP.ty_ws_mod.gw_sw_ver_key": {
+    "sw_ver": "1.0.1",
+    "bs_ver": "5.28",
+    "pt_ver": "2.1"
+  },
+  "wf_nw_rec_key": {
+    "ssid": null,
+    "passwd": null,
+    "wk_mode": 0,
+    "mode": 0,
+    "type": 0,
+    "source": 0,
+    "path": 0,
+    "time": 0,
+    "random": 0
+  },
+  "_key": [],
+  "ESP.scma_mod.scma_key": "invalid schema",
+  "ESP.device_mod.fsw_cnt_key": {
+    "fsw_cnt_key": 0
+  },
+  "ESP.device_mod.dp_data_key": {
+    "switch": true,
+    "bright": 32
+  }
+}

@@ -170,6 +170,8 @@
     <Compile Include="Flashers\SPIFlasher.cs" />
     <Compile Include="Flashers\SPIFlasher_Beken.cs" />
     <Compile Include="Utils\TuyaConfig.cs" />
+    <Compile Include="Utils\TuyaConfigCorpusInventory.cs" />
+    <Compile Include="Utils\TuyaConfigGoldenTests.cs" />
     <Compile Include="Utils\RFPartitionUtil.cs" />
     <Compile Include="Helpers\RichTextUtil.cs" />
     <Compile Include="Misc\TuyaModules.cs" />

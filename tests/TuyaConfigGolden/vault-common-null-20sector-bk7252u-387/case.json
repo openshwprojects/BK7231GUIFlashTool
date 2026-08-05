@@ -1,0 +1,19 @@
+{
+  "Name": "vault-common-null-20sector-bk7252u-387",
+  "SourceFileName": "Tuya_Doorbell_IP06-V6.3-0x11000_to_0x41100_attempt_BK7252_2025-08-10-17-50-06.bin",
+  "SourceSha256": "80e34104e69b89ccfaf6dcc725b71b8b6ea3fb099c3e16cebdf6540c84eaafcb",
+  "InputSha256": "a471caf9a99750a2a19a46b21dfb5dfba9d2df260645128c2cf343adf48c155d",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 3694592,
+  "ArenaOffset": 3698688,
+  "DecryptedLength": 81920,
+  "SectorCount": 20,
+  "EntryCount": 5,
+  "LargestValueLength": 358,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

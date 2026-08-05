@@ -1,0 +1,3 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+And the Tuya section starts at 2011136 (0x1EB000), which is a default RTL8710B/XR809/BK7231Q/RDA5981 offset.
