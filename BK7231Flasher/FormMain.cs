@@ -1294,7 +1294,9 @@ namespace BK7231Flasher
                     TuyaConfig tc = new TuyaConfig();
                     if (tc.fromBytes(dat) == false)
                     {
-                        if (tc.extractKeys() == false)
+                        bool classicExtractFailed = tc.extractKeys();
+                        bool hasEnhancedFallback = classicExtractFailed && tc.hasEnhancedExtractionData();
+                        if (!classicExtractFailed || hasEnhancedFallback)
                         {
                             Singleton.buttonRead.Invoke((MethodInvoker)delegate {
                                 // Running on the UI thread
@@ -2035,8 +2037,9 @@ namespace BK7231Flasher
                 selectedItem.Selected = true;
                 selectedItem.Focused = true;
 
-                ContextMenuStrip contextMenu = new ContextMenuStrip();
-                contextMenu.Closed += (s, args) => contextMenu.Dispose();
+                scannerDeviceMenu?.Dispose();
+                scannerDeviceMenu = new ContextMenuStrip(components);
+                ContextMenuStrip contextMenu = scannerDeviceMenu;
 
                 ToolStripMenuItem openPageMenuItem = new ToolStripMenuItem("Open page");
                 openPageMenuItem.Click += (s, args) =>
