@@ -1,0 +1,31 @@
+branches:
+  - main
+preset: "angular"
+tagFormat: "${version}"
+plugins:
+  - "@semantic-release/commit-analyzer"
+  - - "@semantic-release/exec"
+    - verifyReleaseCmd: 'echo "NEXT_RELEASE_VERSION=${nextRelease.version}" >> "$GITHUB_ENV"'
+  - "@semantic-release/release-notes-generator"
+analyzeCommits:
+  - path: "@semantic-release/commit-analyzer"
+    releaseRules:
+      - type: "feat"
+        release: "minor"
+      - type: "hotfix"
+        release: "patch"
+      - type: "fix"
+        release: "patch"
+      - type: "patch"
+        release: "patch"
+      - type: "minor"
+        release: "minor"
+      - type: "breaking"
+        release: "major"
+      - type: "chore"
+        release: "patch"
+      - message: "*"
+        release: "patch"
+generateNotes:
+  - path: "@semantic-release/release-notes-generator"
+    preset: "conventionalcommits"
