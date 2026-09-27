@@ -125,6 +125,7 @@ namespace BK7231Flasher
         public static int FLASH_ID_XT25F16B_1 = 0x0015404b;
         public static int FLASH_ID_TH25Q16UC = 0x001571cd;
         public static int FLASH_ID_XM25QH32D = 0x00164020;
+        public static int FLASH_ID_WB25Q32JV = 0x001640ef;
         public static int FLASH_ID_TH25Q32UB = 0x001660cd;
         public static int FLASH_ID_PY25Q32LB = 0x00166585;
         public static int FLASH_ID_PY25Q64HA = 0x00172085;
@@ -132,6 +133,7 @@ namespace BK7231Flasher
         public static int FLASH_ID_GD25Q64C = 0x001740c8;
         public static int FLASH_ID_TH25Q64HB = 0x001760cd;
         public static int FLASH_ID_TH25Q64HA = 0x001760eb;
+        public static int FLASH_ID_TH25Q64UB = 0x001770cd;
         public static int FLASH_ID_XM25QH128D = 0x00184020;
         public static int FLASH_ID_BY25Q128ES = 0x00184068;
         public static int FLASH_ID_GT25Q128EZ = 0x001840c4;
@@ -229,6 +231,7 @@ namespace BK7231Flasher
             addFlash(new BKFlash(FLASH_ID_P25Q32HB,     "P25Q32HB",   "Puya", 4 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_XTX25F32B,    "XT25F32B",   "xtx",  4 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_XM25QH32D,    "XM25QH32D",  "XM",   4 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
+            addFlash(new BKFlash(FLASH_ID_WB25Q32JV,    "WB25Q32JV",  "WB",   4 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_TH25Q32UB,    "TH25Q32UB",  "TH",   4 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_PY25Q32LB,    "PY25Q32LB",  "PY",   4 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
 
@@ -241,6 +244,7 @@ namespace BK7231Flasher
             addFlash(new BKFlash(FLASH_ID_GD25Q64C,     "GD25Q64C",   "GD",   8 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_TH25Q64HB,    "TH25Q64HB",  "TH",   8 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_TH25Q64HA,    "TH25Q64HA",  "TH",   8 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
+            addFlash(new BKFlash(FLASH_ID_TH25Q64UB,    "TH25Q64UB",  "TH",   8 * 1024 * 1024,  2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0x31, 0xff, 0xff }));
 
             addFlash(new BKFlash(FLASH_ID_GD25LQ128E,   "GD25LQ128E", "GD",   16 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));
             addFlash(new BKFlash(FLASH_ID_GD25WQ128E,   "GD25WQ128E", "GD",   16 * 1024 * 1024, 2, 0x00, 0x07, BIT(14) | BFD(0x1f, 2, 5), 2, 5, new byte[] { 0x05, 0x35, 0xff, 0xff }, new byte[] { 0x01, 0xff, 0xff, 0xff }));

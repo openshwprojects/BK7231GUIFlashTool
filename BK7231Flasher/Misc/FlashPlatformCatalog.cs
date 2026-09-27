@@ -14,6 +14,7 @@ namespace BK7231Flasher
             { BKType.BK7231U,    "BK7231U" },
             { BKType.BK7236,     "BK7236 (T3)" },
             { BKType.BK7238,     "BK7238 (T1)" },
+            { BKType.BK7239N,    "BK7239N" },
             { BKType.BK7252,     "BK7252" },
             { BKType.BK7252N,    "BK7252N (T4)" },
             { BKType.BK7258,     "BK7258 (T5)" },

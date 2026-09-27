@@ -6,6 +6,7 @@
 | BK7231U | Beken | ✅ | ✅¹ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
 | BK7236 (T3) | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ❌² | ✅ | ✅ | ✅ |
 | BK7238 (T1) | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
+| BK7239N | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ❌² | ❌⁷ | ❌⁷ | ✅ |
 | BK7252 | Beken | ✅ | ✅¹ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ℹ️ |
 | BK7252N (T4) | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
 | BK7258 (T5) | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ❌² | ✅ | ✅ | ✅ |
@@ -49,3 +50,4 @@ R cmp / W cmp - Read/write compression via custom flasher stub; ➖ means not ap
 ⁴ Custom reads work, but custom writes still follow the image/partition flow instead of arbitrary raw offsets.<br>
 ⁵ Write-only; standalone OBK config writes are disabled and config injection only happens during a full firmware write.<br>
 ⁶ OBK config reads work, but standalone OBK config writes are not implemented.<br>
+⁷ RF partition restore and relocation are not defined for this platform.<br>

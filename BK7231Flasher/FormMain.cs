@@ -52,6 +52,7 @@ namespace BK7231Flasher
                     case BKType.BK7231U:
                     case BKType.BK7236:
                     case BKType.BK7238:
+                    case BKType.BK7239N:
                     case BKType.BK7252:
                     case BKType.BK7252N:
                     case BKType.BK7258:
@@ -1075,9 +1076,16 @@ namespace BK7231Flasher
         void doOnlyReadOBKConfig()
         {
             clearUp();
-            createFlasher();
             // thanks to wrap-around hack, we can read from start correctly
             int startSector = OBKFlashLayout.getConfigLocation(curType, out var sectors);
+            if (IsBeken && (sectors <= 0 || startSector < 0))
+            {
+                addLog($"OBK config location is not defined for {curType}." + Environment.NewLine, Color.Red);
+                worker = null;
+                setButtonStates(true);
+                return;
+            }
+            createFlasher();
             if(curType == BKType.BL602 || curType == BKType.BL702 || curType == BKType.BL616)
             {
                 addLog("Reading partitions..." + Environment.NewLine, Color.Black);
@@ -1171,6 +1179,7 @@ namespace BK7231Flasher
                 case BKType.BK7231M:
                 case BKType.BK7236:
                 case BKType.BK7238:
+                case BKType.BK7239N:
                 case BKType.BK7252N:
                 case BKType.BK7258:
                     return $"Open{t}_QIO_";
@@ -1197,6 +1206,7 @@ namespace BK7231Flasher
                 case BKType.BK7231M:
                 case BKType.BK7236:
                 case BKType.BK7238:
+                case BKType.BK7239N:
                 case BKType.BK7252:
                 case BKType.BK7252N:
                 case BKType.BK7258:
@@ -1255,6 +1265,11 @@ namespace BK7231Flasher
         {
             if (checkBoxAutoOBKConfig.Checked)
             {
+                if (IsBeken && OBKFlashLayout.hasConfigLocation(curType) == false)
+                {
+                    addLog($"Automatic OBK config injection is not supported on {curType}; continuing without it." + Environment.NewLine, Color.DarkOrange);
+                    return null;
+                }
                 return formObkCfg.getCFG();
             }
             return null;
@@ -1264,7 +1279,8 @@ namespace BK7231Flasher
             if (checkBoxReadOBKConfig.Checked)
             {
                 addLog("Backup created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
-                if(curType == BKType.RTL8721DA || curType == BKType.RTL8720E)
+                if ((IsBeken && OBKFlashLayout.hasConfigLocation(curType) == false)
+                    || curType == BKType.RTL8721DA || curType == BKType.RTL8720E)
                 {
                     addLog("Can't extract OBK config from backup for this chip." + Environment.NewLine, Color.DarkRed);
                 }
@@ -1333,6 +1349,11 @@ namespace BK7231Flasher
             byte[] mac = null;
             if(IsBeken)
             {
+                if (RFPartitionUtil.getRFOffset(curType) < 0)
+                {
+                    addLog($"RF/MAC extraction is not defined for {curType}." + Environment.NewLine, Color.DarkOrange);
+                    return null;
+                }
                 mac = RFPartitionUtil.getMACFromQio(data, curType, out var isRFFixRequired);
                 if(isRFFixRequired)
                 {
@@ -1442,6 +1463,7 @@ namespace BK7231Flasher
             chosenSourceFile = "";
 
             refreshType();
+            updatePlatformCapabilityButtons(worker == null);
             refreshFirmwaresList();
             setSettingsKeyAndSave("Platform", comboBoxChipType.SelectedItem);
         }
@@ -1610,9 +1632,7 @@ namespace BK7231Flasher
                 buttonTestWrite.Enabled = b;
                 buttonDoBackupAndFlashNew.Enabled = b;
                 buttonWriteOnly.Enabled = b;
-                buttonWriteOBKConfig.Enabled = b;
-                buttonReadOBKConfig.Enabled = b;
-                buttonRestoreRF.Enabled = b;
+                updatePlatformCapabilityButtons(b);
                 buttonCustomOperation.Enabled = b;
                 buttonEraseAll.Enabled = b;
                 buttonStop.Enabled = !b;
@@ -1622,6 +1642,15 @@ namespace BK7231Flasher
                 applySerialControlState(comboBoxReadRomChipType, comboBoxReadRomUART, comboBoxReadRomBaudRate, b);
                 updateReadRomReadButtonState();
             });
+        }
+
+        void updatePlatformCapabilityButtons(bool operationControlsEnabled)
+        {
+            bool obkConfigSupported = IsBeken == false || OBKFlashLayout.hasConfigLocation(curType);
+            bool rfSupported = IsBeken == false || RFPartitionUtil.getRFOffset(curType) >= 0;
+            buttonWriteOBKConfig.Enabled = operationControlsEnabled && obkConfigSupported;
+            buttonReadOBKConfig.Enabled = operationControlsEnabled && obkConfigSupported;
+            buttonRestoreRF.Enabled = operationControlsEnabled && rfSupported;
         }
         private void buttonStop_Click(object sender, EventArgs e)
         {
@@ -1879,7 +1908,7 @@ namespace BK7231Flasher
             string _msg =
                 "BK7231T / BK7231U / BK7252:" + _nl +
                 "- Erases from 0x11000. Bootloader (0x000000-0x010FFF) must be preserved on these chips." + _nl + _nl +
-                "BK7231N / BK7231M / BK7236 / BK7238 / BK7252N / BK7258:" + _nl +
+                "BK7231N / BK7231M / BK7236 / BK7238 / BK7239N / BK7252N / BK7258:" + _nl +
                 "- Erases from 0x11000. Bootloader safe to erase on these but tool preserves it." + _nl +
                 "- Config, RF and MAC data above 0x11000 will be removed on all BK chips." + _nl + _nl +
                 "Full chip erase: W600, W800, BL602, BL702, BL616 / BL618, ECR6600, TR6260, LN882H, LN8825B, XR806, XR809, XR872, RTL8710B, RTL8720DN, RTL87X0C, RTL8721DA, RTL8720E, RDA5981, Beken SPI / Generic SPI, ESP8266, ESP32 family." + _nl + _nl +

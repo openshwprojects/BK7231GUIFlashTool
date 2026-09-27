@@ -85,24 +85,25 @@ namespace BK7231Flasher
         static readonly int[] XrSerialBauds = new int[] { 9600, 115200, 921600, 1000000, 1500000, 3000000 };
         #region Beken
         const string BekenRomSpace = "ROM memory";
-        const string BekenRomBackend = "register read";
+        const string BekenReadRegBackend = "register read";
         const string BekenRomController = "direct";
         const string BekenNonSecureRomSpace = "non-secure ROM alias";
         const string BekenEfuseSpace = "eFuse byte index";
         const string BekenEfuseBackend = "register R/W";
         const string BekenSctrlEfuseController = "SCTRL 0x00800074/0x00800078";
-        const string Bk7258EfuseSpace = "eFuse bytes 0x00..0x03";
+        const string FourByteBekenEfuseSpace = "eFuse bytes 0x00..0x03";
         const string Bk7258EfuseController = "EFUSE CTRL/OPTR 0x54880010/0x54880014";
-        const string Bk7258OtpSpace = "combined output: OTP1 APB 0x400 + OTP2 AHB 0xC00";
-        const string Bk7258OtpBackend = "UART ROM register read";
-        const string Bk7258OtpController = "OTP1 0x5B100400; OTP2 0x5B010000";
-        const int Bk7258Otp1Size = 0x400;
-        const int Bk7258Otp2Size = 0xC00;
+        const string Bk7239NEfuseController = "OTP1 eFuse field 0x5B10043C";
+        const int FourByteBekenEfuseSize = 0x04;
+        const string BekenOtpApbAhbSpace = "combined output: OTP1 APB 0x400 + OTP2 AHB 0xC00";
+        const string BekenOtpApbAhbWindows = "OTP1 APB data 0x5B100400; OTP2 AHB data 0x5B010000";
+        const int BekenOtp1ApbDataSize = 0x400;
+        const int BekenOtp2AhbDataSize = 0xC00;
 
-        static readonly IReadOnlyList<RomReadOutputSlice> Bk7258OtpSlices = new List<RomReadOutputSlice>()
+        static readonly IReadOnlyList<RomReadOutputSlice> BekenOtpApbAhbSlices = new List<RomReadOutputSlice>()
         {
-            new RomReadOutputSlice("OTP1 APB", "OTP1_APB", 0x00, Bk7258Otp1Size),
-            new RomReadOutputSlice("OTP2 AHB", "OTP2_AHB", Bk7258Otp1Size, Bk7258Otp2Size),
+            new RomReadOutputSlice("OTP1 APB", "OTP1_APB", 0x00, BekenOtp1ApbDataSize),
+            new RomReadOutputSlice("OTP2 AHB", "OTP2_AHB", BekenOtp1ApbDataSize, BekenOtp2AhbDataSize),
         };
         #endregion
         #region LN882x
@@ -192,22 +193,25 @@ namespace BK7231Flasher
 
         static readonly IReadOnlyList<RomReadTarget> Targets = new List<RomReadTarget>()
         {
-            new RomReadTarget(BKType.BK7231M, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7231M, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenReadRegBackend, BekenRomController),
             new RomReadTarget(BKType.BK7231M, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7231N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7231N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenReadRegBackend, BekenRomController),
             new RomReadTarget(BKType.BK7231N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             // BK7236 production Boot ROM maps to 0x061F0000; its non-secure alias is untested on hardware.
-            new RomReadTarget(BKType.BK7236, RomReadKind.Rom, "ROM", 0x161F0000, 0x10000, 115200, CommonSerialBauds, BekenNonSecureRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7238, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7238, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
-            new RomReadTarget(BKType.BK7252N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7252N, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, BekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            new RomReadTarget(BKType.BK7236, RomReadKind.Rom, "ROM", 0x161F0000, 0x10000, 115200, CommonSerialBauds, BekenNonSecureRomSpace, BekenReadRegBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7239N, RomReadKind.Rom, "ROM", 0x16000000, 0x10000, 115200, CommonSerialBauds, BekenNonSecureRomSpace, BekenReadRegBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7239N, RomReadKind.Efuse, "eFuse", 0x00000000, FourByteBekenEfuseSize, 115200, CommonSerialBauds, FourByteBekenEfuseSpace, BekenReadRegBackend, Bk7239NEfuseController),
+            new RomReadTarget(BKType.BK7239N, RomReadKind.Otp, "OTP", 0x00000000, BekenOtp1ApbDataSize + BekenOtp2AhbDataSize, 115200, CommonSerialBauds, BekenOtpApbAhbSpace, BekenReadRegBackend, BekenOtpApbAhbWindows, outputSlices: BekenOtpApbAhbSlices),
+            new RomReadTarget(BKType.BK7238, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenReadRegBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7238, RomReadKind.Efuse, "eFuse", 0x00000000, FourByteBekenEfuseSize, 115200, CommonSerialBauds, FourByteBekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
+            new RomReadTarget(BKType.BK7252N, RomReadKind.Rom, "ROM", 0x00000000, 0x4000, 115200, CommonSerialBauds, BekenRomSpace, BekenReadRegBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7252N, RomReadKind.Efuse, "eFuse", 0x00000000, FourByteBekenEfuseSize, 115200, CommonSerialBauds, FourByteBekenEfuseSpace, BekenEfuseBackend, BekenSctrlEfuseController),
             // BK7231T/BK7231U do not expose ROM/eFuse reads over UART.
             // BK7258 download mode filters the secure ROM alias at 0x06000000.
             // The non-secure alias at 0x16000000 maps to the same physical ROM.
-            new RomReadTarget(BKType.BK7258, RomReadKind.Rom, "ROM", 0x16000000, 0x10000, 115200, CommonSerialBauds, BekenNonSecureRomSpace, BekenRomBackend, BekenRomController),
-            new RomReadTarget(BKType.BK7258, RomReadKind.Efuse, "eFuse", 0x00000000, 0x04, 115200, CommonSerialBauds, Bk7258EfuseSpace, BekenEfuseBackend, Bk7258EfuseController),
-            new RomReadTarget(BKType.BK7258, RomReadKind.Otp, "OTP", 0x00000000, Bk7258Otp1Size + Bk7258Otp2Size, 115200, CommonSerialBauds, Bk7258OtpSpace, Bk7258OtpBackend, Bk7258OtpController, outputSlices: Bk7258OtpSlices),
+            new RomReadTarget(BKType.BK7258, RomReadKind.Rom, "ROM", 0x16000000, 0x10000, 115200, CommonSerialBauds, BekenNonSecureRomSpace, BekenReadRegBackend, BekenRomController),
+            new RomReadTarget(BKType.BK7258, RomReadKind.Efuse, "eFuse", 0x00000000, FourByteBekenEfuseSize, 115200, CommonSerialBauds, FourByteBekenEfuseSpace, BekenEfuseBackend, Bk7258EfuseController),
+            new RomReadTarget(BKType.BK7258, RomReadKind.Otp, "OTP", 0x00000000, BekenOtp1ApbDataSize + BekenOtp2AhbDataSize, 115200, CommonSerialBauds, BekenOtpApbAhbSpace, BekenReadRegBackend, BekenOtpApbAhbWindows, outputSlices: BekenOtpApbAhbSlices),
             new RomReadTarget(BKType.LN882H, RomReadKind.Rom, "ROM", 0x00000000, 0x20000, 115200, CommonSerialBauds, LnRomSpace, LnRamcodeBackend, LnRomController),
             new RomReadTarget(BKType.LN882H, RomReadKind.Otp, "Flash OTP", 0x00000000, 0x400, 115200, CommonSerialBauds, LnFlashOtpSpace, LnRamcodeBackend, LnFlashOtpController, 2, "CRC16"),
             new RomReadTarget(BKType.LN882H, RomReadKind.Efuse, "eFuse", 0x00000000, 0x40, 115200, CommonSerialBauds, LnEfuseSpace, LnRamcodeBackend, LnEfuseController, 2, "CRC16"),
