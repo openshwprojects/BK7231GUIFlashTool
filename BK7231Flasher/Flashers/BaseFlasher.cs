@@ -16,6 +16,7 @@ namespace BK7231Flasher
         BK7231U,
         BK7236,
         BK7238,
+        BK7239N,
         BK7252,
         BK7252N,
         BK7258,

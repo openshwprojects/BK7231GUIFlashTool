@@ -79,6 +79,7 @@ namespace BK7231Flasher
             addLog("Target platform: " + bkType);
 
 
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             WebClient webClient = new WebClient();
             webClient.DownloadProgressChanged += (s, e) =>
             {

@@ -12,6 +12,7 @@ namespace BK7231Flasher
             { BKType.BK7231U, GetBekenUart1Instructions("BK7231U") },
             { BKType.BK7236, GetBekenUartInstructions("BK7236", "download UART", "DL_UART_TX", "DL_UART_RX") },
             { BKType.BK7238, GetBekenUart1Instructions("BK7238") },
+            { BKType.BK7239N, GetBekenUartInstructions("BK7239N", "download UART", "DL_UART_TX", "DL_UART_RX") },
             { BKType.BK7252, "" },
             { BKType.BK7252N, GetBekenUart1Instructions("BK7252N") },
             { BKType.BK7258, GetBekenUartInstructions("BK7258", "download UART", "DL_UART_TX", "DL_UART_RX") },

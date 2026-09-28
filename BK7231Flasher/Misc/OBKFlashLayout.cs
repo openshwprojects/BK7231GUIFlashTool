@@ -4,6 +4,12 @@ namespace BK7231Flasher
 {
     class OBKFlashLayout
     {
+        public static bool hasConfigLocation(BKType type)
+        {
+            int offset = getConfigLocation(type, out int sectors);
+            return offset >= 0 && sectors > 0;
+        }
+
         public static int getConfigLocation(BKType type, out int sectors)
         {
             switch(type)

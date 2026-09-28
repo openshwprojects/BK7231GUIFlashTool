@@ -10,6 +10,7 @@ Supported GUI-selectable chip/platform modes:
   - BK7231U
   - BK7236 (T3)
   - BK7238 (T1)
+  - BK7239N
   - BK7252
   - BK7252N (T4)
   - BK7258 (T5)
@@ -85,9 +86,9 @@ Alternatively, you can use prebuilt release binary.
 
 # Brief usage instructions (BK72xx)
 
-1. Connect UART to USB converter to Beken TXD1/RXD1
+1. Connect a 3.3 V USB-to-UART converter to the selected Beken chip's flash-download UART; use the in-app guide for the exact TX/RX pins
 2. Start flasher tool
-3. Select N or T platform
+3. Select the correct platform for your chip
 4. Click "Download latest from web" to get firmware binary
 5. Click "Do backup and flash new"
 6. Reset/repower Beken
@@ -102,7 +103,7 @@ No command line and no strange arguments required.
 2. Prepare flashing circuit for BK72xx
 
     - Get a USB to UART bridge with 3.3V voltage signals
-    - Connect the Bridge RX to Module TXD1, and Bridge TX to Module RXD1
+    - Connect Bridge RX to the module's flash-download TX and Bridge TX to its flash-download RX; use the in-app guide for the exact pin names
     - If necessary, solder a wire to the CEN pad (if you want to RESET through shorting CEN to ground)
     - Power the device from either the bridge or an external power source. All Beken based modules require 3.3v.  
       ⚠️ **NEVER try hacking devices while connected to mains power!** 

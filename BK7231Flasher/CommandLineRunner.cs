@@ -269,11 +269,11 @@ namespace BK7231Flasher
                 Environment.Exit(1);
                 return;
             }
-            if ((chipType == BKType.BekenSPI || chipType == BKType.GenericSPI)
+            if (Requires4KAlignedRange(chipType)
                 && (operation == CliOperation.CustomRead || operation == CliOperation.CustomWrite || operation == CliOperation.Test)
                 && ((ofs % BK7231Flasher.SECTOR_SIZE) != 0 || (len % BK7231Flasher.SECTOR_SIZE) != 0))
             {
-                Console.Error.WriteLine("Error: BekenSPI/GenericSPI custom operations require --addr and --size to be 0x1000-aligned.");
+                Console.Error.WriteLine("Error: Custom operations for this chip require --addr and --size to be 0x1000-aligned.");
                 Environment.Exit(1);
                 return;
             }
@@ -402,8 +402,50 @@ namespace BK7231Flasher
 
             flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
 
+            if (DidBekenWriteSucceed(flasher) == false)
+            {
+                Console.Error.WriteLine("\nWrite failed.");
+                return 1;
+            }
+
             Console.WriteLine("\nWrite completed successfully.");
             return 0;
+        }
+
+        static bool IsBekenUartPlatform(BKType chipType)
+        {
+            switch (chipType)
+            {
+                case BKType.BK7231M:
+                case BKType.BK7231N:
+                case BKType.BK7231T:
+                case BKType.BK7231U:
+                case BKType.BK7236:
+                case BKType.BK7238:
+                case BKType.BK7239N:
+                case BKType.BK7252:
+                case BKType.BK7252N:
+                case BKType.BK7258:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        static bool Requires4KAlignedRange(BKType chipType)
+        {
+            return IsBekenUartPlatform(chipType)
+                || chipType == BKType.BekenSPI
+                || chipType == BKType.GenericSPI;
+        }
+
+        static bool DidBekenWriteSucceed(BaseFlasher flasher)
+        {
+            if (flasher is BK7231Flasher bkFlasher)
+            {
+                return bkFlasher.LastOperationSucceeded;
+            }
+            return true;
         }
 
         /// <summary>
@@ -482,6 +524,12 @@ namespace BK7231Flasher
             flasher.setCustomWriteMode(true);
             flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
 
+            if (DidBekenWriteSucceed(flasher) == false)
+            {
+                Console.Error.WriteLine("\nCustom write failed.");
+                return 1;
+            }
+
             Console.WriteLine("\nCustom write completed successfully.");
             return 0;
         }
@@ -489,6 +537,7 @@ namespace BK7231Flasher
         static int DoTest(BaseFlasher flasher, BKType chipType, int ofs, int len)
         {
             Console.WriteLine($"Starting Read/Write/Verify test at offset 0x{ofs:X}, length 0x{len:X}...");
+            bool isBekenUartTest = IsBekenUartPlatform(chipType);
 
             byte[] testPattern = new byte[len];
             for (int i = 0; i < len; i++)
@@ -496,16 +545,24 @@ namespace BK7231Flasher
                 testPattern[i] = (byte)(i % 256);
             }
 
-            string tempFile = Path.Combine(Path.GetTempPath(), "bt_test_pattern.bin");
-            File.WriteAllBytes(tempFile, testPattern);
+            string tempFileName = isBekenUartTest
+                ? "bt_test_pattern_" + Guid.NewGuid().ToString("N") + ".bin"
+                : "bt_test_pattern.bin";
+            string tempFile = Path.Combine(Path.GetTempPath(), tempFileName);
 
             try
             {
+                File.WriteAllBytes(tempFile, testPattern);
                 int startSector = ToStartSector(chipType, ofs);
                 int sectors = len / BK7231Flasher.SECTOR_SIZE;
 
                 Console.WriteLine("Step 1/3: Writing pattern...");
                 flasher.doReadAndWrite(startSector, sectors, tempFile, WriteMode.OnlyWrite);
+                if (DidBekenWriteSucceed(flasher) == false)
+                {
+                    Console.Error.WriteLine("Error: Pattern write failed.");
+                    return 1;
+                }
 
                 Console.WriteLine("\nStep 2/3: Reading back...");
                 flasher.doRead(startSector, sectors, false);
@@ -516,6 +573,12 @@ namespace BK7231Flasher
                 if (readData == null || readData.Length == 0)
                 {
                     Console.Error.WriteLine("Error: No read data available for verification.");
+                    return 1;
+                }
+
+                if (isBekenUartTest && testPattern.Length != readData.Length)
+                {
+                    Console.Error.WriteLine($"FAIL: Verification length differs (pattern={testPattern.Length}, read={readData.Length}).");
                     return 1;
                 }
 
