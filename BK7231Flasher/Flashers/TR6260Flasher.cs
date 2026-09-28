@@ -316,7 +316,7 @@ namespace BK7231Flasher
 					byte[] data = File.ReadAllBytes(sourceFileName);
 					if(LooksLikeWholeFlashImage(startSector, data))
 					{
-						InternalWrite(0, data);
+						if(!InternalWrite(0, data)) return;
 					}
 					else if(startSector == 0)
 					{
@@ -324,18 +324,18 @@ namespace BK7231Flasher
 						{
 							byte[] boot = FLoaders.GetRawBinaryFromAssembly("TR6260_Boot");
 							byte[] partition = FLoaders.GetRawBinaryFromAssembly("TR6260_Partition");
-							InternalWrite(0, boot);
-							InternalWrite(PARTITION_ADDR, partition);
-							InternalWrite(APP_ADDR, data);
+							if(!InternalWrite(0, boot)) return;
+							if(!InternalWrite(PARTITION_ADDR, partition)) return;
+							if(!InternalWrite(APP_ADDR, data)) return;
 						}
 						else
 						{
-							InternalWrite(startSector, data);
+							if(!InternalWrite(startSector, data)) return;
 						}
 					}
 					else
 					{
-						InternalWrite(startSector, data);
+						if(!InternalWrite(startSector, data)) return;
 					}
 				}
 				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)

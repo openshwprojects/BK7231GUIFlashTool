@@ -269,12 +269,7 @@ namespace BK7231Flasher
 					}
 					addLogLine("Reading " + sourceFileName + "...");
 					byte[] data = File.ReadAllBytes(sourceFileName);
-					var startAddr = 0;
-					if(!InternalWrite(startAddr, data))
-					{
-						logger.setState("Write error!", Color.Red);
-						return;
-					}
+					if(!InternalWrite(startSector, data)) return;
 				}
 				if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig)
 				{

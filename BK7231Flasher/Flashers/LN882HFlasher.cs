@@ -215,7 +215,7 @@ namespace BK7231Flasher
 					}
 					addLogLine("Reading " + sourceFileName + "...");
 					byte[] data = File.ReadAllBytes(sourceFileName);
-					InternalWrite(startSector, data);
+					if(!InternalWrite(startSector, data)) return;
 				}
 				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
 				{
@@ -225,7 +225,7 @@ namespace BK7231Flasher
 						var areaSize = sectors * BK7231Flasher.SECTOR_SIZE;
 
 						cfg.saveConfig(chipType);
-						var cfgData = cfg.getData();
+						var cfgData = MiscUtils.padArray(cfg.getData(), BK7231Flasher.SECTOR_SIZE);
 						addLog("Now will also write OBK config..." + Environment.NewLine);
 						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
 						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);

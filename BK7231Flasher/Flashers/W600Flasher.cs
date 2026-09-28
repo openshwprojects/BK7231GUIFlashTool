@@ -286,8 +286,7 @@ namespace BK7231Flasher
 				{
 					int offset = OBKFlashLayout.getConfigLocation(chipType, out _) | 0x08000000;
 					cfg.saveConfig(chipType);
-					var data = new byte[2016];
-					Array.Copy(cfg.getData(), data, data.Length);
+					var data = MiscUtils.padArray(cfg.getData(), BK7231Flasher.SECTOR_SIZE);
 					addLog("Now will also write OBK config..." + Environment.NewLine);
 					addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
 					addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);

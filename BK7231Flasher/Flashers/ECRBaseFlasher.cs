@@ -155,7 +155,7 @@ namespace BK7231Flasher
 		protected virtual byte[] ExecuteCommand(int type, byte[] parms = null,
 			float timeout = 0.1f, int expectedReplyLen = 0, int br = 115200, bool isErrorExpected = false)
 		{
-			parms = parms ?? new byte[0];
+			parms ??= new byte[0];
 			var raw = new List<byte>()
 			{
 				0xA5,
@@ -171,7 +171,9 @@ namespace BK7231Flasher
 
 			if(type == CMD_BAUD)
 			{
-				Thread.Sleep(1);
+				serial.BaseStream.Flush();
+				var ms = (int)Math.Ceiling((raw.Count * 10.0 / serial.BaudRate) * 1000);
+				Thread.Sleep(ms);
 				serial.BaudRate = br;
 			}
 
@@ -232,9 +234,11 @@ namespace BK7231Flasher
 						0x03 => "TYPE_ERROR",
 						0x04 => "LEN_ERROR",
 						0x05 => "CRC_ERROR",
+						0x10 => "NOT_SUPPORTED",
+						0x11 => "OTP_CANT_READ",
 						_ => $"UNKNOWN_ERROR_{status:X2}"
 					};
-					addErrorLine($"Command status is {statusName}");
+					addErrorLine($"Command failed with error code 0x{status:X2} - {statusName}!");
 				}
 				return null;
 			}
@@ -254,11 +258,6 @@ namespace BK7231Flasher
 			{
 				addErrorLine($"Read length cannot be zero!");
 				return null;
-			}
-			if((chipType == BKType.RTL8720D || chipType == BKType.TR6260) && bUseCompressionIfPossible)
-			{
-				addErrorLine($"Compressed read is not supported on {chipType}, disabling...");
-				bUseCompressionIfPossible = false;
 			}
 			var offset = addr;
 			var toRead = sectors * 0x1000;
@@ -306,7 +305,13 @@ namespace BK7231Flasher
 					};
 					msg = msg.Append(comprLevel).ToArray();
 				}
-				var res = ExecuteCommand(bUseCompressionIfPossible == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_COMPRESSED, msg, 2, 0);
+				var res = ExecuteCommand(bUseCompressionIfPossible ? CMD_CUSTOM_XMODEM_READ_COMPRESSED : CMD_CUSTOM_XMODEM_READ, msg, 0.1f, 0);
+				if(bUseCompressionIfPossible && res == null)
+				{
+					addErrorLine("Compressed read failed! Will try normal read...");
+					bUseCompressionIfPossible = false;
+					res = ExecuteCommand(CMD_CUSTOM_XMODEM_READ, msg, 0.1f, 0);
+				}
 				if(res == null)
 					return null;
 				var stream = new MemoryStream();
@@ -474,11 +479,6 @@ namespace BK7231Flasher
 
 		protected bool InternalWrite(int addr, byte[] data, int len = -1)
 		{
-			if((chipType == BKType.RTL8720D || chipType == BKType.TR6260) && bUseCompressionIfPossible)
-			{
-				addErrorLine($"Compressed write is not supported on {chipType}, disabling...");
-				bUseCompressionIfPossible = false;
-			}
 			try
 			{
 				xm.PacketSent += Xm_PacketSent;
@@ -501,6 +501,11 @@ namespace BK7231Flasher
 				cmd[6] = (byte)((len >> 16) & 0xFF);
 				cmd[7] = (byte)((len >> 24) & 0xFF);
 				var res = ExecuteCommand(bUseCompressionIfPossible ? CMD_CUSTOM_XMODEM_WRITE_COMPRESSED : CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
+				if(bUseCompressionIfPossible && res == null)
+				{
+					addErrorLine("Compressed write failed! Will try normal write...");
+					res = ExecuteCommand(CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
+				}
 				if(res == null)
 				{
 					serial.Write(new[] { xm.EOT }, 0, 1);

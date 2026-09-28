@@ -25,6 +25,15 @@ namespace BK7231Flasher
             return r;
         }
 
+        internal static byte[] newArray(int length)
+        {
+            var array = new byte[length];
+            var span = new Span<byte>(array);
+
+            span.Fill(0xff);
+            return array;
+        }
+
         internal static byte[] padArray(byte[] data, int sector)
         {
             int rem = data.Length % sector;

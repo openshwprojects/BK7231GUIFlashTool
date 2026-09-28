@@ -161,10 +161,8 @@ namespace BK7231Flasher
 					byte[] res = InternalRead(startSector, sectors);
 					if(res != null)
 						ms = new MemoryStream(res);
-					if(ms == null)
-					{
+					else
 						return;
-					}
 					if(saveReadResult(startSector) == false)
 					{
 						return;
@@ -197,7 +195,7 @@ namespace BK7231Flasher
 							}
 							else if(header[0] != 0x02)
 							{
-								addWarningLine($"Unknown type {header[0]:X2} with offset {flashOffset:X} and length {length}, skipping");
+								addWarningLine($"Unknown type {header[0]:X2} with offset {flashOffset:X} and length {length}, skipping...");
 							}
 							else
 							{
@@ -217,7 +215,7 @@ namespace BK7231Flasher
 					}
 					else
 					{
-						InternalWrite(startSector, data);
+						if(!InternalWrite(startSector, data)) return;
 					}
 				}
 				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)

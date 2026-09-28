@@ -167,11 +167,7 @@ namespace BK7231Flasher
 					{
 						startAddr = 0x0;
 					}
-					if(!InternalWrite(startAddr, data))
-					{
-						logger.setState("Write error!", Color.Red);
-						return;
-					}
+					if(!InternalWrite(startAddr, data)) return;
 				}
 				if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig)
 				{
