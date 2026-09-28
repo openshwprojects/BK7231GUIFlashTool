@@ -39,7 +39,7 @@ namespace BK7231Flasher
             { BKType.RTL8720E, GetRtlUartDownloadInstructions("RTL8720E", "PA19", "PA20") },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
-            { BKType.TR6260, "" },
+            { BKType.TR6260, GetTR6260Instructions() },
             { BKType.W800, GetW800Instructions() },
             { BKType.XR806, GetXr806Instructions() },
             { BKType.XR809, GetXrUart0TwoBootPinsInstructions("XR809") },
@@ -136,6 +136,17 @@ namespace BK7231Flasher
                 "- IO21 -> 3.3 V if the target does not enter UART download mode" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "Start the read first. While the tool is trying to connect, reset or power-cycle the device; if linking does not start, try again with IO21 pulled high.";
+        }
+
+        static string GetTR6260Instructions()
+        {
+            return "Connect the TR6260 UART flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> TR6260 TX0 (GPIO6)" + System.Environment.NewLine +
+                "- Adapter TX -> TR6260 RX0 (GPIO5)" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                "- GPIO14 / TOUT2 / BT0 -> GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "With GPIO14 held low, power-cycle the 3.3 V supply. Once the target is in UART download mode, start the read.";
         }
 
         static string GetXr806Instructions()
