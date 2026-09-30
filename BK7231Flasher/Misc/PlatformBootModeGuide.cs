@@ -33,13 +33,14 @@ namespace BK7231Flasher
             { BKType.ECR6600, GetEcr6600Instructions() },
             { BKType.GD32VW553, GetGd32vw553Instructions() },
             { BKType.OPL1000A2, GetOplInstructions() },
-            { BKType.RTL8710B, GetRtl8710bInstructions() },
+            { BKType.RTL8710B, GetRtlUartDownloadInstructions("RTL8710B", "PA29", "PA30") },
+            { BKType.RTL8720D, GetRtlUartDownloadInstructions("RTL8720D", "PB1", "PB0") },
             { BKType.RTL8721DA, GetRtlUartDownloadInstructions("RTL8721DA", "PB4", "PB5") },
             { BKType.RTL8720E, GetRtlUartDownloadInstructions("RTL8720E", "PA19", "PA20") },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
-            { BKType.TR6260, "" },
-            { BKType.W800, "" },
+            { BKType.TR6260, GetTR6260Instructions() },
+            { BKType.W800, GetW800Instructions() },
             { BKType.XR806, GetXr806Instructions() },
             { BKType.XR809, GetXrUart0TwoBootPinsInstructions("XR809") },
             { BKType.XR872, GetXrUart0TwoBootPinsInstructions("XR872") },
@@ -83,24 +84,14 @@ namespace BK7231Flasher
                 "With PA00 and PA13 pulled high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
         }
 
-        static string GetRtl8710bInstructions()
-        {
-            return "Connect the RTL8710B log UART to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
-                "- Adapter RX -> RTL8710B Log_TX (PA30)" + System.Environment.NewLine +
-                "- Adapter TX -> RTL8710B Log_RX (PA29)" + System.Environment.NewLine +
-                "- Adapter GND -> target GND" + System.Environment.NewLine +
-                GetPowerAndGroundInstructions() + System.Environment.NewLine +
-                "Temporarily disconnect the adapter RX from PA30 and hold PA30 low while resetting the chip or power-cycling the 3.3 V supply. Then release PA30, reconnect it to the adapter RX, and start the read.";
-        }
-
         static string GetRtlUartDownloadInstructions(string platformName, string logRxPin, string logTxPin)
         {
-            return "Connect the " + platformName + " log UART to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
-                "- Adapter RX -> " + platformName + " Log_TX (" + logTxPin + " / UD_DIS)" + System.Environment.NewLine +
-                "- Adapter TX -> " + platformName + " Log_RX (" + logRxPin + ")" + System.Environment.NewLine +
+            return $"Connect the {platformName} log UART to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                $"- Adapter RX -> {platformName} Log_TX ({logTxPin})" + System.Environment.NewLine +
+                $"- Adapter TX -> {platformName} Log_RX ({logRxPin})" + System.Environment.NewLine +
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
-                "Temporarily disconnect the adapter RX from " + logTxPin + " and hold " + logTxPin + " / UD_DIS low while resetting the chip or power-cycling the 3.3 V supply. Then release " + logTxPin + ", reconnect it to the adapter RX, and start the read.";
+                $"Temporarily hold {logTxPin} low while resetting the chip or power-cycling the 3.3 V supply. Then release {logTxPin} it and start the read.";
         }
 
         static string GetEcr6600Instructions()
@@ -111,6 +102,17 @@ namespace BK7231Flasher
                 "- Adapter GND -> target GND" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "Start the read first. While the tool is trying to connect, reset the target by briefly pulling RST low, or power-cycle the 3.3 V supply. If linking does not start, try the reset or power-cycle again.";
+        }
+
+        static string GetW800Instructions()
+        {
+            return "Connect the W800 UART0 flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> W800 UART0_TX (PB19)" + System.Environment.NewLine +
+                "- Adapter TX -> W800 UART0_RX (PB20)" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "First try starting the read with the target running normally. The flasher will send the AT+Z software-reset command at 115200 baud, then send ESC characters while waiting for ROM download mode. Software reset only works when the existing firmware accepts WinnerMicro AT commands." + System.Environment.NewLine +
+                "If automatic entry does not work, start the read, hold BOOTMODE low, then reset the chip by briefly pulling RESET low or by power-cycling the 3.3 V supply. Keep BOOTMODE low for at least 30 ms after reset or power-on, then release it while the tool is trying to connect.";
         }
 
         static string GetGd32vw553Instructions()
@@ -134,6 +136,17 @@ namespace BK7231Flasher
                 "- IO21 -> 3.3 V if the target does not enter UART download mode" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "Start the read first. While the tool is trying to connect, reset or power-cycle the device; if linking does not start, try again with IO21 pulled high.";
+        }
+
+        static string GetTR6260Instructions()
+        {
+            return "Connect the TR6260 UART flashing port to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> TR6260 TX0 (GPIO6)" + System.Environment.NewLine +
+                "- Adapter TX -> TR6260 RX0 (GPIO5)" + System.Environment.NewLine +
+                "- Adapter GND -> target GND" + System.Environment.NewLine +
+                "- GPIO14 / TOUT2 / BT0 -> GND" + System.Environment.NewLine +
+                GetPowerAndGroundInstructions() + System.Environment.NewLine +
+                "With GPIO14 held low, power-cycle the 3.3 V supply. Once the target is in UART download mode, start the read.";
         }
 
         static string GetXr806Instructions()

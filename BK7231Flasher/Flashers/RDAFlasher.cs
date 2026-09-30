@@ -1,8 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace BK7231Flasher
@@ -24,6 +25,7 @@ namespace BK7231Flasher
 			addLog("Going to open port: " + serialName + "." + Environment.NewLine);
 			try
 			{
+				cancellationToken.ThrowIfCancellationRequested();
 				serial = new SerialPort(serialName, 115200);
 				serial.Open();
 				serial.DiscardInBuffer();
@@ -46,6 +48,7 @@ namespace BK7231Flasher
 				return false;
 			if(ReadFlashId(true) != null)
 			{
+				if(!CheckChipInfo(PrintChipInfo)) return false;
 				addLogLine("Stub is already uploaded!");
 				return true;
 			}
@@ -110,7 +113,10 @@ namespace BK7231Flasher
 							serial.BaudRate = 115200;
 							serial.DiscardInBuffer();
 							if(ReadFlashId(true) != null)
+							{
+								if(!CheckChipInfo(PrintChipInfo)) return false;
 								return true;
+							}
 							else
 							{
 								addErrorLine("Stub sync failed!");
@@ -161,11 +167,7 @@ namespace BK7231Flasher
 					{
 						startAddr = 0x0;
 					}
-					if(!InternalWrite(startAddr, data))
-					{
-						logger.setState("Write error!", Color.Red);
-						return;
-					}
+					if(!InternalWrite(startAddr, data)) return;
 				}
 				if(rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig)
 				{
@@ -225,11 +227,6 @@ namespace BK7231Flasher
 		{
 			try
 			{
-				if(target == null)
-				{
-					addError("No ROM reader target selected." + Environment.NewLine);
-					return null;
-				}
 				if(doGenericSetup() == false)
 				{
 					return null;
@@ -244,9 +241,11 @@ namespace BK7231Flasher
 				switch(target.Kind)
 				{
 					case RomReadKind.Rom:
-						return ReadRdaRom(target.Address ?? RdaRomBase, target.Length ?? RdaRomSize, targetKindName);
+						return InternalReadRawMemory(target.Address ?? RdaRomBase, target.Length ?? RdaRomSize, targetKindName);
+					case RomReadKind.Otp:
+						return InternalReadEfusePayload(target.Length ?? -1, targetKindName, true);
 					case RomReadKind.Efuse:
-						return ReadRdaEfuse(target.Length ?? RdaEfuseRawSize, targetKindName);
+						return InternalReadEfusePayload(target.Length ?? RdaEfuseRawSize, targetKindName);
 					default:
 						addError("Selected RDA5981 read target is not implemented." + Environment.NewLine);
 						return null;
@@ -272,60 +271,14 @@ namespace BK7231Flasher
 			}
 		}
 
-		byte[] ReadRdaRom(int offset, int length, string targetKindName)
-		{
-			if(offset < RdaRomBase || length <= 0 || offset > RdaRomBase + RdaRomSize - length)
-			{
-				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
-			}
-
-			return InternalReadRawMemory(offset, length, targetKindName);
-		}
-
-		byte[] ReadRdaEfuse(int expectedLength, string targetKindName)
-		{
-			if(expectedLength != RdaEfuseRawSize)
-			{
-				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + RdaEfuseRawSize + " bytes.");
-			}
-
-			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
-			return InternalReadEfusePayload(expectedLength, targetKindName);
-		}
-
-		protected override bool CheckHash(int addr, int len, byte[] data)
-		{
-			var cmd = new byte[8];
-			cmd[0] = (byte)(addr & 0xFF);
-			cmd[1] = (byte)((addr >> 8) & 0xFF);
-			cmd[2] = (byte)((addr >> 16) & 0xFF);
-			cmd[3] = (byte)((addr >> 24) & 0xFF);
-			cmd[4] = (byte)(len & 0xFF);
-			cmd[5] = (byte)((len >> 8) & 0xFF);
-			cmd[6] = (byte)((len >> 16) & 0xFF);
-			cmd[7] = (byte)((len >> 24) & 0xFF);
-			var res = ExecuteCommand(0x8F, cmd, 30f, 4);
-			uint crc;
-			if(res == null)
-			{
-				return false;
-			}
-			else
-			{
-				crc = BitConverter.ToUInt32(res, 0);
-			}
-			var calc = CRC.crc32_ver2(0xFFFFFFFF, data);
-			if(crc != calc)
-			{
-				logger.setState("CRC mismatch!", Color.Red);
-				addErrorLine("CRC mismatch!");
-				addErrorLine($"Sent by RDA {formatHex(crc)}, our CRC {formatHex(calc)}");
-				return false;
-			}
-			addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
-			return true;
-		}
+		protected override bool CheckHash(int addr, int len, byte[] data) => base.CheckCRC(addr, len, data);
 
 		internal override byte[] ReadMAC() => null;
+
+		private void PrintChipInfo(byte[] data)
+		{
+			var romVer = ((MiscUtils.ReadU32LE(data, 4) >> 16) & 0xFF) + 1;
+			addLogLine($"RDA hardware version: {romVer}");
+		}
 	}
 }

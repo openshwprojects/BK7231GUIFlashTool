@@ -674,11 +674,10 @@ namespace BK7231Flasher
             switch (chipType)
             {
                 case BKType.RTL8710B:
-                    return new RTLNFlasher(ct);
                 case BKType.RTL8720D:
                 case BKType.RTL8721DA:
                 case BKType.RTL8720E:
-                    return new RTLFlasher(ct);
+                    return new RTLNFlasher(ct);
                 case BKType.RTL87X0C:
                     return new RTLZ2Flasher(ct);
                 case BKType.LN882H:
@@ -697,8 +696,9 @@ namespace BK7231Flasher
                 case BKType.ECR6600:
                     return new ECR6600Flasher(ct);
                 case BKType.W600:
+                    return new W600Flasher(ct);
                 case BKType.W800:
-                    return new WMFlasher(ct);
+                    return new W800Flasher(ct);
                 case BKType.RDA5981:
                     return new RDAFlasher(ct);
                 case BKType.XR809:

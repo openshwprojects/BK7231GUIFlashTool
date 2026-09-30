@@ -349,8 +349,9 @@ namespace BK7231Flasher
 						int nameLen  = data[pos + off + 8];
 						int valueLen = (int)MiscUtils.ReadU32LE(data, pos + off + 12);
 						int nameSz   = WgAlign(nameLen);
-						var crcRead = MiscUtils.ReadU32LE(data, pos + off + 4);
-						var crcEf = Crc32Ieee(data, pos + off + 8, nameSz + valueLen + 8);
+						int valSz    = WgAlign(valueLen);
+						var crcRead  = MiscUtils.ReadU32LE(data, pos + off + 4);
+						var crcEf    = Crc32Ieee(data, pos + off + 8, 8 + nameSz + valSz);
 						if(crcRead != crcEf)
 						{
 							Console.WriteLine($"Bad CRC32 for EF entry! Skipping...");

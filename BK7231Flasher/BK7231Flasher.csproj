@@ -76,7 +76,8 @@
     <Compile Include="Flashers\XR872Flasher.cs" />
     <Compile Include="Flashers\ESPFlasher.cs" />
     <Compile Include="Utils\Xmodem.cs" />
-    <Compile Include="Flashers\WMFlasher.cs" />
+    <Compile Include="Flashers\W600Flasher.cs" />
+    <Compile Include="Flashers\W800Flasher.cs" />
     <Compile Include="Flashers\ECR6600Flasher.cs" />
     <Compile Include="Flashers\BaseFlasher.cs" />
     <Compile Include="Flashers\FlasherFactory.cs" />
@@ -169,7 +170,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Helpers\Rand.cs" />
-    <Compile Include="Flashers\RTLFlasher.cs" />
     <Compile Include="Flashers\SPIFlasher.cs" />
     <Compile Include="Flashers\SPIFlasher_Beken.cs" />
     <Compile Include="Utils\BL602IoAnalyzer.cs" />
@@ -177,7 +177,6 @@
     <Compile Include="Utils\RFPartitionUtil.cs" />
     <Compile Include="Helpers\RichTextUtil.cs" />
     <Compile Include="Misc\TuyaModules.cs" />
-    <Compile Include="Utils\YModem.cs" />
     <EmbeddedResource Include="FormDownloader.resx">
       <DependentUpon>FormDownloader.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -214,8 +213,6 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.config" />
-    <EmbeddedResource Include="Floaders\AmebaDFLoader.bin" />
-    <EmbeddedResource Include="Floaders\AmebaZ_NewFloader.bin" />
     <EmbeddedResource Include="Floaders\BK7231N_1_0_1.bin" />
     <EmbeddedResource Include="Floaders\BK7231N_1_0_13.bin" />
     <EmbeddedResource Include="Floaders\BL602Floader_40m.bin" />
@@ -224,11 +221,8 @@
     <EmbeddedResource Include="Floaders\TR6260_Boot.bin" />
     <EmbeddedResource Include="Floaders\TR6260_Partition.bin" />
     <EmbeddedResource Include="Floaders\BL702Floader_32m.bin" />
-    <EmbeddedResource Include="Floaders\ECR6600_Stub_Custom.bin" />
-    <EmbeddedResource Include="Floaders\LN882H_RamCode.bin" />
     <EmbeddedResource Include="Floaders\W800_Stub.bin" />
     <EmbeddedResource Include="Floaders\XR809_Stub.bin" />
-    <EmbeddedResource Include="Floaders\LN88xx_RamCode.bin" />
     <EmbeddedResource Include="Floaders\ESP32_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32S2_Stub.json" />
     <EmbeddedResource Include="Floaders\ESP32C2_Stub.json" />
@@ -244,11 +238,15 @@
     <EmbeddedResource Include="Floaders\RTL8721DA_Stub.bin" />
     <EmbeddedResource Include="Floaders\RTL8720E_Stub.bin" />
     <EmbeddedResource Include="Floaders\RDA5981_Stub.bin" />
-    <EmbeddedResource Include="Floaders\Z2_XModem_Stub.bin" />
-    <EmbeddedResource Include="Floaders\Z2_XModem_Stub_z.bin" />
     <EmbeddedResource Include="Floaders\RTL8710B_Stub.bin" />
     <EmbeddedResource Include="Floaders\OPL1000A2_Stub.bin" />
     <EmbeddedResource Include="Floaders\OPL1000A2_Stub_stage1.bin" />
+    <EmbeddedResource Include="Floaders\ECR6600_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RTL8710C_Stub.bin" />
+    <EmbeddedResource Include="Floaders\RTL8720D_Stub.bin" />
+    <EmbeddedResource Include="Floaders\LN8825_Stub.bin" />
+    <EmbeddedResource Include="Floaders\LN882H_Stub.bin" />
+    <EmbeddedResource Include="Floaders\TR6260_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

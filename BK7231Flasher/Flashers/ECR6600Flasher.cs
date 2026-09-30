@@ -13,7 +13,6 @@ namespace BK7231Flasher
 		const int EcrRomSize = 0x00010000;
 		const int EcrEfuseSize = 0x80;
 
-		//static readonly byte CMD_SYN = 0x00;
 		static readonly byte CMD_RAM_DOWNLOAD = 0x01;
 		//static readonly byte CMD_FLASH_DOWNLOAD = 0x02;
 		//static readonly byte CMD_FLASH_UPLOAD = 0x03;
@@ -24,8 +23,6 @@ namespace BK7231Flasher
 		{
 		}
 
-		byte[] flashID;
-
 		protected override bool doGenericSetup()
 		{
 			addLog("Now is: " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString() + "." + Environment.NewLine);
@@ -33,6 +30,7 @@ namespace BK7231Flasher
 			addLog("Going to open port: " + serialName + "." + Environment.NewLine);
 			try
 			{
+				cancellationToken.ThrowIfCancellationRequested();
 				serial = new SerialPort(serialName, 115200);
 				serial.Open();
 				serial.DiscardInBuffer();
@@ -63,9 +61,10 @@ namespace BK7231Flasher
 
 		protected override bool Sync()
 		{
-			flashID = ReadFlashId(true);
+			var flashID = ReadFlashId(true);
 			if(flashID != null)
 			{
+				if(!CheckChipInfo()) return false;
 				addLogLine("Stub is already uploaded!");
 				return true;
 			}
@@ -100,7 +99,7 @@ namespace BK7231Flasher
 
 		private bool UploadStub()
 		{
-			var stub = FLoaders.GetBinaryFromAssembly("ECR6600_Stub_Custom");
+			var stub = FLoaders.GetBinaryFromAssembly("ECR6600_Stub");
 			var startupAddress = 0x10000; // works even if 0
 			var empty = new byte[8];
 			var dat = new List<byte>()
@@ -141,9 +140,9 @@ namespace BK7231Flasher
 			}
 			Thread.Sleep(10);
 			serial.DiscardInBuffer();
-			flashID = ReadFlashId();
-			if(tries == 0 || flashID == null)
-				return false;
+			var flashID = ReadFlashId();
+			if(tries == 0 || flashID == null) return false;
+			if(!CheckChipInfo()) return false;
 			return true;
 		}
 
@@ -162,10 +161,8 @@ namespace BK7231Flasher
 					byte[] res = InternalRead(startSector, sectors);
 					if(res != null)
 						ms = new MemoryStream(res);
-					if(ms == null)
-					{
+					else
 						return;
-					}
 					if(saveReadResult(startSector) == false)
 					{
 						return;
@@ -198,7 +195,7 @@ namespace BK7231Flasher
 							}
 							else if(header[0] != 0x02)
 							{
-								addWarningLine($"Unknown type {header[0]:X2} with offset {flashOffset:X} and length {length}, skipping");
+								addWarningLine($"Unknown type {header[0]:X2} with offset {flashOffset:X} and length {length}, skipping...");
 							}
 							else
 							{
@@ -218,7 +215,7 @@ namespace BK7231Flasher
 					}
 					else
 					{
-						InternalWrite(startSector, data);
+						if(!InternalWrite(startSector, data)) return;
 					}
 				}
 				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
@@ -278,11 +275,6 @@ namespace BK7231Flasher
 		{
 			try
 			{
-				if(target == null)
-				{
-					addError("No ROM reader target selected." + Environment.NewLine);
-					return null;
-				}
 				if(doGenericSetup() == false)
 				{
 					return null;
@@ -297,9 +289,11 @@ namespace BK7231Flasher
 				switch(target.Kind)
 				{
 					case RomReadKind.Rom:
-						return ReadEcrRom(target.Address ?? EcrRomBase, target.Length ?? EcrRomSize, targetKindName);
+						return InternalReadRawMemory(target.Address ?? EcrRomBase, target.Length ?? EcrRomSize, targetKindName);
+					case RomReadKind.Otp:
+						return InternalReadEfusePayload(target.Length ?? -1, targetKindName, true);
 					case RomReadKind.Efuse:
-						return ReadEcrEfuse(target.Length ?? EcrEfuseSize, targetKindName);
+						return InternalReadEfusePayload(target.Length ?? EcrEfuseSize, targetKindName);
 					default:
 						addError("Selected ECR6600 read target is not implemented." + Environment.NewLine);
 						return null;
@@ -325,26 +319,7 @@ namespace BK7231Flasher
 			}
 		}
 
-		byte[] ReadEcrRom(int offset, int length, string targetKindName)
-		{
-			if(offset < EcrRomBase || length <= 0 || offset > EcrRomBase + EcrRomSize - length)
-			{
-				throw new ArgumentOutOfRangeException("length", chipType + " ROM read range is outside the supported BootROM area.");
-			}
-
-			return InternalReadRawMemory(offset, length, targetKindName);
-		}
-
-		byte[] ReadEcrEfuse(int expectedLength, string targetKindName)
-		{
-			if(expectedLength != EcrEfuseSize)
-			{
-				throw new ArgumentOutOfRangeException("expectedLength", chipType + " eFuse dump length must be " + EcrEfuseSize + " bytes.");
-			}
-
-			addLogLine("Reading " + chipType + " eFuse via custom stub command 0x99.");
-			return InternalReadEfusePayload(expectedLength, targetKindName);
-		}
+		internal override byte[] ReadMAC() => null;
 	}
 }
 

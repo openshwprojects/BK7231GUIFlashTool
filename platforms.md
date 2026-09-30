@@ -17,7 +17,7 @@
 | ESP32<br>-C2<br>-C3<br>-C5<br>-C6<br>-C61<br>-S2<br>-S3 | Espressif | ✅ | ✅ | ➖ | ❌ | ✅ | ❌ | ➖ | ➖ | ✅ |
 | ESP8266<br>ESP8285 | Espressif | ✅ | ✅ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ✅ |
 | ECR6600 | ESWIN / Transa | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TR6260 | ESWIN / Transa | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ℹ️ |
+| TR6260 | ESWIN / Transa | ✅ | ✅ | 🟰 | 🟰 | ✅ | ✅ | ➖ | ➖ | ℹ️ |
 | GD32VW553 | GigaDevice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | Generic SPI CH341 | CH341 SPI | ✅ | ✅³ | ➖ | ➖ | ✅ | ❌ | ➖ | ➖ | ℹ️ |
 | LN882H | Lightning Semi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
@@ -25,8 +25,8 @@
 | RDA5981 | RDA Micro | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ℹ️ |
 | OPL1000A2 | Opulinks | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ✅ |
 | RTL8710B (AmebaZ) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
-| RTL8720DN (AmebaD) | Realtek | ✅ | ✅ | ➖ | ➖ | ✅ | ✅ | ➖ | ➖ | ✅ |
-| RTL87X0C (AmebaZ2) | Realtek | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ➖ | ➖ | ✅ |
+| RTL8720DN (AmebaD) | Realtek | ✅ | ✅ | ➖ | 🟰 | ✅ | ✅ | ➖ | ➖ | ✅ |
+| RTL87X0C (AmebaZ2) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8721DA (AmebaDp) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | RTL8720E (AmebaLite) | Realtek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 | W600 (write only) | WinnerMicro | ❌⁵ | ✅⁵ | ➖ | ➖ | ✅ | ⚠️⁵ | ➖ | ➖ | ❌ |
@@ -42,6 +42,7 @@
 ⚠️ - Warning<br>
 ℹ️ - Needs checking<br>
 ➖ - Not applicable<br>
+🟰 - Intentionally disabled<br>
 R cmp / W cmp - Read/write compression via custom flasher stub; ➖ means not applicable to that platform's ROM/vendor/original transfer path.<br>
 
 ¹ Erase and default writes start at `0x11000`<br>

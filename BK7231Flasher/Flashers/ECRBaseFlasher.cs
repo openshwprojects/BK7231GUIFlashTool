@@ -11,21 +11,41 @@ namespace BK7231Flasher
 {
 	public abstract class ECRBaseFlasher : BaseFlasher
 	{
-		protected static readonly byte CMD_SYN = 0x00;
-		protected static readonly byte CMD_FLASH_ERASE = 0x04;
-		protected static readonly byte CMD_FLASH_CHIPERASE = 0x05;
-		protected static readonly byte CMD_BAUD = 0x07;
-		protected static readonly byte CMD_SHA256 = 0x09;
-		protected static readonly byte CMD_CUSTOM_FLASH_ID = 0x90;
-		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE = 0x91;
-		protected static readonly byte CMD_CUSTOM_XMODEM_READ = 0x92;
-		protected static readonly byte CMD_CUSTOM_KV_GET = 0x93;
-		protected static readonly byte CMD_CUSTOM_KV_SET = 0x94;
-		protected static readonly byte CMD_CUSTOM_GET_MAC = 0x95;
-		protected static readonly byte CMD_CUSTOM_XMODEM_READ_COMPRESSED = 0x96;
-		protected static readonly byte CMD_CUSTOM_XMODEM_WRITE_COMPRESSED = 0x97;
-		protected static readonly byte CMD_CUSTOM_XMODEM_READ_RAW = 0x98;
-		protected static readonly byte CMD_CUSTOM_READ_EFUSE = 0x99;
+		internal static readonly byte CMD_SYN = 0x00;
+		internal static readonly byte CMD_FLASH_ERASE = 0x04;
+		internal static readonly byte CMD_FLASH_CHIPERASE = 0x05;
+		internal static readonly byte CMD_BAUD = 0x07;
+		internal static readonly byte CMD_SHA256 = 0x09;
+		internal static readonly byte CMD_CUSTOM_CHIP_INFO = 0x20;
+		internal static readonly byte CMD_CUSTOM_CRC32 = 0x8F;
+		internal static readonly byte CMD_CUSTOM_FLASH_ID = 0x90;
+		internal static readonly byte CMD_CUSTOM_XMODEM_WRITE = 0x91;
+		internal static readonly byte CMD_CUSTOM_XMODEM_READ = 0x92;
+		internal static readonly byte CMD_CUSTOM_KV_GET = 0x93;
+		internal static readonly byte CMD_CUSTOM_KV_SET = 0x94;
+		internal static readonly byte CMD_CUSTOM_GET_MAC = 0x95;
+		internal static readonly byte CMD_CUSTOM_XMODEM_READ_COMPRESSED = 0x96;
+		internal static readonly byte CMD_CUSTOM_XMODEM_WRITE_COMPRESSED = 0x97;
+		internal static readonly byte CMD_CUSTOM_XMODEM_READ_RAW = 0x98;
+		internal static readonly byte CMD_CUSTOM_READ_EFUSE = 0x99;
+		internal static readonly byte CMD_CUSTOM_READ_OTP = 0x9A;
+
+		internal static readonly Dictionary<BKType, uint> PlatformIDs = new Dictionary<BKType, uint>()
+		{
+			{ BKType.ECR6600, 0x4C7959C9 },
+			{ BKType.GD32VW553, 0xFFDC26B5 },
+			{ BKType.OPL1000A2, 0xAA5D6AC8 },
+			{ BKType.LN8825, 0x8ABF79A8 },
+			{ BKType.LN882H, 0xA40B7429 },
+			{ BKType.RDA5981, 0x7272742E },
+			{ BKType.RTL8710B, 0x43B186D6 },
+			{ BKType.RTL87X0C, 0x34B6B640 },
+			{ BKType.RTL8720D, 0xA8949DBA },
+			{ BKType.RTL8721DA, 0xF9073AB3 },
+			{ BKType.RTL8720E, 0xDF93AD2C },
+			{ BKType.TR6260, 0x396440B3 },
+			{ BKType.W800, 0xDC7E93D2 },
+		};
 
 		protected int flashSizeMB = 4;
 
@@ -110,88 +130,125 @@ namespace BK7231Flasher
 		{
 			return ms?.ToArray();
 		}
+
 		public override bool saveReadResult(int startOffset)
 		{
 			string fileName = MiscUtils.formatDateNowFileName("readResult_" + chipType, backupName, "bin");
 			return saveReadResult(fileName);
 		}
 
-		protected byte[] ExecuteCommand(int type, byte[] parms = null,
+		private bool ReadStubByte(Stopwatch sw, int timeoutMs, out byte value)
+		{
+			while(sw.ElapsedMilliseconds < timeoutMs && !isCancelled)
+			{
+				if(serial.BytesToRead > 0)
+				{
+					value = (byte)serial.ReadByte();
+					return true;
+				}
+				Thread.Sleep(1);
+			}
+			value = 0;
+			return false;
+		}
+
+		protected virtual byte[] ExecuteCommand(int type, byte[] parms = null,
 			float timeout = 0.1f, int expectedReplyLen = 0, int br = 115200, bool isErrorExpected = false)
 		{
-			parms = parms ?? (new byte[0]);
-			// MAGIC, TYPE, MSG LENGTH (2 bytes)
-			List<byte> raw = new List<byte>() { 0xA5, (byte)type, (byte)(parms.Length & 0xFF), (byte)((parms.Length >> 8) & 0xFF) };
-			// MSG
+			parms ??= new byte[0];
+			var raw = new List<byte>()
+			{
+				0xA5,
+				(byte)type,
+				(byte)(parms.Length & 0xFF),
+				(byte)((parms.Length >> 8) & 0xFF)
+			};
 			raw.AddRange(parms);
-			// CRC8
 			raw.Add(StubCRC8(raw.ToArray(), raw.Count));
+
+			serial.DiscardInBuffer();
 			serial.Write(raw.ToArray(), 0, raw.Count);
-			Thread.Sleep(10);
-			if(type == CMD_BAUD) serial.BaudRate = br;
-			int timeoutMS = (int)(timeout * 1000);
+
+			if(type == CMD_BAUD)
+			{
+				serial.BaseStream.Flush();
+				var ms = (int)Math.Ceiling((raw.Count * 10.0 / serial.BaudRate) * 1000);
+				Thread.Sleep(ms);
+				serial.BaudRate = br;
+			}
+
+			int timeoutMs = Math.Max(1, (int)(timeout * 1000));
 			Stopwatch sw = Stopwatch.StartNew();
-			var expect = 1 + 1 + 2 + expectedReplyLen + 1 + 1; // magic + type + data_len + data + status + crc8
-			while(sw.ElapsedMilliseconds < timeoutMS)
+			byte value;
+			do
 			{
-				if(isCancelled) return null;
-				if(serial.BytesToRead >= expect)
-					break;
+				if(!ReadStubByte(sw, timeoutMs, out value))
+				{
+					if(!isErrorExpected) addErrorLine("Command response is empty!");
+					return null;
+				}
+			} while(value != 0x5A);
+
+			var response = new List<byte>() { value };
+			for(int i = 0; i < 3; i++)
+			{
+				if(!ReadStubByte(sw, timeoutMs, out value))
+				{
+					if(!isErrorExpected) addErrorLine("Command response header is incomplete!");
+					return null;
+				}
+				response.Add(value);
 			}
-			if(serial.BytesToRead == 0)
+			int dataLength = response[2] | response[3] << 8;
+			for(int i = 0; i < dataLength + 2; i++)
 			{
-				if(!isErrorExpected) addErrorLine("Command response is empty!");
+				if(!ReadStubByte(sw, timeoutMs, out value))
+				{
+					if(!isErrorExpected) addErrorLine("Command response is incomplete!");
+					return null;
+				}
+				response.Add(value);
+			}
+
+			byte[] bytes = response.ToArray();
+			if(bytes[1] != (byte)type)
+			{
+				if(!isErrorExpected) addErrorLine($"Command response type 0x{bytes[1]:X2} does not match 0x{type:X2}!");
 				return null;
 			}
-			var bytes = new byte[serial.BytesToRead];
-			serial.Read(bytes, 0, bytes.Length);
-			if(bytes[0] != 0x5A)
+			if(StubCRC8(bytes, bytes.Length - 1) != bytes[bytes.Length - 1])
 			{
-				if(!isErrorExpected) addErrorLine("Command header is incorrect!");
+				addErrorLine("Command checksum is incorrect!");
+				logger.setState("Checksum mismatch!", Color.Red);
 				return null;
 			}
-			byte crcret = StubCRC8(bytes, bytes.Length - 1);
-			if(crcret != bytes[bytes.Length - 1])
+			byte status = bytes[bytes.Length - 2];
+			if(status != 0)
 			{
-				addErrorLine("Command CRC is incorrect!");
-				logger.setState("CRC mismatch!", Color.Red);
+				if(!isErrorExpected)
+				{
+					string statusName = status switch
+					{
+						0x01 => "ERROR",
+						0x02 => "ADDR_ERROR",
+						0x03 => "TYPE_ERROR",
+						0x04 => "LEN_ERROR",
+						0x05 => "CRC_ERROR",
+						0x10 => "NOT_SUPPORTED",
+						0x11 => "OTP_CANT_READ",
+						_ => $"UNKNOWN_ERROR_{status:X2}"
+					};
+					addErrorLine($"Command failed with error code 0x{status:X2} - {statusName}!");
+				}
 				return null;
 			}
-			var status = string.Empty;
-			switch(bytes[bytes.Length - 2])
+			if(expectedReplyLen > 0 && dataLength != expectedReplyLen)
 			{
-				case 0x00: break;
-				case 0x01:
-					status = "ERROR";
-					break;
-				case 0x02:
-					status = "ADDR_ERROR";
-					break;
-				case 0x03:
-					status = "TYPE_ERROR";
-					break;
-				case 0x04:
-					status = "LEN_ERROR";
-					break;
-				case 0x05:
-					status = "CRC_ERROR";
-					break;
-				default:
-					status = $"Unknown error {bytes[bytes.Length - 2]}";
-					break;
-			}
-			if(status != string.Empty)
-			{
-				if(!isErrorExpected) addErrorLine($"Command status is {status}");
+				if(!isErrorExpected) addErrorLine($"Command reply length {dataLength} != expected {expectedReplyLen}");
 				return null;
 			}
-			if(bytes.Length != expect)
-			{
-				addErrorLine($"Command reply length {bytes.Length} != expected {expect}");
-				return null;
-			}
-			var ret = new byte[expectedReplyLen];
-			Array.Copy(bytes, 4, ret, 0, expectedReplyLen);
+			var ret = new byte[dataLength];
+			Array.Copy(bytes, 4, ret, 0, dataLength);
 			return ret;
 		}
 
@@ -237,6 +294,7 @@ namespace BK7231Flasher
 					byte comprLevel = chipType switch
 					{
 						BKType.ECR6600 => 2,
+						BKType.W800 => 2,
 						BKType.GD32VW553 => 2,
 						BKType.OPL1000A2 => 1,
 						BKType.RDA5981 => 5,
@@ -247,7 +305,13 @@ namespace BK7231Flasher
 					};
 					msg = msg.Append(comprLevel).ToArray();
 				}
-				var res = ExecuteCommand(bUseCompressionIfPossible == false ? CMD_CUSTOM_XMODEM_READ : CMD_CUSTOM_XMODEM_READ_COMPRESSED, msg, 2, 0);
+				var res = ExecuteCommand(bUseCompressionIfPossible ? CMD_CUSTOM_XMODEM_READ_COMPRESSED : CMD_CUSTOM_XMODEM_READ, msg, 0.1f, 0);
+				if(bUseCompressionIfPossible && res == null)
+				{
+					addErrorLine("Compressed read failed! Will try normal read...");
+					bUseCompressionIfPossible = false;
+					res = ExecuteCommand(CMD_CUSTOM_XMODEM_READ, msg, 0.1f, 0);
+				}
 				if(res == null)
 					return null;
 				var stream = new MemoryStream();
@@ -286,7 +350,17 @@ namespace BK7231Flasher
 				}
 				logger.addLog(Environment.NewLine + $"Flash read took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
 				if(isCancelled) return null;
-				if(bUseCompressionIfPossible) ret = Decompress(ret);
+				if(bUseCompressionIfPossible)
+				{
+					int compressedLength = ret.Length;
+					ret = Decompress(ret);
+					addLogLine($"Uncompressed {compressedLength} bytes to {ret.Length} bytes, compression rate - {((double)ret.Length - compressedLength) / ret.Length * 100.0:F2}%");
+				}
+				if(ret.Length != startAmount)
+				{
+					addErrorLine($"Flash read returned {ret.Length} bytes; expected {startAmount} bytes.");
+					return null;
+				}
 				addLogLine("Getting hash...");
 				if(!CheckHash(addr, startAmount, ret))
 				{
@@ -382,24 +456,18 @@ namespace BK7231Flasher
 			}
 		}
 
-		protected byte[] InternalReadEfusePayload(int expectedLength, string targetKindName)
+		protected byte[] InternalReadEfusePayload(int expectedLength, string targetKindName, bool isOtp = false)
 		{
-			if(expectedLength <= 0)
-			{
-				throw new ArgumentOutOfRangeException("expectedLength", "eFuse read length must be greater than zero.");
-			}
 			try
 			{
 				if(!SetBaud(baudrate))
 					return null;
-				logger.setProgress(0, expectedLength);
+				if(expectedLength > 0)
+					logger.setProgress(0, expectedLength);
 				logger.setState("Reading " + targetKindName + "...", Color.Transparent);
-				byte[] result = ExecuteCommand(CMD_CUSTOM_READ_EFUSE, null, 2, expectedLength);
-				if(result == null)
-				{
-					throw new IOException(chipType + " " + targetKindName + " command returned no data.");
-				}
-				logger.setProgress(expectedLength, expectedLength);
+				byte[] result = ExecuteCommand(isOtp ? CMD_CUSTOM_READ_OTP : CMD_CUSTOM_READ_EFUSE, null, 2, expectedLength) ?? throw new IOException($"{chipType} {targetKindName} command returned no data.");
+				if(expectedLength > 0)
+					logger.setProgress(expectedLength, expectedLength);
 				logger.setState(targetKindName + " read success!", Color.Green);
 				return result;
 			}
@@ -433,6 +501,11 @@ namespace BK7231Flasher
 				cmd[6] = (byte)((len >> 16) & 0xFF);
 				cmd[7] = (byte)((len >> 24) & 0xFF);
 				var res = ExecuteCommand(bUseCompressionIfPossible ? CMD_CUSTOM_XMODEM_WRITE_COMPRESSED : CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
+				if(bUseCompressionIfPossible && res == null)
+				{
+					addErrorLine("Compressed write failed! Will try normal write...");
+					res = ExecuteCommand(CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
+				}
 				if(res == null)
 				{
 					serial.Write(new[] { xm.EOT }, 0, 1);
@@ -551,7 +624,13 @@ namespace BK7231Flasher
 			cmd[5] = (byte)((len >> 8) & 0xFF);
 			cmd[6] = (byte)((len >> 16) & 0xFF);
 			cmd[7] = (byte)((len >> 24) & 0xFF);
-			var res = ExecuteCommand(CMD_SHA256, cmd, 30f, 32);
+			var sw = Stopwatch.StartNew();
+			var res = ExecuteCommand(CMD_SHA256, cmd, 20f, 32);
+			sw.Stop();
+			if(res == null)
+			{
+				return false;
+			}
 			using var sha256Hash = SHA256.Create();
 			var readHash = HashToStr(sha256Hash.ComputeHash(data));
 			var expectedHash = HashToStr(res);
@@ -559,18 +638,96 @@ namespace BK7231Flasher
 			{
 				addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
 				logger.setState("SHA mismatch!", Color.Red);
+				return false;
+			}
+			addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
+			logger.addLog($"Hash took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
+			return true;
+		}
+
+		protected virtual bool CheckCRC(int addr, int len, byte[] data)
+		{
+			var cmd = new byte[8];
+			cmd[0] = (byte)(addr & 0xFF);
+			cmd[1] = (byte)((addr >> 8) & 0xFF);
+			cmd[2] = (byte)((addr >> 16) & 0xFF);
+			cmd[3] = (byte)((addr >> 24) & 0xFF);
+			cmd[4] = (byte)(len & 0xFF);
+			cmd[5] = (byte)((len >> 8) & 0xFF);
+			cmd[6] = (byte)((len >> 16) & 0xFF);
+			cmd[7] = (byte)((len >> 24) & 0xFF);
+			var sw = Stopwatch.StartNew();
+			var res = ExecuteCommand(CMD_CUSTOM_CRC32, cmd, 20f, 4);
+			sw.Stop();
+			uint crc;
+			if(res == null)
+			{
+				return false;
 			}
 			else
 			{
-				addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
-				return true;
+				crc = BitConverter.ToUInt32(res, 0);
 			}
-			return false;
+			var calc = CRC.crc32_ver2(0xFFFFFFFF, data) ^ 0xFFFFFFFF;
+			if(crc != calc)
+			{
+				logger.setState("CRC mismatch!", Color.Red);
+				addErrorLine($"CRC mismatch!\r\ndevice:\t{formatHex(crc)}\r\nflasher:\t{formatHex(calc)}");
+				return false;
+			}
+			addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
+			logger.addLog($"CRC took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
+			return true;
 		}
 
 		internal override byte[] ReadMAC()
 		{
 			return ExecuteCommand(CMD_CUSTOM_GET_MAC, expectedReplyLen: 6);
+		}
+
+		protected virtual byte[] GetChipInfo()
+		{
+			var data = ExecuteCommand(CMD_CUSTOM_CHIP_INFO, expectedReplyLen: -1) ?? throw new Exception("Failed to get chip data from stub!");
+			var stubPlatform = MiscUtils.ReadU32LE(data);
+			if(!PlatformIDs.TryGetValue(chipType, out var chipID))
+			{
+				throw new Exception($"Platform {chipType} is not supported by this flasher!");
+			}
+
+			if(chipID != stubPlatform)
+			{
+				var runningPlatform = PlatformIDs.Where(x => x.Value == stubPlatform);
+				if(runningPlatform.Count() == 0)
+				{
+					throw new Exception($"Got data from stub, but running platform is not known and flasher is configured for {chipType}!");
+				}
+				throw new Exception($"Running platform is {runningPlatform.First().Key}, but flasher is configured for {chipType}!");
+			}
+
+			return data;
+		}
+
+		protected virtual bool CheckChipInfo(Action<byte[]> action = null)
+		{
+			try
+			{
+				var data = GetChipInfo();
+				action?.Invoke(data);
+				return true;
+			}
+			catch(Exception e)
+			{
+				addErrorLine(e.Message);
+				return false;
+			}
+		}
+
+		public override void Dispose()
+		{
+			ms?.Dispose();
+			ms = null;
+			closePort();
+			base.Dispose();
 		}
 	}
 }

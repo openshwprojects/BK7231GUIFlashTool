@@ -304,7 +304,8 @@ namespace BK7231Flasher
             XModemChecksum,
             XModemCRC,
             XModem1K,
-            XModem1KChecksum
+            XModem1KChecksum,
+            YModem
         };
 
         private Variants _Variant;
@@ -402,6 +403,11 @@ namespace BK7231Flasher
             get { return _NumCancellationBytesReceived; }
         }
 
+        public string YModemFileName = "RAMCODE";
+        public string YModemReceivedFileName = null;
+        private long YModemFileSize = -1;
+        private long YModemBytesReceived = 0;
+
         /// <summary>
         /// MemoryStream used to store all data received if user wants to receive data in one big lump.
         /// This remains null if user wants to receive data packet-by-packet instead.
@@ -435,6 +441,9 @@ namespace BK7231Flasher
             DataPacketNumBytesStored = 0;
             ExpectingFirstPacket = true;
             ValidPacketReceived = false;
+            YModemFileSize = -1;
+            YModemBytesReceived = 0;
+            YModemReceivedFileName = null;
 
             // Define file initiation byte according to variant
             if (_Variant == Variants.XModemChecksum || _Variant == Variants.XModem1KChecksum)
@@ -528,6 +537,8 @@ namespace BK7231Flasher
 
         // Indicates whether a valid packet has been received and is fit to be forwarded to user
         private bool ValidPacketReceived = false;
+        // Serial receive events and the timeout watchdog both update receiver parser state.
+        private readonly object ReceiverStateLock = new object();
 
         /// <summary>
         /// State machine dispatcher.
@@ -535,6 +546,14 @@ namespace BK7231Flasher
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void Port_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            lock (ReceiverStateLock)
+            {
+                ProcessReceivedData(sender);
+            }
+        }
+
+        private void ProcessReceivedData(object sender)
         {
             SerialPort sp = sender as SerialPort;
             int numBytes = sp.BytesToRead;
@@ -628,6 +647,12 @@ namespace BK7231Flasher
                         ResetReceiverStillAliveWatchdog();
                         if (DetectCancellation(recv) == false)
                         {
+                            if(_Variant == Variants.YModem && Array.IndexOf(recv, NAK) > -1)
+                            {
+                                EndOfFileAcknowledgementReceived = true;
+                                WaitForResponseFromReceiver.Set();
+                                break;
+                            }
                             if (Array.IndexOf(recv, ACK) > -1)
                             {
                                 // ACK received
@@ -663,7 +688,24 @@ namespace BK7231Flasher
         /// <param name="notUsed"></param>
         private void NAKNag(object notUsed)
         {
-            SendNAK();
+            lock (ReceiverStateLock)
+            {
+                if (CurrentState == States.ReceiverBlockNumSearch ||
+                    CurrentState == States.ReceiverBlockNumComplementSearch ||
+                    CurrentState == States.ReceiverDataBytesSearch ||
+                    CurrentState == States.ReceiverErrorCheckSearch)
+                {
+                    // Abandon an incomplete packet before requesting its retransmission.
+                    CurrentState = States.ReceiverHeaderSearch;
+                    Remainder = new byte[0];
+                    DataPacketReceived = null;
+                    DataPacketNumBytesStored = 0;
+                    ErrorCheck = null;
+                    ValidPacketReceived = false;
+                    Port.DiscardInBuffer();
+                }
+                SendNAK();
+            }
         }
 
         private void SendNAK()
@@ -835,7 +877,7 @@ namespace BK7231Flasher
                             continue;
                         }
                     }
-                    else if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
+                    else if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum || _Variant == Variants.YModem)
                     {
                         // XModem-1K can receive 1024 data byte packets headed by <STX> --OR-- 128 data byte packets headed by <SOH>.
                         // The official standard allows a Sender to send a mixture of packet sizes, so a Receiver has to look for both.
@@ -908,7 +950,7 @@ namespace BK7231Flasher
                     {
                         Remainder = new byte[] { BlockNumReceived };   // Initialize remainder
                     }
-                    else if ((_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum) && (BlockNumReceived == SOH || BlockNumReceived == STX))
+                    else if ((_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum || _Variant == Variants.YModem) && (BlockNumReceived == SOH || BlockNumReceived == STX))
                     {
                         Remainder = new byte[] { BlockNumReceived };   // Initialize remainder
                     }
@@ -956,7 +998,7 @@ namespace BK7231Flasher
                         {
                             Remainder = CombineArrays(Remainder, new byte[] { BlockNumComplementCandidateReceived });   // Add to remainder
                         }
-                        else if (Remainder.Length > 0 || ((_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum) && (BlockNumReceived == SOH || BlockNumReceived == STX)))
+                        else if (Remainder.Length > 0 || ((_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum || _Variant == Variants.YModem) && (BlockNumReceived == SOH || BlockNumReceived == STX)))
                         {
                             Remainder = CombineArrays(Remainder, new byte[] { BlockNumComplementCandidateReceived });   // Add to remainder
                         }
@@ -1003,11 +1045,13 @@ namespace BK7231Flasher
                         ErrorCheck = new byte[] { BytesToParse[searchStartIndex] };
 
                         // Validate packet
-                        ValidatePacket();
+                        bool packetAccepted = ValidatePacket();
 
                         // Start over               
                         headerByteSearchStartIndex = searchStartIndex + 1;
                         CurrentState = States.ReceiverHeaderSearch;
+                        if (packetAccepted == false)
+                            return;
                     }
                     else  // XModem-CRC or XModem-1K
                     {
@@ -1023,11 +1067,13 @@ namespace BK7231Flasher
                         if (ErrorCheck.Length >= 2)
                         {
                             // We have enough error-check bytes, so validate packet
-                            ValidatePacket();
+                            bool packetAccepted = ValidatePacket();
 
                             // Return to the initial state and start over               
                             headerByteSearchStartIndex = searchStartIndex + 1;
                             CurrentState = States.ReceiverHeaderSearch;
+                            if (packetAccepted == false)
+                                return;
                         }
                         else
                         {
@@ -1039,7 +1085,7 @@ namespace BK7231Flasher
             } // End while
         } // End method
 
-        private void ValidatePacket()
+        private bool ValidatePacket()
         {
             // In order for a packet to be accepted, it must be an expected block number, and the transmitted
             // check value must match the calculated check value.
@@ -1058,42 +1104,102 @@ namespace BK7231Flasher
             // Exception to the exception:
             // If this is the very first packet, the block number MUST be 1. Otherwise, <NAK> will be sent.
 
-            if (BlockNumReceived == BlockNumExpected)
+            if(_Variant == Variants.YModem && BlockNumReceived == 0)
             {
-                if (ValidateChecksum() == true)
+                int filenameEnd = Array.IndexOf(DataPacketReceived, (byte)0);
+
+                if(filenameEnd < 0)
+                    return RejectPacket();
+
+                string filename = System.Text.Encoding.ASCII.GetString(DataPacketReceived, 0, filenameEnd);
+
+                if(filename.Length == 0)
                 {
-                    // Update control variables
+                    SendACK();
+                    Abort();
+
+                    _TerminationReason = TerminationReasonEnum.EndOfFile;
+                    ReceiverUserBlock.Set();
+                    return true;
+                }
+
+                YModemReceivedFileName = filename;
+
+                int sizeStart = filenameEnd + 1;
+                int sizeEnd = Array.IndexOf(DataPacketReceived, (byte)0, sizeStart);
+
+                if(sizeEnd > sizeStart)
+                {
+                    string sizeString = System.Text.Encoding.ASCII.GetString(DataPacketReceived, sizeStart, sizeEnd - sizeStart);
+
+                    if(long.TryParse(sizeString, out long size) && size >= 0)
+                        YModemFileSize = size;
+                }
+
+                YModemBytesReceived = 0;
+
+                ValidPacketReceived = false;
+
+                BlockNumExpected = 1;
+
+                SendACK();
+
+                Port.Write(new byte[] { C }, 0, 1);
+
+                return true;
+            }
+
+            if(BlockNumReceived == BlockNumExpected)
+            {
+                if(ValidateChecksum() == true)
+                {
                     BlockNumExpected += 1;
                     ExpectingFirstPacket = false;
+                    int bytesToStore = DataPacketReceived.Length;
 
-                    // If user wants all received data to be outputed in one lump, add this packet to the buffer
-                    AllDataReceivedBuffer?.Write(DataPacketReceived, 0, DataPacketReceived.Length);
+                    if(_Variant == Variants.YModem && YModemFileSize >= 0)
+                    {
+                        long remaining = YModemFileSize - YModemBytesReceived;
 
-                    ValidPacketReceived = true;
-
-                    // Notify Sender to send the next packet
+                        if(remaining <= 0) bytesToStore = 0;
+                        else if(remaining < bytesToStore) bytesToStore = (int)remaining;
+                    }
+                    if(bytesToStore > 0)
+                    {
+                        AllDataReceivedBuffer?.Write(DataPacketReceived, 0, bytesToStore);
+                    }
+                    YModemBytesReceived += bytesToStore;
+                    ValidPacketReceived = bytesToStore > 0;
                     SendACK();
+                    return true;
                 }
                 else
                 {
-                    // Inform sender that checksum invalid
-                    SendNAK();
-                    ValidPacketReceived = false;
+                    return RejectPacket();
                 }
             }
-            else if (ExpectingFirstPacket == false && BlockNumReceived == (byte)(BlockNumExpected - 1))
+            else if(ExpectingFirstPacket == false && BlockNumReceived == (byte)(BlockNumExpected - 1))
             {
                 // Receiver got a duplicate packet.
                 // Send <ACK> to prompt the Sender to advance to the next packet. Ignore the current (redundant) packet.
                 SendACK();
                 ValidPacketReceived = false;
+                return true;
             }
             else
             {
                 // The block number is completely out of sequence, so send NAK
-                SendNAK();
-                ValidPacketReceived = false;
+                return RejectPacket();
             }
+        }
+
+        private bool RejectPacket()
+        {
+            // Remove the rejected packet's unread tail before the sender retransmits it.
+            Port.DiscardInBuffer();
+            SendNAK();
+            ValidPacketReceived = false;
+            return false;
         }
 
         /// <summary>
@@ -1119,6 +1225,7 @@ namespace BK7231Flasher
                 // CRC-16:
                 case Variants.XModemCRC:
                 case Variants.XModem1K:
+                case Variants.YModem:
                     ushort crcChecksumCalculated = CRC16.Compute(CRC16Type.XMODEM, DataPacketReceived);
                     ushort crcChecksumReceived = BytesToUShort(ErrorCheck[0], ErrorCheck[1]);
                     if (crcChecksumCalculated == crcChecksumReceived)
@@ -1255,7 +1362,7 @@ namespace BK7231Flasher
         private void DefineDataPacketTemplate()
         {
             int dataPacketSize;
-            if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
+            if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum || _Variant == Variants.YModem)
                 dataPacketSize = _Packet1024NominalSize;
             else
                 dataPacketSize = _Packet128NominalSize;
@@ -1311,7 +1418,6 @@ namespace BK7231Flasher
 
             Port.DiscardInBuffer();
             Port.DiscardOutBuffer();
-
             InProgress.Wait();
 
             if (ReceiverStillAliveWatchdog == null)
@@ -1330,6 +1436,16 @@ namespace BK7231Flasher
             // Wait here for file initiation byte to be received from Receiver
             if(!instant) WaitForResponseFromReceiver.WaitOne();
             WaitForResponseFromReceiver.Reset();
+            if(_Variant == Variants.YModem && Aborted == false)
+            {
+                TransmitYModemHeader(dataToSend == null ? 0 : dataToSend.Length);
+            
+                if(TerminateSend)
+                {
+                    InProgress.Release();
+                    return 0;
+                }
+            }
 
             if(dataToSend != null && Aborted == false)
             {
@@ -1423,7 +1539,7 @@ namespace BK7231Flasher
                 // Instantiate outbound data packet if empty
                 if (DataPacketToSend == null)
                 {
-                    if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
+                    if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum || _Variant == Variants.YModem)
                         DataPacketToSend = new byte[_Packet1024NominalSize];
                     else
                         DataPacketToSend = new byte[_Packet128NominalSize];
@@ -1507,7 +1623,7 @@ namespace BK7231Flasher
 
             // Determine packet size header
             byte packetSizeHeader;
-            if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum)
+            if (_Variant == Variants.XModem1K || _Variant == Variants.XModem1KChecksum || _Variant == Variants.YModem)
                 packetSizeHeader = STX;
             else
                 packetSizeHeader = SOH;
@@ -1621,6 +1737,19 @@ namespace BK7231Flasher
 
             if (EndOfFileAcknowledgementReceived == true)
             {
+                if(_Variant == Variants.YModem)
+                {
+                    CurrentState = States.SenderAwaitingFileInitiation;
+                    WaitForResponseFromReceiver.Reset();
+                    Port.Write(new byte[] { EndOfFileByteToSend }, 0, 1);
+                    WaitForResponseFromReceiver.WaitOne();
+                    if (!TransmitYModemFinalPacket())
+                    {
+                        Abort();
+                        _TerminationReason = TerminationReasonEnum.TooManyRetries;
+                        return 0;
+                    }
+                }
                 Abort();
                 _TerminationReason = TerminationReasonEnum.EndOfFile;
                 return NumUserDataBytesAddedToCurrentPacket;
@@ -1711,6 +1840,72 @@ namespace BK7231Flasher
             return combinedArray;
         }
 
+        private void TransmitYModemHeader(int fileSize)
+        {
+            byte[] header = new byte[_Packet128NominalSize];
+            string filename = YModemFileName;
+            byte[] filenameBytes = System.Text.Encoding.ASCII.GetBytes(filename);
+            int filenameLength = Math.Min(filenameBytes.Length, header.Length - 2);
+            Array.Copy(filenameBytes, 0, header, 0, filenameLength);
+            int sizeOffset = filenameLength + 1;
+            byte[] sizeBytes = System.Text.Encoding.ASCII.GetBytes(fileSize.ToString());
+            int sizeLength = Math.Min(sizeBytes.Length, header.Length - sizeOffset - 1);
+            Array.Copy(sizeBytes, 0, header, sizeOffset, sizeLength);
+            ushort crc = CRC16.Compute(CRC16Type.XMODEM, header);
+            byte[] crcBytes = UShortToBytes(crc);
+            PacketSuccessfullySent = false;
+            _SenderConsecutiveRetryAttempts = 0;
+
+            while(!PacketSuccessfullySent && _SenderConsecutiveRetryAttempts < MaxSenderRetries && !TerminateSend)
+            {
+                Port.Write(new byte[] { SOH }, 0, 1);
+                Port.Write(new byte[] { 0 }, 0, 1);
+                Port.Write(new byte[] { 255 }, 0, 1);
+                Port.Write(header, 0, header.Length);
+
+                WaitForResponseFromReceiver.Reset();
+                CurrentState = States.SenderPacketSent;
+
+                Port.Write(crcBytes, 0, crcBytes.Length);
+
+                WaitForResponseFromReceiver.WaitOne();
+                WaitForResponseFromReceiver.Reset();
+            }
+
+            if(!PacketSuccessfullySent)
+            {
+                Abort();
+                _TerminationReason = TerminationReasonEnum.TooManyRetries;
+            }
+            _BlockNumToSend = 1;
+        }
+
+        private bool TransmitYModemFinalPacket()
+        {
+            byte[] header = new byte[_Packet128NominalSize];
+            ushort crc = CRC16.Compute(CRC16Type.XMODEM, header);
+            byte[] crcBytes = UShortToBytes(crc);
+            PacketSuccessfullySent = false;
+            _SenderConsecutiveRetryAttempts = 0;
+
+            while(!PacketSuccessfullySent && _SenderConsecutiveRetryAttempts < MaxSenderRetries && !TerminateSend)
+            {
+                Port.Write(new byte[] { SOH }, 0, 1);
+                Port.Write(new byte[] { 0 }, 0, 1);
+                Port.Write(new byte[] { 255 }, 0, 1);
+                Port.Write(header, 0, header.Length);
+
+                WaitForResponseFromReceiver.Reset();
+                CurrentState = States.SenderPacketSent;
+
+                Port.Write(crcBytes, 0, crcBytes.Length);
+
+                WaitForResponseFromReceiver.WaitOne();
+                WaitForResponseFromReceiver.Reset();
+            }
+
+            return PacketSuccessfullySent;
+        }
     } // End class
 
 } // End namespace

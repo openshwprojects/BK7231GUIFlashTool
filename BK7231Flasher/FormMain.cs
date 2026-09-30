@@ -604,7 +604,10 @@ namespace BK7231Flasher
             int length = target.Length.Value;
             int end = start + length;
             labelReadRomRangeStart.Text = "Space: " + formatReadRomDetailValue(target.AddressSpace);
-            labelReadRomRangeLength.Text = "Range: " + BaseFlasher.formatHex(start) + ".." + BaseFlasher.formatHex(end - 1) + " (" + BaseFlasher.formatHex(length) + ")";
+            if(end > 0)
+                labelReadRomRangeLength.Text = "Range: " + BaseFlasher.formatHex(start) + ".." + BaseFlasher.formatHex(end - 1) + " (" + BaseFlasher.formatHex(length) + ")";
+            else
+                labelReadRomRangeLength.Text = "Range: variable";
             labelReadRomRangeEnd.Text = "Backend: " + formatReadRomDetailValue(target.Backend);
             labelReadRomRangeController.Text = "Ctrl: " + formatReadRomDetailValue(target.Controller);
         }
@@ -657,7 +660,11 @@ namespace BK7231Flasher
                 {
                     if(worker != null)
                     {
-                        cts?.Cancel();
+                        try
+                        {
+                            cts?.Cancel();
+                        }
+                        catch { }
                         //worker.Abort();
                     }
                     worker = null;
@@ -1004,8 +1011,7 @@ namespace BK7231Flasher
             if (parms!= null)
             {
                 startSector = parms.ofs;
-                if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C/* || curType == BKType.RTL8710B*/
-                    || curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
+                if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872
                     || curType == BKType.ESP32 || curType == BKType.ESP32S2 || curType == BKType.ESP32C2
                     || curType == BKType.ESP32C3 || curType == BKType.ESP32C5 || curType == BKType.ESP32C6 || curType == BKType.ESP32C61
                     || curType == BKType.ESP32S3 || curType == BKType.ESP8266)
@@ -1137,11 +1143,7 @@ namespace BK7231Flasher
                 }
             }
 
-            if(curType == BKType.RTL8720D || curType == BKType.RTL87X0C/* || curType == BKType.RTL8710B*/)
-            {
-                flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
-            }
-            else if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
+            if(curType == BKType.XR806 || curType == BKType.XR809 || curType == BKType.XR872)
             {
                 flasher.doRead(startSector / BK7231Flasher.SECTOR_SIZE, sectors);
             }
@@ -1740,7 +1742,8 @@ namespace BK7231Flasher
                 addLog("Platform: " + FlashPlatformCatalog.GetDisplayName(target.Platform) + Environment.NewLine, Color.Black);
                 addLog("Baud rate: " + chosenBaudRate + Environment.NewLine, Color.Black);
                 addLog("Address: " + (target.Address.HasValue ? BaseFlasher.formatHex(target.Address.Value) : "not catalogued yet") + Environment.NewLine, Color.Black);
-                addLog("Length: " + (target.Length.HasValue ? BaseFlasher.formatHex(target.Length.Value) : "not catalogued yet") + Environment.NewLine, Color.Black);
+                if(target.Length.HasValue && target.Length.Value > 0)
+                    addLog("Length: " + (target.Length.HasValue ? BaseFlasher.formatHex(target.Length.Value) : "not catalogued yet") + Environment.NewLine, Color.Black);
 
                 clearUp();
                 createFlasher();

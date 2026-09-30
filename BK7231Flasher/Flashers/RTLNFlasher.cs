@@ -9,10 +9,6 @@ namespace BK7231Flasher
 {
 	public class RTLNFlasher : ECRBaseFlasher, IRomReadFlasher
 	{
-		byte[] flashID;
-		static readonly byte CMD_KV_GET = 0x93;
-		static readonly byte CMD_KV_SET = 0x94;
-
 		public RTLNFlasher(CancellationToken ct) : base(ct)
 		{
 		}
@@ -110,16 +106,11 @@ namespace BK7231Flasher
 		}
 		protected override bool Sync()
 		{
-			//Thread.Sleep(200);
-			//if(serial.BytesToRead > 0 && serial.ReadByte() == xm.C)
-			//{
-			//	serial.Write(new[] { xm.EOT }, 0, 1);
-			//	Thread.Sleep(200);
-			//}
 			if(isCancelled) return false;
-			flashID = ReadFlashId(true);
+			var flashID = ReadFlashId(true);
 			if(flashID != null)
 			{
+				if(!CheckChipInfo(PrintChipInfo)) return false;
 				addLogLine("Stub is already uploaded!");
 				return true;
 			}
@@ -129,23 +120,31 @@ namespace BK7231Flasher
 				{
 					serial.BaudRate = 1500000;
 				}
-				SetBaud(460800);
-				addLogLine("Sending RAM code...");
+
+				if(!SetBaud(460800))
+				{
+					addLogLine("Failed!");
+					return false;
+				}
+
 				var stub = chipType switch
 				{
-					BKType.RTL8710B => FLoaders.GetBinaryFromAssembly("RTL8710B_Stub"),
-					BKType.RTL8721DA => FLoaders.GetBinaryFromAssembly("RTL8721DA_Stub"),
-					BKType.RTL8720E => FLoaders.GetBinaryFromAssembly("RTL8720E_Stub"),
+					BKType.RTL8710B => FLoaders.GetBinaryFromAssembly($"{chipType}_Stub"),
+					BKType.RTL8720D => FLoaders.GetBinaryFromAssembly($"{chipType}_Stub"),
+					BKType.RTL8721DA => FLoaders.GetBinaryFromAssembly($"{chipType}_Stub"),
+					BKType.RTL8720E => FLoaders.GetBinaryFromAssembly($"{chipType}_Stub"),
 					_ => throw new Exception()
 				};
 				
 				var offset = chipType switch
 				{
 					BKType.RTL8710B => 0x10002000,
+					BKType.RTL8720D => 0x00082000,
 					BKType.RTL8721DA => 0x3000A020,
 					BKType.RTL8720E => 0x3000A020,
 					_ => throw new Exception()
 				};
+
 				addLogLine($"Write Floader to SRAM at 0x{offset:X8} to 0x{offset + stub.Length:X8}");
 				try
 				{
@@ -165,10 +164,9 @@ namespace BK7231Flasher
 					xm.PacketSent -= Xm_RtlPacketSent;
 				}
 				addLogLine("");
-				//Thread.Sleep(100);
-				//serial.DiscardInBuffer();
-				//serial.BaudRate = 115200;
 				SetComBaud(115200);
+				Thread.Sleep(20);
+				if(!CheckChipInfo(PrintChipInfo)) return false;
 				flashID = ReadFlashId(false);
 				if(flashID != null)
 				{
@@ -217,42 +215,72 @@ namespace BK7231Flasher
 					}
 					addLogLine("Reading " + sourceFileName + "...");
 					byte[] data = File.ReadAllBytes(sourceFileName);
-					InternalWrite(startSector, data);
+					if(!InternalWrite(startSector, data)) return;
 				}
 				if((rwMode == WriteMode.OnlyWrite || rwMode == WriteMode.ReadAndWrite || rwMode == WriteMode.OnlyOBKConfig) && cfg != null && !isCancelled)
 				{
 					if(cfg != null)
 					{
 						cfg.saveConfig(chipType);
-						var cfgdata = cfg.getData();
-						var cfgname = Encoding.ASCII.GetBytes("ObkCfg");
+						var cfgData = cfg.getData();
 
 						addLog("Now will also write OBK config..." + Environment.NewLine);
 						addLog("Long name from CFG: " + cfg.longDeviceName + Environment.NewLine);
 						addLog("Short name from CFG: " + cfg.shortDeviceName + Environment.NewLine);
 						addLog("Web Root from CFG: " + cfg.webappRoot + Environment.NewLine);
 
-						var data = new byte[cfgname.Length + 1 + 2];
-						data[0] = (byte)cfgname.Length;
-						data[1] = (byte)(cfgdata.Length & 0xFF);
-						data[2] = (byte)((cfgdata.Length >> 8) & 0xFF);
-						Array.Copy(cfgname, 0, data, 3, cfgname.Length);
-						var res = ExecuteCommand(CMD_KV_SET, data, 0.5f, 0);
-						if(res == null)
+						if(chipType == BKType.RTL8721DA || chipType == BKType.RTL8720E)
 						{
-							serial.Write(new[] { xm.EOT }, 0, 1);
-							logger.setState("OBK config write failed!", Color.Red);
-							return;
+							var cfgname = Encoding.ASCII.GetBytes("ObkCfg");
+							var data = new byte[cfgname.Length + 1 + 2 + cfgData.Length];
+							data[0] = (byte)cfgname.Length;
+							data[1] = (byte)(cfgData.Length & 0xFF);
+							data[2] = (byte)((cfgData.Length >> 8) & 0xFF);
+							Array.Copy(cfgname, 0, data, 3, cfgname.Length);
+							Array.Copy(cfgData, 0, data, 3 + cfgname.Length, cfgData.Length);
+							var res = ExecuteCommand(CMD_CUSTOM_KV_SET, data, 0.5f, 0);
+							if(res == null)
+							{
+								logger.setState("OBK config write failed!", Color.Red);
+								return;
+							}
 						}
-						var ret = xm.Send(cfgdata);
-						if(ret != cfgdata.Length)
+						else
 						{
-							addErrorLine($"Write failed ({xm.TerminationReason})! Expected sent bytes: {cfgdata.Length}, really sent: {ret}");
-							addError("Writing OBK config data to chip failed." + Environment.NewLine);
-							logger.setState("OBK config write failed!", Color.Red);
-							Thread.Sleep(100);
-							serial.Write(new[] { xm.EOT }, 0, 1);
-							return;
+							var offset = OBKFlashLayout.getConfigLocation(chipType, out var efsectors);
+							var areaSize = efsectors * BK7231Flasher.SECTOR_SIZE;
+							byte[] efdata;
+							if(cfg.efdata != null)
+							{
+								try
+								{
+									efdata = EasyFlash.SaveValueToExistingEasyFlash("ObkCfg", cfg.efdata, cfgData, areaSize, chipType);
+								}
+								catch(Exception ex)
+								{
+									addLog("Saving config to existing EasyFlash failed" + Environment.NewLine);
+									addLog(ex.Message + Environment.NewLine);
+									efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+								}
+							}
+							else
+							{
+								efdata = EasyFlash.SaveValueToNewEasyFlash("ObkCfg", cfgData, areaSize, chipType);
+							}
+							if(efdata == null)
+							{
+								addLog("Something went wrong with EasyFlash" + Environment.NewLine);
+								return;
+							}
+							ms?.Dispose();
+							ms = new MemoryStream(efdata);
+							bool bOk = InternalWrite(offset, efdata, areaSize);
+							if(bOk == false)
+							{
+								logger.setState("Writing error!", Color.Red);
+								addError("Writing OBK config data to chip failed." + Environment.NewLine);
+								return;
+							}
 						}
 						logger.setState("OBK config write success!", Color.Green);
 					}
@@ -274,7 +302,7 @@ namespace BK7231Flasher
 				}
 				if(Sync())
 				{
-					var res = ExecuteCommand(CMD_KV_GET, Encoding.ASCII.GetBytes("ObkCfg"), 0.5f, 3584);
+					var res = ExecuteCommand(CMD_CUSTOM_KV_GET, Encoding.ASCII.GetBytes("ObkCfg"), 0.5f, 3584);
 					ms?.Dispose();
 					ms = null;
 					if(res != null)
@@ -305,7 +333,7 @@ namespace BK7231Flasher
 		{
 			if(!WriteCmd(new byte[] { 0x07 }))
 				return false;
-			return xm.Send(stream, (uint)offset, chipType == BKType.RTL8710B) == size;
+			return xm.Send(stream, (uint)offset, true) == size;
 		}
 
 		private bool WriteCmd(byte[] cmd, byte ack = 0x06)
@@ -313,7 +341,7 @@ namespace BK7231Flasher
 			try
 			{
 				serial.Write(cmd, 0, cmd.Length);
-				return WaitResp(ack); // ACK
+				return WaitResp(ack, 20); // ACK
 			}
 			catch
 			{
@@ -379,6 +407,8 @@ namespace BK7231Flasher
 				{
 					case RomReadKind.Rom:
 						return InternalReadRawMemory(target.Address ?? 0, target.Length ?? (chipType == BKType.RTL8720E ? 0x48000 : 0x80000), targetKindName);
+					case RomReadKind.Otp:
+						return InternalReadEfusePayload(target.Length ?? -1, targetKindName, true);
 					case RomReadKind.Efuse:
 						return InternalReadEfusePayload(target.Length ?? (chipType == BKType.RTL8710B ? 0x200 : 0x400), targetKindName);
 					default:
@@ -403,6 +433,23 @@ namespace BK7231Flasher
 			finally
 			{
 				try { closePort(); } catch { }
+			}
+		}
+
+		protected override bool CheckHash(int addr, int len, byte[] data)
+		{
+			if(chipType != BKType.RTL8720D) return base.CheckHash(addr, len, data);
+			return base.CheckCRC(addr, len, data);
+		}
+
+		private void PrintChipInfo(byte[] data)
+		{
+			if(chipType == BKType.RTL8720D)
+			{
+				var chipInfo = MiscUtils.ReadU32LE(data, 4);
+				var cutVersion = MiscUtils.ReadU32LE(data, 8) == 0 ? 'A' : 'B';
+				var romInfo = MiscUtils.ReadU32LE(data, 12);
+				addLogLine($"Chip info: {chipInfo}, cut version: {cutVersion}, ROM info: {romInfo}");
 			}
 		}
 	}
