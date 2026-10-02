@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-kvstorage-12sector-rtl8720cf",
+  "SourceFileName": "Tuya_MH-1823_Thstat_(schemaID-0000005oxq)_keyjkajwawthq4f5_4dl9hkne_TuyaMCU_2.1.6.bin",
+  "SourceSha256": "46e71986f9d2d759e7075e042fb7a54eb2fc505c1b1d9af3b3b0bc213672df0e",
+  "InputSha256": "b785a905327e6212374bf7219036b73b4daec6364a07558368a9633d5480a30d",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 1933312,
+  "ArenaOffset": 1937408,
+  "DecryptedLength": 49152,
+  "SectorCount": 12,
+  "EntryCount": 11,
+  "LargestValueLength": 2189,
+  "HasDuplicateBlockIds": false,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

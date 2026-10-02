@@ -1,0 +1,23 @@
+{
+  "Name": "vault-8710-kvstorage-19sector-ln882h-classic-fail",
+  "SourceFileName": "Tuya_BSEED_DS-101JL_2G_(CB02-SBL_schemaID-e1ktf2m0)_keys4kyyhx9px59w_113aeiqafgcfzubp_WL2H-U_1.7.6.bin",
+  "SourceSha256": "06bf2056573989d947faaa5b1f7581a1cf478138d6969a3dd366de7f3f9cc066",
+  "InputSha256": "ca6ba3953ec7f9770fdbbc6fa3e48b9fc94e1abfb108432a4bac4a8957a1ae54",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 2015232,
+  "ArenaOffset": 2019328,
+  "DecryptedLength": 77824,
+  "SectorCount": 19,
+  "EntryCount": 15,
+  "LargestValueLength": 695,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": [
+    "$.ap_info_v2 (encoded network record)",
+    "$.gw_wsm.passwd",
+    "$.gw_wsm.ssid"
+  ]
+}

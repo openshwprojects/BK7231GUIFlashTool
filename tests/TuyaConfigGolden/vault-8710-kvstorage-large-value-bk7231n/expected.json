@@ -1,0 +1,658 @@
+{
+  "kv.ccode.avtive": "CN",
+  "gw_wsm": {
+    "nc_tp": 0,
+    "ssid": "UEotVU5JQ09N",
+    "passwd": "UEoxMjM0NTZQSg==",
+    "md": 0,
+    "wfb64": 1,
+    "stat": 1,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 0,
+    "is_psk30_cfg": false
+  },
+  "gw_di": {
+    "abi": 0,
+    "id": "6cafab72094f204e76lhpu",
+    "swv": "3.1.28",
+    "bv": "40.00",
+    "pv": "2.3",
+    "lpv": "3.5",
+    "pk": "wifech3utowiyknu",
+    "firmk": "key83r5jq9qqeaxt",
+    "cadv": "1.0.5",
+    "cdv": "1.0.0",
+    "dev_swv": "3.0.2",
+    "s_id": "e1kcg9c4",
+    "dtp": 9,
+    "sync": 0,
+    "attr_num": 1,
+    "mst_tp_0": 9,
+    "mst_ver_0": "3.0.2",
+    "mst_md5_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_md5_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_md5_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null,
+    "mst_md5_3": null,
+    "mst_tp_4": 0,
+    "mst_ver_4": null,
+    "mst_md5_4": null,
+    "mst_tp_5": 0,
+    "mst_ver_5": null,
+    "mst_md5_5": null,
+    "mst_tp_6": 0,
+    "mst_ver_6": null,
+    "mst_md5_6": null,
+    "mst_tp_7": 0,
+    "mst_ver_7": null,
+    "mst_md5_7": null,
+    "mst_tp_8": 0,
+    "mst_ver_8": null,
+    "mst_md5_8": null,
+    "mst_tp_9": 0,
+    "mst_ver_9": null,
+    "mst_md5_9": null
+  },
+  "ap_info_v2": "bc000000504a2d554e49434f4d000000000000000000000000000000000000000000000000509a88a1a6d000016533623634373464313164653164353335643632343931346134353462656631633236383835356134303062623165613961313538663537323364346435333100504a313233343536504a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000016d41c441754f384b68fa19f8598c23f7",
+  "timer_arr": {
+    "lastFetchTime": 0,
+    "cnt": 0
+  },
+  "kv.ccode.mf": "CN",
+  "gw_ai": {
+    "key": "ZMILN3DV2HBk5Elh",
+    "lckey": "N-4Vp/$XM(W(T'hJ",
+    "h_url": "http://a.tuyacn.com/d.json",
+    "h_ip": "47.116.209.150",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3.tuyacn.com/d.json",
+    "hs_psk_ip": "101.132.182.6",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m2.tuyacn.com:1883",
+    "mq_ip": "47.116.178.210",
+    "ai_sp": null,
+    "ai_sp_ip": null,
+    "mq_psk": "m3.tuyacn.com:8886",
+    "mq_psk_ip": "47.116.187.34",
+    "lp_url": "baal.tuyacn.com:443",
+    "lp_ip": "47.101.10.151",
+    "time_z": "+08:00",
+    "s_time_z": "[]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 1025
+  },
+  "tls_ca_cnt": 0,
+  "e1kcg9c4": [
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 600000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 101,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "range": [
+          "FORWARD",
+          "REVERSE"
+        ],
+        "type": "enum"
+      },
+      "id": 102,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 103,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "range": [
+          "FORWARD",
+          "REVERSE"
+        ],
+        "type": "enum"
+      },
+      "id": 104,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 600000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 105,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 99999999,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 106,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 99999999,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 107,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 99999999,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 108,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 99999999,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 109,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 100,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 110,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 10000,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 111,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 28000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 112,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 113,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 114,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": -99999999,
+        "max": 99999999,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 115,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 116,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 117,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 118,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 119,
+      "type": "obj"
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "type": "bool"
+      },
+      "id": 120,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 100,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 121,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 122,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 123,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 124,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 125,
+      "type": "obj"
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "type": "bool"
+      },
+      "id": 126,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 127,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 1200,
+        "scale": 3,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 128,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 3,
+        "max": 60,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 129,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 99999999,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 130,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 99999999,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 131,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 132,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 133,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 134,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 135,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 136,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 2600,
+        "scale": 1,
+        "step": 10,
+        "type": "value"
+      },
+      "id": 137,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 800,
+        "max": 2600,
+        "scale": 1,
+        "step": 10,
+        "type": "value"
+      },
+      "id": 138,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 150000,
+        "scale": 3,
+        "step": 500,
+        "type": "value"
+      },
+      "id": 139,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 1,
+        "max": 600000,
+        "scale": 1,
+        "step": 100,
+        "type": "value"
+      },
+      "id": 140,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 141,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 142,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 143,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 144,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 150000,
+        "scale": 3,
+        "step": 500,
+        "type": "value"
+      },
+      "id": 145,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 1,
+        "max": 600000,
+        "scale": 1,
+        "step": 100,
+        "type": "value"
+      },
+      "id": 146,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 147,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 148,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 149,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 150,
+      "type": "obj"
+    }
+  ],
+  "em_sys_env": "bk7231n",
+  "gw_bi": {
+    "uuid": "9128746adf58b60e",
+    "psk_key": "BoPZE8zqSSIbJ8SET3jjlqBVghI7ADAVyjtF2",
+    "auth_key": "nqacCGYL25RFKP2M41jGCiqNP2NRcYhi",
+    "ap_ssid": "SmartLife-5466",
+    "ap_passwd": null,
+    "country_code": null,
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false,
+    "fac_pin": "r863d7bqgo4g6147",
+    "psk30_key": "5pf9zHJNMZdAkNCx+xqdWBHuiwjjo2eQB5BqaYFKNSw=",
+    "pin": "32700999"
+  },
+  "baud_cfg": {
+    "baud": 9600
+  },
+  "wf_start_md": 4,
+  "rcs.active": "010100000201000103080041592d50524f440004120068332d61792e696f742d646e732e636f6d",
+  "last_reset_info_new": {
+    "region": "AY",
+    "type": 1
+  }
+}

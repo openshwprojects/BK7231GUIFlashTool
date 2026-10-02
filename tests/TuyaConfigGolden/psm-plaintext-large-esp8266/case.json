@@ -1,0 +1,18 @@
+{
+  "Name": "psm-plaintext-large-esp8266",
+  "SourceFileName": "Tuya_Woox_4xAC1xUSB_R4027_(schemaID-)_lo8wdsdvhchvcbsn_TYWE2S_2.0.0.bin",
+  "SourceSha256": "9f5ac62a9a3e64893599f0f4cd94b7a62247eba1eb39711192e9e60e2d0f75a8",
+  "InputSha256": "4bacbcfc004f01fca0b3b198f12a9e488b5f4e5ccd60eb6479a143b315b5eb21",
+  "ExtractionKind": "PlaintextPSM",
+  "VaultKeyVariant": "",
+  "ParserKind": "PSM",
+  "PageMagic": "",
+  "DeviceKeyOffset": -1,
+  "ArenaOffset": 503808,
+  "DecryptedLength": 16384,
+  "SectorCount": 4,
+  "EntryCount": 16,
+  "LargestValueLength": 821,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

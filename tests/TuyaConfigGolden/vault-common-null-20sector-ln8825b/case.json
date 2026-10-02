@@ -1,0 +1,21 @@
+{
+  "Name": "vault-common-null-20sector-ln8825b",
+  "SourceFileName": "Tuya_LED_Controller_(\u5355\u952E\u5C0F\u65B9\u76D2\u4E09\u8DEF\u706F_schemaID-000003kxvp)_zfbdpln1ynr6p3um_1.0.1.bin",
+  "SourceSha256": "d1b94b8c95591e294ace4fcab5100977e93eb00bf3c4026f395bccb6049ad48d",
+  "InputSha256": "239f1e0a3ed53f9578c2d31f18a5c7bead60a51e577c4f8d609edc19bd754553",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 1994752,
+  "ArenaOffset": 1998848,
+  "DecryptedLength": 81920,
+  "SectorCount": 20,
+  "EntryCount": 12,
+  "LargestValueLength": 590,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": [
+    "$.ap_info_v2 (encoded network record)"
+  ]
+}

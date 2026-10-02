@@ -1,0 +1,159 @@
+{
+  "gw_bi": {
+    "uuid": "ea9f69ee4b1c53d7",
+    "psk_key": "wlg0mCPWKngK3KUIgCd8Rfxy4AaYR24dVe69k",
+    "auth_key": "Eih7buRx5D5VtBEtJoccbyQjdp8DtvRm",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": null,
+    "prod_test": false
+  },
+  "gw_wsm": {
+    "nc_tp": 2,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "random": 0,
+    "wfb64": 1,
+    "stat": 1,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 256
+  },
+  "tls_ca_cnt": 0,
+  "gw_di": {
+    "abi": 0,
+    "id": "6c8f48acea5f1c1735iyx6",
+    "swv": "1.0.0",
+    "bv": "40.00",
+    "pv": "2.2",
+    "lpv": "3.3",
+    "pk": "7xflai0hf9elixd4",
+    "firmk": "7xflai0hf9elixd4",
+    "cadv": "1.0.2",
+    "cdv": "1.0.0",
+    "dev_swv": "1.0.0",
+    "s_id": "000003kw8s",
+    "dtp": 0,
+    "sync": 0,
+    "attr_num": 0,
+    "mst_tp_0": 0,
+    "mst_ver_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null,
+    "dminfo_name": null,
+    "dminfo_code": null,
+    "dminfo_report_code": null,
+    "dminfo_sn": null,
+    "dminfo_manu_id": null,
+    "dminfo_version": null,
+    "dminfo_encrype_key": null
+  },
+  "is_stride": 0,
+  "gw_ai": {
+    "key": "64275888fae4edb6",
+    "lckey": "33c468767db99a08",
+    "h_url": "http://a.tuyacn.com/d.json",
+    "h_ip": "42.192.25.216",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3.tuyacn.com/d.json",
+    "hs_psk_ip": "121.5.96.248",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m2.tuyacn.com:1883",
+    "mq_ip": "42.192.30.165",
+    "ai_sp": null,
+    "ai_sp_ip": null,
+    "mq_psk": "m2.tuyacn.com:8886",
+    "mq_psk_ip": "42.192.30.165",
+    "time_z": "+08:00",
+    "s_time_z": "[]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 1
+  },
+  "000003kw8s": [
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 20,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "white",
+          "colour",
+          "scene",
+          "music"
+        ],
+        "type": "enum"
+      },
+      "id": 21,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 10,
+        "max": 1000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 22,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 24,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 25,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 26,
+      "type": "obj"
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 28,
+      "type": "obj"
+    }
+  ],
+  "em_sys_env": "LN882X_2M",
+  "ap_info_v2": "8b00000038383838383838380000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000086e6f766120372050726f20354700000000000000000000000000000000000000000d53ee72c538a854c0d0ca95d8ec8e84655c814282451b036df4a08ae617d0b7202e475acefda1f331"
+}

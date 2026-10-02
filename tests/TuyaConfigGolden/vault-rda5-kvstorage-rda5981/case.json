@@ -1,0 +1,18 @@
+{
+  "Name": "vault-rda5-kvstorage-rda5981",
+  "SourceFileName": "Tuya_GreenliteA19Bulb_(schemaID-0000004sda)_keypysyqn9qfxkwr_qwbolvab733gvpzo_WRD8P_1.2.1.bin",
+  "SourceSha256": "7fb3c1e58c0ffa42fcedd73440c71b5e0307848e012777cf11c6963a758e53d1",
+  "InputSha256": "c6ddeb7ed65dee9f89997bd8e75e282d172a70e1615e4ff4c60e08ce635b5cdb",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "RDA5\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2011136,
+  "ArenaOffset": 2015232,
+  "DecryptedLength": 81920,
+  "SectorCount": 20,
+  "EntryCount": 6,
+  "LargestValueLength": 330,
+  "HasDuplicateBlockIds": true,
+  "CredentialIndicators": []
+}

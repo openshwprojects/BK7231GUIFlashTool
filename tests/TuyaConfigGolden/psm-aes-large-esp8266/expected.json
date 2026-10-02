@@ -1,0 +1,241 @@
+{
+  "ty_ws_part": 1,
+  "ty_ws_mod": "ty_ws_part",
+  "last_used": 2,
+  "scma_part": 2,
+  "scma_mod": "scma_part",
+  "ESP.ty_ws_mod.gw_sumer_table_key": [],
+  "ESP.ty_ws_mod.gw_sw_ver_key": {
+    "sw_ver": "3.1.4",
+    "bs_ver": "5.57",
+    "pt_ver": "2.2"
+  },
+  "ESP.ty_ws_mod.wf_nw_rec_key": {
+    "ssid": null,
+    "passwd": null,
+    "wk_mode": 0,
+    "mode": 0,
+    "type": 0,
+    "source": 0,
+    "path": 0,
+    "time": 0,
+    "random": 0
+  },
+  "ESP.ty_ws_mod.gw_active_key": {
+    "token": null,
+    "key": null,
+    "local_key": null,
+    "http_url": null,
+    "mq_url": null,
+    "timeZone": null,
+    "region": null,
+    "reg_key": null,
+    "wxappid": null,
+    "ch_nm": null,
+    "httpsPSKUrl": null,
+    "mqttsUrl": null,
+    "cpy_nm": null,
+    "uid_acl": null
+  },
+  "ESP.ty_ws_mod.timer_posix_key": {
+    "lastFetchTime": 0,
+    "count": 0,
+    "whole": true
+  },
+  "ESP.ty_ws_mod.dev_if_rec_key": {
+    "id": "368385282cf432880811",
+    "sw_ver": "1.0.0",
+    "schema_id": null,
+    "etag": null,
+    "product_key": "u40ekjYpmgVdJLr1",
+    "ability": 0,
+    "bind": false,
+    "sync": false
+  },
+  "ESP.scma_mod.scma_key": [
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 1
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 2
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 3
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 4
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 5
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 6
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "range": [
+          "SP1",
+          "SP2",
+          "SP3",
+          "SP4",
+          "SP5",
+          "SP6"
+        ],
+        "type": "enum"
+      },
+      "id": 102,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 103,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 104,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 105,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 106,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 107,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 108,
+      "type": "obj"
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "range": [
+          "SC1",
+          "SC2",
+          "SC3",
+          "SC4",
+          "SC5",
+          "SC6"
+        ],
+        "type": "enum"
+      },
+      "id": 109,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 110,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 111,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 112,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 113,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 114,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 115,
+      "type": "obj"
+    },
+    {
+      "mode": "wr",
+      "property": {
+        "type": "bool"
+      },
+      "id": 116,
+      "type": "obj"
+    }
+  ]
+}

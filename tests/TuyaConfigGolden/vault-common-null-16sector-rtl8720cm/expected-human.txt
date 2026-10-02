@@ -1,0 +1,10 @@
+Device configuration, as extracted from Tuya: 
+- BP5758D_DAT on P4
+- BP5758D_CLK on P19
+- LED remap is 2 1 0 4 3
+- RGB current is 15 mA
+- Warm white current is 63 mA
+- Cold white current is 63 mA
+Device seems to be using CR3L module, which is using RTL87X0C.
+Device internal platform - rtl8720cm_ameba, equals RTL87X0C.
+And the Tuya section starts at an UNCOMMON POSITION 3665920 (0x37F000)

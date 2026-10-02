@@ -1,0 +1,18 @@
+{
+  "Name": "vault-8721-legacy-rtl8720dn",
+  "SourceFileName": "Tuya_Hisense QH35XV3AG_AC_(WBR1D\u751F\u4EA7\u5907\u8D27_schemaID-000001z2ke)_keyukmh93ew3retr_xlncpi26mhn2layq_WBR1D_1.1.11.bin",
+  "SourceSha256": "baf4d728740db312efdf225cc8a0d41c0288a6735cec4dcfce46fddd43be9e55",
+  "InputSha256": "e00ab26ab09c6f88b064a0c87d3dea8a78e65a714f820279b880c88583608c61",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8721\u002Bcommon",
+  "ParserKind": "LegacyKV",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 4169728,
+  "ArenaOffset": 3989504,
+  "DecryptedLength": 65536,
+  "SectorCount": 16,
+  "EntryCount": 2,
+  "LargestValueLength": 258,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

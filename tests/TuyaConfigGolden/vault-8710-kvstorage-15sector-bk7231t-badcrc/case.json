@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-kvstorage-15sector-bk7231t-badcrc",
+  "SourceFileName": "Tuya_ExtraStar_A60_10W_(schemaID-000002ik88)_keytg5kq8gvkv9dh_uzfadifd6muvbkqq_WB3L_2.9.6.bin",
+  "SourceSha256": "f21259c49cdb4cca7688a1765aab556332fab7c2f254994321a1eba3abaeddb0",
+  "InputSha256": "fcd965ce1417ff86a4fe9eb8ac47007842bc61eed704ef0d36e0f63eaef2d443",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2023424,
+  "ArenaOffset": 2031616,
+  "DecryptedLength": 61440,
+  "SectorCount": 15,
+  "EntryCount": 6,
+  "LargestValueLength": 478,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 1,
+  "CredentialIndicators": []
+}

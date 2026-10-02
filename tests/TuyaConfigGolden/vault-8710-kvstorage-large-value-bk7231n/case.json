@@ -1,0 +1,23 @@
+{
+  "Name": "vault-8710-kvstorage-large-value-bk7231n",
+  "SourceFileName": "Tuya_PJ1103C_Dual_Clamp_PowerMeter_(schemaID-e1kcg9c4)_key83r5jq9qqeaxt_wifech3utowiyknu_r863d7bqgo4g6147_TuyaMCU_3.1.28.bin",
+  "SourceSha256": "8f121ca779adaa22cd92eac9eb570d748902876253534b513de177169d94accb",
+  "InputSha256": "139a3593168f9bc41d8e512d1d2b9b15c1bbe73f70eddd62b1601c2a0d7ed3cb",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 2023424,
+  "ArenaOffset": 2027520,
+  "DecryptedLength": 69632,
+  "SectorCount": 17,
+  "EntryCount": 15,
+  "LargestValueLength": 4546,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": [
+    "$.ap_info_v2 (encoded network record)",
+    "$.gw_wsm.passwd",
+    "$.gw_wsm.ssid"
+  ]
+}

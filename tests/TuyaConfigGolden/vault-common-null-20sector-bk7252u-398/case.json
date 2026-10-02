@@ -1,0 +1,19 @@
+{
+  "Name": "vault-common-null-20sector-bk7252u-398",
+  "SourceFileName": "Tuya_Doorbell_IP06-V6.3-BekenSPI_2025-08-10-21-29-16.bin",
+  "SourceSha256": "080f7a7896976638fadff4208c4d9529c39f4efddc15636915892a1ddd9d9758",
+  "InputSha256": "d78065c98584ee4f66573216988489988fa8aef122dd539fb43bed60cc296d2c",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 3764224,
+  "ArenaOffset": 3768320,
+  "DecryptedLength": 81920,
+  "SectorCount": 20,
+  "EntryCount": 5,
+  "LargestValueLength": 358,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

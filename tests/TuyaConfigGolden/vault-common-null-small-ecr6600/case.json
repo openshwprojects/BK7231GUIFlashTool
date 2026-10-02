@@ -1,0 +1,18 @@
+{
+  "Name": "vault-common-null-small-ecr6600",
+  "SourceFileName": "Tuya_3CHSwitch_MCL-Y10-L-03W_(schemaID-e1kqcga4)_keysceeymg7xqvk7_edgai1jqxoiyx0ti_AXYU_1.0.15.bin",
+  "SourceSha256": "5c39ef8396a58a1f2b6087e8bf0f1353419180c90ca8bf21cbc2714d767259d6",
+  "InputSha256": "87561ceea0d58671364895d0ebf541583f865dda1970c1c52bcc9608641d86a4",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 1921024,
+  "ArenaOffset": 1925120,
+  "DecryptedLength": 32768,
+  "SectorCount": 8,
+  "EntryCount": 8,
+  "LargestValueLength": 686,
+  "HasDuplicateBlockIds": true,
+  "CredentialIndicators": []
+}

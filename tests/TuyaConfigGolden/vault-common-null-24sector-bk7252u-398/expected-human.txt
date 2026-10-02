@@ -1,0 +1,4 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+Device internal platform - BK7252.
+And the Tuya section starts at 3764224 (0x397000), which is a default BK7252 offset.

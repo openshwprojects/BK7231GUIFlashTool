@@ -1,0 +1,9 @@
+{
+  "gw_bi": {
+    "prod_flag": 0
+  },
+  "prod_test": {
+    "prod_flag": 0
+  },
+  "tuya_seed": "27cd81a8288d375c1a34a8c53aca3e66d094478ea9904bd36376c9d4cfdb57c6"
+}

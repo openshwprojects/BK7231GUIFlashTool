@@ -1,0 +1,4 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+Device internal platform - em_sys_env.
+And the Tuya section starts at an UNCOMMON POSITION 3141632 (0x2FF000)

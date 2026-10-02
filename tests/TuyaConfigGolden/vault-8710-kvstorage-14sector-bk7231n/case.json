@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-kvstorage-14sector-bk7231n",
+  "SourceFileName": "SBER_Relay_SBDV-00027.bin",
+  "SourceSha256": "88fda6ad6f0a114c62dd0a6058776beea1a7e6fdebe081430518cca81556a449",
+  "InputSha256": "c851db0696bd731335bc58af462b9391adb2b9d9f2a26b40baef3eb95dd96650",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 2023424,
+  "ArenaOffset": 2027520,
+  "DecryptedLength": 57344,
+  "SectorCount": 14,
+  "EntryCount": 10,
+  "LargestValueLength": 491,
+  "HasDuplicateBlockIds": false,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

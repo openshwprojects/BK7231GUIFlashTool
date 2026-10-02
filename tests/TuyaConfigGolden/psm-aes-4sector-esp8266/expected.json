@@ -1,0 +1,221 @@
+{
+  "ty_ws_part": 1,
+  "ty_ws_mod": "ty_ws_part",
+  "scma_part": 2,
+  "scma_mod": "scma_part",
+  "last_used": 3,
+  "device_part": 3,
+  "device_mod": "device_part",
+  "ESP.ty_ws_mod.gw_sumer_table_key": [],
+  "ESP.ty_ws_mod.wf_nw_rec_key": {
+    "ssid": null,
+    "passwd": null,
+    "wk_mode": 0,
+    "mode": 0,
+    "type": 0,
+    "source": 0,
+    "path": 0,
+    "time": 0,
+    "random": 0
+  },
+  "ESP.ty_ws_mod.gw_active_key": {
+    "token": null,
+    "key": null,
+    "local_key": null,
+    "http_url": null,
+    "mq_url": null,
+    "timeZone": null,
+    "region": null,
+    "reg_key": null,
+    "wxappid": null,
+    "ch_nm": null,
+    "httpsPSKUrl": null,
+    "mqttsUrl": null,
+    "cpy_nm": null,
+    "uid_acl": null
+  },
+  "ESP.ty_ws_mod.timer_posix_key": {
+    "lastFetchTime": 0,
+    "count": 0,
+    "whole": true
+  },
+  "ESP.ty_ws_mod.dev_if_rec_key": {
+    "id": "71066883ec94cb81a326",
+    "sw_ver": "1.1.1",
+    "schema_id": null,
+    "etag": null,
+    "product_key": "y3kqwgqyq7bvkyhh",
+    "ability": 0,
+    "bind": false,
+    "sync": false
+  },
+  "ESP.ty_ws_mod.gw_sw_ver_key": {
+    "sw_ver": "1.1.1",
+    "bs_ver": "5.50",
+    "pt_ver": "2.2"
+  },
+  "ESP.scma_mod.scma_key": [
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 1
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 2
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 3
+    },
+    {
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 7
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 9,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 10,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 11,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 15,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 50000,
+        "scale": 3,
+        "step": 100,
+        "type": "value"
+      },
+      "id": 17,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 30000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 18,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 50000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 19,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 5000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 20,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bitmap",
+        "maxlen": 1
+      },
+      "id": 26,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 101,
+      "type": "obj"
+    },
+    {
+      "mode": "ro",
+      "property": {
+        "type": "bool"
+      },
+      "id": 102,
+      "type": "obj"
+    }
+  ],
+  "ESP.device_mod.tem_ele_save_key": {
+    "tem_ele": 0
+  },
+  "ESP.device_mod.power_stat_key": {
+    "power0": 0,
+    "power1": 0,
+    "power2": 0,
+    "power3": 0
+  }
+}

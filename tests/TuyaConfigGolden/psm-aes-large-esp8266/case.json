@@ -1,0 +1,18 @@
+{
+  "Name": "psm-aes-large-esp8266",
+  "SourceFileName": "Tuya_Sensinova_ERC102_6CHDryContact_SNCT6C10W_(schemaID-0000000a43)_u40ekjYpmgVdJLr1_TuyaMCU_TYWE3S_3.1.4.bin",
+  "SourceSha256": "5916dec84e06217f4ad70f6ae7b615f411897ac0b5bd5f403372d15ac1b40bdf",
+  "InputSha256": "584d48a933369d5830be1a70b525e39b1bea1fca9337d538b7ed338d518fd0ae",
+  "ExtractionKind": "AesPSM",
+  "VaultKeyVariant": "",
+  "ParserKind": "PSM",
+  "PageMagic": "",
+  "DeviceKeyOffset": -1,
+  "ArenaOffset": 503808,
+  "DecryptedLength": 12288,
+  "SectorCount": 3,
+  "EntryCount": 13,
+  "LargestValueLength": 1404,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

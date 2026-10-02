@@ -1,0 +1,5 @@
+Device configuration, as extracted from Tuya: 
+- LED Cool (Channel 4) on P23
+- PWM Frequency 2000
+Device seems to be using WRD8P module, which is using RDA5981.
+And the Tuya section starts at 2011136 (0x1EB000), which is a default RTL8710B/XR809/BK7231Q/RDA5981 offset.

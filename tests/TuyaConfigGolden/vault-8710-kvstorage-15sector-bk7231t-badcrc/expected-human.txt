@@ -1,0 +1,9 @@
+Device configuration, as extracted from Tuya: 
+- LED Green (Channel 2) on P24
+- LED Cool (Channel 4) on P7
+- LED Blue (Channel 3) on P26
+- LED Warm (Channel 5) on P6
+- PWM Frequency 1000
+- LED Red (Channel 1) on P8
+Device seems to be using WB3L module, which is using BK7231T.
+And the Tuya section starts, as usual, at 2023424 (0x1EE000)

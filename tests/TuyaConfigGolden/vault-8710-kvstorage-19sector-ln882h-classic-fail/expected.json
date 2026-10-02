@@ -1,0 +1,194 @@
+{
+  "ap_info_v2": "8b000000484f4d452d494f540000000000000000000000000000000000000000000000000036774423765650507425614a442128700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001051f90d4b8aa7e226a3fb6cd33caeef8c4121885f9e5d3385a27692b89141dd62beb907a07778e01306",
+  "em_sys_env": "ln882h",
+  "e1ktf2m0": [
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 1,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 2,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 7,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 8,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "range": [
+          "off",
+          "on",
+          "memory"
+        ],
+        "type": "enum"
+      },
+      "id": 14,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      },
+      "id": 16,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      },
+      "id": 19,
+      "type": "obj"
+    },
+    {
+      "mode": "rw",
+      "id": 209,
+      "type": "raw"
+    }
+  ],
+  "gw_wsm": {
+    "nc_tp": 3,
+    "ssid": "SE9NRS1JT1Q=",
+    "passwd": "NndEI3ZWUFB0JWFKRCEocA==",
+    "md": 3,
+    "wfb64": 1,
+    "stat": 2,
+    "token": "jxsLXSk5",
+    "region": "EU",
+    "reg_key": "5zRK",
+    "dns_prio": 0,
+    "is_psk30_cfg": true
+  },
+  "tls_ca_cnt": 0,
+  "tuya_seed": "720c8d19b10e2bb9b6377f6fd2d9c7c6ebe1c849dedc9caaaf6edd647e38bf1e",
+  "_tyws_ip_info": "c0a80be1ffffff00c0a80bfe",
+  "gw_ai": {
+    "key": "1D~f?-UqV;$uP>{9",
+    "lckey": "pN_t!INITTY<Y2~F",
+    "h_url": "http://a.tuyaeu.com/d.json",
+    "h_ip": "3.121.33.91",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3.tuyaeu.com/d.json",
+    "hs_psk_ip": "3.67.116.46",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m2.tuyaeu.com:1883",
+    "mq_ip": "3.67.242.33",
+    "ai_sp": null,
+    "ai_sp_ip": null,
+    "mq_psk": "m3.tuyaeu.com:8886",
+    "mq_psk_ip": "18.184.224.184",
+    "lp_url": "baal.tuyaeu.com:443",
+    "lp_ip": "3.124.173.10",
+    "time_z": "+02:00",
+    "s_time_z": "[[1774746000,1792890000],[1806195600,1824944400]]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 1025
+  },
+  "astro_timer": {
+    "timestamp": 1775048745,
+    "index": 0
+  },
+  "timer_arr": {
+    "lastFetchTime": 0,
+    "cnt": 0
+  },
+  "gw_bi": {
+    "uuid": "2ffe434f860eb613",
+    "psk_key": "bnOjEBcmRUe6ZvwMuhXJk0BmP3j0J8mI9iVVG",
+    "auth_key": "rYadM89pDfjaFUHHWAWw3Ql4TBz5wk20",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": "CN",
+    "bt_mac": null,
+    "bt_hid": null,
+    "prod_test": false,
+    "fac_pin": "113aeiqafgcfzubp",
+    "psk30_key": "CZvPIroAlufkW0C4ww9V24OIJwIS3ariK2oiFy5ojYA="
+  },
+  "rcs.active": "010100000201000103080045552d50524f440004120068332d65752e696f742d646e732e636f6d",
+  "gw_di": {
+    "abi": 0,
+    "id": "bf41e0575bdd5081cb0w0f",
+    "swv": "1.7.6",
+    "bv": "40.00",
+    "pv": "2.3",
+    "lpv": "3.5",
+    "pk": "113aeiqafgcfzubp",
+    "firmk": null,
+    "cadv": "1.0.5",
+    "cdv": "1.0.0",
+    "dev_swv": "1.7.6",
+    "s_id": "e1ktf2m0",
+    "dtp": 0,
+    "sync": 0,
+    "attr_num": 1,
+    "mst_tp_0": 9,
+    "mst_ver_0": "1.7.6",
+    "mst_md5_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_md5_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_md5_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null,
+    "mst_md5_3": null,
+    "mst_tp_4": 0,
+    "mst_ver_4": null,
+    "mst_md5_4": null,
+    "mst_tp_5": 0,
+    "mst_ver_5": null,
+    "mst_md5_5": null,
+    "mst_tp_6": 0,
+    "mst_ver_6": null,
+    "mst_md5_6": null,
+    "mst_tp_7": 0,
+    "mst_ver_7": null,
+    "mst_md5_7": null,
+    "mst_tp_8": 0,
+    "mst_ver_8": null,
+    "mst_md5_8": null,
+    "mst_tp_9": 0,
+    "mst_ver_9": null,
+    "mst_md5_9": null
+  },
+  "ble_beaconkey": "7A4A69C4720D42D4536A1D1094F43986",
+  "wf_start_md": 3
+}

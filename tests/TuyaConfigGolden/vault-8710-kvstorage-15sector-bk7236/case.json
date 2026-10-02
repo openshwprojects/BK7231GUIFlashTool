@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-kvstorage-15sector-bk7236",
+  "SourceFileName": "Tuya_T3-3S_readResult_BK7231N_QIO_7236_fixed-insmod.bin",
+  "SourceSha256": "435feaa1e34cc99dda22ffdb527af136548a18f291fe3d2248afb50467fbfbf2",
+  "InputSha256": "8afe61685779b32ff682e236769aca660f72783ffc6e8905a606068926f7364e",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 3997696,
+  "ArenaOffset": 4001792,
+  "DecryptedLength": 61440,
+  "SectorCount": 15,
+  "EntryCount": 3,
+  "LargestValueLength": 268,
+  "HasDuplicateBlockIds": true,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

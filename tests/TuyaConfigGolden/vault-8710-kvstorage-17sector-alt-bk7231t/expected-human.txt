@@ -1,0 +1,7 @@
+Device configuration, as extracted from Tuya: 
+- Control Pin (TODO) on P14
+- LED Cool (Channel 4) on P7
+- LED Warm (Channel 5) on P6
+- PWM Frequency 1000
+Device seems to be using WB3L module, which is using BK7231T.
+And the Tuya section starts at an UNCOMMON POSITION 1953792 (0x1DD000)

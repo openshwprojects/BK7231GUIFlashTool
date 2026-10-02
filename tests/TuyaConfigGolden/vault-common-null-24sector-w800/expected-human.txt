@@ -1,0 +1,4 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+Device internal platform - w800, equals W800.
+And the Tuya section starts at an UNCOMMON POSITION 1933312 (0x1D8000)

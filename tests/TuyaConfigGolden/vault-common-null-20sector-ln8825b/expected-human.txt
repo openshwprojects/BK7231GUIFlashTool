@@ -1,0 +1,4 @@
+Sorry, no meaningful pins data found. This device may be TuyaMCU or a custom one with no Tuya config data.
+No module information found.
+Device internal platform - LN882X_2M, equals LN8825.
+And the Tuya section starts at 1994752 (0x1E7000), which is a default LN8825B offset.

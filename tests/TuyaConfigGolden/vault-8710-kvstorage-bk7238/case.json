@@ -1,0 +1,23 @@
+{
+  "Name": "vault-8710-kvstorage-bk7238",
+  "SourceFileName": "Tuya_Arlec_PC191HA-S4_Plug_(schemaID-e1mtsiag)_keykmm3rjyqy5r8p_74xo1nolwa6xkjeu_T1-2S-NL_1.0.2.bin",
+  "SourceSha256": "08e5d85bc4e271fde46af381b2a0d09dea8dfafa954dabb533327d34688917ef",
+  "InputSha256": "bc2782d1db33983c2aed9bbef86a37dda5c7a7c828afe55815ab83be2eb30d5c",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 2052096,
+  "ArenaOffset": 2056192,
+  "DecryptedLength": 40960,
+  "SectorCount": 10,
+  "EntryCount": 22,
+  "LargestValueLength": 1525,
+  "HasDuplicateBlockIds": true,
+  "CredentialIndicators": [
+    "$.ap_info_v2 (unparsed JSON)",
+    "$.passwd (unparsed JSON)",
+    "$.ssid (unparsed JSON)",
+    "json-not-parseable"
+  ]
+}

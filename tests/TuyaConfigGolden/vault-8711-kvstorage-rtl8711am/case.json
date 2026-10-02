@@ -1,0 +1,20 @@
+{
+  "Name": "vault-8711-kvstorage-rtl8711am",
+  "SourceFileName": "Tuya_ZG-01_MM_Zigbee_Gateway_(WS-ZIGBEE-TEST2_schemaID-000003isnx)_keyfa7hya4gfa7g9_dowj6gyi_WRG1_1.3.3-aike.bin",
+  "SourceSha256": "63e79a3eefb9d8e4824e73846782b257c4aa8bb449b869c504ff0a372f4b73ee",
+  "InputSha256": "7eeadfa7a495eb58a4fd47e92e86ab53187cf4d11dacd44922b8a65ffdb9c09f",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8711\u002Bcommon",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 3141632,
+  "ArenaOffset": 4030464,
+  "DecryptedLength": 163840,
+  "SectorCount": 40,
+  "EntryCount": 18,
+  "LargestValueLength": 518,
+  "HasDuplicateBlockIds": true,
+  "CredentialIndicators": [
+    "$.ap_info_v2 (encoded network record)"
+  ]
+}

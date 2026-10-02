@@ -1,0 +1,19 @@
+{
+  "Name": "vault-common-null-16sector-rtl8720cm",
+  "SourceFileName": "Tuya_Master_Recessed_Downlight_(schemaID-000003wp7g)_key73ve9nrcgkhck_fy9psuhjzjga4tyg_CR3L_1.2.17.bin",
+  "SourceSha256": "a64a764f004ad0102e339f3402342a680b024638e83540b4fada4a283043ea09",
+  "InputSha256": "c5d75fb4f816b641b5a1fa73457368de02d52f0db79526108dbd0e936e1f35bd",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "common-null",
+  "ParserKind": "KVStorage",
+  "PageMagic": "0x98761234",
+  "DeviceKeyOffset": 3665920,
+  "ArenaOffset": 3670016,
+  "DecryptedLength": 65536,
+  "SectorCount": 16,
+  "EntryCount": 18,
+  "LargestValueLength": 596,
+  "HasDuplicateBlockIds": false,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}

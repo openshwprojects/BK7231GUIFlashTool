@@ -1,0 +1,263 @@
+{
+  "gw_bi": {
+    "uuid": "c5a6e985b8eb8dab",
+    "psk_key": "R1vTqynqpWKFOMcATBWzDrDMETVOjrFxqrqjP",
+    "auth_key": "vcpDeXNyknKkAr2s4Wk6YNK3IOqyEwuV",
+    "ap_ssid": "SmartLife",
+    "ap_passwd": null,
+    "country_code": "CN",
+    "prod_test": false,
+    "alarm_flag": 1
+  },
+  "appuser17-dps": {
+    "dp3": 10,
+    "dp5": 2,
+    "dp30": 1,
+    "dp39": 1,
+    "dp40": 1,
+    "dp44": 100,
+    "dp32": 0,
+    "dp41": 50,
+    "dp46": 0,
+    "dp101": 2
+  },
+  "lgw_nkey": {
+    "Channel": "20",
+    "PanId": "55604",
+    "ExtPanId": "60a423fffe977b6f",
+    "NetworkKey": "6aebd3ccf6e1c4d567ba642b34aba047",
+    "CooAddress": "60a423fffe977b6f"
+  },
+  "gw_wsm": {
+    "nc_tp": 1,
+    "ssid": null,
+    "passwd": null,
+    "md": 0,
+    "random": 0,
+    "wfb64": 1,
+    "stat": 1,
+    "token": null,
+    "region": null,
+    "reg_key": null,
+    "dns_prio": 2
+  },
+  "tls_ca_cnt": 0,
+  "gw_di": {
+    "abi": 1,
+    "id": "bfc12a56dda90ad2c3edgv",
+    "swv": "1.3.3",
+    "bv": "40.00",
+    "pv": "2.2",
+    "lpv": "3.3",
+    "pk": "keyfa7hya4gfa7g9",
+    "firmk": null,
+    "cadv": "1.0.2",
+    "cdv": "1.0.0",
+    "dev_swv": "1.3.3",
+    "s_id": null,
+    "dtp": 0,
+    "sync": 0,
+    "attr_num": 1,
+    "mst_tp_0": 2,
+    "mst_ver_0": "1.0.6",
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null,
+    "dminfo_name": null,
+    "dminfo_code": null,
+    "dminfo_report_code": null,
+    "dminfo_sn": null,
+    "dminfo_manu_id": null,
+    "dminfo_version": null,
+    "dminfo_encrype_key": null
+  },
+  "is_stride": 0,
+  "gw_ai": {
+    "key": "3b7377cc5ed8f287",
+    "lckey": "fbc22e7352198400",
+    "h_url": "http://a.tuyaeu.com/d.json",
+    "h_ip": "18.193.22.4",
+    "hs_url": null,
+    "hs_ip": null,
+    "hs_psk": "https://a3.tuyaeu.com/d.json",
+    "hs_psk_ip": "3.121.131.36",
+    "mqs_url": null,
+    "mqs_ip": null,
+    "mq_url": "m2.tuyaeu.com:1883",
+    "mq_ip": "3.124.225.12",
+    "ai_sp": null,
+    "mq_psk": "m2.tuyaeu.com:8886",
+    "mq_psk_ip": "52.58.249.45",
+    "time_z": "+03:00",
+    "s_time_z": "[]",
+    "wx_app_id": null,
+    "wx_uuid": null,
+    "dy_tls_m": 0,
+    "cloud_cap": 4097
+  },
+  "home_secu": {
+    "secu_mode": null,
+    "en_def_time": 0
+  },
+  "ddi-a4c1380a9d2f863a": {
+    "id": "a4c1380a9d2f863a",
+    "sw_ver": "1.0.6",
+    "s_id": "000003isnx",
+    "pk": "dowj6gyi",
+    "fk": null,
+    "oem": false,
+    "sm_dev_key": null,
+    "sm_mac": null,
+    "uuid": null,
+    "tp": 2,
+    "sub_tp": 0,
+    "abi": 4096,
+    "bind": true,
+    "sync": false,
+    "uddd": 56623361,
+    "uddd2": 1073741824,
+    "dminfo_name": null,
+    "dminfo_code": null,
+    "dminfo_report_code": null,
+    "dminfo_sn": null,
+    "dminfo_manu_id": null,
+    "dminfo_version": null,
+    "dminfo_encrype_key": null,
+    "attr_num": 0,
+    "mst_tp_0": 0,
+    "mst_ver_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null
+  },
+  "000003isnx": [
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "ro",
+      "property": {
+        "min": -100,
+        "max": 600,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 1
+    },
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 2
+    },
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 100,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 4
+    }
+  ],
+  "em_sys_env": "em_sys_env",
+  "ap_info_v2": "70000000576972656c6573733200000000000000000000000000000000000000000000000000000031323334357a78637662000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400400006",
+  "ddi-bc33acfffeff10f4": {
+    "id": "bc33acfffeff10f4",
+    "sw_ver": "1.0.9",
+    "s_id": "000001wxj5",
+    "pk": "lqyucvyd",
+    "fk": null,
+    "oem": false,
+    "sm_dev_key": null,
+    "sm_mac": null,
+    "uuid": null,
+    "tp": 2,
+    "sub_tp": 0,
+    "abi": 4096,
+    "bind": true,
+    "sync": false,
+    "uddd": 50331905,
+    "uddd2": 1073741824,
+    "dminfo_name": null,
+    "dminfo_code": null,
+    "dminfo_report_code": null,
+    "dminfo_sn": null,
+    "dminfo_manu_id": null,
+    "dminfo_version": null,
+    "dminfo_encrype_key": null,
+    "attr_num": 0,
+    "mst_tp_0": 0,
+    "mst_ver_0": null,
+    "mst_tp_1": 0,
+    "mst_ver_1": null,
+    "mst_tp_2": 0,
+    "mst_ver_2": null,
+    "mst_tp_3": 0,
+    "mst_ver_3": null
+  },
+  "000001wxj5": [
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 10000,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 101
+    },
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 500,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 102
+    },
+    {
+      "trigger": "direct",
+      "type": "obj",
+      "mode": "rw",
+      "property": {
+        "min": -2000,
+        "max": 10000,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      },
+      "id": 103
+    }
+  ],
+  "prodtest_exit": true,
+  "mf_test_close": true,
+  "timer_arr": {
+    "lastFetchTime": 0,
+    "cnt": 0
+  }
+}

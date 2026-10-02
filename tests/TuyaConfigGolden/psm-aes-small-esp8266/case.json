@@ -1,0 +1,18 @@
+{
+  "Name": "psm-aes-small-esp8266",
+  "SourceFileName": "Tuya_DG-S601_(KS-601-3_schemaID-0000000aas)_RN9iPCasMEiFi3RU_1.0.5.bin",
+  "SourceSha256": "e929f31c3cd08af2dc13eb67cb256cc32b4a12b79c79a3a983f624663555e145",
+  "InputSha256": "aba1662ec4bf6d4823e5f1f32dc294ab8dade5569a23886cdf6b94f99e9e9f85",
+  "ExtractionKind": "AesPSM",
+  "VaultKeyVariant": "",
+  "ParserKind": "PSM",
+  "PageMagic": "",
+  "DeviceKeyOffset": -1,
+  "ArenaOffset": 503808,
+  "DecryptedLength": 8192,
+  "SectorCount": 2,
+  "EntryCount": 6,
+  "LargestValueLength": 97,
+  "HasDuplicateBlockIds": false,
+  "CredentialIndicators": []
+}

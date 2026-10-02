@@ -1,0 +1,19 @@
+{
+  "Name": "vault-8710-legacy-16sector-bk7258",
+  "SourceFileName": "Tuya_T5-E1_Module_AliExpress_BKFIL-insmod.bin",
+  "SourceSha256": "b4854d3114520f01cc7de66f3eb9e6e1e5a563ac5235aad22c5adc4e2434f703",
+  "InputSha256": "e1c155738639ad93b73cb2d8ab3ed4233d9f7f9b3801ae412a5b4ec8d1996770",
+  "ExtractionKind": "Vault",
+  "VaultKeyVariant": "8710\u002Bcommon",
+  "ParserKind": "LegacyKV",
+  "PageMagic": "0x135726AB",
+  "DeviceKeyOffset": 8376320,
+  "ArenaOffset": 8245248,
+  "DecryptedLength": 65536,
+  "SectorCount": 16,
+  "EntryCount": 3,
+  "LargestValueLength": 279,
+  "HasDuplicateBlockIds": false,
+  "BadCrcCount": 0,
+  "CredentialIndicators": []
+}
