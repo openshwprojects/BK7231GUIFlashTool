@@ -47,6 +47,7 @@ namespace BK7231Flasher
         const int USUAL_RTLCM_MAGIC_POSITION = 3633152;
         const int USUAL_BK7252_MAGIC_POSITION = 3764224;
         const int USUAL_ESP8266_MAGIC_POSITION = 503808;
+        const int USUAL_TLSR825X_MAGIC_POSITION = 1015808;
 
         const int KVHeaderSize = 0x12;
         int magicPosition = -1;
@@ -930,6 +931,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             {
                 if(TryVaultExtract(data)) return false;
                 if(TryExtractPSM(data)) return false;
+                if(TryFindUnencrypted(data)) return false;
                 if(bVaultMagicHeaderNotFound)
                     FormMain.Singleton?.addLog("Failed to extract Tuya keys - magic constant header not found in binary" + Environment.NewLine, System.Drawing.Color.Purple);
             }
@@ -1210,6 +1212,32 @@ List<KvEntry> GetVaultEntriesDedupedCached()
             return true;
         }
 
+        bool TryFindUnencrypted(byte[] data)
+        {
+            for(int i = 0; i < data.Length; i += 0x1000)
+            {
+                if(i + 10 > data.Length)
+                    break;
+
+                if(ReadU32LE(data, i) != 0xDEADBEEF)
+                    continue;
+
+                uint crc = ReadU32LE(data, i + 4);
+                ushort len = ReadU16LE(data, i + 8);
+
+                if(len > 0x1000 - 10)
+                    continue;
+
+                if(crc != (CRC.crc32_ver2(0xFFFFFFFF, data, len, (uint)(i + 10)) ^ 0xFFFFFFFF))
+                    continue;
+
+                descryptedRaw = data.Skip(i + 10).Take(len).ToArray();
+                magicPosition = i;
+                return true;
+            }
+            return false;
+        }
+
         bool TryLocatePsm(byte[] data, byte[] aesKey, out int foundOffset, out byte[] psmData)
         {
             foundOffset = -1;
@@ -1379,6 +1407,7 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     }
                     case var k when Regex.IsMatch(k, "^netled\\d+_pin$"):
                     case "netled_pin":
+                    case "net_led_pin":
                     case "wfst":
                     case "wfst_pin":
                         // some devices have netled1_pin, some have netled_pin
@@ -1608,8 +1637,12 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                         desc += "- SPI CS " + value + "" + Environment.NewLine;
                         break;
                     case "total_bt_pin":
+                    case "net_bt_pin":
                         desc += "- Pair/Toggle All Button on P" + value + Environment.NewLine;
                         tg?.setPinRole(value, PinRole.Btn_Tgl_All);
+                        break;
+                    case var k when Regex.IsMatch(k, "^re_[a-zA-Z]+$"):
+                        desc += $"- Rotary Encoder {key[3]} on P" + value + Environment.NewLine;
                         break;
                     default:
                         break;
@@ -1893,6 +1926,9 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     break;
                 case USUAL_ESP8266_MAGIC_POSITION:
                     printposdevice("ESP8266");
+                    break;
+                case USUAL_TLSR825X_MAGIC_POSITION:
+                    printposdevice("TLSR825x");
                     break;
                 default:
                     desc += "And the Tuya section starts at an UNCOMMON POSITION " + getMagicPositionDecAndHex() + Environment.NewLine;
