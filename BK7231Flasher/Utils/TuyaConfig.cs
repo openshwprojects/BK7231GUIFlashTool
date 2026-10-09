@@ -1227,6 +1227,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
 
                 if(len > 0x1000 - 10)
                     continue;
+                if(len > data.Length - (i + 10))
+                    continue;
 
                 if(crc != (CRC.crc32_ver2(0xFFFFFFFF, data, len, (uint)(i + 10)) ^ 0xFFFFFFFF))
                     continue;
