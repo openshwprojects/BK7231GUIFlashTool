@@ -20,6 +20,8 @@
                     if(s[1] == 'R')
                         if(s.Length > 3 && s[2] == '1' && s[3] == '1')
                             return nameof(BKType.RTL8721DA);
+                        else if(s[2] == 'D')
+                            return nameof(BKType.RDA5981);
                         else
                             return nameof(BKType.RTL8710B);
                     else if(s[1] == 'L')
@@ -31,8 +33,6 @@
                             return nameof(BKType.RTL8720D);
                         else
                             return nameof(BKType.RTL87X0C);
-                    else if(s[2] == 'D')
-                        return nameof(BKType.RDA5981);
                     else
                         break;
 
@@ -58,7 +58,7 @@
                         case '5': return nameof(BKType.BK7258);
                         case '6': return "BK7236N";
                         case '7': return nameof(BKType.BK7239N);
-                        case '9': return "BK7239";
+                        case '9': return "BK7259";
                         default: break;
                     }
                     break;
@@ -100,7 +100,7 @@
             "T5"                  => nameof(BKType.BK7258),
             "T6"                  => "BK7236N",
             "T7"                  => nameof(BKType.BK7239N),
-            "T9"                  => "BK7239",
+            "T9"                  => "BK7259",
             "bk7231nl"            => nameof(BKType.BK7231N),
             "bk7238"              => nameof(BKType.BK7238),
             "bk7258"              => nameof(BKType.BK7258),
