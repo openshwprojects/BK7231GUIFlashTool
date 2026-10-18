@@ -1687,8 +1687,8 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     var cwcurrent = 0;
                     try
                     {
-                        rgbcurrent = ehccur.Length > 0 ? Convert.ToInt32(ehccur) : iicccur.Length > 0 ? Convert.ToInt32(iicccur) : campere.Length > 0 ? Convert.ToInt32(campere) : 1;
-                        cwcurrent = ehwcur.Length > 0 ? Convert.ToInt32(ehwcur) : iicwcur.Length > 0 ? Convert.ToInt32(iicwcur) : wampere.Length > 0 ? Convert.ToInt32(wampere) : 1;
+                        rgbcurrent = ehccur.Length > 0 ? Convert.ToInt32(ehccur) : iicccur.Length > 0 ? Convert.ToInt32(iicccur) : campere.Length > 0 ? Convert.ToInt32(campere) : 15;
+                        cwcurrent = ehwcur.Length > 0 ? Convert.ToInt32(ehwcur) : iicwcur.Length > 0 ? Convert.ToInt32(iicwcur) : wampere.Length > 0 ? Convert.ToInt32(wampere) : 15;
                     }
                     catch
                     {
@@ -1696,7 +1696,13 @@ List<KvEntry> GetVaultEntriesDedupedCached()
                     }
                     finally
                     {
-                        if(tg != null && !isExc) tg.initCommandLine += $"SM2135_Current {rgbcurrent} {cwcurrent}\r\n";
+                        if(tg != null && !isExc)
+                        {
+                            // SM2135_Current takes codes, (mA - 10) / 5, with the CW code first (OpenBK7231T_App#2274)
+                            var rgbcode = Math.Min(Math.Max((rgbcurrent - 10) / 5, 0), 7);
+                            var cwcode = Math.Min(Math.Max((cwcurrent - 10) / 5, 0), 10);
+                            tg.initCommandLine += $"SM2135_Current {cwcode} {rgbcode}\r\n";
+                        }
                     }
                     currents =  $"- RGB current is {(ehccur.Length > 0 ? ehccur : iicccur.Length > 0 ? iicccur : campere.Length > 0 ? campere : "Unknown")} mA{Environment.NewLine}";
                     currents += $"- White current is {(ehwcur.Length > 0 ? ehwcur : iicwcur.Length > 0 ? iicwcur : wampere.Length > 0 ? wampere : "Unknown")} mA{Environment.NewLine}";
