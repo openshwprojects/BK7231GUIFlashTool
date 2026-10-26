@@ -504,6 +504,7 @@ namespace BK7231Flasher
 				if(bUseCompressionIfPossible && res == null)
 				{
 					addErrorLine("Compressed write failed! Will try normal write...");
+					bUseCompressionIfPossible = false;
 					res = ExecuteCommand(CMD_CUSTOM_XMODEM_WRITE, cmd, 0.1f, 0);
 				}
 				if(res == null)
