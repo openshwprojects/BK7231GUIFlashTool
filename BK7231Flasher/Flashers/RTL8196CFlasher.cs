@@ -164,13 +164,18 @@ namespace BK7231Flasher
 			addWarningLine("Power-cycle the router now: unplug its power supply and plug it back in.");
 			addLogLine($"Sending ESC to catch the boot loader, waiting up to {PowerCycleTimeoutSec} s...");
 			var sw = Stopwatch.StartNew();
+			long received = 0;
 			while(sw.Elapsed.TotalSeconds < PowerCycleTimeoutSec)
 			{
 				if(isCancelled)
 					return false;
 				serial.Write("\x1b");
 				Thread.Sleep(10);
-				seen.Append(serial.ReadExisting());
+				string chunk = serial.ReadExisting();
+				if(received == 0 && chunk.Length > 0)
+					addLogLine($"Router is talking ({sw.Elapsed.TotalSeconds:F1} s), waiting for the loader prompt...");
+				received += chunk.Length;
+				seen.Append(chunk);
 				string text = seen.ToString();
 				if(text.Contains(LoaderPrompt))
 				{
@@ -187,7 +192,12 @@ namespace BK7231Flasher
 				if(seen.Length > 4096)
 					seen.Remove(0, seen.Length - 64);
 			}
-			addErrorLine("No <RealTek> prompt. Check that adapter TX goes to router RX, RX to TX, GND to GND, at 38400 baud.");
+			if(received == 0)
+				addErrorLine("Nothing was received from the router. Was the power really off for a few seconds? Check that adapter RX goes to router TX and GND to GND.");
+			else
+				addErrorLine($"No <RealTek> prompt in {received} received bytes, last: " +
+					System.Text.RegularExpressions.Regex.Replace(seen.ToString(Math.Max(0, seen.Length - 120), Math.Min(120, seen.Length)), @"[^\x20-\x7e]", "."));
+			addErrorLine("Check that adapter TX goes to router RX (ESC must reach the loader), at 38400 baud.");
 			return false;
 		}
 
