@@ -680,6 +680,8 @@ namespace BK7231Flasher
                     return new RTLNFlasher(ct);
                 case BKType.RTL87X0C:
                     return new RTLZ2Flasher(ct);
+                case BKType.RTL8196C:
+                    return new RTL8196CFlasher(ct);
                 case BKType.LN882H:
                 case BKType.LN8825:
                     return new LN882HFlasher(ct);

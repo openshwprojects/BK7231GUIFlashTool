@@ -77,6 +77,10 @@ namespace BK7231Flasher
                 case BKType.RTL8720E:
                     sectors = int.MinValue;
                     return int.MinValue;
+                case BKType.RTL8196C:
+                    // raw mainConfig_t at 0x421000, but big-endian (MIPS): not supported yet
+                    sectors = 0;
+                    return 0;
                 default:
                     sectors = 0;
                     return 0;

@@ -38,6 +38,7 @@ namespace BK7231Flasher
 			{ BKType.LN8825, 0x8ABF79A8 },
 			{ BKType.LN882H, 0xA40B7429 },
 			{ BKType.RDA5981, 0x7272742E },
+			{ BKType.RTL8196C, 0x49941FA2 },
 			{ BKType.RTL8710B, 0x43B186D6 },
 			{ BKType.RTL87X0C, 0x34B6B640 },
 			{ BKType.RTL8720D, 0xA8949DBA },

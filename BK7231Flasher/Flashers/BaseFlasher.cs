@@ -40,6 +40,7 @@ namespace BK7231Flasher
         LN8825,
         OPL1000A2,
         RDA5981,
+        RTL8196C,
         RTL8710B,
         RTL8720D,
         RTL8720E,

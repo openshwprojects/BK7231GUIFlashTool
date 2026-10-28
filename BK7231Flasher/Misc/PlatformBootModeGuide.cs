@@ -38,6 +38,7 @@ namespace BK7231Flasher
             { BKType.RTL8721DA, GetRtlUartDownloadInstructions("RTL8721DA", "PB4", "PB5") },
             { BKType.RTL8720E, GetRtlUartDownloadInstructions("RTL8720E", "PA19", "PA20") },
             { BKType.RTL87X0C, GetRtl87x0cInstructions() },
+            { BKType.RTL8196C, GetRtl8196cInstructions() },
             { BKType.RDA5981, GetRda5981Instructions() },
             { BKType.TR6260, GetTR6260Instructions() },
             { BKType.W800, GetW800Instructions() },
@@ -82,6 +83,16 @@ namespace BK7231Flasher
                 "- PA13 / GPIO13 (RXD) -> 3.3 V" + System.Environment.NewLine +
                 GetPowerAndGroundInstructions() + System.Environment.NewLine +
                 "With PA00 and PA13 pulled high, start the read operation first, then reset the chip by briefly pulling CEN to GND, or by power-cycling the 3.3 V supply.";
+        }
+
+        static string GetRtl8196cInstructions()
+        {
+            return "Connect the router's UART0 console header (38400 baud) to a USB-to-TTL serial adapter:" + System.Environment.NewLine +
+                "- Adapter RX -> router TX" + System.Environment.NewLine +
+                "- Adapter TX -> router RX" + System.Environment.NewLine +
+                "- Adapter GND -> router GND" + System.Environment.NewLine +
+                "- Leave the header's VCC pin unconnected, the router runs from its own power supply" + System.Environment.NewLine +
+                "Start the operation first. When the log asks for it, unplug the router's power supply and plug it back in: the tool sends ESC to stop the factory boot loader, uploads its flashing stub and continues. The first 64 KB of flash (boot loader, MAC and RF settings) is never written.";
         }
 
         static string GetRtlUartDownloadInstructions(string platformName, string logRxPin, string logTxPin)
