@@ -71,9 +71,16 @@ namespace BK7231Flasher
         public static void Run(string[] args)
         {
             // Attach to parent console or allocate a new one for output
-            if (!AttachConsole(ATTACH_PARENT_PROCESS))
+            try
             {
-                AllocConsole();
+                if (!AttachConsole(ATTACH_PARENT_PROCESS))
+                {
+                    AllocConsole();
+                }
+            }
+            catch (Exception)
+            {
+                // no kernel32 on Mono/Linux, stdout already goes to the terminal
             }
 
             // Re-open stdout/stderr after attaching console
@@ -298,6 +305,9 @@ namespace BK7231Flasher
 
             BaseFlasher flasher = CreateFlasher(chipType, cts.Token);
             flasher.setBasic(logger, port, chipType, baud);
+            // same defaults as the GUI (FormMain cfg_* textboxes)
+            flasher.setReadReplyStyle(5);
+            flasher.setReadTimeOutMultForLoop(5);
             if (flasher is ESPFlasher espFlasher)
             {
                 espFlasher.LegacyMode = legacyMode;
