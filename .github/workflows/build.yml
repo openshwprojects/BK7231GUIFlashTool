@@ -40,6 +40,7 @@ jobs:
           name: BK7231GUIFlashTool
           path: |
             BK7231Flasher/BuildOutput/Release/*.exe
+            BK7231Flasher/BuildOutput/Release/*.exe.config
             BK7231Flasher/BuildOutput/Release/*.dll
           if-no-files-found: warn
 
@@ -67,6 +68,7 @@ jobs:
           echo "Recreating BuildOutput directory..."
           mkdir -p BuildOutput/Release
           move *.exe BuildOutput/Release/
+          move *.exe.config BuildOutput/Release/
           move *.dll BuildOutput/Release/
 
       #- name: Copy loaders directory into release
@@ -93,7 +95,7 @@ jobs:
           name: BK7231GUIFlashTool build ${{ github.run_number }}
           body: |
             Automated release for BK7231GUIFlashTool.
-            Includes the latest .exe, .dll files, and loaders directory.
+            Includes the latest .exe, its .exe.config (assembly binding redirects) and the .dll dependencies.
           generate_release_notes: true
           draft: false
           prerelease: false
