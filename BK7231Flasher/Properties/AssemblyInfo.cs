@@ -4,12 +4,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("BK7231Flasher")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("BK7231 GUI Flash Tool")]
+[assembly: AssemblyDescription("GUI flashing tool for Beken BK7231 and other IoT modules (OpenBeken)")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("BK7231Flasher")]
-[assembly: AssemblyCopyright("Copyright ©  2022")]
+[assembly: AssemblyCompany("OpenSHWProjects")]
+[assembly: AssemblyProduct("BK7231GUIFlashTool")]
+[assembly: AssemblyCopyright("Copyright © 2022-2026 OpenSHWProjects")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -31,5 +31,6 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
+// AssemblyFileVersion/AssemblyInformationalVersion are generated at build time from $(FLASHERVERSION) (see BeforeBuild in the .csproj).
+// AssemblyVersion stays fixed on purpose: changing it per build would reset saved user settings (user.config path includes it).
 [assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]

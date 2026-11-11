@@ -1,14 +1,24 @@
 @echo off
 :: Build script for BK7231GUIFlashTool
-:: Found MSBuild path: C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe
+:: Locates MSBuild from the newest Visual Studio install (2022, 2026, Build Tools...) via vswhere.
 
-set MSBUILD_PATH="C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+set MSBUILD_PATH=
 
-if not exist %MSBUILD_PATH% (
-    echo [ERROR] MSBuild.exe not found at %MSBUILD_PATH%
-    echo Please ensure Visual Studio 2022 is installed.
+if exist "%VSWHERE%" (
+    for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe`) do (
+        if not defined MSBUILD_PATH set "MSBUILD_PATH=%%i"
+    )
+)
+
+if not defined MSBUILD_PATH (
+    echo [ERROR] MSBuild.exe not found.
+    echo Please install Visual Studio 2022 or newer with the ".NET desktop development" workload.
     exit /b 1
 )
+
+echo [INFO] Using MSBuild: %MSBUILD_PATH%
+set MSBUILD_PATH="%MSBUILD_PATH%"
 
 :: Set version from argument or default to 1.0.0
 set FLASHERVERSION=1.0.0
