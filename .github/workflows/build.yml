@@ -28,6 +28,10 @@ jobs:
       - name: Build the project
         run: msbuild BK7231Flasher/BK7231Flasher.csproj /p:Configuration=Release /p:OutDir=BuildOutput\Release\
 
+      - name: ALi M3801 protocol selftests (no hardware)
+        shell: pwsh
+        run: ./tests/run_ali_selftests.ps1 -FlasherAssembly ./BK7231Flasher/BuildOutput/Release/BK7231Flasher.exe
+
       - name: Debug Build Output
         run: |
           echo "Checking output directory..."

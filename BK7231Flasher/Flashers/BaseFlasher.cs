@@ -55,6 +55,9 @@ namespace BK7231Flasher
 
         Detect,
         Invalid,
+
+        // Append platforms to preserve the existing persisted enum values.
+        ALIM3801,
     }
     public enum WriteMode
     {

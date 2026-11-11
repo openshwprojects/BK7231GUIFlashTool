@@ -3,6 +3,8 @@
 BK7231 GUI Flash Tool is a simple Windows application that allows you to back up and flash OpenBK/OpenBeken and related Open\* firmware projects to supported IoT chips without extensive programming knowledge. The tool originally focused on Beken BK7231T/BK7231N devices, but the current version supports a wider set of chip and platform modes.
 
 Supported GUI-selectable chip/platform modes:
+
+- ALi M3801
 - Beken UART:
   - BK7231M
   - BK7231N (T2, T34, BL2028N)
@@ -35,6 +37,7 @@ Supported GUI-selectable chip/platform modes:
 - RDA Micro:
   - RDA5981
 - Realtek:
+  - RTL8196C (router)
   - RTL8710B (AmebaZ)
   - RTL8720DN (AmebaD)
   - RTL87X0C (AmebaZ2)
@@ -83,6 +86,24 @@ Once it's installed, you can compile this software by executing `msbuild` on the
 `mono BK7231Flasher/bin/debug/BK7231Flasher.exe`
 
 Alternatively, you can use prebuilt release binary.
+
+# ALi M3801 UART (Opticum N2 / Maciej bootloader)
+
+This mode supports the classic bootloader and 4 MiB flash layout from `dump_maciej.bin` in [AliSimulator](https://github.com/openshwprojects/AliSimulator). It is a specific bootloader profile, not support for every ALi M3801 receiver. Read saves all 4 MiB. Writes accept a compatible `.maincode.bin` image and update only the maincode area at `0x50000`. The C# protocol passed two successive updates in AliSimulator (original to v1 to v2), including complete backups, full flash readback, native bootloader reboots, cold boots, and app responses. On 2026-11-11, the supported physical tuner was updated from v2 to v3 using this application's shared C# backend through its CLI, with a full backup, complete readback verification, and successful app responses. The app's `r` restart and Python updater's repeated-`c` bootloader capture also passed on hardware. The WinForms controls were checked separately without hardware.
+
+1. Connect a 3.3 V TTL UART adapter with RX/TX crossed and common GND. Select its COM port and "ALi M3801".
+2. For backup, click Read. For an update, use Browse to choose the `.maincode.bin`, then click "Do backup and flash new" or "Flash with backup". Maciej v3 or newer can stay running: the capture command automatically restarts that app into the original bootloader.
+3. With stock firmware, Maciej v1/v2, or an off tuner, power the tuner on when the log says the serial port is ready; cycle power if it is already on. The tool captures boot for 60 seconds at fixed 115200 8E1, with DTR/RTS and flow control disabled.
+4. Leave the tuner powered during the operation. Every update first saves a full backup, checks the bootloader fingerprint and partition layout, writes maincode, reads the complete flash again, and reboots only after exact verification. Backups are created without overwriting existing files in `backups/`. Each full read takes about 7 minutes at this baud rate.
+
+Use a new boot capture for each subsequent update. Maciej v3 adds single-byte `r` for a normal restart and `c` to request a restart for bootloader capture. Keep sending `c` through the restart to stop the original bootloader; the existing flasher already does this, so v3 needs no manual power cycle while its UART command loop is responsive. Earlier apps still need the manual power cycle above. The bootloader remains intact. The profile uses CRC checks and the existing image format; no encryption step is required. Full-flash writes, arbitrary custom ranges, erase, OBK configuration, and OTA are disabled in this mode. The generic Verify button is disabled because each successful write already includes full flash verification. If an operation is cancelled after burn starts, leave the tuner powered; on-device burning may continue, and a new read is needed to establish the result.
+
+The CLI requires an explicit port for ALi and never auto-probes other adapters. `ALI` and `M3801` are aliases for `ALIM3801`:
+
+```text
+BK7231Flasher.exe --port COM3 --chip ALIM3801 fread --out tuner_backup
+BK7231Flasher.exe --port COM3 --chip ALIM3801 fwrite app.maincode.bin --out before_update
+```
 
 # Brief usage instructions (BK72xx)
 

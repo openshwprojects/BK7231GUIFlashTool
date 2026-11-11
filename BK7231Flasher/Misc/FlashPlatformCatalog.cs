@@ -8,6 +8,7 @@ namespace BK7231Flasher
     {
         public static readonly IReadOnlyDictionary<BKType, string> Chips = new Dictionary<BKType, string>()
         {
+            { BKType.ALIM3801,   "ALi M3801" },
             { BKType.BK7231M,    "BK7231M" },
             { BKType.BK7231N,    "BK7231N (T2, T34)" },
             { BKType.BK7231T,    "BK7231T" },

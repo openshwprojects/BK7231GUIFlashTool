@@ -82,6 +82,8 @@
     <Compile Include="Flashers\W800Flasher.cs" />
     <Compile Include="Flashers\ECR6600Flasher.cs" />
     <Compile Include="Flashers\BaseFlasher.cs" />
+    <Compile Include="Flashers\ALIM3801Protocol.cs" />
+    <Compile Include="Flashers\ALIM3801Flasher.cs" />
     <Compile Include="Flashers\FlasherFactory.cs" />
     <Compile Include="Flashers\IRomReadFlasher.cs" />
     <Compile Include="Flashers\BKChipIdentity.cs" />

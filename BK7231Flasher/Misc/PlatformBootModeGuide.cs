@@ -6,6 +6,7 @@ namespace BK7231Flasher
     {
         static readonly IReadOnlyDictionary<BKType, string> Instructions = new Dictionary<BKType, string>()
         {
+            { BKType.ALIM3801, GetAliM3801Instructions() },
             { BKType.BK7231M, GetBekenUart1Instructions("BK7231M") },
             { BKType.BK7231N, GetBekenUart1Instructions("BK7231N") },
             { BKType.BK7231T, GetBekenUart1Instructions("BK7231T") },
@@ -46,6 +47,18 @@ namespace BK7231Flasher
             { BKType.XR809, GetXrUart0TwoBootPinsInstructions("XR809") },
             { BKType.XR872, GetXrUart0TwoBootPinsInstructions("XR872") },
         };
+
+        static string GetAliM3801Instructions()
+        {
+            return "ALi M3801 support is for the Opticum N2 / dump_maciej classic bootloader profile." + System.Environment.NewLine +
+                "- Use a 3.3 V TTL UART adapter: adapter RX to tuner TX, adapter TX to tuner RX, and common GND." + System.Environment.NewLine +
+                "- Select the adapter's port explicitly. The tool uses 115200 baud, 8 data bits, even parity, 1 stop bit, without flow control." + System.Environment.NewLine +
+                "- With Maciej v3 or newer running, start Read or Backup and flash; the repeated c capture command restarts the app into the original bootloader. Boot capture lasts 60 seconds." + System.Environment.NewLine +
+                "- For stock firmware, Maciej v1/v2, or an off tuner: start the operation, then power the tuner on when the log says the port is ready. Cycle power if it is already on." + System.Environment.NewLine +
+                "- Read saves the full 4 MiB flash. Writing accepts only a compatible .maincode.bin image at 0x50000." + System.Environment.NewLine +
+                "- Every write first saves a full backup and checks the bootloader identity, then verifies the complete flash before reboot." + System.Environment.NewLine +
+                "- Leave the tuner powered throughout backup, transfer, burn and verification. Each full read takes about 7 minutes.";
+        }
 
         static string GetBekenUart1Instructions(string platformName)
         {

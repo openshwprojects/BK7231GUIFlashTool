@@ -1,5 +1,6 @@
 | Platform | Family | Read | Write | R cmp | W cmp | Erase | OBK Config | RF restore | RF reloc | Custom R/W |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALi M3801 | ALi | Yes (4 MiB) | Maincode only [8] | - | - | No | No | No | No | No |
 | BK7231M | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
 | BK7231N (T2, T34) | Beken | ✅ | ✅ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
 | BK7231T | Beken | ✅ | ✅¹ | ➖ | ➖ | ⚠️¹ | ✅ | ✅ | ✅ | ✅ |
@@ -43,6 +44,8 @@
 ℹ️ - Needs checking<br>
 ➖ - Not applicable<br>
 🟰 - Intentionally disabled<br>
+[8] Only the supported `dump_maciej.bin` classic bootloader profile and flash layout. Fixed 115200 8E1. Every write requires a full backup, matching bootloader fingerprint, a valid maincode chunk at `0x50000`, and complete flash readback before reboot. Full images and arbitrary raw writes are rejected.
+
 R cmp / W cmp - Read/write compression via custom flasher stub; ➖ means not applicable to that platform's ROM/vendor/original transfer path.<br>
 
 ¹ Erase and default writes start at `0x11000`<br>

@@ -40,6 +40,9 @@ namespace BK7231Flasher
 
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
 
+        private volatile bool aliM3801Selected;
+        private bool IsAliM3801 => aliM3801Selected;
+
         private bool IsBeken
         {
             get
@@ -649,7 +652,10 @@ namespace BK7231Flasher
             BKType selectedType = getSelectedChipType(chipTypeComboBox);
             bool usesSerialPort = selectedType != BKType.Invalid && FlashPlatformCatalog.UsesSerialPort(selectedType);
             uartComboBox.Enabled = operationControlsEnabled && usesSerialPort;
-            baudRateComboBox.Enabled = operationControlsEnabled && usesSerialPort;
+            bool fixedAliBaud = selectedType == BKType.ALIM3801;
+            if (fixedAliBaud)
+                baudRateComboBox.Text = "115200";
+            baudRateComboBox.Enabled = operationControlsEnabled && usesSerialPort && !fixedAliBaud;
         }
         bool interruptIfRequired()
         {
@@ -666,6 +672,12 @@ namespace BK7231Flasher
                         }
                         catch { }
                         //worker.Abort();
+                    }
+                    if (IsAliM3801 && currentOperationUiTarget == OperationUiTarget.Flasher)
+                    {
+                        // Keep controls locked until the worker releases its serial port.
+                        setState("Stopping ALi operation...", Color.Yellow);
+                        return false;
                     }
                     worker = null;
                     //setButtonReadLabel(label_startRead);
@@ -723,6 +735,11 @@ namespace BK7231Flasher
         float cfg_readTimeOutMultForSerialClass;
         void downloadLatestFor(BKType type)
         {
+            if (type == BKType.ALIM3801)
+            {
+                addLog("Choose a compatible ALi .maincode.bin file using Browse." + Environment.NewLine, Color.DarkSlateGray);
+                return;
+            }
             FormDownloader fd = new FormDownloader(this, type);
             fd.ShowDialog();
             refreshType();
@@ -748,10 +765,10 @@ namespace BK7231Flasher
             flasher.setReadReplyStyle(cfg_readReplyStyle);
             flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
             flasher.setReadTimeOutMultForSerialClass(cfg_readTimeOutMultForSerialClass);
-            flasher.setOverwriteBootloader(checkBoxOverwriteBootloader.Checked);
-            flasher.setSkipKeyCheck(checkBoxSkipKeyCheck.Checked);
-            flasher.setIgnoreCRCErr(chkIgnoreCRCErr.Checked);
-            flasher.setUseCompression(chkUseCompression.Checked);
+            flasher.setOverwriteBootloader(!IsAliM3801 && checkBoxOverwriteBootloader.Checked);
+            flasher.setSkipKeyCheck(!IsAliM3801 && checkBoxSkipKeyCheck.Checked);
+            flasher.setIgnoreCRCErr(!IsAliM3801 && chkIgnoreCRCErr.Checked);
+            flasher.setUseCompression(!IsAliM3801 && chkUseCompression.Checked);
         }
         
         void testWrite()
@@ -789,8 +806,49 @@ namespace BK7231Flasher
             clearUp();
             setButtonStates(true);
         }
+        void runAliOperation(Action operation)
+        {
+            try
+            {
+                // The worker already owns a new CTS; clean up a stale flasher
+                // without cancelling the token for this new operation.
+                BaseFlasher previousFlasher = flasher;
+                flasher = null;
+                if (previousFlasher != null)
+                {
+                    try { previousFlasher.closePort(); }
+                    finally { previousFlasher.Dispose(); }
+                }
+                createFlasher();
+                flasher.setBackupName(lastBackupNameEnteredByUser);
+                operation();
+            }
+            catch (Exception) when (cts.IsCancellationRequested)
+            {
+                setState("Interrupted - verification incomplete", Color.Yellow);
+                addLog("Operation interrupted. If burning had started, leave the tuner powered until it finishes; the result has not been verified." + Environment.NewLine, Color.DarkOrange);
+            }
+            catch (Exception ex)
+            {
+                setState("ALi operation failed", Color.Red);
+                addLog(ex.Message + Environment.NewLine, Color.Red);
+            }
+            finally
+            {
+                try { clearUp(); }
+                catch (Exception ex) { addLog("Port cleanup: " + ex.Message + Environment.NewLine, Color.Red); }
+                worker = null;
+                setButtonStates(true);
+            }
+        }
+
         void doBackupAndFlashNew()
         {
+            if (IsAliM3801)
+            {
+                runAliOperation(() => flasher.doReadAndWrite(0x50, 1024, chosenSourceFile, WriteMode.ReadAndWrite));
+                return;
+            }
             clearUp();
             createFlasher();
             flasher.setBackupName(lastBackupNameEnteredByUser);
@@ -804,6 +862,11 @@ namespace BK7231Flasher
         }
         internal void doCustomWrite(CustomParms cp)
         {
+            if (IsAliM3801)
+            {
+                addLog("ALi custom operations are unavailable. Use full Read or Backup and flash with a .maincode.bin file." + Environment.NewLine, Color.DarkOrange);
+                return;
+            }
             showObkConfigFormIfPossible();
             if (doGenericOperationPreparations() == false)
             {
@@ -814,6 +877,16 @@ namespace BK7231Flasher
         }
         void doOnlyFlashNew(object oParm)
         {
+            if (IsAliM3801)
+            {
+                runAliOperation(() =>
+                {
+                    if (oParm != null)
+                        throw new NotSupportedException("ALi custom writes are unavailable.");
+                    flasher.doReadAndWrite(0x50, 1024, chosenSourceFile, WriteMode.OnlyWrite);
+                });
+                return;
+            }
             clearUp();
             createFlasher();
             int startSector;
@@ -858,6 +931,8 @@ namespace BK7231Flasher
         }
         int getBackupStartSectorForCurrentPlatform()
         {
+            if (IsAliM3801)
+                return 0x50;
             switch(curType)
             {
                 case BKType.BK7231T:
@@ -871,6 +946,8 @@ namespace BK7231Flasher
         }
         int getBackupSectorCountForCurrentPlatform()
         {
+            if (IsAliM3801)
+                return 1024;
 #if false
             int sectors;
             sectors = (BK7231Flasher.FLASH_SIZE - getBackupStartSectorForCurrentPlatform()) / BK7231Flasher.SECTOR_SIZE;
@@ -996,6 +1073,18 @@ namespace BK7231Flasher
         }
         void readThread(object oParm)
         {
+            if (IsAliM3801)
+            {
+                runAliOperation(() =>
+                {
+                    if (oParm != null)
+                        throw new NotSupportedException("ALi reads always back up the complete 4 MiB flash.");
+                    flasher.doRead(0, 1024, true);
+                    if (!flasher.saveReadResult(0))
+                        throw new IOException("The ALi flash backup could not be saved.");
+                });
+                return;
+            }
             bool isFullRead = true;
             CustomParms parms = null;
             if(oParm != null)
@@ -1195,6 +1284,8 @@ namespace BK7231Flasher
         }
         public bool checkFirmwareForCurType(string s)
         {
+            if (IsAliM3801)
+                return s.EndsWith(".maincode.bin", StringComparison.OrdinalIgnoreCase);
             if (s.StartsWith("readResult_"))
             {
                 s = s.Substring("readResult_".Length);
@@ -1265,6 +1356,8 @@ namespace BK7231Flasher
         }
         public OBKConfig getConfigToWrite()
         {
+            if (IsAliM3801)
+                return null;
             if (checkBoxAutoOBKConfig.Checked)
             {
                 if (IsBeken && OBKFlashLayout.hasConfigLocation(curType) == false)
@@ -1278,6 +1371,11 @@ namespace BK7231Flasher
         }
         public void onReadResultQIOSaved(byte[] dat, string lastEncryptionKey, string fullPath)
         {
+            if (IsAliM3801)
+            {
+                addLog("ALi full flash backup saved: " + fullPath + Environment.NewLine, Color.Green);
+                return;
+            }
             if (checkBoxReadOBKConfig.Checked)
             {
                 addLog("Backup created, now will attempt to extract OBK config." + Environment.NewLine, Color.Gray);
@@ -1458,6 +1556,7 @@ namespace BK7231Flasher
         }
         private void comboBoxChipType_SelectedIndexChanged(object sender, EventArgs e)
         {
+            aliM3801Selected = getSelectedChipType(comboBoxChipType) == BKType.ALIM3801;
             // Changing platform should reset any manually typed / drag-dropped firmware path
             comboBoxFirmware.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxFirmware.SelectedIndex = -1;
@@ -1466,6 +1565,8 @@ namespace BK7231Flasher
 
             refreshType();
             updatePlatformCapabilityButtons(worker == null);
+            if (IsAliM3801)
+                addLog(PlatformBootModeGuide.GetInstructions(curType) + Environment.NewLine, Color.DarkSlateGray);
             refreshFirmwaresList();
             setSettingsKeyAndSave("Platform", comboBoxChipType.SelectedItem);
         }
@@ -1506,6 +1607,8 @@ namespace BK7231Flasher
         private void comboBoxFirmware_Click(object sender, EventArgs e)
         {
             refreshType();
+            if (IsAliM3801)
+                return;
             if (comboBoxFirmware.Items.Count == 0)
             {
                 var res = MessageBox.Show("No firmwares yet. Do you want to download one automatically?",
@@ -1635,8 +1738,12 @@ namespace BK7231Flasher
                 buttonDoBackupAndFlashNew.Enabled = b;
                 buttonWriteOnly.Enabled = b;
                 updatePlatformCapabilityButtons(b);
-                buttonCustomOperation.Enabled = b;
-                buttonEraseAll.Enabled = b;
+                buttonCustomOperation.Enabled = b && !IsAliM3801;
+                buttonEraseAll.Enabled = b && !IsAliM3801;
+                comboBoxChipType.Enabled = b;
+                comboBoxFirmware.Enabled = b;
+                buttonBrowseFirmware.Enabled = b;
+                applySerialControlState(comboBoxChipType, comboBoxUART, comboBoxBaudRate, b);
                 buttonStop.Enabled = !b;
                 buttonReadRomStop.Enabled = !b;
                 comboBoxReadRomChipType.Enabled = b;
@@ -1648,11 +1755,30 @@ namespace BK7231Flasher
 
         void updatePlatformCapabilityButtons(bool operationControlsEnabled)
         {
-            bool obkConfigSupported = IsBeken == false || OBKFlashLayout.hasConfigLocation(curType);
-            bool rfSupported = IsBeken == false || RFPartitionUtil.getRFOffset(curType) >= 0;
+            bool obkConfigSupported = !IsAliM3801 && (IsBeken == false || OBKFlashLayout.hasConfigLocation(curType));
+            bool rfSupported = !IsAliM3801 && (IsBeken == false || RFPartitionUtil.getRFOffset(curType) >= 0);
             buttonWriteOBKConfig.Enabled = operationControlsEnabled && obkConfigSupported;
             buttonReadOBKConfig.Enabled = operationControlsEnabled && obkConfigSupported;
             buttonRestoreRF.Enabled = operationControlsEnabled && rfSupported;
+            bool genericOperations = operationControlsEnabled && !IsAliM3801;
+            buttonCustomOperation.Enabled = genericOperations;
+            buttonEraseAll.Enabled = genericOperations;
+            buttonTestReadWrite.Enabled = genericOperations;
+            buttonTestWrite.Enabled = genericOperations;
+            buttonVerify.Enabled = genericOperations;
+            buttonBlankCheck.Enabled = genericOperations;
+            buttonDetect.Enabled = genericOperations;
+            buttonDownloadLatest.Enabled = genericOperations;
+            buttonOTAFlash.Enabled = genericOperations;
+            checkBoxOverwriteBootloader.Enabled = genericOperations;
+            checkBoxSkipKeyCheck.Enabled = genericOperations;
+            chkIgnoreCRCErr.Enabled = genericOperations;
+            chkUseCompression.Enabled = genericOperations;
+            checkBoxAutoOBKConfig.Enabled = genericOperations;
+            checkBoxReadOBKConfig.Enabled = genericOperations;
+            checkBoxAutoReadTuya.Enabled = genericOperations;
+            buttonChangeOBKSettings.Enabled = genericOperations;
+            buttonWriteOnly.Text = IsAliM3801 ? "Flash with backup" : "Do firmware write (no backup!)";
         }
         private void buttonStop_Click(object sender, EventArgs e)
         {
@@ -1998,6 +2124,11 @@ namespace BK7231Flasher
         }
         public void doCustomRead(CustomParms customRead)
         {
+            if (IsAliM3801)
+            {
+                addLog("ALi reads always back up the complete 4 MiB flash. Use Read." + Environment.NewLine, Color.DarkOrange);
+                return;
+            }
             if (doGenericOperationPreparations() == false)
             {
                 return;
@@ -2335,6 +2466,8 @@ namespace BK7231Flasher
         }
         private void buttonOTAFlash_Click(object sender, EventArgs e)
         {
+            if (IsAliM3801)
+                return;
             string fname = ("D:/OpenBK7231T_1.17.799.rbl");
             buttonOTAFlash.Enabled = false;
             string ip = textBoxOTATarget.Text;

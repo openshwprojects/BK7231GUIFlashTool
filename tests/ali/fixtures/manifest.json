@@ -1,0 +1,24 @@
+{
+  "source_repository": "https://github.com/openshwprojects/AliSimulator",
+  "source_dump": "dumps/dump_maciej.bin",
+  "source_dump_sha256": "806044f3b831497a23214256edf67f655418ab74995c0a34bb2b518fd8e24c5e",
+  "loader": {
+    "file": "maciej-loader.bin.gz",
+    "uncompressed_bytes": 327168,
+    "sha256": "6e1489a037dfe702a775912ee8eaabc14030b8f3cd65397792b3f217f6f29fa4"
+  },
+  "maincode": [
+    {
+      "file": "maciej-v1.chunk.bin",
+      "bytes": 569,
+      "sha256": "4a0f74d31001464a410ef3740f7356061409dc35967603b950a0f9735538bc7a",
+      "source": "build/maciej_app/triplecheck/source/integration/dump_maciej_v1.bin"
+    },
+    {
+      "file": "maciej-v2.chunk.bin",
+      "bytes": 569,
+      "sha256": "47c434578c3151a317f5cb7d7f2060f2889ff5a3afd031958a8b13aa7e677be4",
+      "source": "build/maciej_app/triplecheck/source/integration/dump_maciej_v2.bin"
+    }
+  ]
+}

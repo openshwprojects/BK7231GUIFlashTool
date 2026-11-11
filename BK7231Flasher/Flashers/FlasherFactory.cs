@@ -8,6 +8,8 @@ namespace BK7231Flasher
         {
             switch (chipType)
             {
+                case BKType.ALIM3801:
+                    return new ALIM3801Flasher(cancellationToken);
                 case BKType.RTL87X0C:
                     return new RTLZ2Flasher(cancellationToken);
                 case BKType.LN882H:

@@ -98,6 +98,7 @@ namespace BK7231Flasher
             var operation = CliOperation.None;
             string port = null;
             int baud = 921600;
+            bool baudSpecified = false;
             string chipName = null;
             int ofs = -1;
             int len = -1;
@@ -155,6 +156,7 @@ namespace BK7231Flasher
                     case "--baud":
                     case "-b":
                     case "-baud":       // legacy alias
+                        baudSpecified = true;
                         if (i + 1 < args.Length) int.TryParse(args[++i], out baud);
                         break;
                     case "--chip":
@@ -211,38 +213,60 @@ namespace BK7231Flasher
                 return;
             }
 
-            // Validate required arguments
-            if (string.IsNullOrEmpty(port))
-            {
-                // Port is required for serial chips, but not for SPI chips
-                BKType testType = BKType.Invalid;
-                if (!string.IsNullOrEmpty(chipName))
-                    Enum.TryParse(chipName, true, out testType);
-                if (testType != BKType.BekenSPI && testType != BKType.GenericSPI)
-                {
-                    Console.WriteLine("[AutoSelect] No port argument, attempting auto-selection...");
-                    port = GetFirstAvailablePort();
-                    if (port != null)
-                    {
-                        Console.WriteLine($"No port specified, auto-selected: {port}");
-                        Thread.Sleep(500); // Give time for port to close properly
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine("Error: --port is required. Use --help for usage.");
-                        Environment.Exit(1);
-                        return;
-                    }
-                }
-            }
-
-            if (string.IsNullOrEmpty(chipName))
+            // Resolve the requested platform before any serial-port auto-selection.
+            // A missing/mistyped platform must never probe unrelated adapters.
+            if (string.IsNullOrWhiteSpace(chipName))
             {
                 Console.Error.WriteLine("Error: --chip is required. Use --help for usage.");
                 Environment.Exit(1);
                 return;
             }
+            if (string.Equals(chipName, "ALI", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(chipName, "M3801", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(chipName, "ALI_M3801", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(chipName, "ALI-M3801", StringComparison.OrdinalIgnoreCase))
+                chipName = nameof(BKType.ALIM3801);
+            if (chipName.Equals("BL618", StringComparison.OrdinalIgnoreCase))
+                chipName = nameof(BKType.BL616);
+            BKType chipType;
+            if (chipName.IndexOf(',') >= 0 || !Enum.TryParse(chipName, true, out chipType)
+                || !Enum.IsDefined(typeof(BKType), chipType) || chipType == BKType.Invalid || chipType == BKType.Detect)
+            {
+                Console.Error.WriteLine($"Error: Unknown chip type '{chipName}'. Available types:");
+                foreach (var t in Enum.GetValues(typeof(BKType)))
+                {
+                    if ((BKType)t != BKType.Invalid && (BKType)t != BKType.Detect)
+                        Console.Error.Write($"  {t}");
+                }
+                Console.Error.WriteLine();
+                Environment.Exit(1);
+                return;
+            }
+            bool isAli = chipType == BKType.ALIM3801;
+            if (isAli)
+            {
+                if (string.IsNullOrWhiteSpace(port))
+                {
+                    Console.Error.WriteLine("Error: ALIM3801 requires an explicit --port; automatic port probing is disabled.");
+                    Environment.Exit(1);
+                    return;
+                }
+                if ((operation != CliOperation.Read && operation != CliOperation.Write) || ofs != -1 || len != -1 || legacyMode)
+                {
+                    Console.Error.WriteLine("Error: ALIM3801 supports fread and guarded maincode fwrite only. Custom ranges, raw tests and --no-stub are unavailable.");
+                    Environment.Exit(1);
+                    return;
+                }
+                if (baudSpecified && baud != 115200)
+                {
+                    Console.Error.WriteLine("Error: ALIM3801 uses fixed 115200 baud, 8E1.");
+                    Environment.Exit(1);
+                    return;
+                }
+                baud = 115200;
+            }
 
+            // Validate file/range arguments before opening any serial port.
             if ((operation == CliOperation.Write || operation == CliOperation.CustomWrite) && string.IsNullOrEmpty(writeFile))
             {
                 Console.Error.WriteLine("Error: File path is required for write operations.");
@@ -257,25 +281,6 @@ namespace BK7231Flasher
                 return;
             }
 
-            // Resolve chip type
-            if (chipName.Equals("BL618", StringComparison.OrdinalIgnoreCase))
-            {
-                // BL618 uses the BL616 bootrom-compatible flow in this tool.
-                chipName = nameof(BKType.BL616);
-            }
-            BKType chipType;
-            if (!Enum.TryParse(chipName, true, out chipType) || chipType == BKType.Invalid || chipType == BKType.Detect)
-            {
-                Console.Error.WriteLine($"Error: Unknown chip type '{chipName}'. Available types:");
-                foreach (var t in Enum.GetValues(typeof(BKType)))
-                {
-                    if ((BKType)t != BKType.Invalid && (BKType)t != BKType.Detect)
-                        Console.Error.Write($"  {t}");
-                }
-                Console.Error.WriteLine();
-                Environment.Exit(1);
-                return;
-            }
             if (Requires4KAlignedRange(chipType)
                 && (operation == CliOperation.CustomRead || operation == CliOperation.CustomWrite || operation == CliOperation.Test)
                 && ((ofs % BK7231Flasher.SECTOR_SIZE) != 0 || (len % BK7231Flasher.SECTOR_SIZE) != 0))
@@ -283,6 +288,23 @@ namespace BK7231Flasher
                 Console.Error.WriteLine("Error: Custom operations for this chip require --addr and --size to be 0x1000-aligned.");
                 Environment.Exit(1);
                 return;
+            }
+
+            if (string.IsNullOrEmpty(port) && chipType != BKType.BekenSPI && chipType != BKType.GenericSPI)
+            {
+                Console.WriteLine("[AutoSelect] No port argument, attempting auto-selection...");
+                port = GetFirstAvailablePort();
+                if (port != null)
+                {
+                    Console.WriteLine($"No port specified, auto-selected: {port}");
+                    Thread.Sleep(500); // Give time for port to close properly
+                }
+                else
+                {
+                    Console.Error.WriteLine("Error: --port is required. Use --help for usage.");
+                    Environment.Exit(1);
+                    return;
+                }
             }
 
             int exitCode = ExecuteOperation(operation, port ?? "", baud, chipType, ofs, len, outputName, writeFile, legacyMode);
@@ -305,6 +327,8 @@ namespace BK7231Flasher
 
             BaseFlasher flasher = CreateFlasher(chipType, cts.Token);
             flasher.setBasic(logger, port, chipType, baud);
+            if (chipType == BKType.ALIM3801)
+                flasher.setBackupName(outputName);
             // same defaults as the GUI (FormMain cfg_* textboxes)
             flasher.setReadReplyStyle(5);
             flasher.setReadTimeOutMultForLoop(5);
@@ -370,6 +394,8 @@ namespace BK7231Flasher
                 sectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
             }
 
+            if (chipType == BKType.ALIM3801)
+                sectors = 1024;
             flasher.doRead(startSector, sectors, true);
 
             if (flasher.saveReadResult(startSector))
@@ -410,6 +436,11 @@ namespace BK7231Flasher
             }
             sectors = BK7231Flasher.FLASH_SIZE / BK7231Flasher.SECTOR_SIZE;
 
+            if (chipType == BKType.ALIM3801)
+            {
+                startSector = 0x50;
+                sectors = 1024;
+            }
             flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
 
             if (DidBekenWriteSucceed(flasher) == false)
@@ -683,6 +714,8 @@ namespace BK7231Flasher
         {
             switch (chipType)
             {
+                case BKType.ALIM3801:
+                    return new ALIM3801Flasher(ct);
                 case BKType.RTL8710B:
                 case BKType.RTL8720D:
                 case BKType.RTL8721DA:
@@ -754,13 +787,13 @@ namespace BK7231Flasher
             Console.WriteLine("  read_flash             Read flash region (requires --addr and --size)");
             Console.WriteLine("  write_flash <file.bin>  Write to flash region (requires --addr and --size)");
             Console.WriteLine("  fread                  Full flash read (backup entire chip)");
-            Console.WriteLine("  fwrite <file.bin>      Full flash write (write entire firmware)");
+            Console.WriteLine("  fwrite <file.bin>      Write firmware (ALIM3801: maincode only, with backup and verification)");
             Console.WriteLine("  test                   Write/read/verify test (requires --addr and --size)");
             Console.WriteLine("  tuyaconfig <in> <out>  Extract Tuya config JSON from binary dump (offline)");
             Console.WriteLine();
             Console.WriteLine("Required Options:");
             Console.WriteLine("  --port, -p <COM3>      Serial port (not needed for SPI chips)");
-            Console.WriteLine("  --chip <BK7231N>       Chip type (BL618 alias: use BL616 or BL618)");
+            Console.WriteLine("  --chip <BK7231N>       Chip type (BL618 alias; ALIM3801 aliases: ALI, M3801)");
             Console.WriteLine();
             Console.WriteLine("Optional:");
             Console.WriteLine("  --baud, -b <921600>    Baud rate (default: 921600)");
@@ -776,6 +809,9 @@ namespace BK7231Flasher
             Console.WriteLine("  BK7231Flasher.exe --port COM3 --chip BK7231N write_flash data.bin --addr 0x0 --size 0x1000");
             Console.WriteLine("  BK7231Flasher.exe --port COM3 --chip BK7231N test --addr 0x11000 --size 0x1000");
             Console.WriteLine("  BK7231Flasher.exe tuyaconfig firmware_dump.bin tuya_config.json");
+            Console.WriteLine("  BK7231Flasher.exe --port COM3 --chip ALIM3801 fread --out tuner_backup");
+            Console.WriteLine("  BK7231Flasher.exe --port COM3 --chip ALIM3801 fwrite app.maincode.bin --out before_update");
+            Console.WriteLine("ALIM3801: Opticum N2 / Maciej bootloader profile only, fixed 115200 8E1; explicit port required.");
             Console.WriteLine();
             Console.WriteLine("Legacy aliases (backward compatible):");
             Console.WriteLine("  -read, -write, -cread, -cwrite, -test, -port, -baud, -chip, -ofs, -len, -out, -legacy");
