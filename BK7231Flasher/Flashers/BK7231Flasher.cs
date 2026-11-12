@@ -3087,9 +3087,7 @@ namespace BK7231Flasher
             }
             //addLog("Starting read sector for " + addr + Environment.NewLine);
             byte[] txbuf = BuildCmd_FlashWrite4K(addr, data, first);
-            // serial.Write may return before the 4K packet is on the wire (e.g. Mono on Linux), so include transmit time
-            float txSeconds = txbuf.Length * 10.0f / serial.BaudRate;
-            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashWrite4K(), 0.05f + 2.0f * txSeconds);
+            byte[] rxbuf = Start_Cmd(txbuf, CalcRxLength_FlashWrite4K());
             if (rxbuf != null)
             {
                 //addLog("Loaded " + rxbuf.Length + " bytes!" + Environment.NewLine);
