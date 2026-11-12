@@ -16,6 +16,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="BK7231Flasher"><HintPath>$(FlasherAssembly)</HintPath><Private>true</Private></Reference>
     <Compile Include="ALIM3801SelfTests.cs" />
     <Content Include="fixtures\*"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>

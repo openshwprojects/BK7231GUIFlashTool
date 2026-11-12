@@ -78,6 +78,7 @@ namespace BK7231Flasher
 			this.buttonReadOBKConfig = new System.Windows.Forms.Button();
 			this.buttonWriteOBKConfig = new System.Windows.Forms.Button();
 			this.checkBoxReadOBKConfig = new System.Windows.Forms.CheckBox();
+			this.checkBoxAliVerifyAfterWrite = new System.Windows.Forms.CheckBox();
 			this.checkBoxAutoReadTuya = new System.Windows.Forms.CheckBox();
 			this.buttonChangeOBKSettings = new System.Windows.Forms.Button();
 			this.checkBoxAutoOBKConfig = new System.Windows.Forms.CheckBox();
@@ -358,6 +359,7 @@ namespace BK7231Flasher
 			this.tabPage1.Controls.Add(this.buttonReadOBKConfig);
 			this.tabPage1.Controls.Add(this.buttonWriteOBKConfig);
 			this.tabPage1.Controls.Add(this.checkBoxReadOBKConfig);
+			this.tabPage1.Controls.Add(this.checkBoxAliVerifyAfterWrite);
 			this.tabPage1.Controls.Add(this.checkBoxAutoReadTuya);
 			this.tabPage1.Controls.Add(this.buttonChangeOBKSettings);
 			this.tabPage1.Controls.Add(this.checkBoxAutoOBKConfig);
@@ -747,6 +749,18 @@ namespace BK7231Flasher
 			this.buttonWriteOBKConfig.UseVisualStyleBackColor = true;
 			this.buttonWriteOBKConfig.Click += new System.EventHandler(this.buttonWriteOBKConfig_Click);
 			// 
+			// checkBoxAliVerifyAfterWrite
+			//
+			this.checkBoxAliVerifyAfterWrite.AutoSize = true;
+			this.checkBoxAliVerifyAfterWrite.Checked = false;
+			this.checkBoxAliVerifyAfterWrite.Location = new System.Drawing.Point(11, 155);
+			this.checkBoxAliVerifyAfterWrite.Name = "checkBoxAliVerifyAfterWrite";
+			this.checkBoxAliVerifyAfterWrite.Size = new System.Drawing.Size(107, 17);
+			this.checkBoxAliVerifyAfterWrite.TabIndex = 83;
+			this.checkBoxAliVerifyAfterWrite.Text = "Verify after write";
+			this.checkBoxAliVerifyAfterWrite.UseVisualStyleBackColor = true;
+			this.checkBoxAliVerifyAfterWrite.Visible = false;
+			//
 			// checkBoxReadOBKConfig
 			// 
 			this.checkBoxReadOBKConfig.AutoSize = true;
@@ -2363,6 +2377,7 @@ namespace BK7231Flasher
         private System.Windows.Forms.CheckBox checkBoxAutoOBKConfig;
         private System.Windows.Forms.CheckBox checkBoxAutoReadTuya;
         private System.Windows.Forms.CheckBox checkBoxReadOBKConfig;
+        private System.Windows.Forms.CheckBox checkBoxAliVerifyAfterWrite;
         private System.Windows.Forms.Button buttonWriteOBKConfig;
         private System.Windows.Forms.Button buttonReadOBKConfig;
         private System.Windows.Forms.TabPage tabPage5;

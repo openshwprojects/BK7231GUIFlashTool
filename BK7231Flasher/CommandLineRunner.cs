@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO.Ports;
 using System.Collections.Generic;
 using System.Globalization;
@@ -105,6 +105,8 @@ namespace BK7231Flasher
             string outputName = "cliBackup";
             string writeFile = null;
             bool legacyMode = false;
+            bool noBackup = false;
+            bool noVerify = false;
             string tuyaInputFile = null;
             string tuyaOutputFile = null;
 
@@ -175,6 +177,12 @@ namespace BK7231Flasher
                     case "-out":        // legacy alias
                         if (i + 1 < args.Length) outputName = args[++i];
                         break;
+                    case "--no-verify":
+                        noVerify = true;
+                        break;
+                    case "--no-backup":
+                        noBackup = true;
+                        break;
                     case "--no-stub":
                     case "-legacy":     // legacy alias
                         legacyMode = true;
@@ -243,6 +251,18 @@ namespace BK7231Flasher
                 return;
             }
             bool isAli = chipType == BKType.ALIM3801;
+            if (noVerify && (!isAli || operation != CliOperation.Write))
+            {
+                Console.Error.WriteLine("Error: --no-verify is available only for ALIM3801 fwrite.");
+                Environment.Exit(1);
+                return;
+            }
+            if (noBackup && (!isAli || operation != CliOperation.Write))
+            {
+                Console.Error.WriteLine("Error: --no-backup is available only for ALIM3801 fwrite.");
+                Environment.Exit(1);
+                return;
+            }
             if (isAli)
             {
                 if (string.IsNullOrWhiteSpace(port))
@@ -307,12 +327,12 @@ namespace BK7231Flasher
                 }
             }
 
-            int exitCode = ExecuteOperation(operation, port ?? "", baud, chipType, ofs, len, outputName, writeFile, legacyMode);
+            int exitCode = ExecuteOperation(operation, port ?? "", baud, chipType, ofs, len, outputName, writeFile, legacyMode, noBackup, noVerify);
             Environment.Exit(exitCode);
         }
 
         static int ExecuteOperation(CliOperation operation, string port, int baud, BKType chipType,
-            int ofs, int len, string outputName, string writeFile, bool legacyMode)
+            int ofs, int len, string outputName, string writeFile, bool legacyMode, bool noBackup, bool noVerify)
         {
             var logger = new ConsoleLogListener();
             var cts = new CancellationTokenSource();
@@ -345,7 +365,7 @@ namespace BK7231Flasher
                         return DoRead(flasher, chipType, outputName);
 
                     case CliOperation.Write:
-                        return DoWrite(flasher, chipType, writeFile);
+                        return DoWrite(flasher, chipType, writeFile, noBackup, noVerify);
 
                     case CliOperation.CustomRead:
                         return DoCustomRead(flasher, chipType, ofs, len, outputName);
@@ -410,7 +430,7 @@ namespace BK7231Flasher
             }
         }
 
-        static int DoWrite(BaseFlasher flasher, BKType chipType, string writeFile)
+        static int DoWrite(BaseFlasher flasher, BKType chipType, string writeFile, bool noBackup, bool noVerify)
         {
             if (!File.Exists(writeFile))
             {
@@ -441,7 +461,10 @@ namespace BK7231Flasher
                 startSector = 0x50;
                 sectors = 1024;
             }
-            flasher.doReadAndWrite(startSector, sectors, writeFile, WriteMode.OnlyWrite);
+            if (flasher is ALIM3801Flasher aliFlasher)
+                aliFlasher.VerifyAfterWrite = !noVerify;
+            WriteMode mode = chipType == BKType.ALIM3801 && !noBackup ? WriteMode.ReadAndWrite : WriteMode.OnlyWrite;
+            flasher.doReadAndWrite(startSector, sectors, writeFile, mode);
 
             if (DidBekenWriteSucceed(flasher) == false)
             {
@@ -449,7 +472,9 @@ namespace BK7231Flasher
                 return 1;
             }
 
-            Console.WriteLine("\nWrite completed successfully.");
+            Console.WriteLine(chipType == BKType.ALIM3801 && noVerify
+                ? "\nWrite completed (unverified); post-write readback was skipped."
+                : "\nWrite completed successfully.");
             return 0;
         }
 
@@ -787,7 +812,7 @@ namespace BK7231Flasher
             Console.WriteLine("  read_flash             Read flash region (requires --addr and --size)");
             Console.WriteLine("  write_flash <file.bin>  Write to flash region (requires --addr and --size)");
             Console.WriteLine("  fread                  Full flash read (backup entire chip)");
-            Console.WriteLine("  fwrite <file.bin>      Write firmware (ALIM3801: maincode only, with backup and verification)");
+            Console.WriteLine("  fwrite <file.bin>      Write firmware (ALIM3801: maincode, backup and verification by default)");
             Console.WriteLine("  test                   Write/read/verify test (requires --addr and --size)");
             Console.WriteLine("  tuyaconfig <in> <out>  Extract Tuya config JSON from binary dump (offline)");
             Console.WriteLine();
@@ -800,6 +825,8 @@ namespace BK7231Flasher
             Console.WriteLine("  --addr <0x11000>       Start address (hex or decimal, for read_flash/write_flash)");
             Console.WriteLine("  --size <0x1000>        Length in bytes (hex or decimal, for read_flash/write_flash)");
             Console.WriteLine("  --out <name>           Output name for backup (default: cliBackup)");
+            Console.WriteLine("  --no-backup            ALIM3801 fwrite only: skip pre-read/backup");
+            Console.WriteLine("  --no-verify            ALIM3801 fwrite only: skip post-write readback; keep transfer CRC and burn checks");
             Console.WriteLine("  --no-stub              Use legacy (ROM-only) mode for ESP8266/ESP32 family chips (disable stub flasher)");
             Console.WriteLine();
             Console.WriteLine("Examples:");

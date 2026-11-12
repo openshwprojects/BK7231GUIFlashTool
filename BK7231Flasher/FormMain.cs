@@ -41,6 +41,7 @@ namespace BK7231Flasher
         public readonly int[] BaudRates = new int[] { 115200, 230400, 460800, 921600, 1500000, 2000000, 3000000, /*4000000, 6000000*/ };
 
         private volatile bool aliM3801Selected;
+        private bool aliVerifyAfterWrite;
         private bool IsAliM3801 => aliM3801Selected;
 
         private bool IsBeken
@@ -447,7 +448,8 @@ namespace BK7231Flasher
         public void setState(string s, Color col)
         {
             Label activeStateLabel = getActiveStateLabel();
-            activeStateLabel.Invoke((MethodInvoker)delegate {
+            // Status rendering must never pause a continuous UART receive operation.
+            activeStateLabel.BeginInvoke((MethodInvoker)delegate {
                 activeStateLabel.Text = s;
                 activeStateLabel.BackColor = col;
             });
@@ -727,6 +729,9 @@ namespace BK7231Flasher
             float.TryParse(textBox_cfg_readTimeOutMultForLoop.Text.Replace(',','.'),  NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out cfg_readTimeOutMultForLoop);
             float.TryParse(textBox_cfg_readTimeOutMultForSerialClass.Text.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out cfg_readTimeOutMultForSerialClass);
             int.TryParse(textBox_cfg_readReplyStyle.Text.Replace(',', '.'), NumberStyles.Integer, CultureInfo.InvariantCulture, out cfg_readReplyStyle);
+            // Capture the UI choice before starting the worker. The control is
+            // disabled for the operation; workers never read its Checked property.
+            aliVerifyAfterWrite = IsAliM3801 && checkBoxAliVerifyAfterWrite.Checked;
 
             return true;
         }
@@ -761,6 +766,8 @@ namespace BK7231Flasher
         void createFlasher()
         {
             flasher = FlasherFactory.Create(curType, cts.Token);
+            if (flasher is ALIM3801Flasher aliFlasher)
+                aliFlasher.VerifyAfterWrite = aliVerifyAfterWrite;
             flasher.setBasic(this, serialName, curType, chosenBaudRate);
             flasher.setReadReplyStyle(cfg_readReplyStyle);
             flasher.setReadTimeOutMultForLoop(cfg_readTimeOutMultForLoop);
@@ -806,7 +813,7 @@ namespace BK7231Flasher
             clearUp();
             setButtonStates(true);
         }
-        void runAliOperation(Action operation)
+        void runAliOperation(Action operation, bool usesBackupName = true)
         {
             try
             {
@@ -820,7 +827,8 @@ namespace BK7231Flasher
                     finally { previousFlasher.Dispose(); }
                 }
                 createFlasher();
-                flasher.setBackupName(lastBackupNameEnteredByUser);
+                if (usesBackupName)
+                    flasher.setBackupName(lastBackupNameEnteredByUser);
                 operation();
             }
             catch (Exception) when (cts.IsCancellationRequested)
@@ -864,7 +872,7 @@ namespace BK7231Flasher
         {
             if (IsAliM3801)
             {
-                addLog("ALi custom operations are unavailable. Use full Read or Backup and flash with a .maincode.bin file." + Environment.NewLine, Color.DarkOrange);
+                addLog("ALi custom operations are unavailable. Use full Read or a maincode flash button with a .maincode.bin file." + Environment.NewLine, Color.DarkOrange);
                 return;
             }
             showObkConfigFormIfPossible();
@@ -884,7 +892,7 @@ namespace BK7231Flasher
                     if (oParm != null)
                         throw new NotSupportedException("ALi custom writes are unavailable.");
                     flasher.doReadAndWrite(0x50, 1024, chosenSourceFile, WriteMode.OnlyWrite);
-                });
+                }, false);
                 return;
             }
             clearUp();
@@ -1778,7 +1786,14 @@ namespace BK7231Flasher
             checkBoxReadOBKConfig.Enabled = genericOperations;
             checkBoxAutoReadTuya.Enabled = genericOperations;
             buttonChangeOBKSettings.Enabled = genericOperations;
-            buttonWriteOnly.Text = IsAliM3801 ? "Flash with backup" : "Do firmware write (no backup!)";
+            checkBoxAutoOBKConfig.Visible = !IsAliM3801;
+            checkBoxReadOBKConfig.Visible = !IsAliM3801;
+            checkBoxAutoReadTuya.Visible = !IsAliM3801;
+            buttonChangeOBKSettings.Visible = !IsAliM3801;
+            checkBoxAliVerifyAfterWrite.Visible = IsAliM3801;
+            checkBoxAliVerifyAfterWrite.Enabled = operationControlsEnabled && IsAliM3801;
+            buttonWriteOnly.Visible = true;
+            buttonWriteOnly.Text = IsAliM3801 ? "Flash (no backup)" : "Do firmware write (no backup!)";
         }
         private void buttonStop_Click(object sender, EventArgs e)
         {

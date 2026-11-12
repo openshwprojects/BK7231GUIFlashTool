@@ -21,12 +21,14 @@ namespace BK7231Flasher
     {
         private readonly SerialPort port;
         private int disposed;
+        private int receiveErrors;
 
         public ALIM3801SerialTransport(string portName)
         {
             port = CreatePort(portName);
+            port.ErrorReceived += OnErrorReceived;
             try { port.Open(); }
-            catch { port.Dispose(); throw; }
+            catch { port.ErrorReceived -= OnErrorReceived; port.Dispose(); throw; }
         }
 
         /// <summary>Build the fixed profile without opening hardware.</summary>
@@ -39,14 +41,34 @@ namespace BK7231Flasher
                 Handshake = System.IO.Ports.Handshake.None,
                 DtrEnable = false,
                 RtsEnable = false,
+                // The loader streams without flow control; allow headroom for host scheduling stalls.
+                ReadBufferSize = 1024 * 1024,
                 ReadTimeout = 250,
                 WriteTimeout = 10000
             };
         }
 
+        private void OnErrorReceived(object sender, SerialErrorReceivedEventArgs args)
+        {
+            int errors = (int)(args.EventType & (SerialError.RXOver | SerialError.Overrun
+                | SerialError.RXParity | SerialError.Frame));
+            int previous;
+            do { previous = Volatile.Read(ref receiveErrors); }
+            while (Interlocked.CompareExchange(ref receiveErrors, previous | errors, previous) != previous);
+        }
+
+        private void ThrowIfReceiveError()
+        {
+            var errors = (SerialError)Volatile.Read(ref receiveErrors);
+            if (errors != 0)
+                throw new IOException("ALi UART receive error (" + errors
+                    + "). The received stream may be incomplete or corrupted; operation stopped.");
+        }
+
         public void Write(byte[] data, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfReceiveError();
             port.Write(data, 0, data.Length);
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -54,19 +76,30 @@ namespace BK7231Flasher
         public int Read(byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfReceiveError();
             port.ReadTimeout = Math.Max(1, Math.Min(timeoutMilliseconds, 250));
             try
             {
                 int result = port.Read(buffer, offset, Math.Min(count, Math.Max(1, port.BytesToRead)));
                 cancellationToken.ThrowIfCancellationRequested();
+                ThrowIfReceiveError();
                 return result;
             }
-            catch (TimeoutException) { cancellationToken.ThrowIfCancellationRequested(); return 0; }
+            catch (TimeoutException)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ThrowIfReceiveError();
+                return 0;
+            }
         }
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref disposed, 1) == 0) port.Dispose();
+            if (Interlocked.Exchange(ref disposed, 1) == 0)
+            {
+                port.ErrorReceived -= OnErrorReceived;
+                port.Dispose();
+            }
         }
     }
 
@@ -79,9 +112,10 @@ namespace BK7231Flasher
     }
 
     /// <summary>
-    /// Classic ALi protocol verified against dump_maciej.bin. All flash writes
-    /// go through UpdateMaincode: a durable full backup and exact target check
-    /// precede staging, and complete readback must succeed before reboot.
+    /// Classic ALi protocol verified against dump_maciej.bin. Updates normally
+    /// save a full backup. The explicit no-backup path checks short profile
+    /// metadata first. Readback can be explicitly skipped; FlashVerified is
+    /// true only after a successful complete readback comparison.
     /// </summary>
     public sealed class ALIM3801Protocol
     {
@@ -194,7 +228,7 @@ namespace BK7231Flasher
             using (var sha = SHA256.Create())
                 hash = BitConverter.ToString(sha.ComputeHash(flash, 0, LoaderSize)).Replace("-", "").ToLowerInvariant();
             if (hash != LoaderSha256)
-                throw new InvalidDataException("Target bootloader differs from dump_maciej.bin; refusing to flash.");
+                throw new InvalidDataException("Bootloader fingerprint does not match the supported dump_maciej.bin profile.");
             int[] offsets = { 0, 0x4FE00, MainOffset, 0x290000, 0x2A0000, 0x2BFF80 };
             uint[] ids = { 0x23010010, 0x09F60100, MainId, 0x02FD0100, 0x03FC0100, 0x04FB0100 };
             for (int i = 0; i < offsets.Length; i++)
@@ -246,13 +280,19 @@ namespace BK7231Flasher
             if (timeout <= 0) throw new ArgumentOutOfRangeException(nameof(timeout));
             var result = new byte[count];
             int received = 0, reported = 0;
+            long lastDataMilliseconds = 0;
             var timer = Stopwatch.StartNew();
             while (received < count)
             {
                 int remaining = timeout - (int)Math.Min(timer.ElapsedMilliseconds, int.MaxValue);
-                if (remaining <= 0) throw new TimeoutException("ALi UART timeout: expected " + count + " bytes, received " + received + ".");
+                if (remaining <= 0)
+                    throw new TimeoutException("ALi UART timeout: expected " + count + " bytes, received " + received
+                        + " after " + timer.Elapsed.TotalSeconds.ToString("F1", CultureInfo.InvariantCulture)
+                        + " s; no data for " + ((timer.ElapsedMilliseconds - lastDataMilliseconds) / 1000.0)
+                            .ToString("F1", CultureInfo.InvariantCulture) + " s.");
                 int n = ReadSome(result, received, count - received, remaining);
                 received += n;
+                if (n > 0) lastDataMilliseconds = timer.ElapsedMilliseconds;
                 if (progress != null && (received - reported >= 16384 || received == count))
                 {
                     Progress?.Invoke(progress, received, count);
@@ -416,7 +456,93 @@ namespace BK7231Flasher
             }
         }
 
-        public ALIM3801UpdateResult UpdateMaincode(byte[] payload, string backupPath, bool reboot = true)
+        private void CheckVersionProfile(bool verifyAfterWrite)
+        {
+            RequireHandshake();
+            ResetStaging();
+            Command("version");
+            byte[] lengthBytes = ReadExact(2, CommandTimeoutMilliseconds);
+            int length = (lengthBytes[0] << 8) | lengthBytes[1];
+            const int headerSize = 128;
+            if (length != 2 + 6 * headerSize)
+                throw new InvalidDataException("Unexpected ALi version response length; expected six chunk headers.");
+            byte[] version = ReadExact(length, CommandTimeoutMilliseconds);
+            uint crc = ReadBigEndian(ReadExact(4, CommandTimeoutMilliseconds), 0);
+            if (crc != Crc32Mpeg2(version))
+                throw new InvalidDataException("ALi version response CRC mismatch.");
+            // Verified against the exact dump's native version command. This
+            // is a compatibility check, not a hash of the bootloader code.
+            if (version[0] != 0x11)
+                throw new InvalidDataException("Unexpected flash ID in ALi version response.");
+            int[] offsets = { 0, 0x4FE00, MainOffset, 0x290000, 0x2A0000, 0x2BFF80 };
+            uint[] ids = { 0x23010010, 0x09F60100, MainId, 0x02FD0100, 0x03FC0100, 0x04FB0100 };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                int header = 2 + i * headerSize;
+                uint chunkLength = ReadBigEndian(version, header + 4);
+                uint span = ReadBigEndian(version, header + 8);
+                uint expectedSpan = i + 1 < offsets.Length ? (uint)(offsets[i + 1] - offsets[i]) : 0;
+                if (ReadBigEndian(version, header) != ids[i] || span != expectedSpan
+                    || (long)offsets[i] + 16 + chunkLength > FlashSize
+                    || (span != 0 && (long)chunkLength + 16 > span))
+                    throw new InvalidDataException("Unexpected ALi version chunk layout at 0x" + offsets[i].ToString("X") + ".");
+            }
+            if (ReadBigEndian(version, 2 + 4) != 0
+                || Encoding.ASCII.GetString(version, 2 + 16, 16).TrimEnd('\0') != "bootloader"
+                || Encoding.ASCII.GetString(version, 2 + 32, 16).TrimEnd('\0') != "1.0.0"
+                || Encoding.ASCII.GetString(version, 2 + 48, 16).TrimEnd('\0') != "2009-06-18")
+                throw new InvalidDataException("Unexpected ALi bootloader header in version response.");
+            Log?.Invoke(verifyAfterWrite
+                ? "Version profile and chunk layout match. Exact bootloader fingerprint will be checked in readback."
+                : "Version profile and chunk layout match. Readback verification is disabled.");
+            if (version[1] != 0)
+                Log?.Invoke("Bootloader reports chunk status 0x" + version[1].ToString("X2") + ".");
+        }
+
+        /// <summary>
+        /// Explicitly skip the initial dump and backup. Short version metadata
+        /// checks the profile before writing. Optional readback checks the exact
+        /// loader and payload. With readback disabled, After is null and
+        /// FlashVerified remains false. There is no before-image for an outside-range comparison.
+        /// </summary>
+        public ALIM3801UpdateResult UpdateMaincodeWithoutBackup(byte[] payload, bool reboot = true, bool verifyAfterWrite = true)
+        {
+            ValidateMaincode(payload);
+            RequireHandshake();
+            var stablePayload = (byte[])payload.Clone();
+            MayHaveWrittenFlash = false;
+            FlashVerified = false;
+            ResetStaging();
+            try
+            {
+                Log?.Invoke("Writing without a backup. Checking the short bootloader version profile.");
+                CheckVersionProfile(verifyAfterWrite);
+                cancellationToken.ThrowIfCancellationRequested();
+                Address();
+                Transfer(stablePayload);
+                Log?.Invoke("Programming maincode. Leave tuner power connected.");
+                List<string> burnProgress = Burn();
+                byte[] after = null;
+                if (verifyAfterWrite)
+                {
+                    Log?.Invoke("Reading all 4 MiB back to verify the payload, loader and chunk integrity (about 7 minutes).");
+                    after = Dump();
+                    for (int i = 0; i < stablePayload.Length; i++)
+                        if (after[MainOffset + i] != stablePayload[i])
+                            throw new InvalidDataException("Maincode readback mismatch. Tuner left in bootloader; do not reboot.");
+                    ValidateTargetFlash(after);
+                    FlashVerified = true;
+                    Log?.Invoke("Maincode readback, bootloader fingerprint and chunk integrity verified. No pre-write backup was created.");
+                }
+                else
+                    Log?.Invoke("Readback verification skipped; bootloader reported programming complete.");
+                if (reboot) Reboot();
+                return new ALIM3801UpdateResult { After = after, BurnProgress = burnProgress.AsReadOnly() };
+            }
+            catch { handshaken = false; ResetStaging(); throw; }
+        }
+
+        public ALIM3801UpdateResult UpdateMaincode(byte[] payload, string backupPath, bool reboot = true, bool verifyAfterWrite = true)
         {
             ValidateMaincode(payload);
             if (string.IsNullOrWhiteSpace(backupPath)) throw new ArgumentException("A backup path is required.", nameof(backupPath));
@@ -440,15 +566,21 @@ namespace BK7231Flasher
                 Transfer(stablePayload);
                 Log?.Invoke("Programming maincode. Leave tuner power connected.");
                 List<string> burnProgress = Burn();
-                Log?.Invoke("Reading all 4 MiB back for verification (about 7 minutes).");
-                byte[] after = Dump();
-                var expected = (byte[])before.Clone();
-                Buffer.BlockCopy(stablePayload, 0, expected, MainOffset, stablePayload.Length);
-                if (!Equal(after, expected))
-                    throw new InvalidDataException("Full flash readback mismatch. Tuner left in bootloader; do not reboot.");
-                ValidateTargetFlash(after);
-                FlashVerified = true;
-                Log?.Invoke("Full readback verified; bootloader, keys and settings unchanged.");
+                byte[] after = null;
+                if (verifyAfterWrite)
+                {
+                    Log?.Invoke("Reading all 4 MiB back for verification (about 7 minutes).");
+                    after = Dump();
+                    var expected = (byte[])before.Clone();
+                    Buffer.BlockCopy(stablePayload, 0, expected, MainOffset, stablePayload.Length);
+                    if (!Equal(after, expected))
+                        throw new InvalidDataException("Full flash readback mismatch. Tuner left in bootloader; do not reboot.");
+                    ValidateTargetFlash(after);
+                    FlashVerified = true;
+                    Log?.Invoke("Full readback verified; bootloader, keys and settings unchanged.");
+                }
+                else
+                    Log?.Invoke("Readback verification skipped; bootloader reported programming complete.");
                 if (reboot) Reboot();
                 return new ALIM3801UpdateResult { Before = before, After = after, BackupPath = backupPath, BurnProgress = burnProgress.AsReadOnly() };
             }

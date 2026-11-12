@@ -44,7 +44,7 @@
 ℹ️ - Needs checking<br>
 ➖ - Not applicable<br>
 🟰 - Intentionally disabled<br>
-[8] Only the supported `dump_maciej.bin` classic bootloader profile and flash layout. Fixed 115200 8E1. Every write requires a full backup, matching bootloader fingerprint, a valid maincode chunk at `0x50000`, and complete flash readback before reboot. Full images and arbitrary raw writes are rejected.
+[8] Only the supported `dump_maciej.bin` classic bootloader profile and flash layout. Fixed 115200 8E1. Writes require a valid maincode chunk at `0x50000`, transfer CRCs and successful burn completion. Backup mode checks the exact loader before writing; no-backup mode checks short version/layout metadata. Optional post-write verification checks the complete CRC-protected readback, payload and loader; backup mode also compares all outside bytes. Without verification the tool reboots after burn and reports an unverified write. The GUI verification checkbox defaults off; CLI verification defaults on and can be disabled with `--no-verify`. Full images and arbitrary raw writes are rejected.
 
 R cmp / W cmp - Read/write compression via custom flasher stub; ➖ means not applicable to that platform's ROM/vendor/original transfer path.<br>
 

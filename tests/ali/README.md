@@ -10,7 +10,16 @@ strict in-memory bootloader checks command order, decimal addresses, exact
 1024-byte packets, independent bitwise CRCs, acknowledgements, and burn state.
 Replies deliberately fragment at unrelated byte boundaries. It exercises
 multiple updates, exclusive backups, full readback, rejection paths and
-cancellation. These are host/protocol regression tests; they do not emulate
+cancellation. The optional no-backup path is checked separately: repeated
+updates send the short version command before staging and exactly one full
+dump after burning when verification is enabled; invalid version CRC/layout
+and failed payload/loader readback prevent reboot. Verification can also be
+explicitly disabled: tests require no post-write dump, no verified result or
+readback bytes, and successful burn completion before reboot. CLI routing
+keeps backup and verification enabled unless explicitly disabled. The GUI
+exposes distinct update buttons and an unchecked "Verify after write" option. A bounded producer
+also checks reception while the WinForms UI thread is stalled.
+These are host/protocol regression tests; they do not emulate
 the MIPS CPU or prove compatibility with unrecognized tuner models.
 
 `fixtures/maciej-loader.bin.gz` contains only bytes `0..0x4fdff` of the

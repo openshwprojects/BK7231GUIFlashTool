@@ -13,6 +13,8 @@ namespace BK7231Flasher
         private byte[] readResult;
         private int operationActive;
 
+        public bool VerifyAfterWrite { get; set; } = true;
+
         public ALIM3801Flasher(CancellationToken cancellationToken)
             : this(cancellationToken, name => new ALIM3801SerialTransport(name)) { }
 
@@ -28,7 +30,7 @@ namespace BK7231Flasher
         private void RejectUnsafeOptions()
         {
             if (bCustomWriteMode || bOverwriteBootloader || bSkipKeyCheck || bIgnoreCRCErr || bUseCompressionIfPossible)
-                throw new NotSupportedException("ALi M3801 does not allow custom/raw writes, extra compression, bootloader overwrite, or bypassing identity/CRC checks.");
+                throw new NotSupportedException("ALi M3801 does not allow custom/raw writes, extra compression, bootloader overwrite, or bypassing image/transfer CRC checks.");
         }
 
         private ALIM3801Protocol Connect()
@@ -43,13 +45,13 @@ namespace BK7231Flasher
                 Log = Log,
                 Progress = (phase, current, maximum) =>
                 {
-                    State(phase, Color.Black);
+                    State(phase, Color.Transparent);
                     logger?.setProgress(current, maximum);
                 },
                 BackupSaved = path => Log("Full backup saved to " + Path.GetFullPath(path))
             };
             Log("UART is open at 115200, 8E1. Capturing boot for 60 seconds. Running Maciej v3 or newer restarts automatically on the capture command. If the tuner is off, power it on now; stock firmware and v1/v2 require a power cycle.");
-            State("Capturing boot - v3 auto restart; otherwise power on", Color.Black);
+            State("Capturing boot...", Color.Transparent);
             client.CaptureBoot(TimeSpan.FromSeconds(60));
             client.Handshake();
             Log("Classic ALi bootloader handshake OK.");
@@ -71,9 +73,9 @@ namespace BK7231Flasher
             {
                 bool cancelled = cancellationToken.IsCancellationRequested;
                 State(cancelled ? "ALi operation cancelled" : "ALi operation failed", cancelled ? Color.Orange : Color.Red);
-                Log(error.Message);
+                // The GUI/CLI operation boundary logs the exception once.
                 if (client != null && client.MayHaveWrittenFlash && !client.FlashVerified)
-                    Log("Programming may continue on the tuner. Verification is incomplete; leave power connected and keep the backup.");
+                    Log("Programming may continue on the tuner. Verification is incomplete; leave power connected.");
                 if (cancelled && !(error is OperationCanceledException))
                     throw new OperationCanceledException("ALi operation cancelled.", error, cancellationToken);
                 throw;
@@ -107,7 +109,7 @@ namespace BK7231Flasher
             {
                 Log("Reading complete flash and CRC (about 7 minutes).");
                 readResult = client.Dump();
-                State("4 MiB read and CRC verified", Color.DarkGreen);
+                State("Read + CRC verified", Color.Green);
             });
         }
 
@@ -131,25 +133,32 @@ namespace BK7231Flasher
             if (rwMode != WriteMode.ReadAndWrite && rwMode != WriteMode.OnlyWrite)
                 throw new NotSupportedException("ALi M3801 supports maincode updates only; configuration-only and erase modes are unavailable.");
             if (startSector != 0x50 || sectors != 1024)
-                throw new NotSupportedException("ALi updates use fixed maincode offset 0x50000 and a complete 4 MiB backup.");
+                throw new NotSupportedException("ALi updates use fixed maincode offset 0x50000 and the supported 4 MiB flash profile.");
             if (string.IsNullOrWhiteSpace(sourceFileName)) throw new ArgumentException("Select a .maincode.bin file.");
             byte[] payload = File.ReadAllBytes(sourceFileName);
             ALIM3801Protocol.ValidateMaincode(payload);
             readResult = null;
-            string backupPath = NewBackupPath("before_maincode");
+            bool makeBackup = rwMode == WriteMode.ReadAndWrite;
+            bool verifyAfterWrite = VerifyAfterWrite;
+            string backupPath = makeBackup ? NewBackupPath("before_maincode") : null;
             Run(client =>
             {
-                var result = client.UpdateMaincode(payload, backupPath);
+                var result = makeBackup ? client.UpdateMaincode(payload, backupPath, verifyAfterWrite: verifyAfterWrite)
+                    : client.UpdateMaincodeWithoutBackup(payload, verifyAfterWrite: verifyAfterWrite);
                 readResult = result.After;
-                logger?.onReadResultQIOSaved((byte[])result.Before.Clone(), "", result.BackupPath);
-                State("Maincode verified and tuner rebooted", Color.DarkGreen);
-                Log("Update complete. For another bootloader capture, running Maciej v3 or newer can restart automatically; older firmware requires a power cycle.");
+                if (makeBackup)
+                    logger?.onReadResultQIOSaved((byte[])result.Before.Clone(), "", result.BackupPath);
+                State(verifyAfterWrite ? "Verified + rebooted" : "Written (unverified)",
+                    verifyAfterWrite ? Color.Green : Color.Transparent);
+                Log(verifyAfterWrite ? "Update complete with readback verification."
+                    : "Write complete (unverified). Tuner rebooted without post-write readback.");
+                Log("For another bootloader capture, running Maciej v3 or newer can restart automatically; older firmware requires a power cycle.");
             });
         }
 
         public override void doWrite(int startSector, byte[] data)
         {
-            throw new NotSupportedException("Raw writes are disabled. Use the guarded ALi maincode update with a full backup.");
+            throw new NotSupportedException("Raw writes are disabled. Use a validated ALi maincode update.");
         }
 
         public override bool doErase(int startSector = 0, int sectors = 10, bool bAll = false)
