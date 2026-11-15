@@ -83,6 +83,23 @@ namespace BK7231Flasher
         }
         internal bool loadFrom(byte [] dat, BKType type, bool bApplyOffset)
         {
+            // ESP-IDF OBK keeps config in NVS, not at a fixed offset (see OBKEspNvsConfig.cs)
+            if (OBKEspNvsConfig.IsSupportedChip(type))
+            {
+                EspNvsBlobResult esp = OBKEspNvsConfig.ExtractConfigBytes(dat, bApplyOffset);
+                if (!esp.Success)
+                {
+                    FormMain.Singleton.addLog("ESP NVS: " + esp.Error + Environment.NewLine, System.Drawing.Color.Purple);
+                    return true;
+                }
+                byte[] espCfg = esp.GetData();
+                if (isValid(espCfg, type: type))
+                {
+                    this.raw = espCfg;
+                    return false;
+                }
+                return true;
+            }
             byte[] subArray = null;
             if(type == BKType.Detect)
             {
@@ -600,6 +617,7 @@ namespace BK7231Flasher
                 case BKType.XR806:
                 case BKType.XR809:
                 case BKType.XR872:
+                case BKType.ESP32: // verified on real ESP32 dump
                     crc = CRC.Tiny_CRC8_unsigned(raw, extraOfs + 4, useLen - 4);
                     break;
                 default:
@@ -646,6 +664,7 @@ namespace BK7231Flasher
                 case BKType.XR806:
                 case BKType.XR809:
                 case BKType.XR872:
+                case BKType.ESP32: // verified on real ESP32 dump
                     crc = CRC.Tiny_CRC8_unsigned(raw, 4, realLen - 4);
                     break;
                 default:
