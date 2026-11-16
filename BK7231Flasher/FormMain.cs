@@ -1249,6 +1249,11 @@ namespace BK7231Flasher
                 // do it like that so that there would be no need for re-sync
                 ((BL602Flasher)flasher).doReadInternal(startSector, sectors * BK7231Flasher.SECTOR_SIZE);
             }
+            else if(OBKEspNvsConfig.IsSupportedChip(curType) && flasher is ESPFlasher espFlasher)
+            {
+                // ESP-IDF OBK keeps config in NVS: reads partition table + NVS partition
+                espFlasher.doReadOBKConfigPartition();
+            }
             else
             {
                 flasher.doRead(startSector, sectors);

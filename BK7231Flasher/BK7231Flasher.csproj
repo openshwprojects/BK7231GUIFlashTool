@@ -77,6 +77,7 @@
     <Compile Include="Flashers\XR809Flasher.cs" />
     <Compile Include="Flashers\XR872Flasher.cs" />
     <Compile Include="Flashers\ESPFlasher.cs" />
+    <Compile Include="Flashers\ESPFlasher_OBKConfig.cs" />
     <Compile Include="Utils\Xmodem.cs" />
     <Compile Include="Flashers\W600Flasher.cs" />
     <Compile Include="Flashers\W800Flasher.cs" />
@@ -102,6 +103,7 @@
     <Compile Include="Misc\PlatformBootModeGuide.cs" />
     <Compile Include="Misc\RomReadCatalog.cs" />
     <Compile Include="Utils\CRC.cs" />
+    <Compile Include="Utils\EspNvsPartition.cs" />
     <Compile Include="Utils\EasyFlash.cs" />
     <Compile Include="Helpers\FLoaders.cs" />
     <Compile Include="FormDownloader.cs">
@@ -168,6 +170,7 @@
     <Compile Include="Misc\OBKDeviceAPI.cs" />
     <Compile Include="Misc\OBKFlags.cs" />
     <Compile Include="Misc\OBKFlashLayout.cs" />
+    <Compile Include="Misc\OBKEspNvsConfig.cs" />
     <Compile Include="Misc\OBKMassBackup.cs" />
     <Compile Include="Misc\OBKRoles.cs" />
     <Compile Include="Misc\OBKScanner.cs" />

@@ -10,7 +10,7 @@ using System.Diagnostics;
 
 namespace BK7231Flasher
 {
-    public class ESPFlasher : BaseFlasher
+    public partial class ESPFlasher : BaseFlasher
     {
         public enum ESPCommand : byte
         {
@@ -1574,7 +1574,26 @@ namespace BK7231Flasher
             if (rwMode == WriteMode.OnlyWrite)
             {
                 byte[] data = File.ReadAllBytes(sourceFileName);
+                // OBK config injection after firmware write (see ESPFlasher_OBKConfig.cs)
+                OBKConfig cfg = logger.getConfigToWrite();
+                if (cfg != null && OBKEspNvsConfig.IsSupportedChip(chipType))
+                {
+                    doWriteWithOBKConfig((uint)startSector * 0x1000, data, cfg);
+                    return;
+                }
+                if (cfg != null)
+                    addWarningLine($"OBK config injection is not supported for {chipType} yet, writing firmware only.");
                 doWrite((uint)startSector * 0x1000, data);
+            }
+            else if (rwMode == WriteMode.OnlyOBKConfig)
+            {
+                // "Write only OBK config" button (see ESPFlasher_OBKConfig.cs)
+                if (!OBKEspNvsConfig.IsSupportedChip(chipType))
+                {
+                    addErrorLine($"OBK config write is not supported for {chipType} yet.");
+                    return;
+                }
+                doWriteWithOBKConfig(0, null, logger.getConfig());
             }
             else
             {
@@ -1604,6 +1623,20 @@ namespace BK7231Flasher
                     }
                 }
 
+                // Write body moved to WriteFlashInSession so the OBK config writer can reuse one session
+                if (!WriteFlashInSession(offset, data, out _))
+                    return;
+
+                SendFlashEnd();
+            }
+        }
+
+        // Extracted from doWrite (logic unchanged). Returns false if FLASH_BEGIN/FLASH_DATA failed,
+        // in which case FLASH_END is not sent (same as before). verified = stub MD5 check passed.
+        bool WriteFlashInSession(uint offset, byte[] data, out bool verified)
+        {
+            verified = false;
+            {
                 uint blockSize = 0x400; // 1024 bytes
                 uint numBlocks = (uint)((data.Length + blockSize - 1) / blockSize);
 
@@ -1624,7 +1657,7 @@ namespace BK7231Flasher
                 if (readPacket(30000, ESPCommand.FLASH_BEGIN) == null)
                 {
                     addErrorLine("FLASH_BEGIN failed (erase timeout or error).");
-                    return;
+                    return false;
                 }
                 addLogLine("FLASH_BEGIN OK, erase complete.");
                 logger.setState("Writing flash...", Color.LightBlue);
@@ -1667,7 +1700,7 @@ namespace BK7231Flasher
                     if (!success)
                     {
                         addErrorLine($"FLASH_DATA failed at block {i} after 3 retries.");
-                        return;
+                        return false;
                     }
 
                     logger.setProgress((int)((i + 1) * blockSize), data.Length);
@@ -1696,7 +1729,7 @@ namespace BK7231Flasher
                              string actual = FlashMd5Sum(offset, (uint)data.Length);
                              if(actual == null) addErrorLine("Failed to get Flash MD5");
                              else if(actual != expected) addErrorLine($"MD5 Mismatch! Expected {expected}, Got {actual}");
-                             else { addSuccess("Write Verified Successfully!" + Environment.NewLine); logger.setState("Write verified", Color.LightGreen); }
+                             else { verified = true; addSuccess("Write Verified Successfully!" + Environment.NewLine); logger.setState("Write verified", Color.LightGreen); }
                          }
                      }
                      catch(Exception ex)
@@ -1704,7 +1737,14 @@ namespace BK7231Flasher
                          addErrorLine("Verification exception: " + ex.Message);
                      }
                 }
+            }
+            return true;
+        }
 
+        // Extracted from doWrite (logic unchanged).
+        void SendFlashEnd()
+        {
+            {
                 // FLASH_END: no_entry=1 means stay in bootloader (don't reboot)
                 // esptool: struct.pack("<I", int(not reboot)) where reboot=False sends 1
                 addLogLine("Sending FLASH_END...");
