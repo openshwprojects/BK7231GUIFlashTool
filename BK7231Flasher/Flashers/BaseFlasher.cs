@@ -38,6 +38,7 @@ namespace BK7231Flasher
         GenericSPI,
         LN882H,
         LN8825,
+        MT7687,
         OPL1000A2,
         RDA5981,
         RTL8196C,

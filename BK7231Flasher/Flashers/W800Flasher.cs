@@ -175,7 +175,7 @@ namespace BK7231Flasher
 			return ExecuteCommand(CMD_SYN) != null;
 		}
 
-		protected override bool CheckHash(int addr, int len, byte[] data) => CheckCRC(addr, len, data);
+		protected override bool CheckHash(int addr, int len, byte[] data, bool log = true) => CheckCRC(addr, len, data, log);
 
 		public override bool doErase(int startSector = 0x000, int sectors = 10, bool bAll = false)
 		{

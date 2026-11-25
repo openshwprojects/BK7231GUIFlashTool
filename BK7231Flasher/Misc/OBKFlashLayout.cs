@@ -81,6 +81,9 @@ namespace BK7231Flasher
                     // raw mainConfig_t at 0x421000, but big-endian (MIPS): not supported yet
                     sectors = 0;
                     return 0;
+                case BKType.MT7687:
+                    sectors = 0x8000 / BK7231Flasher.SECTOR_SIZE;
+                    return 0x60000;
                 default:
                     sectors = 0;
                     return 0;

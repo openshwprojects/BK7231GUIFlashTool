@@ -228,6 +228,9 @@ namespace BK7231Flasher
             new RomReadTarget(BKType.TR6260, RomReadKind.Rom, "ROM", 0x00000000, 0x8000, 115200, CommonSerialBauds, CommonRomMemory, GCD(BKType.TR6260, CRR), CommonStubRomController),
             new RomReadTarget(BKType.TR6260, RomReadKind.Efuse, "eFuse", 0x00000000, 0x20, 115200, CommonSerialBauds, EcrEfuseSpace, GCD(BKType.TR6260, CRE), "eFuse controller @ 0x0060B200"),
             new RomReadTarget(BKType.TR6260, RomReadKind.Otp, "Flash OTP", 0x00000000, -1, 115200, CommonSerialBauds, LnFlashOtpSpace, GCD(BKType.TR6260, CRO), RdaOtpController),
+            new RomReadTarget(BKType.MT7687, RomReadKind.Rom, "ROM", 0x00000000, 0x10000, 115200, CommonSerialBauds, CommonRomMemory, GCD(BKType.MT7687, CRR), CommonStubRomController),
+            new RomReadTarget(BKType.MT7687, RomReadKind.Efuse, "eFuse", 0x00000000, 0x200, 115200, CommonSerialBauds, EcrEfuseSpace, GCD(BKType.MT7687, CRE), "eFuse controller @ 0x81070000"),
+            new RomReadTarget(BKType.MT7687, RomReadKind.Otp, "Flash OTP", 0x00000000, -1, 115200, CommonSerialBauds, LnFlashOtpSpace, GCD(BKType.MT7687, CRO), RdaOtpController),
         };
 
         public static IEnumerable<BKType> GetSupportedPlatforms()

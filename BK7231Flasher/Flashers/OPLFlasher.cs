@@ -324,7 +324,7 @@ namespace BK7231Flasher
 			}
 		}
 
-		protected override bool CheckHash(int addr, int len, byte[] data) => base.CheckCRC(addr, len, data);
+		protected override bool CheckHash(int addr, int len, byte[] data, bool log = true) => base.CheckCRC(addr, len, data, log);
 
 		internal override byte[] ReadMAC()
 		{

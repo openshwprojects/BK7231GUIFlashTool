@@ -459,6 +459,6 @@ namespace BK7231Flasher
 			ExecuteCommand(CMD_CUSTOM_REBOOT, null, 1, isErrorExpected: true);
 		}
 
-		protected override bool CheckHash(int addr, int len, byte[] data) => base.CheckCRC(addr, len, data);
+		protected override bool CheckHash(int addr, int len, byte[] data, bool log = true) => base.CheckCRC(addr, len, data, log);
 	}
 }
