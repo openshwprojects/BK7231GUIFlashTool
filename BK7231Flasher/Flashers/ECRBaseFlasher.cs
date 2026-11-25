@@ -34,9 +34,10 @@ namespace BK7231Flasher
 		{
 			{ BKType.ECR6600, 0x4C7959C9 },
 			{ BKType.GD32VW553, 0xFFDC26B5 },
-			{ BKType.OPL1000A2, 0xAA5D6AC8 },
 			{ BKType.LN8825, 0x8ABF79A8 },
 			{ BKType.LN882H, 0xA40B7429 },
+			{ BKType.MT7687, 0xDDD6DED1 },
+			{ BKType.OPL1000A2, 0xAA5D6AC8 },
 			{ BKType.RDA5981, 0x7272742E },
 			{ BKType.RTL8196C, 0x49941FA2 },
 			{ BKType.RTL8710B, 0x43B186D6 },
@@ -615,7 +616,7 @@ namespace BK7231Flasher
 			return flashID;
 		}
 
-		protected virtual bool CheckHash(int addr, int len, byte[] data)
+		protected virtual bool CheckHash(int addr, int len, byte[] data, bool log = true)
 		{
 			var cmd = new byte[8];
 			cmd[0] = (byte)(addr & 0xFF);
@@ -638,16 +639,22 @@ namespace BK7231Flasher
 			var expectedHash = HashToStr(res);
 			if(readHash != expectedHash)
 			{
-				addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
-				logger.setState("SHA mismatch!", Color.Red);
+				if(log)
+				{
+					addErrorLine($"Hash mismatch!\r\ndevice:\t{expectedHash}\r\nflasher:\t{readHash}");
+					logger.setState("SHA mismatch!", Color.Red);
+				}
 				return false;
 			}
-			addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
-			logger.addLog($"Hash took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
+			if(log)
+			{
+				addSuccess($"Hash matches {expectedHash}!" + Environment.NewLine);
+				logger.addLog($"Hash took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
+			}
 			return true;
 		}
 
-		protected virtual bool CheckCRC(int addr, int len, byte[] data)
+		protected virtual bool CheckCRC(int addr, int len, byte[] data, bool log = true)
 		{
 			var cmd = new byte[8];
 			cmd[0] = (byte)(addr & 0xFF);
@@ -673,12 +680,18 @@ namespace BK7231Flasher
 			var calc = CRC.crc32_ver2(0xFFFFFFFF, data) ^ 0xFFFFFFFF;
 			if(crc != calc)
 			{
-				logger.setState("CRC mismatch!", Color.Red);
-				addErrorLine($"CRC mismatch!\r\ndevice:\t{formatHex(crc)}\r\nflasher:\t{formatHex(calc)}");
+				if(log)
+				{
+					logger.setState("CRC mismatch!", Color.Red);
+					addErrorLine($"CRC mismatch!\r\ndevice:\t{formatHex(crc)}\r\nflasher:\t{formatHex(calc)}");
+				}
 				return false;
 			}
-			addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
-			logger.addLog($"CRC took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
+			if(log)
+			{
+				addSuccess($"CRC matches {formatHex(calc)}!" + Environment.NewLine);
+				logger.addLog($"CRC took {sw.ElapsedMilliseconds} ms" + Environment.NewLine, Color.Gray);
+			}
 			return true;
 		}
 

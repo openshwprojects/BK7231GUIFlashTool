@@ -436,10 +436,10 @@ namespace BK7231Flasher
 			}
 		}
 
-		protected override bool CheckHash(int addr, int len, byte[] data)
+		protected override bool CheckHash(int addr, int len, byte[] data, bool log = true)
 		{
-			if(chipType != BKType.RTL8720D) return base.CheckHash(addr, len, data);
-			return base.CheckCRC(addr, len, data);
+			if(chipType != BKType.RTL8720D) return base.CheckHash(addr, len, data, log);
+			return base.CheckCRC(addr, len, data, log);
 		}
 
 		private void PrintChipInfo(byte[] data)

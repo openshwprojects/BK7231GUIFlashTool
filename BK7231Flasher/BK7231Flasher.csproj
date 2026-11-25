@@ -60,6 +60,7 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Flashers\MT7687Flasher.cs" />
     <Compile Include="Flashers\ECRBaseFlasher.cs" />
     <Compile Include="Flashers\OPLFlasher.cs" />
     <Compile Include="Flashers\RTLNFlasher.cs" />
@@ -253,6 +254,7 @@
     <EmbeddedResource Include="Floaders\LN8825_Stub.bin" />
     <EmbeddedResource Include="Floaders\LN882H_Stub.bin" />
     <EmbeddedResource Include="Floaders\TR6260_Stub.bin" />
+    <EmbeddedResource Include="Floaders\MT7697_Stub.bin" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
