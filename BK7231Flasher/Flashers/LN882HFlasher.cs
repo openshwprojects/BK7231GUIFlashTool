@@ -23,7 +23,12 @@ namespace BK7231Flasher
 			try
 			{
 				cancellationToken.ThrowIfCancellationRequested();
-				serial = new SerialPort(serialName, 117000);
+				// 117000 is a non-standard rate. Mono on Linux/macOS can only set it via the
+				// TIOCSSERIAL custom-divisor hack, which most USB-UART drivers (PL2303, CH340,
+				// CP210x) reject, so the ROM never syncs. The ROM tolerates 115200 fine.
+				int romBaud = Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX
+					? 115200 : 117000;
+				serial = new SerialPort(serialName, romBaud);
 				serial.ReadTimeout = 2000;
 				serial.WriteTimeout = 2000;
 				serial.Open();
